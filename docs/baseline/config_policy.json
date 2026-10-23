@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "phase": "P2",
+  "status": "initial subset; C++ preflight implementation awaits build/tests",
+  "core_tag": "v1.19.33",
+  "limits": {"uncompressed_bytes": 16777216, "yaml_depth": 32, "yaml_events": 100000, "nodes": 5000, "groups": 500, "rules": 20000},
+  "proxies": {"types": ["http", "socks5", "ss"], "fields": ["name", "type", "server", "port", "username", "password", "cipher", "udp"], "external_files": false},
+  "groups": {"types": ["select"], "fields": ["name", "type", "proxies"]},
+  "rules": ["DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "IP-CIDR6", "MATCH"],
+  "passthrough": ["proxies", "proxy-groups", "rules", "log-level", "ipv6"],
+  "managed": {
+    "mixed-port": 7890, "port": 0, "socks-port": 0, "redir-port": 0, "tproxy-port": 0,
+    "allow-lan": false, "bind-address": "127.0.0.1", "external-controller": "127.0.0.1:9090",
+    "secret": "absent from semantic template; required per session with >=256-bit randomness",
+    "external-ui": "removed", "external-ui-url": "removed", "tun": {"enable": false},
+    "dns": {"enable": false}, "mode": "rule (saved application preference overrides import)",
+    "geo-auto-update": false, "geodata-mode": "removed",
+    "profile": {"store-selected": false, "store-fake-ip": false}
+  },
+  "rejected": ["proxy-providers", "rule-providers", "RULE-SET", "GEOIP", "GEOSITE", "fake-ip", "DNS hijack", "YAML aliases", "multi-document YAML", "external certificates", "all unclassified keys including nested keys"],
+  "dns": {"path": "system resolver; no local DNS listener or fake-ip", "validation": "domain forwarding remains P2-13; API probe does not prove it"},
+  "geo": {"supported": false, "assets": [], "next_task": "P3-02"},
+  "errors": ["InvalidYaml", "InvalidConfig", "DuplicateConfigKey", "ConfigLimitExceeded", "UnsupportedConfigFeature", "InvalidListenerPorts", "InvalidControllerSecret"],
+  "stages": ["bounded preflight", "semantic immutable YAML", "per-session authenticated materialization", "isolated official core -t", "transactional apply in P2"],
+  "parser": "yaml-cpp 0.9.0; preserved original bytes stored separately in P2; no comment round trip guarantee"
+}

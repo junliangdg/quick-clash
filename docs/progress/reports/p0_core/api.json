@@ -1,0 +1,142 @@
+[
+  {
+    "method": "GET",
+    "path": "/version",
+    "request": null,
+    "status": 200,
+    "response": "{\"meta\":true,\"version\":\"v1.19.33\"}\n"
+  },
+  {
+    "method": "GET",
+    "path": "/version",
+    "request": null,
+    "status": 401,
+    "response": "{\"message\":\"Unauthorized\"}\n"
+  },
+  {
+    "method": "GET",
+    "path": "/configs",
+    "request": null,
+    "status": 200,
+    "response": "{\"port\":0,\"socks-port\":0,\"redir-port\":0,\"tproxy-port\":0,\"mixed-port\":7167,\"tun\":{\"enable\":false,\"device\":\"\",\"stack\":\"Mips\",\"dns-mode\":\"\",\"dns-hijack\":[\"0.0.0.0:53\"],\"auto-route\":true,\"auto-detect-interface\":true,\"inet4-address\":[\"198.18.0.1/30\"],\"file-descriptor\":0,\"recvmsgx\":true,\"processors-per-channel\":1},\"tuic-server\":{\"enable\":false,\"listen\":\"\",\"certificate\":\"\",\"private-key\":\"\",\"ech-key\":\"\",\"mux-option\":{\"brutal\":{\"enabled\":false}}},\"ss-config\":\"\",\"vmess-config\":\"\",\"authentication\":null,\"skip-auth-prefixes\":null,\"lan-allowed-ips\":[\"0.0.0.0/0\",\"::/0\"],\"lan-disallowed-ips\":null,\"allow-lan\":false,\"bind-address\":\"127.0.0.1\",\"inbound-tfo\":false,\"inbound-mptcp\":false,\"mode\":\"rule\",\"unified-delay\":false,\"log-level\":\"silent\",\"ipv6\":true,\"interface-name\":\"\",\"routing-mark\":0,\"geox-url\":{\"geo-ip\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat\",\"mmdb\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb\",\"asn\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb\",\"geo-site\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat\"},\"geo-auto-update\":false,\"geo-update-interval\":24,\"geodata-mode\":false,\"geodata-loader\":\"memconservative\",\"geosite-matcher\":\"succinct\",\"tcp-concurrent\":false,\"find-process-mode\":\"strict\",\"sniffing\":false,\"global-ua\":\"clash.meta/v1.19.33\",\"etag-support\":true,\"keep-alive-idle\":0,\"keep-alive-interval\":0,\"disable-keep-alive\":false}\n"
+  },
+  {
+    "method": "GET",
+    "path": "/proxies",
+    "request": null,
+    "status": 200,
+    "response": "{\"proxies\":{\"COMPATIBLE\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"eefc0056-247c-4b35-b8b9-918026bf698a\",\"interface\":\"\",\"mptcp\":false,\"name\":\"COMPATIBLE\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"Compatible\",\"udp\":true,\"uot\":false,\"xudp\":false},\"DIRECT\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"3ded1431-cabb-45e4-942b-536918d24375\",\"interface\":\"\",\"mptcp\":false,\"name\":\"DIRECT\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"Direct\",\"udp\":true,\"uot\":false,\"xudp\":false},\"GLOBAL\":{\"alive\":true,\"all\":[\"DIRECT\",\"REJECT\",\"fixture\",\"代理 / A%?#\"],\"dialer-proxy\":\"\",\"emptyFallback\":\"COMPATIBLE\",\"extra\":{},\"hidden\":false,\"history\":[],\"icon\":\"\",\"interface\":\"\",\"mptcp\":false,\"name\":\"GLOBAL\",\"now\":\"DIRECT\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"testUrl\":\"\",\"tfo\":false,\"type\":\"Selector\",\"udp\":true,\"uot\":false,\"xudp\":false},\"PASS\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"00000000-0000-0000-0000-000000000000\",\"interface\":\"\",\"mptcp\":false,\"name\":\"PASS\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"Pass\",\"udp\":true,\"uot\":false,\"xudp\":false},\"PASS-RULE\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"00000000-0000-0000-0000-000000000000\",\"interface\":\"\",\"mptcp\":false,\"name\":\"PASS-RULE\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"PassRule\",\"udp\":true,\"uot\":false,\"xudp\":false},\"REJECT\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"49b4e836-3ad0-451c-b77e-1ae5b8950592\",\"interface\":\"\",\"mptcp\":false,\"name\":\"REJECT\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"Reject\",\"udp\":true,\"uot\":false,\"xudp\":false},\"REJECT-DROP\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"943464b6-a9e2-494d-93c4-b910fa79da63\",\"interface\":\"\",\"mptcp\":false,\"name\":\"REJECT-DROP\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"RejectDrop\",\"udp\":true,\"uot\":false,\"xudp\":false},\"fixture\":{\"alive\":true,\"dialer-proxy\":\"\",\"extra\":{},\"history\":[],\"id\":\"e563ef9c-c371-4f6a-ac55-34dbe04a4d82\",\"interface\":\"\",\"mptcp\":false,\"name\":\"fixture\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"tfo\":false,\"type\":\"Http\",\"udp\":false,\"uot\":false,\"xudp\":false},\"代理 / A%?#\":{\"alive\":true,\"all\":[\"DIRECT\",\"fixture\"],\"dialer-proxy\":\"\",\"emptyFallback\":\"COMPATIBLE\",\"extra\":{},\"hidden\":false,\"history\":[],\"icon\":\"\",\"interface\":\"\",\"mptcp\":false,\"name\":\"代理 / A%?#\",\"now\":\"DIRECT\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"testUrl\":\"\",\"tfo\":false,\"type\":\"Selector\",\"udp\":true,\"uot\":false,\"xudp\":false}}}\n"
+  },
+  {
+    "method": "PUT",
+    "path": "/proxies/%E4%BB%A3%E7%90%86%20%2F%20A%25%3F%23",
+    "request": {
+      "name": "fixture"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/proxies/%E4%BB%A3%E7%90%86%20%2F%20A%25%3F%23",
+    "request": null,
+    "status": 200,
+    "response": "{\"alive\":true,\"all\":[\"DIRECT\",\"fixture\"],\"dialer-proxy\":\"\",\"emptyFallback\":\"COMPATIBLE\",\"extra\":{},\"hidden\":false,\"history\":[],\"icon\":\"\",\"interface\":\"\",\"mptcp\":false,\"name\":\"代理 / A%?#\",\"now\":\"fixture\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"testUrl\":\"\",\"tfo\":false,\"type\":\"Selector\",\"udp\":false,\"uot\":false,\"xudp\":false}\n"
+  },
+  {
+    "method": "PUT",
+    "path": "/proxies/%E4%BB%A3%E7%90%86%20%2F%20A%25%3F%23",
+    "request": {
+      "name": "missing"
+    },
+    "status": 400,
+    "response": "{\"message\":\"Selector update error: proxy not exist\"}\n"
+  },
+  {
+    "method": "PATCH",
+    "path": "/configs",
+    "request": {
+      "mode": "global"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/configs",
+    "request": null,
+    "status": 200,
+    "response": "{\"port\":0,\"socks-port\":0,\"redir-port\":0,\"tproxy-port\":0,\"mixed-port\":7167,\"tun\":{\"enable\":false,\"device\":\"\",\"stack\":\"Mips\",\"dns-mode\":\"\",\"dns-hijack\":[\"0.0.0.0:53\"],\"auto-route\":true,\"auto-detect-interface\":true,\"inet4-address\":[\"198.18.0.1/30\"],\"file-descriptor\":0,\"recvmsgx\":true,\"processors-per-channel\":1},\"tuic-server\":{\"enable\":false,\"listen\":\"\",\"certificate\":\"\",\"private-key\":\"\",\"ech-key\":\"\",\"mux-option\":{\"brutal\":{\"enabled\":false}}},\"ss-config\":\"\",\"vmess-config\":\"\",\"authentication\":null,\"skip-auth-prefixes\":null,\"lan-allowed-ips\":[\"0.0.0.0/0\",\"::/0\"],\"lan-disallowed-ips\":null,\"allow-lan\":false,\"bind-address\":\"127.0.0.1\",\"inbound-tfo\":false,\"inbound-mptcp\":false,\"mode\":\"global\",\"unified-delay\":false,\"log-level\":\"silent\",\"ipv6\":true,\"interface-name\":\"\",\"routing-mark\":0,\"geox-url\":{\"geo-ip\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat\",\"mmdb\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb\",\"asn\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb\",\"geo-site\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat\"},\"geo-auto-update\":false,\"geo-update-interval\":24,\"geodata-mode\":false,\"geodata-loader\":\"memconservative\",\"geosite-matcher\":\"succinct\",\"tcp-concurrent\":false,\"find-process-mode\":\"strict\",\"sniffing\":false,\"global-ua\":\"clash.meta/v1.19.33\",\"etag-support\":true,\"keep-alive-idle\":0,\"keep-alive-interval\":0,\"disable-keep-alive\":false}\n"
+  },
+  {
+    "method": "PATCH",
+    "path": "/configs",
+    "request": {
+      "mode": "direct"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/configs",
+    "request": null,
+    "status": 200,
+    "response": "{\"port\":0,\"socks-port\":0,\"redir-port\":0,\"tproxy-port\":0,\"mixed-port\":7167,\"tun\":{\"enable\":false,\"device\":\"\",\"stack\":\"Mips\",\"dns-mode\":\"\",\"dns-hijack\":[\"0.0.0.0:53\"],\"auto-route\":true,\"auto-detect-interface\":true,\"inet4-address\":[\"198.18.0.1/30\"],\"file-descriptor\":0,\"recvmsgx\":true,\"processors-per-channel\":1},\"tuic-server\":{\"enable\":false,\"listen\":\"\",\"certificate\":\"\",\"private-key\":\"\",\"ech-key\":\"\",\"mux-option\":{\"brutal\":{\"enabled\":false}}},\"ss-config\":\"\",\"vmess-config\":\"\",\"authentication\":null,\"skip-auth-prefixes\":null,\"lan-allowed-ips\":[\"0.0.0.0/0\",\"::/0\"],\"lan-disallowed-ips\":null,\"allow-lan\":false,\"bind-address\":\"127.0.0.1\",\"inbound-tfo\":false,\"inbound-mptcp\":false,\"mode\":\"direct\",\"unified-delay\":false,\"log-level\":\"silent\",\"ipv6\":true,\"interface-name\":\"\",\"routing-mark\":0,\"geox-url\":{\"geo-ip\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat\",\"mmdb\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb\",\"asn\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb\",\"geo-site\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat\"},\"geo-auto-update\":false,\"geo-update-interval\":24,\"geodata-mode\":false,\"geodata-loader\":\"memconservative\",\"geosite-matcher\":\"succinct\",\"tcp-concurrent\":false,\"find-process-mode\":\"strict\",\"sniffing\":false,\"global-ua\":\"clash.meta/v1.19.33\",\"etag-support\":true,\"keep-alive-idle\":0,\"keep-alive-interval\":0,\"disable-keep-alive\":false}\n"
+  },
+  {
+    "method": "PATCH",
+    "path": "/configs",
+    "request": {
+      "mode": "rule"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/configs",
+    "request": null,
+    "status": 200,
+    "response": "{\"port\":0,\"socks-port\":0,\"redir-port\":0,\"tproxy-port\":0,\"mixed-port\":7167,\"tun\":{\"enable\":false,\"device\":\"\",\"stack\":\"Mips\",\"dns-mode\":\"\",\"dns-hijack\":[\"0.0.0.0:53\"],\"auto-route\":true,\"auto-detect-interface\":true,\"inet4-address\":[\"198.18.0.1/30\"],\"file-descriptor\":0,\"recvmsgx\":true,\"processors-per-channel\":1},\"tuic-server\":{\"enable\":false,\"listen\":\"\",\"certificate\":\"\",\"private-key\":\"\",\"ech-key\":\"\",\"mux-option\":{\"brutal\":{\"enabled\":false}}},\"ss-config\":\"\",\"vmess-config\":\"\",\"authentication\":null,\"skip-auth-prefixes\":null,\"lan-allowed-ips\":[\"0.0.0.0/0\",\"::/0\"],\"lan-disallowed-ips\":null,\"allow-lan\":false,\"bind-address\":\"127.0.0.1\",\"inbound-tfo\":false,\"inbound-mptcp\":false,\"mode\":\"rule\",\"unified-delay\":false,\"log-level\":\"silent\",\"ipv6\":true,\"interface-name\":\"\",\"routing-mark\":0,\"geox-url\":{\"geo-ip\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat\",\"mmdb\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb\",\"asn\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb\",\"geo-site\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat\"},\"geo-auto-update\":false,\"geo-update-interval\":24,\"geodata-mode\":false,\"geodata-loader\":\"memconservative\",\"geosite-matcher\":\"succinct\",\"tcp-concurrent\":false,\"find-process-mode\":\"strict\",\"sniffing\":false,\"global-ua\":\"clash.meta/v1.19.33\",\"etag-support\":true,\"keep-alive-idle\":0,\"keep-alive-interval\":0,\"disable-keep-alive\":false}\n"
+  },
+  {
+    "method": "PUT",
+    "path": "/configs",
+    "request": {
+      "payload": "mixed-port: 7167\nbind-address: 127.0.0.1\nallow-lan: false\nexternal-controller: 127.0.0.1:7168\nsecret: <redacted>\nmode: rule\nlog-level: silent\ndns: {enable: false}\ntun: {enable: false}\ngeo-auto-update: false\nprofile: {store-selected: false, store-fake-ip: false}\nproxies:\n  - {name: fixture, type: http, server: proxy.example.invalid, port: 18080}\nproxy-groups:\n  - name: '代理 / A%?#'\n    type: select\n    proxies: [DIRECT, fixture]\nrules:\n  - MATCH,代理 / A%?#"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "PUT",
+    "path": "/proxies/%E4%BB%A3%E7%90%86%20%2F%20A%25%3F%23",
+    "request": {
+      "name": "fixture"
+    },
+    "status": 204,
+    "response": ""
+  },
+  {
+    "method": "GET",
+    "path": "/configs",
+    "request": null,
+    "status": 200,
+    "response": "{\"port\":0,\"socks-port\":0,\"redir-port\":0,\"tproxy-port\":0,\"mixed-port\":7167,\"tun\":{\"enable\":false,\"device\":\"\",\"stack\":\"Mips\",\"dns-mode\":\"\",\"dns-hijack\":[\"0.0.0.0:53\"],\"auto-route\":true,\"auto-detect-interface\":true,\"inet4-address\":[\"198.18.0.1/30\"],\"file-descriptor\":0,\"recvmsgx\":true,\"processors-per-channel\":1},\"tuic-server\":{\"enable\":false,\"listen\":\"\",\"certificate\":\"\",\"private-key\":\"\",\"ech-key\":\"\",\"mux-option\":{\"brutal\":{\"enabled\":false}}},\"ss-config\":\"\",\"vmess-config\":\"\",\"authentication\":null,\"skip-auth-prefixes\":null,\"lan-allowed-ips\":[\"0.0.0.0/0\",\"::/0\"],\"lan-disallowed-ips\":null,\"allow-lan\":false,\"bind-address\":\"127.0.0.1\",\"inbound-tfo\":false,\"inbound-mptcp\":false,\"mode\":\"rule\",\"unified-delay\":false,\"log-level\":\"silent\",\"ipv6\":true,\"interface-name\":\"\",\"routing-mark\":0,\"geox-url\":{\"geo-ip\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat\",\"mmdb\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.metadb\",\"asn\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/GeoLite2-ASN.mmdb\",\"geo-site\":\"https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat\"},\"geo-auto-update\":false,\"geo-update-interval\":24,\"geodata-mode\":false,\"geodata-loader\":\"memconservative\",\"geosite-matcher\":\"succinct\",\"tcp-concurrent\":false,\"find-process-mode\":\"strict\",\"sniffing\":false,\"global-ua\":\"clash.meta/v1.19.33\",\"etag-support\":true,\"keep-alive-idle\":0,\"keep-alive-interval\":0,\"disable-keep-alive\":false}\n"
+  },
+  {
+    "method": "GET",
+    "path": "/version",
+    "request": null,
+    "status": 200,
+    "response": "{\"meta\":true,\"version\":\"v1.19.33\"}\n"
+  },
+  {
+    "method": "GET",
+    "path": "/proxies/%E4%BB%A3%E7%90%86%20%2F%20A%25%3F%23",
+    "request": null,
+    "status": 200,
+    "response": "{\"alive\":true,\"all\":[\"DIRECT\",\"fixture\"],\"dialer-proxy\":\"\",\"emptyFallback\":\"COMPATIBLE\",\"extra\":{},\"hidden\":false,\"history\":[],\"icon\":\"\",\"interface\":\"\",\"mptcp\":false,\"name\":\"代理 / A%?#\",\"now\":\"DIRECT\",\"provider-name\":\"\",\"routing-mark\":0,\"smux\":false,\"testUrl\":\"\",\"tfo\":false,\"type\":\"Selector\",\"udp\":true,\"uot\":false,\"xudp\":false}\n"
+  }
+]

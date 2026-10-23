@@ -1,0 +1,14 @@
+{
+  "version": 5,
+  "configurePresets": [
+    { "name": "dev", "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev",
+      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_TESTING": "ON", "QUICKCLASH_WARNINGS_AS_ERRORS": "ON" } },
+    { "name": "headless", "inherits": "dev", "binaryDir": "${sourceDir}/build/headless",
+      "cacheVariables": { "QUICKCLASH_BUILD_UI": "OFF" } }
+  ],
+  "buildPresets": [ { "name": "dev", "configurePreset": "dev" }, { "name": "headless", "configurePreset": "headless" } ],
+  "testPresets": [
+    { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
+    { "name": "headless", "configurePreset": "headless", "output": { "outputOnFailure": true } }
+  ]
+}

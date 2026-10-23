@@ -1,0 +1,13 @@
+proxies:
+  - name: local_fixture
+    type: http
+    server: proxy.example.invalid
+    port: 18080
+proxy-groups:
+  - name: "代理 / A%?#"
+    type: select
+    proxies: [local_fixture, DIRECT]
+rules:
+  - DOMAIN-SUFFIX,example.invalid,代理 / A%?#
+  - IP-CIDR,192.0.2.0/24,DIRECT,no-resolve
+  - MATCH,代理 / A%?#

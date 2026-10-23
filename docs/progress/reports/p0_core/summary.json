@@ -1,0 +1,17 @@
+{
+  "api_result": "Pass",
+  "tag": "v1.19.33",
+  "valid_exit": 0,
+  "invalid_exit": 1,
+  "validation_new_files": [],
+  "authentication": "401 with wrong secret",
+  "selection": "encoded Unicode and reserved characters, readback and restart reset",
+  "modes": "rule/global/direct readback",
+  "reload": "PUT /configs payload",
+  "listeners": "NotRun (API-only scope)",
+  "job": "NotRun",
+  "system_proxy": "untouched",
+  "geo": "unsupported",
+  "validation_output": "time=\"2026-10-23T23:36:27.401671500+08:00\" level=info msg=\"Start initial configuration in progress\"\r\ntime=\"2026-10-23T23:36:27.401671500+08:00\" level=info msg=\"Geodata Loader mode: memconservative\"\r\ntime=\"2026-10-23T23:36:27.402181500+08:00\" level=info msg=\"Geosite Matcher implementation: succinct\"\r\ntime=\"2026-10-23T23:36:27.411412000+08:00\" level=info msg=\"Initial configuration complete, total time: 9ms\"\r\nconfiguration file D:\\repos\\clash-quick\\.cache\\core_probe_65447f6190a0433b9319692752276b28\\config.yaml test is successful",
+  "invalid_output": "time=\"2026-10-23T23:36:27.489472300+08:00\" level=error msg=\"yaml: line 1: did not find expected node content\"\r\nconfiguration file D:\\repos\\clash-quick\\.cache\\core_probe_65447f6190a0433b9319692752276b28\\invalid.yaml test failed"
+}

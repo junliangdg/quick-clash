@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "product": "QuickClash",
+  "internal_name": "quickclash",
+  "recorded_at": "2026-10-23",
+  "toolchain": {
+    "cxx_standard": 20,
+    "qt": "6.8.0",
+    "qt_modules": [
+      "Core",
+      "Gui",
+      "Qml",
+      "Quick",
+      "QuickControls2",
+      "Network",
+      "Test"
+    ],
+    "cmake_minimum": "3.24",
+    "cmake_observed": "4.3.0",
+    "ninja": "1.12.1",
+    "llvm": "21.1.2",
+    "windows_compiler": "MSVC 19.50.35727.0 x64 (Visual Studio 2026 18.4.1, Qt msvc2022_64 ABI)",
+    "yaml_cpp": {
+      "version": "0.9.0",
+      "tag": "yaml-cpp-0.9.0",
+      "cache_file": "yaml_cpp_0_9_0.tar.gz",
+      "url": "https://github.com/jbeder/yaml-cpp/releases/download/yaml-cpp-0.9.0/yaml-cpp-yaml-cpp-0.9.0.tar.gz",
+      "sha256": "298593d9c440fd9034b8b193d96318b76d49bc97c6ceadb7b0836edf0b6d7539",
+      "cmake_policy_range": "3.5...3.30",
+      "license": "MIT"
+    }
+  },
+  "reference_environment": {
+    "os": "Windows NT 10.0.26300.0 x64",
+    "cpu": "AMD Ryzen 7 5700X",
+    "qt_root": "C:/Qt/6.8.0/msvc2022_64"
+  },
+  "mihomo": {
+    "tag": "v1.19.33",
+    "source": "https://github.com/MetaCubeX/mihomo/tree/v1.19.33",
+    "license": "GPL-3.0",
+    "license_url": "https://raw.githubusercontent.com/MetaCubeX/mihomo/v1.19.33/LICENSE",
+    "windows": {
+      "asset": "mihomo-windows-amd64-v1.19.33.zip",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-windows-amd64-v1.19.33.zip",
+      "archive_sha256": "6ab2180875f9f6fff8b19386d760daec257f66b45f72b3afc650634272fa837a",
+      "archive_bytes": 22512121,
+      "max_archive_bytes": 32000000,
+      "max_executable_bytes": 64000000,
+      "cpu": "amd64 baseline (not v2/v3)",
+      "executable_sha256": "1cde41cfffd3de0aedad63c0a8515e1ce5eea507e8133aed0f637d316c93800a"
+    },
+    "candidates": [
+      {
+        "asset": "mihomo-darwin-arm64-v1.19.33.gz",
+        "url": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-darwin-arm64-v1.19.33.gz",
+        "archive_sha256": "060b64b0f2c9a310831db0fe4adb2878de67bfa606c311813c1f13966aa504b6",
+        "validation": "NotRun"
+      },
+      {
+        "asset": "mihomo-linux-amd64-v1.19.33.gz",
+        "url": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-linux-amd64-v1.19.33.gz",
+        "archive_sha256": "132f6f3edf9a65e62f04853aed3358472e0b2b7666daa8419edfa2ddf5bb6323",
+        "validation": "NotRun"
+      }
+    ]
+  },
+  "geo": {
+    "supported": false,
+    "reason": "P2 初始子集明确拒绝 GEOIP/GEOSITE，无隐式下载；P3-02 引入受管资源后另行验证。"
+  },
+  "support": {
+    "windows": {
+      "development": "Windows x64 / installed Qt 6.8.0",
+      "runtime_minimum_candidate": "Windows 10 1809 (Qt 6.8 requirement); clean-system verification P2-16"
+    },
+    "linux": {
+      "candidate": "Ubuntu 22.04 x64",
+      "validation": "NotRun"
+    },
+    "macos": {
+      "candidate": "macOS 13+ arm64",
+      "validation": "NotRun"
+    }
+  }
+}

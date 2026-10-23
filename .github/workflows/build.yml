@@ -1,0 +1,68 @@
+name: native_build
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-2022
+            arch: win64_msvc2022_64
+          - os: ubuntu-22.04
+            arch: gcc_64
+          - os: macos-14
+            arch: clang_64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.0'
+          arch: ${{ matrix.arch }}
+          cache: true
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: Linux Qt runtime dependencies
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libegl1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned build and format tools
+        run: python -m pip install cmake==4.3.0 ninja==1.12.1 clang-format==21.1.2
+      - name: Acquire verified YAML archive
+        shell: pwsh
+        run: ./scripts/fetch_dependencies.ps1 -YamlOnly
+      - name: Repository checks
+        shell: pwsh
+        run: |
+          ./scripts/build_design_docs.ps1 -Check
+          ./scripts/check_source_layout.ps1
+          ./scripts/check_progress.ps1
+          $sources = Get-ChildItem app,src,tests -Recurse -File | Where-Object Extension -in '.h','.cpp'
+          foreach ($file in $sources) {
+            clang-format --dry-run --Werror $file.FullName
+            if ($LASTEXITCODE -ne 0) { throw 'C++ format check failed' }
+          }
+      - name: Configure and build
+        run: |
+          cmake --preset dev
+          cmake --build --preset dev --parallel 3
+      - name: Contracts and QML smoke
+        run: ctest --preset dev
+      - name: QML static checks
+        run: cmake --build build/dev --target quickclash_qmllint
+      - name: Headless boundary
+        run: |
+          cmake --preset headless
+          cmake --build --preset headless --parallel 3
+          ctest --preset headless
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native_logs_${{ matrix.os }}
+          path: |
+            build/dev/Testing/Temporary/
+            build/dev/CMakeFiles/CMakeConfigureLog.yaml

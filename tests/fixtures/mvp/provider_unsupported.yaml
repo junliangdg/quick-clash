@@ -1,0 +1,5 @@
+proxy-providers:
+  remote:
+    type: http
+    url: https://example.invalid/nodes.yaml
+    path: ./nodes.yaml
