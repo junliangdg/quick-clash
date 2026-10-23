@@ -1,0 +1,15 @@
+---
+Checks: >-
+  -*,
+  clang-analyzer-*,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  bugprone-unused-raii,
+  cppcoreguidelines-owning-memory,
+  modernize-use-nullptr,
+  modernize-use-override,
+  performance-unnecessary-copy-initialization,
+  performance-unnecessary-value-param
+WarningsAsErrors: ''
+HeaderFilterRegex: '(^|[/\])(app|src|services|tests|bench)[/\]'
+FormatStyle: file
