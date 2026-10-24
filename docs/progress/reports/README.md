@@ -1,6 +1,6 @@
 # 任务与验收证据
 
-最新状态见 [Windows 专用工作集修复与验收](20261024_windows_private_working_set.md)：Windows Release、7/7 CTest、独立 headless、核心隔离/Job/API、部署和当前版100次重建通过；G0按Windows首版范围Pass。双主题六场景专用工作集短测全部通过，键盘/窄窗/多DPR原型检查完成；正式重复/帧/GPU证据仍缺，G1 Blocked。跨平台原生与CI执行后置P4；P2真实代理闭环未实现。以下报告保留历史事实，不作为当前阻塞列表。
+最新状态见 [开发优先与G1范围重评](20261024_development_first.md)：按用户要求减少验证和性能测试，现有短测/行为证据满足1.6的G1，P0/P1全部Done，G0/G1 Pass。长时/重复/帧/GPU专项仍未运行，改为后期按需；不再阻塞P2功能开发。[Windows运行证据](20261024_windows_private_working_set.md)原样保留，P2真实代理闭环尚未实现。以下报告中的历史阻塞以最新重评为准。
 
 最新接续见 [2026-10-24 P0 验证报告](20261024_p0_validation.md)：构建/探针超时与日志、进程树测试、API 重跑及审批服务故障，逐次原始证据保留在独立目录。
 

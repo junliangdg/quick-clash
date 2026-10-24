@@ -73,7 +73,7 @@
   "support": {
     "windows": {
       "development": "Windows x64 / installed Qt 6.8.0",
-      "validation": "Windows Release, QML lint, 7 CTest, headless and deployment Pass; G0 Windows scope Pass; private working set short runs Pass, G1 formal matrix Blocked; see docs/progress/reports/20261024_windows_private_working_set.md",
+      "validation": "Windows Release, QML lint, 7 CTest, headless and deployment evidence retained; G0 and G1 Pass under design 1.6 development scope using existing private working set short runs; long/frame/GPU work deferred and NotRun; see docs/progress/reports/20261024_development_first.md",
       "runtime_minimum_candidate": "Windows 10 1809 (Qt 6.8 requirement); clean-system verification P2-16"
     },
     "linux": {

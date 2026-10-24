@@ -1,6 +1,6 @@
 # QuickClash 构建与离线包基线
 
-2026-10-24 Windows Release、QML lint/cache、7/7 CTest、独立 headless、完整官方内核探针与部署通过，见 [当前验证](../progress/reports/20261024_windows_private_working_set.md)。G0按Windows首版范围Pass；Linux/macOS原生与CI执行后置P4。专用工作集短测通过，G1因正式矩阵未完成保持Blocked。应用显示名QuickClash、target/命名空间quickclash，源码遵循 [编码规范](../development/cpp_style.md)。
+2026-10-24 Windows Release、QML lint/cache、7/7 CTest、独立headless、官方内核探针与部署已有通过证据。按用户指定的开发优先策略，G0/G1 Pass，见 [范围重评](../progress/reports/20261024_development_first.md)。G1复用现有单轮短测和原型行为，长时/帧/GPU专项后置；Linux/macOS原生与CI执行后置P4。应用显示名QuickClash、target/命名空间quickclash，源码遵循 [编码规范](../development/cpp_style.md)。
 
 ## 依赖与构建
 
@@ -56,4 +56,4 @@ P0 定义布局，P2-16 实现在无开发工具的普通用户机器验证，�
 
 `quickclash --replay` 显示 500 节点/1,000 连接，默认关闭；`--replay-connections=10000` 是探索档，拒绝其他值。`--no-tray` 验证关闭退路；`--isolated` 禁用持久偏好和单实例/托盘，供独立场景。`--host-test` 自动核对无托盘/最小化/卸载恢复；`--tray-test` 只启用真实托盘、不写偏好；`--prototype-test` 输出页面与100次重建诊断。隔离运行可用 `--capture=绝对路径.png --quit-after-ms=2500` 保存页面，结合 `--theme=light|dark --page=home --replay`。
 
-bench/measure_windows.ps1默认100ms采样，通过K32GetProcessMemoryInfo的EX2.PrivateWorkingSetSize判断专用工作集≤100,000,000字节；总工作集/私有提交同时记录但不作为该硬门槛。API失败则采集失败，执行或预算失败保留证据并退出1。字体改用已安装Microsoft YaHei后，当前部署版六场景×两主题短测均通过。正式场景需-WarmupSeconds 120 -Runs 5及设计时长，并补当前采集器尚缺的帧/GPU/滚动数据；短测不证明CPU/长稳或真实转发。隔离截图支持--window-size=720x560；缩放因子不可当作实际DPR。
+bench/measure_windows.ps1默认首页、浅色主题、3秒预热、30秒单轮、100ms采样，通过K32GetProcessMemoryInfo的EX2.PrivateWorkingSetSize判断专用工作集≤100,000,000字节；总工作集/私有提交同时记录但不作为该门槛。API失败则采集失败，执行或预算失败保留证据并退出1。字体改用已安装Microsoft YaHei后，当前部署版六场景×两主题短测均通过。按1.6策略，日常只在资源敏感变化时选一个场景，3秒预热/10—30秒/1次即可；不要求120秒预热/5次重复或帧/GPU/滚动采集。需要专项时显式选择-Theme all -Scenario all，普通交付不运行完整矩阵。短测不证明CPU/长稳或真实转发。隔离截图支持--window-size=720x560；缩放因子不可当作实际DPR。

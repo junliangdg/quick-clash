@@ -8,8 +8,8 @@ param(
     [ValidateRange(1, 10)][int]$Runs = 1,
     [ValidateSet(1000, 10000)][int]$ReplayConnections = 1000,
     [ValidateRange(20, 100)][int]$SampleIntervalMilliseconds = 100,
-    [ValidateSet('all', 'light', 'dark')][string]$Theme = 'all',
-    [ValidateSet('all', 'settings', 'home', 'proxies', 'connections', 'hidden', 'unloaded')][string]$Scenario = 'all'
+    [ValidateSet('all', 'light', 'dark')][string]$Theme = 'light',
+    [ValidateSet('all', 'settings', 'home', 'proxies', 'connections', 'hidden', 'unloaded')][string]$Scenario = 'home'
 )
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Windows collector only; macOS/Linux require native collectors.' }
@@ -45,7 +45,7 @@ $taskEnvironment = [ordered]@{
     build_requirement = 'Release; record CMake cache, Qt/compiler, DPI/GPU/backend separately in report'
     scope = 'P1 isolated GUI replay process; no Mihomo/helper/update process exists in this prototype'
     exclusions = 'Collector process and screenshot/profiler tools; future necessary client processes must be aggregated'
-    limitations = 'Sampled peaks can miss sub-interval spikes; no GPU attribution, scrolling, frame times or real business workload. Defaults are quick exploration; formal runs need >=120s warmup, >=5 repeats and design scenario durations. Unsupported memory API is a collection failure, never replaced by another metric.'
+    limitations = 'Sampled peaks can miss sub-interval spikes; no GPU attribution, scrolling, frame times or real business workload. Design 1.6 accepts single short runs for development; longer/repeated/frame/GPU investigations are optional when needed. Unsupported memory API is a collection failure, never replaced by another metric.'
 }
 $taskEnvironment | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $taskOutput 'environment.json') -Encoding utf8NoBOM
 $taskSummaries = [Collections.Generic.List[object]]::new()
@@ -162,5 +162,5 @@ foreach ($taskScenario in $taskScenarios) {
         }
     }
 }
-Write-Output "Saved raw samples to $taskOutput. This is P1 replay evidence, not G2 proxy or final G1 acceptance."
+Write-Output "Saved raw samples to $taskOutput. P1 replay evidence may support design 1.6 G1 review; it does not prove G2 proxy, long-term CPU/frame/GPU or product performance."
 if (@($taskSummaries | Where-Object { $_.execution_result -ne 'Pass' -or $_.memory_budget_result -ne 'Pass' }).Count -gt 0) { throw 'One or more scenarios failed to execute or meet the 100,000,000-byte private working set limit; see summary.json' }
