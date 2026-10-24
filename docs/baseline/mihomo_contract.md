@@ -2,6 +2,8 @@
 
 2026-10-23 使用 [固定资产](release_matrix.json)，程序 SHA-256 已核验。输出见 [summary.json](../progress/reports/p0_core/summary.json)、[api.json](../progress/reports/p0_core/api.json)。执行 scripts/probe_mihomo.ps1 -ApiOnly，退出码 0；生产适配器属于 P2。
 
+2026-10-24 完整验证见 [当前报告](../progress/reports/20261024_p0_p1_validation.md)与[原始汇总](../progress/reports/core_probe/20261024_isolated_bounded/summary.json)。官方字节、API/名称编码/模式/重载/重启、owned PID 回环监听、Job 子进程回收、零网络能力 AppContainer 正反配置校验全部通过；早期 API-only 和隔离超时失败记录保留。
+
 | 路径 | 实际结果 | 适配决定 |
 |---|---|---|
 | -v / -h | v1.19.33、go1.26.10，参数已读取 | 官方预编译，参数数组启动 |
@@ -15,10 +17,10 @@
 | PATCH /configs mode | global/direct/rule 均 204，GET 一致 | 不提前成功 |
 | PUT /configs payload | 204，配置摘要一致 | 使用 payload；P2 另测失败补偿 |
 | store-selected=false 重启 | fixture 重置为首个 DIRECT | 应用负责可靠身份恢复 |
-| owned 进程退出 | 强制退出 5 秒内结束，finally 清理 | 正常停止/Job 仍需测试 |
+| owned 进程退出 | Job KILL_ON_JOB_CLOSE 宿主退出后子进程结束，finally 清理通过 | 产品正常停止/崩溃协调仍在 P2 |
 
-样本无 Geo/provider/外部文件；未抓包或强制断网，不能把“无新增文件”解释为全部配置无网络副作用。节点为 example.invalid，仅测试控制面，无真实转发/网站访问；域名 CONNECT/受控远端证据在 P2-13。
+样本无 Geo/provider/外部文件。隔离探针先验证父进程可连接自有回环，而子进程在 1 秒有界非阻塞 connect 中超时 10060，再以相同官方字节在零网络能力容器执行正反 -t、核对无新增文件；不把“无新增文件”单独当作网络隔离。节点为 example.invalid，仅测试控制面，无真实转发/网站访问；域名 CONNECT/受控远端在 P2-13。
 
-Ready 脚本检查认证 version、configs；产品仍须核对当前 owned PID 的监听归属。Get-NetTCPConnection 本次拒绝访问，OS 归属 NotRun。Job 源码实施 CREATE_SUSPENDED → AssignProcessToJobObject(KILL_ON_JOB_CLOSE) → ResumeThread，须构建 core_job_probe 后杀宿主核对子进程结束；本次未编译/运行，P0-04 未完成。
+Ready 探针核对认证 version/configs 和 OS TCP 表中的当前 owned PID/回环监听。Job 使用 CREATE_SUSPENDED → AssignProcessToJobObject(KILL_ON_JOB_CLOSE) → ResumeThread，core_job_probe 实际编译/回收通过。早期 Get-NetTCPConnection 拒绝访问结果只保留历史；生产适配器仍须在 P2 实现相同所有权约束。
 
-每次随机生成 32 字节 secret，报告脱敏、临时文件 finally 清理；这不是生产 ACL/事务/凭据实现。启动超时、端口冲突、响应丢失、离线隔离和故障补偿仍待验证；服务管道/ACL、TUN、WS/provider 未进入支持声明。
+每次随机生成 32 字节 secret，报告脱敏、临时文件 finally 清理；临时 AppContainer profile/ACL 仅作用于自有新建会话。这不是生产 ACL/事务/凭据实现。生产启动超时、端口冲突、响应丢失和故障补偿仍须 P2 验证；服务管道/ACL、TUN、WS/provider 未进入支持声明。

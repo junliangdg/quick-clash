@@ -1,0 +1,65 @@
+[
+  {
+    "stage": "application",
+    "font_mode": "default",
+    "peak_private_working_set_bytes": 13991936.0,
+    "peak_working_set_bytes": 53731328.0,
+    "peak_private_bytes": 74321920.0
+  },
+  {
+    "stage": "application",
+    "font_mode": "system_cjk",
+    "peak_private_working_set_bytes": 22827008.0,
+    "peak_working_set_bytes": 74469376.0,
+    "peak_private_bytes": 83390464.0
+  },
+  {
+    "stage": "application",
+    "font_mode": "application_cjk",
+    "peak_private_working_set_bytes": 63213568.0,
+    "peak_working_set_bytes": 87650304.0,
+    "peak_private_bytes": 136077312.0
+  },
+  {
+    "stage": "quick_window",
+    "font_mode": "default",
+    "peak_private_working_set_bytes": 35717120.0,
+    "peak_working_set_bytes": 115068928.0,
+    "peak_private_bytes": 148324352.0
+  },
+  {
+    "stage": "quick_window",
+    "font_mode": "system_cjk",
+    "peak_private_working_set_bytes": 35971072.0,
+    "peak_working_set_bytes": 112001024.0,
+    "peak_private_bytes": 149647360.0
+  },
+  {
+    "stage": "quick_window",
+    "font_mode": "application_cjk",
+    "peak_private_working_set_bytes": 76029952.0,
+    "peak_working_set_bytes": 125001728.0,
+    "peak_private_bytes": 201572352.0
+  },
+  {
+    "stage": "controls",
+    "font_mode": "default",
+    "peak_private_working_set_bytes": 47730688.0,
+    "peak_working_set_bytes": 138457088.0,
+    "peak_private_bytes": 177065984.0
+  },
+  {
+    "stage": "controls",
+    "font_mode": "system_cjk",
+    "peak_private_working_set_bytes": 46575616.0,
+    "peak_working_set_bytes": 133820416.0,
+    "peak_private_bytes": 174526464.0
+  },
+  {
+    "stage": "controls",
+    "font_mode": "application_cjk",
+    "peak_private_working_set_bytes": 92856320.0,
+    "peak_working_set_bytes": 152248320.0,
+    "peak_private_bytes": 234504192.0
+  }
+]

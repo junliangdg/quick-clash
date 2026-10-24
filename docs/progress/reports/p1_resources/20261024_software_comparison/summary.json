@@ -1,0 +1,140 @@
+[
+  {
+    "scenario": "settings",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 0,
+      "active_streams": 0,
+      "engine_generation": 1,
+      "host_state": "Visible",
+      "open_ms": 419,
+      "page": "settings",
+      "page_ready": true,
+      "qml_errors": 0,
+      "replay_running": false
+    },
+    "peak_private_bytes": 111976448.0,
+    "peak_working_set_bytes": 110260224.0,
+    "steady_private_bytes_max": 111976448.0,
+    "steady_working_set_bytes_max": 110260224.0,
+    "steady_cpu_one_core_percent_average": 0.0
+  },
+  {
+    "scenario": "home",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 2,
+      "active_streams": 2,
+      "engine_generation": 1,
+      "host_state": "Visible",
+      "open_ms": 421,
+      "page": "home",
+      "page_ready": true,
+      "qml_errors": 0,
+      "replay_running": true
+    },
+    "peak_private_bytes": 113512448.0,
+    "peak_working_set_bytes": 111407104.0,
+    "steady_private_bytes_max": 113512448.0,
+    "steady_working_set_bytes_max": 111407104.0,
+    "steady_cpu_one_core_percent_average": 1.115327721218383
+  },
+  {
+    "scenario": "proxies",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 1,
+      "active_streams": 1,
+      "engine_generation": 1,
+      "host_state": "Visible",
+      "open_ms": 405,
+      "page": "proxies",
+      "page_ready": true,
+      "qml_errors": 0,
+      "replay_running": false
+    },
+    "peak_private_bytes": 112386048.0,
+    "peak_working_set_bytes": 109105152.0,
+    "steady_private_bytes_max": 112386048.0,
+    "steady_working_set_bytes_max": 109105152.0,
+    "steady_cpu_one_core_percent_average": 0.0
+  },
+  {
+    "scenario": "connections",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 1,
+      "active_streams": 1,
+      "engine_generation": 1,
+      "host_state": "Visible",
+      "open_ms": 401,
+      "page": "connections",
+      "page_ready": true,
+      "qml_errors": 0,
+      "replay_running": true
+    },
+    "peak_private_bytes": 113135616.0,
+    "peak_working_set_bytes": 110690304.0,
+    "steady_private_bytes_max": 113135616.0,
+    "steady_working_set_bytes_max": 110690304.0,
+    "steady_cpu_one_core_percent_average": 0.3163286522091482
+  },
+  {
+    "scenario": "hidden",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 0,
+      "active_streams": 0,
+      "engine_generation": 1,
+      "host_state": "Hidden",
+      "open_ms": 416,
+      "page": "home",
+      "page_ready": true,
+      "qml_errors": 0,
+      "replay_running": false
+    },
+    "peak_private_bytes": 112758784.0,
+    "peak_working_set_bytes": 108126208.0,
+    "steady_private_bytes_max": 112758784.0,
+    "steady_working_set_bytes_max": 108126208.0,
+    "steady_cpu_one_core_percent_average": 0.0
+  },
+  {
+    "scenario": "unloaded",
+    "theme": "light",
+    "run": 1,
+    "execution_result": "Pass",
+    "memory_budget_result": "Fail",
+    "lifecycle": {
+      "active_demands": 0,
+      "active_streams": 0,
+      "engine_generation": 1,
+      "host_state": "Unloaded",
+      "open_ms": 421,
+      "page": "home",
+      "page_ready": false,
+      "qml_errors": 0,
+      "replay_running": false
+    },
+    "peak_private_bytes": 112955392.0,
+    "peak_working_set_bytes": 108204032.0,
+    "steady_private_bytes_max": 90435584.0,
+    "steady_working_set_bytes_max": 100728832.0,
+    "steady_cpu_one_core_percent_average": 0.0
+  }
+]

@@ -1,0 +1,33 @@
+{
+  "measured_at_utc": "2026-10-24T03:18:10.7484961Z",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "runtime": "10.0.11",
+  "executable": "D:\\repos\\quick-clash\\dist\\p1_validated\\bin\\quickclash.exe",
+  "executable_sha256": "7006e3291841d46ad1ec6eadf8fc2ac12ed1dd69d00f44472977cdd80f6ee8c9",
+  "metric": "PrivateWorkingSetSize from K32GetProcessMemoryInfo/PROCESS_MEMORY_COUNTERS_EX2 must meet the limit; working set and private commit are diagnostic; CPU normalized to one logical core",
+  "budget_metric": "private_working_set_bytes",
+  "sample_interval_ms": 100,
+  "steady_seconds": 10,
+  "warmup_seconds": 3,
+  "runs_per_scenario_theme": 1,
+  "themes": [
+    "light",
+    "dark"
+  ],
+  "replay_connections": 1000,
+  "replay_scale": "representative",
+  "rendering_environment": {
+    "QT_QPA_PLATFORM": null,
+    "QT_QUICK_BACKEND": null,
+    "QSG_RHI_BACKEND": null,
+    "QSG_INFO": null,
+    "QSG_RENDER_LOOP": null,
+    "QT_SCALE_FACTOR": null,
+    "QT_FONT_DPI": null
+  },
+  "limit_bytes": 100000000,
+  "build_requirement": "Release; record CMake cache, Qt/compiler, DPI/GPU/backend separately in report",
+  "scope": "P1 isolated GUI replay process; no Mihomo/helper/update process exists in this prototype",
+  "exclusions": "Collector process and screenshot/profiler tools; future necessary client processes must be aggregated",
+  "limitations": "Sampled peaks can miss sub-interval spikes; no GPU attribution, scrolling, frame times or real business workload. Defaults are quick exploration; formal runs need >=120s warmup, >=5 repeats and design scenario durations. Unsupported memory API is a collection failure, never replaced by another metric."
+}

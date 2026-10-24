@@ -1,3 +1,4 @@
+#Requires -Version 7.2
 [CmdletBinding()]
 param(
     [string]$QtRoot = '',
@@ -6,10 +7,14 @@ param(
     [string]$Ninja = '',
     [switch]$Headless,
     [switch]$Fresh,
-    [string]$BuildDirectory = ''
+    [string]$BuildDirectory = '',
+    [ValidateRange(1, 7200)][int]$ConfigureTimeoutSeconds = 120,
+    [ValidateRange(1, 7200)][int]$BuildTimeoutSeconds = 600
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'native_process.ps1')
+if (-not $IsWindows) { throw 'This entry point requires Windows; use CMake presets on other platforms' }
 
 if ($VsInstallPath -or -not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
     if ($VsInstallPath) {
@@ -39,6 +44,11 @@ if ($Ninja) {
 }
 
 $preset = if ($Headless) { 'headless' } else { 'dev' }
+$resolvedBuild = if ($BuildDirectory) { [IO.Path]::GetFullPath($BuildDirectory, $repoRoot) } else { Join-Path $repoRoot "build/$preset" }
+$logRoot = Join-Path $resolvedBuild ('logs/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '_' + [guid]::NewGuid().ToString('N'))
+$resolvedCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop).Source
+$ctest = Join-Path (Split-Path $resolvedCMake) 'ctest.exe'
+Write-Output "Build evidence: $logRoot"
 Push-Location $repoRoot
 try {
     $configureArguments = @('--preset', $preset)
@@ -46,12 +56,10 @@ try {
     if ($resolvedNinja) { $configureArguments += "-DCMAKE_MAKE_PROGRAM=$resolvedNinja" }
     if ($BuildDirectory) { $configureArguments += @('-B', $BuildDirectory) }
     if ($Fresh) { $configureArguments += '--fresh' }
-    & $CMake @configureArguments
-    if ($LASTEXITCODE -ne 0) { throw 'Configure failed' }
-    $resolvedBuild = if ($BuildDirectory) { $BuildDirectory } else { "build/$preset" }
-    & $CMake --build $resolvedBuild --parallel 4
-    if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
-    $ctest = Join-Path (Split-Path (Get-Command $CMake).Source) 'ctest.exe'
-    & $ctest --test-dir $resolvedBuild --output-on-failure
-    if ($LASTEXITCODE -ne 0) { throw 'Tests failed' }
+    Invoke-NativeStep -Executable $resolvedCMake -Arguments $configureArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'configure.log') -TimeoutSeconds $ConfigureTimeoutSeconds
+    Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--parallel', '4') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'build.log') -TimeoutSeconds $BuildTimeoutSeconds
+    if (-not $Headless) {
+        Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--target', 'quickclash_qmllint') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'qmllint.log') -TimeoutSeconds $BuildTimeoutSeconds
+    }
+    Invoke-NativeStep -Executable $ctest -Arguments @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml')) -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds 120
 } finally { Pop-Location }

@@ -1,0 +1,21 @@
+{
+  "result": "Pass",
+  "api_result": "Pass",
+  "tag": "v1.19.33",
+  "scope": "API, listener ownership and Job",
+  "started_at_utc": "2026-10-23T18:38:47.1718283Z",
+  "valid_exit": 0,
+  "invalid_exit": 1,
+  "validation_new_files": [],
+  "listeners": "Pass: owned PID and loopback verified",
+  "job": "Pass: suspended create -> assign -> resume -> owner kill -> child exit",
+  "network_isolation": "NotRun",
+  "system_proxy": "untouched",
+  "geo": "unsupported",
+  "authentication": "401 with wrong secret",
+  "selection": "encoded Unicode and reserved characters, readback and restart reset",
+  "modes": "rule/global/direct readback",
+  "reload": "PUT /configs payload",
+  "cleanup": "Pass: owned processes exited and temporary session removed",
+  "completed_at_utc": "2026-10-23T18:38:51.7943791Z"
+}

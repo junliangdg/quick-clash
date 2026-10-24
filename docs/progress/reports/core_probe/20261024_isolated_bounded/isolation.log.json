@@ -1,0 +1,14 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\p1_windows\\core_isolation_probe.exe",
+  "arguments": [
+    "D:\\repos\\quick-clash\\.cache\\mihomo\\mihomo.exe",
+    "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59\\config.yaml",
+    "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59\\isolated",
+    "D:\\repos\\quick-clash\\docs\\progress\\reports\\core_probe\\20261024_isolated_bounded"
+  ],
+  "working_directory": "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59",
+  "started_at_utc": "2026-10-23T18:57:49.5557753Z",
+  "elapsed_ms": 1440,
+  "exit_code": 0,
+  "timed_out": false
+}

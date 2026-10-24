@@ -1,0 +1,19 @@
+{
+  "result": "Pass",
+  "api_result": "Pass",
+  "tag": "v1.19.33",
+  "started_at_utc": "2026-10-23T16:35:41.4323585Z",
+  "valid_exit": 0,
+  "invalid_exit": 1,
+  "validation_new_files": [],
+  "listeners": "NotRun (API-only scope)",
+  "job": "NotRun",
+  "network_isolation": "NotRun",
+  "system_proxy": "untouched",
+  "geo": "unsupported",
+  "authentication": "401 with wrong secret",
+  "selection": "encoded Unicode and reserved characters, readback and restart reset",
+  "modes": "rule/global/direct readback",
+  "reload": "PUT /configs payload",
+  "completed_at_utc": "2026-10-23T16:35:42.8859667Z"
+}

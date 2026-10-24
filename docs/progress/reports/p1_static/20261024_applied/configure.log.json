@@ -1,0 +1,16 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--preset",
+    "dev",
+    "-DCMAKE_PREFIX_PATH=C:\\Qt\\6.8.0\\msvc2022_64",
+    "-DCMAKE_MAKE_PROGRAM=C:\\Program Files\\Microsoft Visual Studio\\18\\Community\\Common7\\IDE\\CommonExtensions\\Microsoft\\CMake\\Ninja\\ninja.exe",
+    "-B",
+    "build/p1_windows"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-23T17:47:30.1032276Z",
+  "elapsed_ms": 40065,
+  "exit_code": -1,
+  "timed_out": true
+}

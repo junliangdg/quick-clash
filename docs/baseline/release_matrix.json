@@ -2,7 +2,7 @@
   "schema_version": 1,
   "product": "QuickClash",
   "internal_name": "quickclash",
-  "recorded_at": "2026-10-23",
+  "recorded_at": "2026-10-24",
   "toolchain": {
     "cxx_standard": 20,
     "qt": "6.8.0",
@@ -12,9 +12,10 @@
       "Qml",
       "Quick",
       "QuickControls2",
-      "Network",
-      "Test"
+      "Widgets",
+      "Network"
     ],
+    "qt_test_modules": ["Test (BUILD_TESTING only)"],
     "cmake_minimum": "3.24",
     "cmake_observed": "4.3.0",
     "ninja": "1.12.1",
@@ -72,6 +73,7 @@
   "support": {
     "windows": {
       "development": "Windows x64 / installed Qt 6.8.0",
+      "validation": "Windows Release, QML lint, 7 CTest, headless and deployment Pass; G0 Windows scope Pass; private working set short runs Pass, G1 formal matrix Blocked; see docs/progress/reports/20261024_windows_private_working_set.md",
       "runtime_minimum_candidate": "Windows 10 1809 (Qt 6.8 requirement); clean-system verification P2-16"
     },
     "linux": {

@@ -1,0 +1,31 @@
+{
+  "executable": "C:\\Qt\\6.8.0\\msvc2022_64\\bin\\qmllint.exe",
+  "arguments": [
+    "-I",
+    "../lint_imports",
+    "-I",
+    "C:/Qt/6.8.0/msvc2022_64/qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\main.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\components\\action_button.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\components\\deferred_content.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\components\\flat_tile.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\components\\replay_list.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\components\\theme_tokens.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\connections\\connections_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\home\\home_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\logs\\logs_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\proxies\\proxies_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\proxies\\proxy_summary.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\rules\\rules_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\settings\\settings_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\subscriptions\\subscriptions_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\features\\tests\\tests_page.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\shell\\embedded_host.qml",
+    "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work\\qml\\shell\\page_host.qml"
+  ],
+  "working_directory": "C:\\Users\\Administrator\\.codex\\visualizations\\2026\\10\\23\\01a168b2-c697-7ed3-a54a-c5739751d859\\quickclash_p1\\work",
+  "started_at_utc": "2026-10-23T17:13:20.6084119Z",
+  "elapsed_ms": 306,
+  "exit_code": 0,
+  "timed_out": false
+}

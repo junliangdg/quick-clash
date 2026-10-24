@@ -1,0 +1,4 @@
+loopback connect result=-1 error=0
+PASS: zero-capability AppContainer; loopback denied within 1s; Mihomo valid=0 invalid=1; no new files; profile removed
+
+--- stderr ---

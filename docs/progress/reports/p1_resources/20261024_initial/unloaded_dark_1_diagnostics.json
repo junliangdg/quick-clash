@@ -1,0 +1,11 @@
+{
+    "active_demands": 0,
+    "active_streams": 0,
+    "engine_generation": 1,
+    "host_state": "Unloaded",
+    "open_ms": 414,
+    "page": "home",
+    "page_ready": false,
+    "qml_errors": 0,
+    "replay_running": false
+}

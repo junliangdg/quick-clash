@@ -1,0 +1,7 @@
+time="2026-10-24T02:38:47.293254900+08:00" level=info msg="Start initial configuration in progress"
+time="2026-10-24T02:38:47.293767600+08:00" level=info msg="Geodata Loader mode: memconservative"
+time="2026-10-24T02:38:47.293767600+08:00" level=info msg="Geosite Matcher implementation: succinct"
+time="2026-10-24T02:38:47.303512800+08:00" level=info msg="Initial configuration complete, total time: 10ms"
+configuration file D:\repos\quick-clash\.cache\core_probe_8b7d0f7e0688457ba9a708d02c8cb8a6\config.yaml test is successful
+
+--- stderr ---

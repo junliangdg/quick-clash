@@ -1,8 +1,9 @@
 import QtQuick
+import QuickClash.Ui
 
 Rectangle {
-    radius: 18
-    color: "#ffffff"
-    border.width: 1
-    border.color: "#e6e6ee"
+    required property ThemeTokens theme
+    radius: 16
+    color: theme.surface
+    border.width: 0
 }

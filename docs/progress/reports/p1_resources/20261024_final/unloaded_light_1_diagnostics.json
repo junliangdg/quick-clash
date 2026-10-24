@@ -1,0 +1,21 @@
+{
+    "active_demands": 0,
+    "active_streams": 0,
+    "device_pixel_ratio": 0,
+    "engine_generation": 1,
+    "font_family": "Microsoft YaHei UI",
+    "graphics_api": -1,
+    "host_state": "Unloaded",
+    "logical_dpi": 96,
+    "open_ms": 249,
+    "page": "home",
+    "page_ready": false,
+    "qml_errors": 0,
+    "qt_version": "6.8.0",
+    "replay_connections": 1000,
+    "replay_running": false,
+    "resolved_font_family": "Microsoft YaHei UI",
+    "tray_available": false,
+    "window_height": 0,
+    "window_width": 0
+}

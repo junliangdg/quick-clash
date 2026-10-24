@@ -1,0 +1,20 @@
+{
+  "executable": "C:\\Qt\\6.8.0\\msvc2022_64\\bin\\moc.exe",
+  "arguments": [
+    "--output-json",
+    "-I",
+    "C:/Qt/6.8.0/msvc2022_64/include",
+    "-I",
+    "C:/Qt/6.8.0/msvc2022_64/include/QtQml",
+    "-I",
+    "./src",
+    "-o",
+    "D:\\repos\\quick-clash\\build\\p1_static_applied/replay_model_moc.cpp",
+    "src/presentation/replay_model.h"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-23T18:00:24.6233735Z",
+  "elapsed_ms": 57,
+  "exit_code": 0,
+  "timed_out": false
+}

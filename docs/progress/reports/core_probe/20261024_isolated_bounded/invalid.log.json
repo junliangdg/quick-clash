@@ -1,0 +1,15 @@
+{
+  "executable": "D:\\repos\\quick-clash\\.cache\\mihomo\\mihomo.exe",
+  "arguments": [
+    "-t",
+    "-d",
+    "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59",
+    "-f",
+    "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59\\invalid.yaml"
+  ],
+  "working_directory": "D:\\repos\\quick-clash\\.cache\\core_probe_80dab2a3f14946ff92c06509390bee59",
+  "started_at_utc": "2026-10-23T18:57:49.4885847Z",
+  "elapsed_ms": 50,
+  "exit_code": 1,
+  "timed_out": false
+}

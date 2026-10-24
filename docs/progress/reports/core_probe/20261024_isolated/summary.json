@@ -1,0 +1,19 @@
+{
+  "result": "Fail",
+  "api_result": "NotRun",
+  "tag": "v1.19.33",
+  "scope": "API, listener ownership and Job",
+  "started_at_utc": "2026-10-23T18:56:05.6356199Z",
+  "valid_exit": 0,
+  "invalid_exit": 1,
+  "validation_new_files": [],
+  "listeners": "NotRun",
+  "job": "NotRun",
+  "network_isolation": "NotRun",
+  "system_proxy": "untouched",
+  "geo": "unsupported",
+  "failed_stage": "network_isolation",
+  "error": "Native step exited 1. Log: D:\\repos\\quick-clash\\docs\\progress\\reports\\core_probe\\20261024_isolated\\isolation.log",
+  "cleanup": "Pass: owned processes exited and temporary session removed",
+  "completed_at_utc": "2026-10-23T18:56:16.0397586Z"
+}

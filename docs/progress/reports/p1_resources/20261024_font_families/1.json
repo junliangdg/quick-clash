@@ -1,0 +1,8 @@
+{
+    "cjk_present": true,
+    "font_mode": "system_cjk",
+    "qt_version": "6.8.0",
+    "requested_font": "微软雅黑",
+    "resolved_font": "微软雅黑",
+    "stage": "controls"
+}

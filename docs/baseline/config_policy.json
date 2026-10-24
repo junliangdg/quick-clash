@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "phase": "P2",
-  "status": "initial subset; C++ preflight implementation awaits build/tests",
+  "status": "initial subset; C++ preflight UI/headless contract tests and isolated official-core fixtures verified; product integration remains P2",
   "core_tag": "v1.19.33",
   "limits": {"uncompressed_bytes": 16777216, "yaml_depth": 32, "yaml_events": 100000, "nodes": 5000, "groups": 500, "rules": 20000},
   "proxies": {"types": ["http", "socks5", "ss"], "fields": ["name", "type", "server", "port", "username", "password", "cipher", "udp"], "external_files": false},

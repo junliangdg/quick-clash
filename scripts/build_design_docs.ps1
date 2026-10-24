@@ -70,7 +70,7 @@ $parts = [System.Collections.Generic.List[string]]::new()
 $parts.Add('# QuickClash 完整设计文档（合并版）')
 $parts.Add("版本 $($versionMatch.Groups[1].Value) · $($versionMatch.Groups[2].Value)。由 19 个分册生成，修改请以分册为准。")
 $parts.Add('**官方预编译 Mihomo；订阅—代理真实转发 MVP 优先；桌面左侧导航＋右侧模块页面，圆角贴片与内置浅深主题；移动仅预留底部导航/精选入口/嵌入边界；客户端 ≤100 MB，内核单列。**')
-$parts.Add('本文件包含功能范围、首页、架构、恢复、实施与验收设计。尚未创建客户端实现或完成性能实测。生成与一致性检查使用 scripts/build_design_docs.ps1 及其 -Check 参数。')
+$parts.Add('本文件包含功能范围、首页、架构、恢复、实施与验收设计。实际实现、验证证据和下一步以 [开发进度台账](../progress/README.md) 为准，设计内容不表示功能已完成。生成与一致性检查使用 scripts/build_design_docs.ps1 及其 -Check 参数。')
 $parts.Add('## 目录')
 $parts.Add(($chapters | ForEach-Object { '- [' + $titles[$_.Name] + '](#' + $chapterIds[$_.Name] + ')' }) -join $lf)
 foreach ($chapter in $chapters) {

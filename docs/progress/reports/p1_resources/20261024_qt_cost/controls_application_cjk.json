@@ -1,0 +1,8 @@
+{
+    "cjk_present": true,
+    "font_mode": "application_cjk",
+    "qt_version": "6.8.0",
+    "requested_font": "Microsoft YaHei UI",
+    "resolved_font": "Microsoft YaHei UI",
+    "stage": "controls"
+}

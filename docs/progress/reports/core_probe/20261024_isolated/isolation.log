@@ -1,0 +1,4 @@
+loopback connect result=0 error=0
+
+--- stderr ---
+isolated process failed or exceeded 10s deadline

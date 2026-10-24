@@ -1,0 +1,78 @@
+#include "presentation/feature_registry.h"
+#include <QMetaType>
+#include <QSet>
+#include <utility>
+
+namespace quickclash::presentation {
+namespace {
+QUrl factory(const QString& path) {
+    return QUrl(QStringLiteral("qrc:/qt/qml/QuickClash/Ui/") + path);
+}
+bool validContext(const QVariantMap& context, const QStringList& keys) {
+    if (context.size() > 8) {
+        return false;
+    }
+    for (auto it = context.cbegin(); it != context.cend(); ++it) {
+        if (!keys.contains(it.key()) || it.value().metaType().id() != QMetaType::QString ||
+            it.value().toString().size() > 128 || it.value().toString().contains(QChar::Null)) {
+            return false;
+        }
+    }
+    return true;
+}
+} // namespace
+FeatureRegistry::FeatureRegistry() {
+    const auto add = [this](const char* id, const char* title, const char* glyph, const char* path,
+                            const char* availability, QStringList keys = {}) {
+        features_.append({QString::fromUtf8(id), QString::fromUtf8(title), QString::fromUtf8(glyph),
+                          factory(QString::fromUtf8(path)), QString::fromUtf8(availability),
+                          std::move(keys)});
+    };
+    add("home", "首页", "⌂", "features/home/home_page.qml", "原型");
+    add("proxies", "代理", "⇄", "features/proxies/proxies_page.qml", "回放", {"group"});
+    add("subscriptions", "订阅", "▤", "features/subscriptions/subscriptions_page.qml", "待 P2");
+    add("connections", "连接", "⇌", "features/connections/connections_page.qml", "回放",
+        {"filter"});
+    add("rules", "规则", "≡", "features/rules/rules_page.qml", "待 P3");
+    add("logs", "日志", "☷", "features/logs/logs_page.qml", "待 P2/P3");
+    add("tests", "测试", "⌁", "features/tests/tests_page.qml", "待 P2");
+    add("settings", "设置", "⚙", "features/settings/settings_page.qml", "界面设置");
+    embedded_.append({QStringLiteral("proxy_summary"),
+                      QStringLiteral("proxies"),
+                      factory(QStringLiteral("features/proxies/proxy_summary.qml")),
+                      {QStringLiteral("group")}});
+}
+const FeatureDescriptor* FeatureRegistry::resolve(const QString& id,
+                                                  const QVariantMap& context) const {
+    for (const auto& feature : features_) {
+        if (feature.id == id && validContext(context, feature.contextKeys) &&
+            (!context.contains(QStringLiteral("group")) ||
+             context.value(QStringLiteral("group")).toString() == QStringLiteral("primary"))) {
+            return &feature;
+        }
+    }
+    return nullptr;
+}
+const EmbeddedDescriptor* FeatureRegistry::resolveEmbedded(const QString& id,
+                                                           const QVariantMap& context) const {
+    for (const auto& content : embedded_) {
+        if (content.id == id && validContext(context, content.contextKeys) &&
+            (!context.contains(QStringLiteral("group")) ||
+             context.value(QStringLiteral("group")).toString() == QStringLiteral("primary"))) {
+            return &content;
+        }
+    }
+    return nullptr;
+}
+QList<FeatureDescriptor> FeatureRegistry::project(const QStringList& ids) const {
+    QList<FeatureDescriptor> result;
+    QSet<QString> seen;
+    for (const auto& id : ids) {
+        if (const auto* feature = resolve(id); feature && !seen.contains(id)) {
+            result.append(*feature);
+            seen.insert(id);
+        }
+    }
+    return result;
+}
+} // namespace quickclash::presentation

@@ -1,0 +1,16 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\p1_windows\\qt_cost_probe.exe",
+  "arguments": [
+    "--stage=controls",
+    "--font=system_cjk",
+    "--family=等线",
+    "--diagnostics=D:\\repos\\quick-clash\\docs\\progress\\reports\\p1_resources\\20261024_font_families/5.json",
+    "--capture=D:\\repos\\quick-clash\\docs\\progress\\reports\\p1_resources\\20261024_font_families/5.png",
+    "--quit-after-ms=1800"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-24T03:31:25.6071273Z",
+  "elapsed_ms": 2117,
+  "exit_code": 0,
+  "timed_out": false
+}

@@ -1,0 +1,34 @@
+#Requires -Version 7.2
+[CmdletBinding()]
+param(
+    [string]$BuildDirectory = 'build/p1_windows',
+    [string]$Destination = 'dist/p1_windows',
+    [string]$CMake = 'cmake'
+)
+$ErrorActionPreference = 'Stop'
+if (-not $IsWindows) { throw 'Windows deployment smoke only.' }
+$taskRepo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
+. (Join-Path $PSScriptRoot 'native_process.ps1')
+$taskBuild = (Resolve-Path -LiteralPath ([IO.Path]::GetFullPath($BuildDirectory, $taskRepo))).Path
+# Qt 6.8 qt.conf generation requires an absolute install prefix.
+$taskDestination = [IO.Path]::GetFullPath($Destination, $taskRepo)
+$taskCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop).Source
+$taskLogs = Join-Path $taskBuild ('logs/deploy_' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ'))
+Invoke-NativeStep -Executable $taskCMake -Arguments @('--install', $taskBuild, '--prefix', $taskDestination) -WorkingDirectory $taskRepo -LogPath (Join-Path $taskLogs 'install.log') -TimeoutSeconds 120
+$taskOriginalPath = $env:Path
+$taskOriginalPlatform = $env:QT_QPA_PLATFORM
+$taskOriginalBackend = $env:QT_QUICK_BACKEND
+$taskOriginalLogging = $env:QT_FORCE_STDERR_LOGGING
+try {
+    $env:Path = "$env:SystemRoot/System32;$env:SystemRoot"
+    $env:QT_QPA_PLATFORM = 'windows'
+    $env:QT_QUICK_BACKEND = 'software'
+    $env:QT_FORCE_STDERR_LOGGING = '1'
+    Invoke-NativeStep -Executable (Join-Path $taskDestination 'bin/quickclash.exe') -Arguments @('--smoke-test', "--diagnostics=$taskLogs/smoke.json") -WorkingDirectory $taskDestination -LogPath (Join-Path $taskLogs 'smoke.log') -TimeoutSeconds 15
+} finally {
+    $env:Path = $taskOriginalPath
+    $env:QT_QPA_PLATFORM = $taskOriginalPlatform
+    $env:QT_QUICK_BACKEND = $taskOriginalBackend
+    $env:QT_FORCE_STDERR_LOGGING = $taskOriginalLogging
+}
+Write-Output "Deployment smoke passed: $taskLogs. This is not clean-machine or P2 offline-package acceptance."

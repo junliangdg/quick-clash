@@ -1,0 +1,20 @@
+{
+  "executable": "C:\\Qt\\6.8.0\\msvc2022_64\\bin\\moc.exe",
+  "arguments": [
+    "--output-json",
+    "-I",
+    "C:/Qt/6.8.0/msvc2022_64/include",
+    "-I",
+    "C:/Qt/6.8.0/msvc2022_64/include/QtQml",
+    "-I",
+    "./src",
+    "-o",
+    "D:\\repos\\quick-clash\\build\\p1_static_applied/application_host_moc.cpp",
+    "app/application_host.h"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-23T18:00:24.2567164Z",
+  "elapsed_ms": 227,
+  "exit_code": 0,
+  "timed_out": false
+}
