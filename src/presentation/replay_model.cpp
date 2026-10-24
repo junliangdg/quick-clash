@@ -7,9 +7,8 @@ int ReplayModel::rowCount(const QModelIndex& parent) const {
     return parent.isValid() ? 0 : (filter_.isEmpty() ? rows_ : static_cast<int>(mapping_.size()));
 }
 QString ReplayModel::name(int row) const {
-    return kind_ == Kind::Proxies
-               ? QStringLiteral("示例节点 %1").arg(row + 1, 4, 10, QLatin1Char('0'))
-               : QStringLiteral("连接 %1 · app_%2").arg(row + 1).arg(row % 12);
+    return kind_ == Kind::Proxies ? tr("Sample node %1").arg(row + 1, 4, 10, QLatin1Char('0'))
+                                  : tr("Connection %1 · app_%2").arg(row + 1).arg(row % 12);
 }
 QVariant ReplayModel::data(const QModelIndex& index, int role) const {
     if (!index.isValid() || index.column() != 0 || index.row() < 0 || index.row() >= rowCount()) {
@@ -20,12 +19,11 @@ QVariant ReplayModel::data(const QModelIndex& index, int role) const {
     case Name:
         return name(row);
     case Detail:
-        return kind_ == Kind::Proxies ? QStringLiteral("演示组 / 测试节点 · 不建立网络连接")
-                                      : QStringLiteral("service_%1.example:443 → 示例节点 %2")
-                                            .arg(row % 99)
-                                            .arg(row % 500 + 1);
+        return kind_ == Kind::Proxies
+                   ? tr("Example group / Test node · No network connection")
+                   : tr("service_%1.example:443 → Sample node %2").arg(row % 99).arg(row % 500 + 1);
     case Status:
-        return kind_ == Kind::Proxies ? QStringLiteral("回放") : QStringLiteral("TCP · 回放");
+        return kind_ == Kind::Proxies ? tr("Replay") : tr("TCP · Replay");
     case Metric:
         return kind_ == Kind::Proxies
                    ? QStringLiteral("%1 ms").arg(30 + row % 180)

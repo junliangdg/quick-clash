@@ -1,5 +1,6 @@
 #include "application_host.h"
 #include "host_probe.h"
+#include "presentation/localization.h"
 #include "single_instance.h"
 #include <QApplication>
 #include <QDir>
@@ -15,6 +16,7 @@
 #include <QSaveFile>
 #include <QScreen>
 #include <QStandardPaths>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <cstdio>
 #include <memory>
@@ -32,8 +34,22 @@ int main(int argc, char* argv[]) {
     if (!qEnvironmentVariableIsSet("QSG_RENDER_LOOP")) {
         qputenv("QSG_RENDER_LOOP", "basic");
     }
+    // Qt 6.8's D3D11 frame-latency wait can stall the basic loop's GUI
+    // thread for one second during resize. Keep flip presentation and vsync,
+    // but disable the waitable object on this default path. Respect overrides.
+    const auto rhiBackend = qgetenv("QSG_RHI_BACKEND");
+    if (qgetenv("QSG_RENDER_LOOP") == "basic" && (rhiBackend.isEmpty() || rhiBackend == "d3d11") &&
+        !qEnvironmentVariableIsSet("QT_QUICK_BACKEND") &&
+        !qEnvironmentVariableIsSet("QT_D3D_MAX_FRAME_LATENCY") &&
+        !qEnvironmentVariableIsSet("QT_D3D_NO_FLIP")) {
+        qputenv("QT_D3D_MAX_FRAME_LATENCY", "0");
+    }
 #endif
     QApplication app(argc, argv);
+    quickclash::presentation::Localization localization;
+    if (!localization.load()) {
+        std::fputs("Translation catalog unavailable; using English.\n", stderr);
+    }
     QCoreApplication::setApplicationName(QStringLiteral("QuickClash"));
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     QApplication::setQuitOnLastWindowClosed(false);
@@ -55,8 +71,9 @@ int main(int argc, char* argv[]) {
     const bool hostTest = arguments.contains(QStringLiteral("--host-test"));
     const bool trayTest = arguments.contains(QStringLiteral("--tray-test"));
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
+    const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
     const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
-                          arguments.contains(QStringLiteral("--isolated"));
+                          responsiveTest || arguments.contains(QStringLiteral("--isolated"));
     const auto option = [&arguments](const QString& key) {
         const auto prefix = key + QLatin1Char('=');
         for (const auto& argument : arguments) {
@@ -66,6 +83,21 @@ int main(int argc, char* argv[]) {
         }
         return QString{};
     };
+    std::unique_ptr<QTemporaryDir> probeDirectory;
+    QString probeSettings;
+#ifdef QUICKCLASH_TEST_PROBES
+    const auto probeLanguage = option(QStringLiteral("--probe-language"));
+    if (isolated && !probeLanguage.isEmpty() && !localization.load({probeLanguage})) {
+        return 16;
+    }
+    const auto runtimeProbe = option(QStringLiteral("--runtime-probe"));
+    if (isolated && !runtimeProbe.isEmpty()) {
+        probeDirectory = std::make_unique<QTemporaryDir>();
+        if (!probeDirectory->isValid())
+            return 15;
+        probeSettings = probeDirectory->filePath(QStringLiteral("ui.ini"));
+    }
+#endif
     const auto dataDirectory =
         QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     const auto configDirectory =
@@ -86,10 +118,64 @@ int main(int argc, char* argv[]) {
         }
     }
     quickclash::ApplicationHost host(
-        isolated ? QString{} : QDir(configDirectory).filePath(QStringLiteral("ui.ini")),
+        isolated ? probeSettings : QDir(configDirectory).filePath(QStringLiteral("ui.ini")),
         (isolated && !trayTest) || arguments.contains(QStringLiteral("--no-tray")));
     QObject::connect(&instance, &quickclash::SingleInstance::activationRequested, &host,
                      [&host] { (void)host.showWindow(); });
+#ifdef QUICKCLASH_TEST_PROBES
+    if (!probeSettings.isEmpty()) {
+        auto stage = std::make_shared<int>(0);
+        QObject::connect(
+            &host.state(), &quickclash::presentation::UiState::runtimeChanged, &host,
+            [&host, stage, runtimeProbe, option] {
+                const auto state = host.state().runtime();
+                if (state.value(QStringLiteral("busy")).toBool())
+                    return;
+                if (*stage == 0) {
+                    *stage = 1;
+                    host.state().runtimeCommand(
+                        QStringLiteral("ports"),
+                        {option(QStringLiteral("--probe-mixed-port")),
+                         option(QStringLiteral("--probe-controller-port"))});
+                    host.state().runtimeCommand(QStringLiteral("import"),
+                                                {QUrl::fromLocalFile(runtimeProbe).toString(),
+                                                 QStringLiteral("Runtime sample")});
+                } else if (*stage == 1 &&
+                           !state.value(QStringLiteral("profiles")).toList().isEmpty()) {
+                    *stage = 2;
+                    host.state().runtimeCommand(QStringLiteral("select"),
+                                                {state.value(QStringLiteral("profiles"))
+                                                     .toList()
+                                                     .first()
+                                                     .toMap()
+                                                     .value(QStringLiteral("id"))
+                                                     .toString()});
+                } else if (*stage == 2 &&
+                           !state.value(QStringLiteral("selectedId")).toString().isEmpty()) {
+                    *stage = 3;
+                    host.state().runtimeCommand(QStringLiteral("start"));
+                }
+            });
+        const auto stateFile = option(QStringLiteral("--runtime-state"));
+        if (!stateFile.isEmpty()) {
+            auto* timer = new QTimer(&host);
+            QObject::connect(timer, &QTimer::timeout, &host, [&host, stateFile] {
+                const auto state = host.state().runtime();
+                QSaveFile file(stateFile);
+                const QJsonObject value{
+                    {QStringLiteral("ready"), state.value(QStringLiteral("ready")).toBool()},
+                    {QStringLiteral("busy"), state.value(QStringLiteral("busy")).toBool()},
+                    {QStringLiteral("corePid"), state.value(QStringLiteral("corePid")).toInt()},
+                    {QStringLiteral("error"), state.value(QStringLiteral("error")).toString()}};
+                if (file.open(QIODevice::WriteOnly)) {
+                    file.write(QJsonDocument(value).toJson());
+                    file.commit();
+                }
+            });
+            timer->start(500);
+        }
+    }
+#endif
     const auto replayConnections = option(QStringLiteral("--replay-connections"));
     if (!replayConnections.isEmpty() &&
         !host.state().setReplayConnections(replayConnections.toInt())) {
@@ -111,10 +197,10 @@ int main(int argc, char* argv[]) {
     const auto windowSize = option(QStringLiteral("--window-size"));
     if (isolated && !windowSize.isEmpty()) {
         const auto dimensions = windowSize.split(QLatin1Char('x'));
-        if (dimensions.size() != 2 || dimensions[0].toInt() < 720 || dimensions[1].toInt() < 560) {
+        if (dimensions.size() != 2 || dimensions[0].toInt() < 360 || dimensions[1].toInt() < 480) {
             return 13;
         }
-        host.window()->resize(dimensions[0].toInt(), dimensions[1].toInt());
+        host.resizeWindow(QSize(dimensions[0].toInt(), dimensions[1].toInt()));
     }
     if (hostTest) {
         return quickclash::runHostProbe(host);
@@ -123,6 +209,9 @@ int main(int argc, char* argv[]) {
         return quickclash::runTrayProbe(host);
     }
 #ifdef QUICKCLASH_TEST_PROBES
+    if (responsiveTest) {
+        return quickclash::runResponsiveProbe(host);
+    }
     if (keyboardTest) {
         return quickclash::runKeyboardProbe(host);
     }
@@ -133,11 +222,27 @@ int main(int argc, char* argv[]) {
 #endif
     const auto capture = option(QStringLiteral("--capture"));
     if (isolated && !capture.isEmpty()) {
-        QTimer::singleShot(1000, &host, [&host, capture] {
-            if (!host.contentReady() || !host.window()->grabWindow().save(capture)) {
-                QCoreApplication::exit(12);
-            }
-        });
+        auto* captureTimer = new QTimer(&host);
+        captureTimer->setInterval(200);
+        const bool waitForRuntime = !option(QStringLiteral("--runtime-probe")).isEmpty();
+        QObject::connect(
+            captureTimer, &QTimer::timeout, &host,
+            [&host, capture, captureTimer, waitForRuntime, attempts = 0]() mutable {
+                const auto state = host.state().runtime();
+                if (!host.contentReady() ||
+                    (waitForRuntime && (!state.value(QStringLiteral("ready")).toBool() ||
+                                        state.value(QStringLiteral("busy")).toBool()))) {
+                    if (++attempts < 50)
+                        return;
+                    QCoreApplication::exit(12);
+                    return;
+                }
+                captureTimer->stop();
+                if (!host.window()->grabWindow().save(capture))
+                    QCoreApplication::exit(12);
+                captureTimer->deleteLater();
+            });
+        captureTimer->start();
     }
     if (smoke) {
         QTimer::singleShot(300, &host,

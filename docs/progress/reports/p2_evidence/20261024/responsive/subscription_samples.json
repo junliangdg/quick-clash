@@ -1,0 +1,30 @@
+[
+  {
+    "chars": 27852,
+    "structure": "root_keys=mixed-port,allow-lan,bind-address,mode,log-level,external-controller,dns,proxies,proxy-groups,rules, unknown_count=0\r\nproxies=hysteria2:25,trojan:4,\r\nproxy-groups=fallback:1,select:1,url-test:1,\r\nrules=DOMAIN:17,DOMAIN-KEYWORD:40,DOMAIN-SUFFIX:429,GEOIP:1,IP-CIDR:30,IP-CIDR6:4,MATCH:1,\r\ndns_fake_ip=1\r\n",
+    "sample": "S1",
+    "content_type": "text/html; charset=UTF-8",
+    "status": 200
+  },
+  {
+    "chars": 30710,
+    "structure": "root_keys=mixed-port,allow-lan,mode,log-level,ipv6,unified-delay,tcp-concurrent,geox-url,proxies,proxy-groups,rules, unknown_count=0\r\nproxies=vless:73,\r\nproxy-groups=select:1,url-test:1,\r\nrules=DOMAIN:1,DOMAIN-KEYWORD:1,DOMAIN-SUFFIX:96,GEOIP:1,GEOSITE:1,IP-CIDR:5,IP-CIDR6:3,MATCH:1,\r\ndns_fake_ip=0\r\n",
+    "sample": "S2",
+    "content_type": "text/yaml; charset=utf-8",
+    "status": 200
+  },
+  {
+    "chars": 43449,
+    "structure": "root_keys=mixed-port,allow-lan,bind-address,mode,log-level,external-controller,unified-delay,tcp-concurrent,ipv6,dns,proxies,proxy-groups,rules, unknown_count=0\r\nproxies=hysteria2:20,vless:36,\r\nproxy-groups=fallback:1,select:1,url-test:1,\r\nrules=DOMAIN:16,DOMAIN-KEYWORD:40,DOMAIN-SUFFIX:422,GEOIP:1,IP-CIDR:32,IP-CIDR6:4,MATCH:1,\r\ndns_fake_ip=1\r\n",
+    "sample": "S3",
+    "content_type": "text/html; charset=UTF-8",
+    "status": 200
+  },
+  {
+    "chars": 27853,
+    "structure": "root_keys=mixed-port,allow-lan,bind-address,mode,log-level,external-controller,dns,proxies,proxy-groups,rules, unknown_count=0\r\nproxies=hysteria2:25,trojan:4,\r\nproxy-groups=fallback:1,select:1,url-test:1,\r\nrules=DOMAIN:17,DOMAIN-KEYWORD:40,DOMAIN-SUFFIX:429,GEOIP:1,IP-CIDR:30,IP-CIDR6:4,MATCH:1,\r\ndns_fake_ip=1\r\n",
+    "sample": "S4",
+    "content_type": "text/html; charset=UTF-8",
+    "status": 200
+  }
+]

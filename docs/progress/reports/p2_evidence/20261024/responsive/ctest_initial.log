@@ -1,0 +1,31 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start  2: contracts
+1/7 Test  #2: contracts ........................   Passed    0.08 sec
+    Start  4: runtime
+2/7 Test  #4: runtime ..........................   Passed   16.01 sec
+    Start  5: localization
+3/7 Test  #5: localization .....................   Passed    0.05 sec
+    Start  6: ui_state
+4/7 Test  #6: ui_state .........................   Passed    0.18 sec
+    Start  9: qml_smoke
+5/7 Test  #9: qml_smoke ........................   Passed    0.50 sec
+    Start 10: ui_keyboard
+6/7 Test #10: ui_keyboard ......................   Passed    0.94 sec
+    Start 11: ui_responsive
+7/7 Test #11: ui_responsive ....................***Failed  Error regular expression found in output. Regex=[Binding loop]  0.58 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+qrc:/qt-project.org/imports/QtQuick/Controls/Basic/SpinBox.qml:27:18: QML QQuickTextInput: Binding loop detected for property "text":
+qrc:/qt-project.org/imports/QtQuick/Controls/Basic/SpinBox.qml:29:9
+qrc:/qt-project.org/imports/QtQuick/Controls/Basic/SpinBox.qml:27:18: QML QQuickTextInput: Binding loop detected for property "text":
+qrc:/qt-project.org/imports/QtQuick/Controls/Basic/SpinBox.qml:29:9
+
+
+86% tests passed, 1 tests failed out of 7
+
+Total Test time (real) =  18.46 sec
+
+The following tests FAILED:
+	 11 - ui_responsive (Failed)
+Errors while running CTest

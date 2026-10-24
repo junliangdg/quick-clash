@@ -1,0 +1,20 @@
+{
+  "result": "Pass",
+  "executable_sha256": "e61d250fcbb06ab09f5de7795a0763ae05b43c3db92b67600704f2f282b13f01",
+  "scenario": "Real Qt Quick home + persistent storage worker + official owned Ready core; local import/selection; system proxy untouched; no replay or sustained traffic",
+  "client_process_group": [
+    29388
+  ],
+  "auxiliary_client_processes": [],
+  "core_pid": 33392,
+  "seconds": 10,
+  "samples": 91,
+  "sample_interval_ms": 100,
+  "client_private_working_set_peak_bytes": 60751872.0,
+  "client_working_set_peak_bytes": 154664960.0,
+  "client_private_commit_peak_bytes": 203542528.0,
+  "core_private_working_set_peak_bytes": 7761920.0,
+  "core_working_set_peak_bytes": 28037120.0,
+  "core_private_commit_peak_bytes": 63447040.0,
+  "limitations": "One development short sample; no sustained download, import peak, hidden/rebuild, CPU/frame/GPU or long-term acceptance."
+}

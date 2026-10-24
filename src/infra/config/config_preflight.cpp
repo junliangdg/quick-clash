@@ -1,4 +1,7 @@
 #include "infra/config/config_preflight.h"
+#include "infra/config/config_schema.h"
+#include <QJsonArray>
+#include <QMessageAuthenticationCode>
 #include <QStringList>
 #include <set>
 #include <sstream>
@@ -83,12 +86,6 @@ void inspectTree(const YAML::Node& node, int depth, std::size_t& budget) {
         }
     }
 }
-void allowedKeys(const YAML::Node& node, const std::set<std::string>& keys) {
-    require(node.IsMap());
-    for (const auto& entry : node) {
-        require(keys.contains(entry.first.as<std::string>()), "UnsupportedConfigFeature");
-    }
-}
 QByteArray serializeYaml(const YAML::Node& node) {
     YAML::Emitter emitter;
     emitter << node;
@@ -96,6 +93,35 @@ QByteArray serializeYaml(const YAML::Node& node) {
     return QByteArray(emitter.c_str(), static_cast<qsizetype>(emitter.size()));
 }
 } // namespace
+
+QString subscriptionPayloadError(const QByteArray& input) {
+    if (input.size() > 16 * 1024 * 1024)
+        return QStringLiteral("SubscriptionTooLarge");
+    auto content = input;
+    if (content.startsWith(QByteArray::fromHex("efbbbf")))
+        content.remove(0, 3);
+    if (content.trimmed().isEmpty())
+        return QStringLiteral("EmptySubscription");
+    try {
+        std::istringstream stream(content.toStdString());
+        YAML::Parser parser(stream);
+        ParseBudget parseBudget;
+        while (parser.HandleNextDocument(parseBudget)) {
+        }
+        const auto documents = YAML::LoadAll(content.toStdString());
+        require(documents.size() == 1, "UnsupportedSubscriptionFormat");
+        const auto root = documents.front();
+        require(root.IsMap(), "UnsupportedSubscriptionFormat");
+        std::size_t budget = 100000;
+        inspectTree(root, 0, budget);
+        require(root["proxies"] || root["proxy-providers"], "UnsupportedSubscriptionFormat");
+        return {};
+    } catch (const InvalidConfig& error) {
+        return QString::fromLatin1(error.code);
+    } catch (const YAML::Exception&) {
+        return QStringLiteral("UnsupportedSubscriptionFormat");
+    }
+}
 
 domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
                                                 const domain::RuntimePreferences& preferences) {
@@ -117,86 +143,9 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         auto root = documents.front();
         std::size_t budget = 100000;
         inspectTree(root, 0, budget);
-        allowedKeys(root, {"proxies",
-                           "proxy-groups",
-                           "rules",
-                           "mode",
-                           "log-level",
-                           "ipv6",
-                           "mixed-port",
-                           "port",
-                           "socks-port",
-                           "redir-port",
-                           "tproxy-port",
-                           "allow-lan",
-                           "bind-address",
-                           "external-controller",
-                           "secret",
-                           "external-ui",
-                           "external-ui-url",
-                           "tun",
-                           "dns",
-                           "profile",
-                           "geodata-mode",
-                           "geo-auto-update"});
-        const auto dns = root["dns"];
-        if (dns) {
-            allowedKeys(dns, {"enable", "listen", "enhanced-mode", "nameserver", "fallback",
-                              "default-nameserver", "ipv6"});
-            require(!dns["enhanced-mode"] || dns["enhanced-mode"].as<std::string>() != "fake-ip",
-                    "UnsupportedConfigFeature");
-        }
-        if (root["tun"]) {
-            allowedKeys(root["tun"], {"enable", "stack", "auto-route", "auto-detect-interface"});
-        }
-        if (root["profile"]) {
-            allowedKeys(root["profile"], {"store-selected", "store-fake-ip"});
-        }
-        require(root["proxies"].IsSequence() && root["proxies"].size() <= 5000);
-        std::set<std::string> names{"DIRECT", "REJECT"};
-        for (const auto& proxy : root["proxies"]) {
-            allowedKeys(
-                proxy, {"name", "type", "server", "port", "username", "password", "cipher", "udp"});
-            const auto name = proxy["name"].as<std::string>();
-            require(!name.empty() && name.size() <= 512 && names.insert(name).second);
-            const auto type = proxy["type"].as<std::string>();
-            require(type == "http" || type == "socks5" || type == "ss", "UnsupportedConfigFeature");
-            require(!proxy["server"].as<std::string>().empty());
-            const auto port = proxy["port"].as<unsigned>();
-            require(port > 0 && port <= 65535);
-            if (type == "ss") {
-                require(proxy["cipher"] && proxy["password"]);
-            }
-        }
-        require(root["proxy-groups"].IsSequence() && root["proxy-groups"].size() <= 500);
-        for (const auto& group : root["proxy-groups"]) {
-            allowedKeys(group, {"name", "type", "proxies"});
-            const auto name = group["name"].as<std::string>();
-            require(!name.empty() && name.size() <= 512 && names.insert(name).second);
-            require(group["type"].as<std::string>() == "select", "UnsupportedConfigFeature");
-            require(group["proxies"].IsSequence() && group["proxies"].size() > 0);
-        }
-        for (const auto& group : root["proxy-groups"]) {
-            for (const auto& member : group["proxies"]) {
-                require(names.contains(member.as<std::string>()));
-            }
-        }
-        require(root["rules"].IsSequence() && root["rules"].size() <= 20000);
-        for (const auto& rule : root["rules"]) {
-            const auto parts = QString::fromStdString(rule.as<std::string>()).split(',');
-            const auto type = parts.front();
-            const bool match = type == QStringLiteral("MATCH");
-            require(match || type == QStringLiteral("DOMAIN") ||
-                        type == QStringLiteral("DOMAIN-SUFFIX") ||
-                        type == QStringLiteral("DOMAIN-KEYWORD") ||
-                        type == QStringLiteral("IP-CIDR") || type == QStringLiteral("IP-CIDR6"),
-                    "UnsupportedConfigFeature");
-            require(parts.size() == (match ? 2 : 3) ||
-                    (!match && parts.size() == 4 &&
-                     (type == QStringLiteral("IP-CIDR") || type == QStringLiteral("IP-CIDR6")) &&
-                     parts.back() == QStringLiteral("no-resolve")));
-            require(names.contains(parts[match ? 1 : 2].toStdString()));
-        }
+        const auto validated = validateConfigSchema(root);
+        if (const auto* failure = std::get_if<domain::Error>(&validated))
+            return *failure;
         PreflightConfig output;
         const std::vector<std::string> managed{"mixed-port",
                                                "port",
@@ -239,6 +188,71 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         return inputError(error.code);
     } catch (const YAML::Exception&) {
         return inputError("InvalidYaml");
+    }
+}
+
+QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key) {
+    QJsonObject identities;
+    if (key.size() < 32)
+        return identities;
+    try {
+        const auto root = YAML::Load(semantic.toStdString());
+        for (const auto& node : root["proxies"]) {
+            const auto name = QString::fromStdString(node["name"].as<std::string>());
+            auto descriptor = YAML::Clone(node);
+            descriptor.remove("name");
+            identities.insert(name, QString::fromLatin1(QMessageAuthenticationCode::hash(
+                                                            serializeYaml(descriptor), key,
+                                                            QCryptographicHash::Sha256)
+                                                            .toHex()));
+        }
+        for (const auto& group : root["proxy-groups"]) {
+            const auto name = QString::fromStdString(group["name"].as<std::string>());
+            identities.insert(
+                name, QStringLiteral("group:") +
+                          QString::fromLatin1(QMessageAuthenticationCode::hash(
+                                                  name.toUtf8() + serializeYaml(root["proxies"]) +
+                                                      serializeYaml(root["proxy-groups"]),
+                                                  key, QCryptographicHash::Sha256)
+                                                  .toHex()));
+        }
+        identities.insert(QStringLiteral("DIRECT"), QStringLiteral("builtin:direct"));
+        identities.insert(QStringLiteral("REJECT"), QStringLiteral("builtin:reject"));
+        identities.insert(QStringLiteral("GLOBAL"),
+                          QStringLiteral("global:") +
+                              QString::fromLatin1(
+                                  QMessageAuthenticationCode::hash(serializeYaml(root["proxies"]),
+                                                                   key, QCryptographicHash::Sha256)
+                                      .toHex()));
+    } catch (const YAML::Exception&) {
+        return {};
+    } catch (const InvalidConfig&) {
+        return {};
+    }
+    return identities;
+}
+QString redactedConfig(const QByteArray& semantic) {
+    try {
+        auto root = YAML::Load(semantic.toStdString());
+        root.remove("secret");
+        for (auto proxy : root["proxies"]) {
+            for (auto entry : proxy) {
+                const auto key = entry.first.as<std::string>();
+                if (key != "name" && key != "type" && key != "port" && key != "cipher")
+                    proxy[key] = "[redacted]";
+            }
+        }
+        for (auto group : root["proxy-groups"])
+            if (group["url"])
+                group["url"] = "[redacted]";
+        const auto bytes = serializeYaml(root);
+        if (bytes.size() > 256 * 1024)
+            return QStringLiteral("PreviewLimitExceeded");
+        return QString::fromUtf8(bytes);
+    } catch (const YAML::Exception&) {
+        return QStringLiteral("InvalidYaml");
+    } catch (const InvalidConfig&) {
+        return QStringLiteral("InvalidYaml");
     }
 }
 

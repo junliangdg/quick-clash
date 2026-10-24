@@ -1,0 +1,15 @@
+{
+  "executable": "C:\\Qt\\Tools\\QtCreator\\bin\\clang\\bin\\clang-format.exe",
+  "arguments": [
+    "--dry-run",
+    "--Werror",
+    "app/main.cpp",
+    "app/keyboard_probe.cpp",
+    "app/application_host.h"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-24T08:46:32.7017746Z",
+  "elapsed_ms": 86,
+  "exit_code": 0,
+  "timed_out": false
+}

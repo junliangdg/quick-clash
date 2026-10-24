@@ -1,15 +1,56 @@
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import QuickClash.Ui
 
-Item {
+ScrollView {
     id: root
     required property UiState ui
     required property ThemeTokens theme
-    DeferredContent {
-        width: parent.width
-        theme: root.theme
-        heading: qsTr("日志尚未接入")
-        description: qsTr("P2 提供有界错误与修复入口，P3 扩展实时日志、筛选与脱敏导出。")
-        milestone: qsTr("当前没有伪造的运行日志。")
+    contentWidth: availableWidth
+    clip: true
+    ColumnLayout {
+        width: root.availableWidth
+        spacing: 12
+        Label {
+            text: qsTr("Runtime errors")
+            color: root.theme.text
+            font.pixelSize: 20
+            font.bold: true
+        }
+        Label {
+            text: qsTr("The latest 100 errors contain timestamps and error codes. Full core logs are planned for a later release.")
+            color: root.theme.muted
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+        ActionButton {
+            theme: root.theme
+            text: qsTr("Open repair settings")
+            onClicked: root.ui.navigate("settings")
+        }
+        Label {
+            visible: !(root.ui.runtime.errors || []).length
+            text: qsTr("No errors recorded")
+            color: root.theme.muted
+        }
+        Repeater {
+            model: root.ui.runtime.errors || []
+            delegate: FlatTile {
+                id: entry
+                required property var modelData
+                theme: root.theme
+                Layout.fillWidth: true
+                implicitHeight: 58
+                Label {
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    text: entry.modelData.time + " · " + entry.modelData.code
+                    color: root.theme.text
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
     }
 }

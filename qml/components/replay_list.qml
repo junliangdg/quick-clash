@@ -42,7 +42,7 @@ ColumnLayout {
             objectName: "list_filter"
             font.family: root.theme.fontFamily
             Layout.fillWidth: true
-            placeholderText: qsTr("筛选回放数据…")
+            placeholderText: qsTr("Filter replay data…")
             color: root.theme.text
             placeholderTextColor: root.theme.muted
             maximumLength: 128
@@ -55,11 +55,11 @@ ColumnLayout {
             }
             onTextEdited: debounce.restart()
             onTextChanged: root.retainedFilter = text
-            Accessible.name: qsTr("筛选列表")
+            Accessible.name: qsTr("Filter list")
         }
         ActionButton {
             theme: root.theme
-            text: root.ui.replay ? qsTr("停止回放") : qsTr("加载回放")
+            text: root.ui.replay ? qsTr("Stop replay") : qsTr("Load replay")
             onClicked: root.ui.replay = !root.ui.replay
         }
     }
@@ -82,7 +82,7 @@ ColumnLayout {
     }
     Label {
         font.family: root.theme.fontFamily
-        text: root.ui.replay ? qsTr("%1 条合成记录 · 无网络请求 · 列表按可见区域复用").arg(root.replayModel.count) : qsTr("尚未接入真实内核；可加载回放检查列表与布局。")
+        text: root.ui.replay ? qsTr("%1 synthetic records · No network requests · Visible rows are reused").arg(root.replayModel.count) : qsTr("No live data is available here yet. Load replay to preview the list.")
         color: root.theme.muted
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
@@ -160,7 +160,7 @@ ColumnLayout {
                 font.family: root.theme.fontFamily
                 anchors.centerIn: parent
                 visible: root.replayModel.count === 0
-                text: root.ui.replay ? qsTr("没有匹配记录") : qsTr("暂无数据")
+                text: root.ui.replay ? qsTr("No matching records") : qsTr("No data")
                 color: root.theme.muted
             }
         }

@@ -1,9 +1,9 @@
 #pragma once
+#include "infra/storage/settings_service.h"
 #include "presentation/feature_registry.h"
 #include "presentation/replay_model.h"
 #include <QHash>
 #include <QObject>
-#include <QSettings>
 #include <QTimer>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
@@ -16,6 +16,9 @@ class UiState : public QObject {
     QML_ELEMENT
     QML_UNCREATABLE("Owned by ApplicationHost")
     Q_PROPERTY(QVariantList navigation READ navigation CONSTANT)
+    Q_PROPERTY(QVariantList compactNavigation READ compactNavigation CONSTANT)
+    Q_PROPERTY(QString runtimeStatus READ runtimeStatus NOTIFY runtimeChanged)
+    Q_PROPERTY(QString runtimeError READ runtimeError NOTIFY runtimeChanged)
     Q_PROPERTY(QString currentPage READ currentPage NOTIFY routeChanged)
     Q_PROPERTY(QString pageTitle READ pageTitle NOTIFY routeChanged)
     Q_PROPERTY(QUrl pageSource READ pageSource NOTIFY routeChanged)
@@ -28,6 +31,9 @@ class UiState : public QObject {
     Q_PROPERTY(int activeDemandCount READ activeDemandCount NOTIFY demandsChanged)
     Q_PROPERTY(int activeStreamCount READ activeStreamCount NOTIFY demandsChanged)
     Q_PROPERTY(bool replayRunning READ replayRunning NOTIFY demandsChanged)
+    Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
+    Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
+    Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QString upload READ upload NOTIFY sampleChanged)
     Q_PROPERTY(QString download READ download NOTIFY sampleChanged)
     Q_PROPERTY(QVariantList uploadHistory READ uploadHistory NOTIFY sampleChanged)
@@ -36,11 +42,25 @@ class UiState : public QObject {
     Q_PROPERTY(quickclash::presentation::ReplayModel* connectionModel READ connectionModel CONSTANT)
     Q_PROPERTY(bool trayAvailable READ trayAvailable WRITE setTrayAvailable NOTIFY hostChanged)
     Q_PROPERTY(QString hostState READ hostState WRITE setHostState NOTIFY hostChanged)
+    Q_PROPERTY(QString hostStatus READ hostStatus NOTIFY hostChanged)
     Q_PROPERTY(
         bool unloadWhenHidden READ unloadWhenHidden WRITE setUnloadWhenHidden NOTIFY hostChanged)
   public:
     explicit UiState(QString settingsFile = {}, QObject* parent = nullptr);
+    [[nodiscard]] QVariantMap runtime() const {
+        return runtime_;
+    }
+    Q_INVOKABLE void runtimeCommand(const QString& command, const QStringList& arguments = {});
+    [[nodiscard]] QString storageError() const {
+        return storageError_;
+    }
+    [[nodiscard]] bool settingsReady() const {
+        return settingsReady_;
+    }
     [[nodiscard]] QVariantList navigation() const;
+    [[nodiscard]] QVariantList compactNavigation() const;
+    [[nodiscard]] QString runtimeStatus() const;
+    [[nodiscard]] QString runtimeError() const;
     [[nodiscard]] QString currentPage() const {
         return currentPage_;
     }
@@ -91,6 +111,7 @@ class UiState : public QObject {
     [[nodiscard]] QString hostState() const {
         return hostState_;
     }
+    [[nodiscard]] QString hostStatus() const;
     void setHostState(const QString& state);
     [[nodiscard]] bool unloadWhenHidden() const {
         return unloadWhenHidden_;
@@ -121,6 +142,8 @@ class UiState : public QObject {
     }
   signals:
     void routeChanged();
+    void storageChanged();
+    void runtimeChanged();
     void filterChanged(const QString& pageId, const QString& text);
     void routeErrorChanged();
     void themeChanged();
@@ -139,6 +162,7 @@ class UiState : public QObject {
     void updateTimer();
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
+    void applyPreferences(const QString& theme, bool unload, bool acknowledged);
     FeatureRegistry registry_;
     QString currentPage_ = QStringLiteral("home");
     QString routeError_;
@@ -157,6 +181,9 @@ class UiState : public QObject {
     int sample_ = 0;
     ReplayModel proxyModel_{ReplayModel::Kind::Proxies};
     ReplayModel connectionModel_{ReplayModel::Kind::Connections};
-    std::unique_ptr<QSettings> settings_;
+    bool settingsReady_ = false;
+    QString storageError_;
+    QVariantMap runtime_;
+    std::unique_ptr<infra::SettingsService> settings_;
 };
 } // namespace quickclash::presentation

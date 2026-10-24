@@ -1,0 +1,12 @@
+[0/2] Re-checking globbed directories...
+[1/13] Automatic MOC for target quickclash_runtime
+[2/13] Building CXX object CMakeFiles\quickclash_runtime.dir\quickclash_runtime_autogen\mocs_compilation.cpp.obj
+[3/13] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\settings_service.cpp.obj
+[4/13] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[5/13] Linking CXX static library quickclash_runtime.lib
+[6/13] Automatic MOC for target runtime_test
+[7/12] Linking CXX executable proxy_lease_test.exe
+[8/12] Linking CXX executable ui_state_test.exe
+[9/12] Linking CXX executable quickclash.exe
+[10/12] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+[11/12] Linking CXX executable runtime_test.exe

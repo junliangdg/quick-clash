@@ -1,0 +1,85 @@
+[0/2] Re-checking globbed directories...
+[1/49] Automatic MOC for target quickclash
+[2/49] Running AUTOMOC file extraction for target quickclash
+[3/49] Running moc --collect-json for target quickclash
+[4/49] Automatic QML type registration for target quickclash
+[5/49] Generating .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp, .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp.aotstats
+[6/49] Generating .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp, .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp.aotstats
+[7/49] Generating .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp, .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp.aotstats
+[8/49] Generating .rcc/qmlcache/quickclash_qml/main_qml.cpp, .rcc/qmlcache/quickclash_qml/main_qml.cpp.aotstats
+[9/49] Generating .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp, .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp.aotstats
+[10/49] Generating .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp, .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp.aotstats
+[11/49] Generating .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp, .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp.aotstats
+[12/49] Generating .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp.aotstats
+[13/49] Generating .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp.aotstats
+[14/49] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp.aotstats
+[15/49] Generating .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp.aotstats
+[16/49] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp.aotstats
+[17/49] Generating .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp.aotstats
+[18/49] Generating .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp.aotstats
+[19/49] Generating .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp.aotstats
+[20/49] Generating .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp.aotstats
+[21/49] Generating .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp.aotstats
+[22/49] Generating .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp.aotstats
+[23/49] C:\WINDOWS\system32\cmd.exe /C "cd /D D:\repos\quick-clash && D:\repos\quick-clash\build\p2_responsive\.qt\bin\qt_setup_tool_path.bat C:/Qt/6.8.0/msvc2022_64/bin/qmllint.exe @D:/repos/quick-clash/build/p2_responsive/.rcc/qmllint/quickclash.rsp"
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:5:1: Warnings occurred while importing module "QtQuick.Dialogs": [import]
+import QtQuick.Dialogs
+
+^^^^^^
+---
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+
+---
+
+
+
+[24/49] Building CXX object CMakeFiles\quickclash.dir\app\host_probe.cpp.obj
+[25/49] Building CXX object CMakeFiles\quickclash.dir\app\application_host.cpp.obj
+[26/49] Building CXX object CMakeFiles\quickclash.dir\quickclash_autogen\mocs_compilation.cpp.obj
+[27/49] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+[28/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\flat_tile_qml.cpp.obj
+[29/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\main_qml.cpp.obj
+[30/49] Building CXX object CMakeFiles\quickclash.dir\quickclash_qmltyperegistrations.cpp.obj
+[31/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\theme_tokens_qml.cpp.obj
+[32/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\action_button_qml.cpp.obj
+[33/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\deferred_content_qml.cpp.obj
+[34/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\replay_list_qml.cpp.obj
+[35/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\traffic_sparkline_qml.cpp.obj
+[36/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\shell\page_host_qml.cpp.obj
+[37/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\shell\embedded_host_qml.cpp.obj
+[38/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\home\home_page_qml.cpp.obj
+[39/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\proxies\proxies_page_qml.cpp.obj
+[40/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\proxies\proxy_summary_qml.cpp.obj
+[41/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\subscriptions\subscriptions_page_qml.cpp.obj
+[42/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\connections\connections_page_qml.cpp.obj
+[43/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\rules\rules_page_qml.cpp.obj
+[44/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\logs\logs_page_qml.cpp.obj
+[45/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\tests\tests_page_qml.cpp.obj
+[46/49] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\settings\settings_page_qml.cpp.obj
+[47/49] Building CXX object CMakeFiles\quickclash.dir\app\keyboard_probe.cpp.obj
+[48/49] Linking CXX executable quickclash.exe

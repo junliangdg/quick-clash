@@ -25,6 +25,12 @@ enum class ErrorCategory {
     Cancelled,
     Uncertain
 };
+struct ConfigIssue {
+    QString code;
+    QString path;
+    QString feature;
+    QString phase;
+};
 struct Error {
     QString code;
     ErrorCategory category = ErrorCategory::Input;
@@ -34,6 +40,7 @@ struct Error {
     QString stage;
     QString redactedDetail;
     std::optional<std::int64_t> osCode;
+    std::vector<ConfigIssue> configIssues;
 };
 template <typename T> using Result = std::variant<T, Error>;
 using CommandResult = Result<std::monostate>;

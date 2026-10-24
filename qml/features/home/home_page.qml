@@ -29,20 +29,21 @@ ScrollView {
                 theme: root.theme
                 Layout.columnSpan: 2
                 Layout.fillWidth: true
-                implicitHeight: 182
+                implicitHeight: statusContent.implicitHeight + 40
                 ColumnLayout {
+                    id: statusContent
                     anchors.fill: parent
                     anchors.margins: 20
                     spacing: 10
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("回放模式 · 未运行代理") : qsTr("尚未配置")
+                        text: root.ui.replay ? qsTr("Replay mode · Proxy stopped") : root.ui.runtimeStatus
                         color: root.theme.success
                         font.bold: true
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("演示订阅 / 示例节点") : qsTr("从一个订阅开始")
+                        text: root.ui.replay ? qsTr("Example subscription / Sample node") : (root.ui.runtime.selectedName || qsTr("Start with a subscription"))
                         color: root.theme.text
                         font.pixelSize: 23
                         font.bold: true
@@ -51,21 +52,29 @@ ScrollView {
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: qsTr("P1 界面原型 · 官方 Mihomo 将在 P2 接入")
+                        text: root.ui.runtimeError || (root.ui.runtime.ready ? qsTr("Official Mihomo %1 · Local proxy ready").arg(root.ui.runtime.coreVersion) : qsTr("Import and select a profile, then start Mihomo."))
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
-                    RowLayout {
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
                         ActionButton {
                             theme: root.theme
-                            text: qsTr("管理订阅")
+                            text: qsTr("Manage subscriptions")
                             prominent: true
                             onClicked: root.ui.navigate("subscriptions")
                         }
                         ActionButton {
                             theme: root.theme
-                            text: root.ui.replay ? qsTr("结束回放") : qsTr("预览回放")
+                            text: root.ui.runtime.ready || root.ui.runtime.busy ? qsTr("Stop / Cancel") : qsTr("Start core")
+                            enabled: root.ui.settingsReady
+                            onClicked: root.ui.runtimeCommand(root.ui.runtime.ready || root.ui.runtime.busy ? "stop" : "start")
+                        }
+                        ActionButton {
+                            theme: root.theme
+                            text: root.ui.replay ? qsTr("End replay") : qsTr("Preview replay")
                             onClicked: root.ui.replay = !root.ui.replay
                         }
                     }
@@ -74,11 +83,11 @@ ScrollView {
             Repeater {
                 model: [
                     {
-                        "label": qsTr("上传"),
+                        "label": qsTr("Upload"),
                         "up": true
                     },
                     {
-                        "label": qsTr("下载"),
+                        "label": qsTr("Download"),
                         "up": false
                     }
                 ]
@@ -107,8 +116,10 @@ ScrollView {
                         }
                         Label {
                             font.family: root.theme.fontFamily
-                            text: root.ui.replay ? qsTr("1 Hz 合成数据") : qsTr("等待内核数据")
+                            text: root.ui.replay ? qsTr("Synthetic data · 1 Hz") : qsTr("Waiting for core data")
                             color: root.theme.muted
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
                         }
                         Item {
                             Layout.fillHeight: true
@@ -135,24 +146,41 @@ ScrollView {
                 spacing: 10
                 Label {
                     font.family: root.theme.fontFamily
-                    text: qsTr("代理模式")
+                    text: qsTr("Outbound mode")
                     color: root.theme.text
                     height: 36
                     verticalAlignment: Text.AlignVCenter
                 }
                 Repeater {
-                    model: [qsTr("规则"), qsTr("全局"), qsTr("直连")]
+                    model: [
+                        {
+                            label: qsTr("Rule"),
+                            key: "rule"
+                        },
+                        {
+                            label: qsTr("Global"),
+                            key: "global"
+                        },
+                        {
+                            label: qsTr("Direct"),
+                            key: "direct"
+                        }
+                    ]
                     delegate: ActionButton {
-                        required property string modelData
+                        required property var modelData
                         theme: root.theme
-                        text: modelData
-                        enabled: false
+                        text: modelData.label
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy
+                        prominent: !!root.ui.runtime.preferences && root.ui.runtime.preferences.mode === modelData.key
+                        onClicked: root.ui.runtimeCommand("mode", [modelData.key])
                     }
                 }
                 Switch {
                     font.family: root.theme.fontFamily
-                    text: qsTr("系统代理")
-                    enabled: false
+                    text: qsTr("System proxy")
+                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                    checked: !!root.ui.runtime.systemProxy
+                    onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                     palette.windowText: root.theme.muted
                 }
                 Switch {
@@ -171,34 +199,35 @@ ScrollView {
             FlatTile {
                 theme: root.theme
                 Layout.fillWidth: true
-                implicitHeight: 170
+                implicitHeight: networkContent.implicitHeight + 36
                 ColumnLayout {
+                    id: networkContent
                     anchors.fill: parent
                     anchors.margins: 18
                     spacing: 10
                     Label {
                         font.family: root.theme.fontFamily
-                        text: qsTr("订阅与网络")
+                        text: qsTr("Subscription and network")
                         font.bold: true
                         color: root.theme.text
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("演示订阅 · 用量和到期时间未知") : qsTr("暂无订阅 · 尚未启动内核")
+                        text: root.ui.replay ? qsTr("Example subscription · Usage and expiry unknown") : qsTr("%1 profiles · %2").arg((root.ui.runtime.profiles || []).length).arg(root.ui.runtime.ready ? qsTr("Core ready") : qsTr("Core stopped"))
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: qsTr("IP 信息未查询 · 网站测试尚未接入")
+                        text: qsTr("IP information not queried. Choose a website and run a test manually.")
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
                     ActionButton {
                         theme: root.theme
-                        text: qsTr("网站测试")
+                        text: qsTr("Website test")
                         onClicked: root.ui.navigate("tests")
                     }
                 }
@@ -225,28 +254,30 @@ ScrollView {
                     Layout.fillWidth: true
                     Label {
                         font.family: root.theme.fontFamily
-                        text: qsTr("连接与系统")
+                        text: qsTr("Connections and system")
                         font.bold: true
                         color: root.theme.text
                         Layout.fillWidth: true
                     }
                     ActionButton {
                         theme: root.theme
-                        text: qsTr("查看连接")
+                        text: qsTr("View connections")
                         onClicked: root.ui.navigate("connections")
                     }
                 }
                 Label {
                     font.family: root.theme.fontFamily
-                    text: qsTr("首页不订阅完整连接列表。客户端 / 内核内存：尚未采样。")
+                    text: qsTr("The dashboard does not load the full connection list. Client / core memory: not sampled.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
                 Label {
                     font.family: root.theme.fontFamily
-                    text: qsTr("活跃展示需求 %1 · 合并数据流 %2").arg(root.ui.activeDemandCount).arg(root.ui.activeStreamCount)
+                    text: qsTr("Active views %1 · Shared streams %2").arg(root.ui.activeDemandCount).arg(root.ui.activeStreamCount)
                     color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                 }
             }
         }

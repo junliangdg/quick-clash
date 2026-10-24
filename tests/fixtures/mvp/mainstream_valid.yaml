@@ -1,0 +1,93 @@
+# Synthetic parser/session fixture. These endpoints and credentials are not usable subscriptions.
+proxies:
+  - name: hy2_fixture
+    type: hysteria2
+    server: proxy.example.invalid
+    port: 443
+    password: public_dummy_password
+    sni: proxy.example.invalid
+    alpn: [h3]
+    udp: true
+    up: 100
+    down: 200
+    obfs: salamander
+    obfs-password: public_dummy_obfs
+  - name: trojan_fixture
+    type: trojan
+    server: proxy.example.invalid
+    port: 443
+    password: public_dummy_password
+    sni: proxy.example.invalid
+    skip-cert-verify: false
+    alpn: [h2, http/1.1]
+    udp: true
+  - name: vless_reality_fixture
+    type: vless
+    server: proxy.example.invalid
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000001
+    tls: true
+    servername: proxy.example.invalid
+    flow: xtls-rprx-vision
+    client-fingerprint: chrome
+    reality-opts:
+      public-key: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+      short-id: 0123456789abcdef
+    udp: true
+    packet-encoding: xudp
+  - name: vless_ws_fixture
+    type: vless
+    server: proxy.example.invalid
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000002
+    tls: true
+    servername: proxy.example.invalid
+    network: ws
+    ws-opts:
+      path: /public-fixture
+      headers: {Host: proxy.example.invalid}
+      max-early-data: 2048
+      early-data-header-name: Sec-WebSocket-Protocol
+  - name: vmess_grpc_fixture
+    type: vmess
+    server: proxy.example.invalid
+    port: 443
+    uuid: 00000000-0000-4000-8000-000000000003
+    alterId: 0
+    cipher: auto
+    tls: true
+    servername: proxy.example.invalid
+    network: grpc
+    grpc-opts: {grpc-service-name: public-fixture}
+  - name: trojan_ws_fixture
+    type: trojan
+    server: proxy.example.invalid
+    port: 443
+    password: public_dummy_password
+    sni: proxy.example.invalid
+    network: ws
+    ws-opts: {path: /public-fixture}
+proxy-groups:
+  - name: primary_fixture
+    type: select
+    proxies: [DIRECT, automatic_fixture, fallback_fixture, hy2_fixture, trojan_fixture,
+              vless_reality_fixture, vless_ws_fixture, vmess_grpc_fixture, trojan_ws_fixture]
+  - name: automatic_fixture
+    type: url-test
+    proxies: [DIRECT, fallback_fixture]
+    url: https://example.invalid/health
+    interval: 86400
+    timeout: 1000
+    tolerance: 50
+    lazy: true
+    expected-status: "200-299"
+  - name: fallback_fixture
+    type: fallback
+    proxies: [DIRECT, REJECT]
+    url: https://example.invalid/health
+    interval: 86400
+    timeout: 1000
+    lazy: true
+rules: ["MATCH,primary_fixture"]
+unified-delay: true
+tcp-concurrent: true

@@ -1,11 +1,13 @@
 #pragma once
 #include "presentation/ui_state.h"
+#include "system_events.h"
 #include <QElapsedTimer>
 #include <QMenu>
 #include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
 #include <QRect>
+#include <QSize>
 #include <QSystemTrayIcon>
 #include <QTimer>
 #include <memory>
@@ -20,6 +22,7 @@ class ApplicationHost final : public QObject {
         return state_;
     }
     [[nodiscard]] bool showWindow();
+    void resizeWindow(const QSize& size);
     void hideWindow(bool confirmed);
     void unloadWindow();
     void quit();
@@ -40,13 +43,16 @@ class ApplicationHost final : public QObject {
   private:
     void setupTray(bool noTray);
     presentation::UiState state_;
+    SystemEvents systemEvents_;
     std::unique_ptr<QQmlApplicationEngine> engine_;
     QPointer<QQuickWindow> window_;
     std::unique_ptr<QMenu> trayMenu_;
     std::unique_ptr<QSystemTrayIcon> tray_;
     QTimer unloadTimer_;
     QRect geometry_;
+    QSize requestedSize_;
     bool quitting_ = false;
+    bool waitingForSettings_ = false;
     int generation_ = 0;
     qint64 openMilliseconds_ = 0;
     int qmlErrorCount_ = 0;

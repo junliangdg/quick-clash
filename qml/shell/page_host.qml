@@ -18,7 +18,7 @@ Loader {
         anchors.centerIn: parent
         width: Math.max(0, parent.width - 32)
         visible: root.status === Loader.Error
-        text: qsTr("页面加载失败。请切换页面重试；错误信息见程序诊断输出。")
+        text: qsTr("Unable to load this page. Switch pages to retry; see diagnostics for details.")
         color: root.theme.warning
         wrapMode: Text.WordWrap
         horizontalAlignment: Text.AlignHCenter

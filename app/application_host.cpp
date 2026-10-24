@@ -20,6 +20,14 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
         state_.setSystemDark(scheme == Qt::ColorScheme::Dark);
     });
     setupTray(noTray);
+    connect(&systemEvents_, &SystemEvents::reconcileRequested, this,
+            [this] { state_.runtimeCommand(QStringLiteral("reconcile")); });
+    connect(&state_, &presentation::UiState::storageChanged, this, [this] {
+        if (waitingForSettings_ && (state_.settingsReady() || !state_.storageError().isEmpty())) {
+            waitingForSettings_ = false;
+            (void)showWindow();
+        }
+    });
     unloadTimer_.setSingleShot(true);
     unloadTimer_.setInterval(5000);
     connect(&unloadTimer_, &QTimer::timeout, this, &ApplicationHost::unloadWindow);
@@ -70,17 +78,26 @@ void ApplicationHost::setupTray(bool noTray) {
     painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("Q"));
     painter.end();
     trayMenu_ = std::make_unique<QMenu>();
-    trayMenu_->addAction(QStringLiteral("打开 QuickClash"), this, [this] { (void)showWindow(); });
-    auto* status = trayMenu_->addAction(QStringLiteral("P1 界面原型 · 内核尚未接入"));
+    trayMenu_->addAction(tr("Open QuickClash"), this, [this] { (void)showWindow(); });
+    auto* status = trayMenu_->addAction(tr("Core stopped"));
     status->setEnabled(false);
+    connect(&state_, &presentation::UiState::runtimeChanged, status, [this, status] {
+        status->setText(state_.runtime().value(QStringLiteral("ready")).toBool()
+                            ? tr("Mihomo ready")
+                            : tr("Core stopped"));
+    });
+    trayMenu_->addAction(tr("Start proxy"), this,
+                         [this] { state_.runtimeCommand(QStringLiteral("start_proxy")); });
+    trayMenu_->addAction(tr("Stop and restore proxy"), this,
+                         [this] { state_.runtimeCommand(QStringLiteral("stop")); });
     trayMenu_->addSeparator();
-    trayMenu_->addAction(QStringLiteral("设置"), this, [this] {
+    trayMenu_->addAction(tr("Settings"), this, [this] {
         (void)state_.navigate(QStringLiteral("settings"));
         (void)showWindow();
     });
-    trayMenu_->addAction(QStringLiteral("退出"), this, &ApplicationHost::quit);
+    trayMenu_->addAction(tr("Quit"), this, &ApplicationHost::quit);
     tray_ = std::make_unique<QSystemTrayIcon>(QIcon(pixmap));
-    tray_->setToolTip(QStringLiteral("QuickClash · P1 界面原型"));
+    tray_->setToolTip(QStringLiteral("QuickClash"));
     tray_->setContextMenu(trayMenu_.get());
     connect(tray_.get(), &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason) {
@@ -92,6 +109,10 @@ void ApplicationHost::setupTray(bool noTray) {
     state_.setTrayAvailable(true);
 }
 bool ApplicationHost::showWindow() {
+    if (!state_.settingsReady() && state_.storageError().isEmpty()) {
+        waitingForSettings_ = true;
+        return true;
+    }
     if (quitting_) {
         return false;
     }
@@ -144,11 +165,21 @@ bool ApplicationHost::showWindow() {
     }
     state_.setUiVisible(true);
     state_.setHostState(QStringLiteral("Visible"));
+    if (requestedSize_.isValid()) {
+        window_->resize(requestedSize_);
+        requestedSize_ = {};
+    }
     window_->showNormal();
     window_->raise();
     window_->requestActivate();
     openMilliseconds_ = elapsed.elapsed();
     return true;
+}
+void ApplicationHost::resizeWindow(const QSize& size) {
+    if (window_)
+        window_->resize(size);
+    else
+        requestedSize_ = size;
 }
 bool ApplicationHost::contentReady() const {
     return window_ && window_->property("pageReady").toBool() && qmlErrorCount_ == 0;

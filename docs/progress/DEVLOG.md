@@ -105,6 +105,47 @@
 - 本次仅运行文档生成/一致性/命名及差异检查，结果见报告；不因文档变化重跑构建、UI或性能。旧失败和旧验收要求保留历史。
 - 下一任务P2-01：实现版本化原子仓库和损坏恢复，接续P2-02设置/DPAPI与P2-03官方内核进程/API，优先形成可用订阅—代理链路。
 
+## 2026-10-24 / P2 Windows订阅与代理链路
+
+- 关联任务：P2-01—17，执行者Codex；保留此前工作区改动，无提交/推送。完整范围、逐任务状态与证据见 [P2交付报告](reports/20261024_p2_implementation.md)。
+- 完成：单写者/原子schema仓库与manifest恢复、异步偏好/DPAPI、官方Mihomo认证Ready/owned Job/隔离-t、导入/订阅及来源头/更新/删除、节点身份恢复/模式与端口事务、系统代理租约/冲突/迁移/恢复、有限崩溃恢复、错误/修复入口、单目标HTTPS、OS事件合并、本地包和采样脚本。UI/托盘共用应用门面，系统代理意图独立持久化，退出保留/UserStop清除且不开机自动代理。
+- 产物：dist/p2_final/bin/quickclash.exe，SHA-256 075d3f620f1c67e0df47551cec35597481a2cfb7ae052526fb6cf39bb4d21767；随包Qt/QML/TLS/CRT、官方v1.19.33及摘要/许可/用户说明。BUILD_TESTING开启，未签名，仅开发验证，非干净机或公网发行验收。
+- 实际验证：Windows Release增量构建/WX退出0，最终CTest10/10（24.20秒）、headless2/2通过；QML lint退出0但Qt6.8 Dialogs重复类型警告仍保留。独立CurrentProxy域名CONNECT/TLS及真实WinINet PRECONFIG HTTPS/重复开启/端口迁移/原值恢复通过，最后追加意图退出/重开/停止语义断言也通过。
+- 按用户要求保持短测：最终包真实Qt Quick首页/仓库worker/Ready内核，10秒91样本；客户端专用工作集峰55,054,336 B，总工作集148,557,824 B，私有提交200,167,424 B，内核单列。客户端退出0/owned内核已退出。仅该场景满足100 MB，不包含持续转发/导入峰值/隐藏重建/CPU/帧/GPU/长期；旧5a28…/0877…读数对最终包Stale，P1旧页面不能证明新业务页的视觉与组合负载。
+- 台账：P0 9Done、P1 6Done；P2 13Done/2Review/2Blocked。G0/G1保留工程/原型基线Pass，G2 Blocked；MVP-05/06 Pass，其他条目按已测子条件与缺口记录，没有提前全勾。
+- 未覆盖：真实换网/唤醒与请求计数、完整客户端强杀→下次租约恢复、首次平台/落盘失败组合、无Qt开发工具的普通用户干净环境、正常组合操作/真实会话隐藏重建资源。当前停止固定TerminateJobObject，正常退出优化后续；完整连接/规则/实时流量/TUN/provider/Geo/资源卡等按后续功能阶段推进。
+- 下一任务P2-11先一次代表OS事件核对，再P2-15关键恢复窗口；P2-16补干净普通用户环境，最终P2-17/G2。继续功能开发，不追加长时或重复性能矩阵。
+- 交付检查：分册修改后合并生成及-Check、check_progress、check_source_layout、clang-format --dry-run --Werror、PowerShell解析、基线JSON、最终包/采样SHA一致性、git diff --check均退出0。命名覆盖33个目录/99个文件；进度脚本确认P2 13Done/2Review/2Blocked、MVP2/16。diff只有LF→CRLF提示；文档脚本不算产品验收。
+
+## 2026-10-24 / P2窄窗、多语言、订阅格式适配与主流功能分期
+
+- 交付P2-18/19/20：360×480最小窗/600断点三底栏、全路由状态保留；英文源文案/172条中文Qt词表/系统序匹配及英文回退；标准链接默认Clash/Mihomo UA+YAML Accept、内容识别/头覆盖/坏更新保留。见[响应式/语言/链接适配交付](reports/20261024_p2_responsive_localization.md)。
+- Windows Release /WX通过；首次7项检查6Pass/1绑定循环Fail，改用C locale后最终7/7、19.54秒。QML lint退出0，保留Qt6.8 Dialogs重复类型警告。最终包dist/p2_adaptive、SHA081e680d2b089183ced2a92611d0940d68f4a073ecd7f16bbc9b9917b59680e0，随包smoke和中英文竖屏截图通过；用户旧实例保留。
+- 一次10秒/91样本，客户端专用工作集60,329,984 B，总工作集152,944,640 B，私有提交204,558,336 B，核心单列；仅Ready首页场景，非导入/持续转发或长时结论。旧包的UI/下载/资源证据Stale，旧失败保留。
+- 用户提供4个私有URL仅本地内存/标准输入测试，无真实地址/查询或路径凭据/正文/节点名进入仓库。均HTTP200且YAML；S1生产预检拒绝UnsupportedConfigFeature，类型统计证明需Hysteria2/Trojan/VLESS、url-test/fallback、Geo和fake-ip；不称已导入或远端转发成功。
+- 用户要求按基础/高级拆任务：P2-21主流协议、P2-22自动组、P2-23具体诊断；P3-02扩充Geo，P3-08 DNS，P3-09高级能力。新增均Todo，范围/条件见[Mihomo功能分期](reports/20261024_mihomo_feature_plan.md)。P2共16Done/2Review/2Blocked/3Todo，G2仍Blocked；没有因新增文档宣称实现。
+- 下一开发任务P2-21，先前三类协议，再VMess/基础传输；后续自动组和诊断。真实OS事件/关键强杀恢复、干净普通用户环境缺口保留；不新增长时/帧/GPU矩阵。设计生成/Check、进度/布局、格式/秘密扫描和diff结果见交付报告。
+
+## 2026-10-24 / P2主流协议、自动组与具体兼容性诊断
+
+- 完成P2-21/22/23，执行者Codex，保留原工作区改动，未提交/推送。新增按协议和嵌套字段校验Hysteria2/Trojan/VLESS/VMess，自动组url-test/fallback及无环引用，最多32项安全兼容性原因；187条中文词表完成。实现、边界与证据见[协议交付报告](reports/20261024_p2_protocols.md)。
+- 真实runtime探针发现窗口创建前resize空指针，宿主改为暂存尺寸，内容/Ready后截图；最终430×850中文代理页可用，手选与自动组控件按能力区分。健康检查交官方Mihomo，不新增永久测速轮询；组命令与恢复均校验能力/成员身份。
+- Windows Release /WX增量构建通过，受影响CTest7/7（22.99秒），窗口修复后只重跑UI3/3（3.67秒）；官方隔离-t/Ready/选择/重启/坏候选保留、受控自动组健康检查通过。首次健康夹具漏HEAD的6/7及窗口调试栈保留。QML lint退出0，既有Qt Dialogs重复类型警告未消除。
+- 最终包dist/p2_protocols_final/bin/quickclash.exe，SHA bde55c99302143c3c3b33236b08609cea9ad123f1730a67e5d4292fd6ad7ee94；随包smoke及实际中文代理页核对通过。官方v1.19.33字节不变，未签名，普通用户干净环境未验收。
+- 仅一次10秒/91样本的中间包短测：客户端专用工作集58,830,848 B、总工作集150,122,496 B、私有提交201,064,448 B，核心单列；客户端退出0且核心已回收。其后窗口初始化修复改变二进制，中间资源证据对最终包Stale，最终包资源NotRun；不因文档收尾重复性能测试。
+- P2现19Done/2Review/2Blocked，G2仍Blocked，MVP-04/11只更新已测子条件。新增协议公网握手未测；Geo/fake-ip/provider仍按P3分期，不能宣称四份原始订阅可用。本轮仅公开假数据与受控服务，无私有订阅请求/落库。
+- 设计合并生成/Check、进度/命名/格式、JSON/词表与隐私、差异核对记录在报告的delivery_checks.log；这些工程检查不等同产品验收。下一任务P2-11实际Windows事件，继而P2-15关键强杀恢复与P2-16普通用户环境，不新增长时/图形矩阵。
+
+## 2026-10-24 / 连续缩放与导航切换卡顿修复
+
+- 关联P2-24，Codex；保留全部既有工作区修改，无提交/推送，未停止或覆盖用户正在运行的旧包。见[缩放报告](reports/20261024_resize_layout.md)。
+- 先减少外层Layout/导航名称隐式尺寸协商并固定240×36曲线绘制缓冲，offscreen通过但真实Windows仍停顿。渲染日志与本地栈确认GUI线程在D3D11帧延迟等待对象中约一秒阻塞；默认basic/D3D11启动路径禁用该等待对象，保留GPU/flip/vsync及显式环境覆盖。
+- 最终Release/WX与QML lint退出0，既有Qt Dialogs警告保留；qml_smoke/ui_keyboard/ui_responsive/host_lifecycle共4/4通过。真实窗口首页/代理各80步，最大事件处理耗时约15.3/19.9ms，同一页面、引擎及需求保留；这不是呈现帧测量或真实转发时缩放验收。
+- 完整包dist/p2_resize/bin/quickclash.exe，SHA-256 e61d250fcbb06ab09f5de7795a0763ae05b43c3db92b67600704f2f282b13f01；随包smoke及中文窄窗截图通过。官方v1.19.33不变，普通用户干净环境仍待核对。
+- 最终包仅一次10秒/91样本Ready首页短测：客户端专用工作集60,751,872 B、总工作集154,664,960 B、私有提交203,542,528 B，核心三指标单列；退出0、owned内核已回收、系统代理未修改。旧包相关布局/图形/资源证据Stale，未重复100次重建或完整性能矩阵。
+- 台账P2现20Done/2Review/2Blocked，G2仍Blocked；本次不改变系统代理和MVP-05/06历史通过范围。未请求或保存私有订阅。设计合并及必要交付检查结果留在报告中。
+- 下一任务仍为P2-11一次代表OS事件核对，再P2-15关键强杀/租约恢复、P2-16干净普通用户包核对；不因本次缩放修复增加验证矩阵。
+
 ## 追加记录格式
 
 ```text

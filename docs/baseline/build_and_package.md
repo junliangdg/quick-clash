@@ -1,6 +1,8 @@
 # QuickClash 构建与离线包基线
 
-2026-10-24 Windows Release、QML lint/cache、7/7 CTest、独立headless、官方内核探针与部署已有通过证据。按用户指定的开发优先策略，G0/G1 Pass，见 [范围重评](../progress/reports/20261024_development_first.md)。G1复用现有单轮短测和原型行为，长时/帧/GPU专项后置；Linux/macOS原生与CI执行后置P4。应用显示名QuickClash、target/命名空间quickclash，源码遵循 [编码规范](../development/cpp_style.md)。
+2026-10-24 P2已通过Windows Release增量构建、10/10 CTest、独立headless2/2、真实CONNECT/TLS与WinINet系统代理恢复；QML lint退出0但Qt6.8 Dialogs仍有重复类型导入警告。完整本地验证包及真实GUI+Ready内核短测已具备，见 [P2交付](../progress/reports/20261024_p2_implementation.md)。G0/G1保留基线Pass，G2 Blocked；长时/帧/GPU专项和Linux/macOS原生/CI执行后置。应用显示名QuickClash、target/命名空间quickclash，源码遵循 [编码规范](../development/cpp_style.md)。
+
+最新缩放修复构建目录build/p2_responsive，完整本地包dist/p2_resize；Release与QML lint、4/4受影响UI检查、真实窗口连续缩放及一次10秒Ready首页内存短测通过，详见[缩放报告](../progress/reports/20261024_resize_layout.md)。上段完整矩阵保留历史范围，本轮未重复网络/恢复矩阵，未扩大G2结论。
 
 ## 依赖与构建
 
@@ -46,13 +48,17 @@ P0 定义布局，P2-16 实现在无开发工具的普通用户机器验证，�
 
 运行 `pwsh -NoProfile -File scripts/deploy_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p1_validated`，工具不在 PATH 时补 `-CMake`。脚本将 prefix 解析为绝对路径，通过 qt_generate_deploy_qml_app_script 收集 Qt/QML，临时移除开发 Qt PATH 后用随包 Windows 插件执行 smoke，保存输出/退出码。当前部署通过；仍需在 P2-16 核验干净环境 TLS、VC runtime 和发行裁剪。Mihomo 原始字节校验后单独加入，不构建 Go 源码。P2 无 Geo 资源，许可义务见 [台账](licenses.md)。
 
-安装目录只读。数据实现前设置 applicationName=QuickClash，再冻结 QStandardPaths::AppLocalDataLocation，不虚构组织域名。运行文件、元数据、DPAPI 密文、配置分区存放。完整 URL/头、节点凭据、session secret 不入日志/QML/报告；DPAPI 和 session ACL 在 P2-02/04 验证，P0 临时脚本不是生产存储。
+P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境仍是P2-16的待验收项。
 
-正常停止释放 owned 系统代理租约并停止内核。无服务模式 Job 可随宿主结束内核，但不能即时恢复系统代理，P2 须下次启动核对与手工修复。当前 P0 shell 不启动内核、不写代理，尚无代理功能。
+安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
+
+停止先释放owned系统代理租约再终止owned Job；当前不发正常退出请求。无服务模式Job随宿主结束内核，但强杀时不能即时恢复系统代理，下次启动先按持久租约核对匹配值，外部变化不覆盖，手工说明见随包指南。系统代理意图独立持久化，退出保留、UserStop清除；无自动启动。完整客户端强杀→下次恢复的产品组合尚未验收。
 
 ## P1 原型的构建与边界
 
 详见 [当前验证](../progress/reports/20261024_windows_private_working_set.md)。Qt Widgets仅用于托盘/原生菜单宿主，Qt Network用于用户范围单实例IPC；界面保持Qt Quick，headless边界不变。CTest的contracts、ui_state、single_instance、ui_prototype、qml_smoke、ui_keyboard、host_lifecycle七项通过；真实Windows托盘和键盘探针也已运行。BUILD_TESTING开启时加入Qt6::Test和键盘探针，正式无测试构建不要求该模块。Windows未显式设置QSG_RENDER_LOOP时默认basic，保留D3D11，修复参考环境threaded重建句柄增长；其他平台不改默认，覆盖循环须重测。
+
+Qt6.8本机basic/D3D11帧延迟等待对象会在连续缩放中阻塞GUI线程约一秒。P2-24在默认basic且空/d3d11 RHI、无QT_QUICK_BACKEND和显式D3D选项时，启动前设置QT_D3D_MAX_FRAME_LATENCY=0；保留GPU、flip呈现和垂直同步。QT_D3D_MAX_FRAME_LATENCY、QT_D3D_NO_FLIP若已设置则尊重调用者，不全局改软件渲染或threaded；其他平台不设置。该选项只在进程启动前生效，试用dist/p2_resize须正常退出旧QuickClash后启动新包，单实例激活旧进程不能加载新实现。
 
 `quickclash --replay` 显示 500 节点/1,000 连接，默认关闭；`--replay-connections=10000` 是探索档，拒绝其他值。`--no-tray` 验证关闭退路；`--isolated` 禁用持久偏好和单实例/托盘，供独立场景。`--host-test` 自动核对无托盘/最小化/卸载恢复；`--tray-test` 只启用真实托盘、不写偏好；`--prototype-test` 输出页面与100次重建诊断。隔离运行可用 `--capture=绝对路径.png --quit-after-ms=2500` 保存页面，结合 `--theme=light|dark --page=home --replay`。
 

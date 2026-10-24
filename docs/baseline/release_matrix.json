@@ -73,7 +73,7 @@
   "support": {
     "windows": {
       "development": "Windows x64 / installed Qt 6.8.0",
-      "validation": "Windows Release, QML lint, 7 CTest, headless and deployment evidence retained; G0 and G1 Pass under design 1.6 development scope using existing private working set short runs; long/frame/GPU work deferred and NotRun; see docs/progress/reports/20261024_development_first.md",
+      "validation": "P2 Windows Release, 10 CTest, headless 2 tests, controlled HTTPS/CONNECT and native WinINet restoration passed; qmllint exit 0 with Qt Dialogs import warnings; local offline package and one resource short run available. G0/G1 baseline Pass, G2 Blocked pending OS-event/kill-recovery and clean ordinary-user acceptance; see docs/progress/reports/20261024_p2_implementation.md",
       "runtime_minimum_candidate": "Windows 10 1809 (Qt 6.8 requirement); clean-system verification P2-16"
     },
     "linux": {

@@ -1,4 +1,5 @@
 #include "presentation/feature_registry.h"
+#include <QCoreApplication>
 #include <QMetaType>
 #include <QSet>
 #include <utility>
@@ -24,19 +25,30 @@ bool validContext(const QVariantMap& context, const QStringList& keys) {
 FeatureRegistry::FeatureRegistry() {
     const auto add = [this](const char* id, const char* title, const char* glyph, const char* path,
                             const char* availability, QStringList keys = {}) {
-        features_.append({QString::fromUtf8(id), QString::fromUtf8(title), QString::fromUtf8(glyph),
-                          factory(QString::fromUtf8(path)), QString::fromUtf8(availability),
-                          std::move(keys)});
+        features_.append(
+            {QString::fromUtf8(id), QCoreApplication::translate("FeatureRegistry", title),
+             QString::fromUtf8(glyph), factory(QString::fromUtf8(path)),
+             QCoreApplication::translate("FeatureRegistry", availability), std::move(keys)});
     };
-    add("home", "首页", "⌂", "features/home/home_page.qml", "原型");
-    add("proxies", "代理", "⇄", "features/proxies/proxies_page.qml", "回放", {"group"});
-    add("subscriptions", "订阅", "▤", "features/subscriptions/subscriptions_page.qml", "待 P2");
-    add("connections", "连接", "⇌", "features/connections/connections_page.qml", "回放",
+    add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "⌂",
+        "features/home/home_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Prototype"));
+    add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"), "⇄",
+        "features/proxies/proxies_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Replay"),
+        {"group"});
+    add("subscriptions", QT_TRANSLATE_NOOP("FeatureRegistry", "Subscriptions"), "▤",
+        "features/subscriptions/subscriptions_page.qml",
+        QT_TRANSLATE_NOOP("FeatureRegistry", "P2"));
+    add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"), "⇌",
+        "features/connections/connections_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Replay"),
         {"filter"});
-    add("rules", "规则", "≡", "features/rules/rules_page.qml", "待 P3");
-    add("logs", "日志", "☷", "features/logs/logs_page.qml", "待 P2/P3");
-    add("tests", "测试", "⌁", "features/tests/tests_page.qml", "待 P2");
-    add("settings", "设置", "⚙", "features/settings/settings_page.qml", "界面设置");
+    add("rules", QT_TRANSLATE_NOOP("FeatureRegistry", "Rules"), "≡",
+        "features/rules/rules_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "P3"));
+    add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "☷", "features/logs/logs_page.qml",
+        QT_TRANSLATE_NOOP("FeatureRegistry", "P2 / P3"));
+    add("tests", QT_TRANSLATE_NOOP("FeatureRegistry", "Tests"), "⌁",
+        "features/tests/tests_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "P2"));
+    add("settings", QT_TRANSLATE_NOOP("FeatureRegistry", "Settings"), "⚙",
+        "features/settings/settings_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Preferences"));
     embedded_.append({QStringLiteral("proxy_summary"),
                       QStringLiteral("proxies"),
                       factory(QStringLiteral("features/proxies/proxy_summary.qml")),

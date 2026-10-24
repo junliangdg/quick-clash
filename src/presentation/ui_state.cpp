@@ -1,4 +1,5 @@
 #include "presentation/ui_state.h"
+#include <QFileInfo>
 #include <QSet>
 #include <cmath>
 
@@ -12,14 +13,23 @@ double replayRate(int sample, bool upload) {
 } // namespace
 UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
     if (!settingsFile.isEmpty()) {
-        settings_ = std::make_unique<QSettings>(settingsFile, QSettings::IniFormat);
-        const auto mode =
-            settings_->value(QStringLiteral("theme"), QStringLiteral("system")).toString();
-        if (mode == QStringLiteral("light") || mode == QStringLiteral("dark")) {
-            themeMode_ = mode;
-        }
-        unloadWhenHidden_ = settings_->value(QStringLiteral("unload_when_hidden"), false).toBool();
-        closeAcknowledged_ = settings_->value(QStringLiteral("close_acknowledged"), false).toBool();
+        settings_ =
+            std::make_unique<infra::SettingsService>(QFileInfo(settingsFile).absolutePath());
+        connect(settings_.get(), &infra::SettingsService::loaded, this, &UiState::applyPreferences);
+        connect(settings_.get(), &infra::SettingsService::saved, this, &UiState::applyPreferences);
+        connect(settings_.get(), &infra::SettingsService::runtimeChanged, this,
+                [this](const QJsonObject& state) {
+                    runtime_ = state.toVariantMap();
+                    emit runtimeChanged();
+                });
+        connect(settings_.get(), &infra::SettingsService::failed, this,
+                [this](const QString& code) {
+                    storageError_ = code;
+                    settingsReady_ = false;
+                    emit storageChanged();
+                });
+    } else {
+        settingsReady_ = true;
     }
     replayTimer_.setInterval(1000);
     connect(&replayTimer_, &QTimer::timeout, this, [this] {
@@ -44,12 +54,104 @@ QVariantList UiState::navigation() const {
 QString UiState::pageTitle() const {
     return registry_.resolve(currentPage_)->title;
 }
+QString UiState::hostStatus() const {
+    if (hostState_ == QStringLiteral("Visible"))
+        return tr("Visible");
+    if (hostState_ == QStringLiteral("Hidden"))
+        return tr("Hidden");
+    if (hostState_ == QStringLiteral("Minimized"))
+        return tr("Minimized");
+    if (hostState_ == QStringLiteral("Unloading"))
+        return tr("Unloading");
+    if (hostState_ == QStringLiteral("Unloaded"))
+        return tr("Unloaded");
+    return tr("Loading");
+}
+QVariantList UiState::compactNavigation() const {
+    QVariantList items;
+    for (const auto& feature : registry_.project({"home", "proxies", "settings"})) {
+        items.append(QVariantMap{{QStringLiteral("pageId"), feature.id},
+                                 {QStringLiteral("title"), feature.title},
+                                 {QStringLiteral("glyph"), feature.glyph}});
+    }
+    return items;
+}
+QString UiState::runtimeStatus() const {
+    const auto status = runtime_.value(QStringLiteral("status")).toString();
+    if (status == QStringLiteral("Ready"))
+        return tr("Ready");
+    if (status == QStringLiteral("Stopped"))
+        return tr("Stopped");
+    if (status == QStringLiteral("Starting"))
+        return tr("Starting");
+    if (status == QStringLiteral("Validating"))
+        return tr("Validating");
+    if (status == QStringLiteral("RestoringSelections"))
+        return tr("Restoring selections");
+    if (status == QStringLiteral("RecoveryBackoff"))
+        return tr("Waiting to recover");
+    if (status == QStringLiteral("Failed"))
+        return tr("Failed");
+    return tr("Loading");
+}
+QString UiState::runtimeError() const {
+    const auto code = runtime_.value(QStringLiteral("error")).toString();
+    const auto issues = runtime_.value(QStringLiteral("configIssues")).toList();
+    if (!issues.isEmpty()) {
+        QStringList lines;
+        for (const auto& value : issues) {
+            const auto issue = value.toMap();
+            const auto kind = issue.value(QStringLiteral("code")).toString();
+            const auto reason =
+                kind == QStringLiteral("UnsupportedProtocol")    ? tr("Unsupported protocol")
+                : kind == QStringLiteral("UnsupportedTransport") ? tr("Unsupported transport")
+                : kind == QStringLiteral("UnsupportedGroup")     ? tr("Unsupported group policy")
+                : kind == QStringLiteral("UnsupportedRule")      ? tr("Unsupported rule")
+                : kind == QStringLiteral("UnsupportedDns")
+                    ? tr("DNS management is not available yet")
+                : kind == QStringLiteral("UnsupportedResource")
+                    ? tr("External resource is not supported yet")
+                : kind == QStringLiteral("InvalidConfigField")
+                    ? tr("Invalid configuration field")
+                    : tr("Unsupported configuration field");
+            lines.append(tr("%1: %2 (%3; %4)")
+                             .arg(issue.value(QStringLiteral("path")).toString(), reason,
+                                  issue.value(QStringLiteral("feature")).toString(),
+                                  issue.value(QStringLiteral("phase")).toString()));
+        }
+        return tr("Profile compatibility issues (up to 32):") + '\n' + lines.join('\n');
+    }
+    if (code == QStringLiteral("EmptySubscription"))
+        return tr("The subscription returned no content. Check the URL or account status.");
+    if (code == QStringLiteral("UnsupportedSubscriptionFormat"))
+        return tr("The server did not return a Clash/Mihomo YAML profile. Use a standard "
+                  "subscription URL; Base64 and share links are not supported yet.");
+    if (code == QStringLiteral("UnsupportedConfigFeature"))
+        return tr(
+            "This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
+            "Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. "
+            "Providers, Geo rules and managed DNS require later development.");
+    if (code == QStringLiteral("ProxyGroupAutomatic"))
+        return tr("Mihomo manages this group's current node automatically.");
+    if (code == QStringLiteral("SubscriptionTooLarge"))
+        return tr("The subscription exceeds the 16 MiB limit.");
+    if (code == QStringLiteral("SubscriptionRedirectUnsupported"))
+        return tr(
+            "The subscription redirected to another URL. Enter the final HTTPS subscription URL.");
+    if (code == QStringLiteral("SubscriptionDownloadFailed"))
+        return tr("Unable to download the subscription. Check the network, HTTPS certificate and "
+                  "subscription validity.");
+    if (code == QStringLiteral("HttpsSubscriptionRequired"))
+        return tr(
+            "Enter a valid HTTPS subscription URL without embedded login details or a fragment.");
+    return code;
+}
 QUrl UiState::pageSource() const {
     return registry_.resolve(currentPage_)->page;
 }
 bool UiState::navigate(const QString& pageId, const QVariantMap& context) {
     if (!registry_.resolve(pageId, context)) {
-        routeError_ = QStringLiteral("无法打开页面：路由或参数无效");
+        routeError_ = tr("Unable to open page: invalid route or parameters");
         emit routeErrorChanged();
         return false;
     }
@@ -78,9 +180,7 @@ void UiState::setThemeMode(const QString& mode) {
         mode == themeMode_) {
         return;
     }
-    themeMode_ = mode;
     persist(QStringLiteral("theme"), mode);
-    emit themeChanged();
 }
 void UiState::setSystemDark(bool dark) {
     if (systemDark_ == dark) {
@@ -229,17 +329,47 @@ void UiState::setUnloadWhenHidden(bool enabled) {
     if (unloadWhenHidden_ == enabled) {
         return;
     }
-    unloadWhenHidden_ = enabled;
     persist(QStringLiteral("unload_when_hidden"), enabled);
-    emit hostChanged();
 }
 void UiState::acknowledgeClose() {
-    closeAcknowledged_ = true;
     persist(QStringLiteral("close_acknowledged"), true);
 }
 void UiState::persist(const QString& key, const QVariant& value) {
+    if (!settingsReady_) {
+        return;
+    }
+    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_};
+    if (key == QStringLiteral("theme")) {
+        preferences.theme = value.toString();
+    }
+    if (key == QStringLiteral("unload_when_hidden")) {
+        preferences.unloadWhenHidden = value.toBool();
+    }
+    if (key == QStringLiteral("close_acknowledged")) {
+        preferences.closeAcknowledged = value.toBool();
+    }
     if (settings_) {
-        settings_->setValue(key, value);
+        settingsReady_ = false;
+        emit storageChanged();
+        settings_->save(preferences);
+    } else {
+        applyPreferences(preferences.theme, preferences.unloadWhenHidden,
+                         preferences.closeAcknowledged);
+    }
+}
+void UiState::applyPreferences(const QString& theme, bool unload, bool acknowledged) {
+    themeMode_ = theme;
+    unloadWhenHidden_ = unload;
+    closeAcknowledged_ = acknowledged;
+    storageError_.clear();
+    settingsReady_ = true;
+    emit themeChanged();
+    emit hostChanged();
+    emit storageChanged();
+}
+void UiState::runtimeCommand(const QString& command, const QStringList& arguments) {
+    if (settings_) {
+        settings_->command(command, arguments);
     }
 }
 } // namespace quickclash::presentation

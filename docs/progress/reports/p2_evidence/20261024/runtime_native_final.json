@@ -1,0 +1,37 @@
+{
+    "checks": [
+        "local_import",
+        "isolated_validation",
+        "owned_ready",
+        "encoded_selection_readback",
+        "mode_transaction",
+        "stop_restart",
+        "https_subscription",
+        "domain_connect",
+        "website_current_proxy",
+        "invalid_update_preserves_old",
+        "catalog_rename_delete",
+        "occupied_port_compensation",
+        "bounded_crash_recovery",
+        "merged_reconcile",
+        "persisted_node_restore",
+        "redacted_preview",
+        "source_replacement",
+        "delete_last_profile"
+    ],
+    "originRequests": [
+        "GET /subscription",
+        "GET /proof",
+        "HEAD /website-test",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /system-client"
+    ],
+    "result": "Pass",
+    "systemProxy": "native_preconfig_pass_restored",
+    "upstreamConnectTargets": [
+        "fixture.quickclash.invalid:8047",
+        "fixture.quickclash.invalid:8047",
+        "fixture.quickclash.invalid:8047"
+    ]
+}

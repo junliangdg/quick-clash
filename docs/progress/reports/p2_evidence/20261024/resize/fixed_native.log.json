@@ -1,0 +1,11 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\p2_responsive\\quickclash.exe",
+  "arguments": [
+    "--responsive-test"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-24T08:32:10.5374854Z",
+  "elapsed_ms": 14262,
+  "exit_code": 29,
+  "timed_out": false
+}

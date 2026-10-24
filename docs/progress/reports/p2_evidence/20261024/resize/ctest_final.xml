@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Win32-ninja"
+	tests="4"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="DESKTOP-TNE472C"
+	time="4"
+	timestamp="2026-10-24T16:38:19"
+	>
+	<testcase name="qml_smoke" classname="qml_smoke" time="0.578556" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+</system-out>
+	</testcase>
+	<testcase name="ui_keyboard" classname="ui_keyboard" time="0.941559" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+Keyboard navigation, filter and close confirmation passed
+</system-out>
+	</testcase>
+	<testcase name="ui_responsive" classname="ui_responsive" time="2.47121" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+Checking navigation width 1160
+Checking navigation width 600
+Checking navigation width 599
+Checking navigation width 360
+Checking navigation width 1160
+Continuous resize page home
+Resize event processing (home, 80 steps): median=1474 us p95=2715 us max=3494 us; page/demands retained
+Continuous resize page proxies
+Resize event processing (proxies, 80 steps): median=2003 us p95=2421 us max=2678 us; page/demands retained
+Responsive 360/599/600/1160, all routes, bottom keyboard and retained state passed
+</system-out>
+	</testcase>
+	<testcase name="host_lifecycle" classname="host_lifecycle" time="0.843055" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+This plugin does not support raise()
+This plugin does not support raise()
+Host lifecycle probe passed
+</system-out>
+	</testcase>
+</testsuite>

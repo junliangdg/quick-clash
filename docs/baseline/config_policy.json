@@ -1,13 +1,32 @@
 {
   "schema_version": 1,
   "phase": "P2",
-  "status": "initial subset; C++ preflight UI/headless contract tests and isolated official-core fixtures verified; product integration remains P2",
+  "status": "P2 Windows runtime integrated; bounded preflight, isolated official-core validation and controlled domain CONNECT forwarding verified; full G2 acceptance remains pending",
   "core_tag": "v1.19.33",
   "limits": {"uncompressed_bytes": 16777216, "yaml_depth": 32, "yaml_events": 100000, "nodes": 5000, "groups": 500, "rules": 20000},
-  "proxies": {"types": ["http", "socks5", "ss"], "fields": ["name", "type", "server", "port", "username", "password", "cipher", "udp"], "external_files": false},
-  "groups": {"types": ["select"], "fields": ["name", "type", "proxies"]},
+  "proxies": {
+    "types": ["http", "socks5", "ss", "hysteria2", "trojan", "vless", "vmess"],
+    "schema": "src/infra/config/config_schema.cpp; per-protocol fields, required credentials, types and bounds",
+    "common": ["name", "type", "server", "port", "udp"],
+    "http_socks5": ["username", "password", "tls", "sni", "skip-cert-verify"],
+    "ss": ["password", "cipher"],
+    "hysteria2": ["password", "sni", "skip-cert-verify", "alpn", "up", "down", "obfs", "obfs-password"],
+    "trojan": ["password", "sni", "tls", "skip-cert-verify", "alpn", "client-fingerprint", "network", "ws-opts", "grpc-opts"],
+    "vless_vmess": ["uuid", "servername", "tls", "skip-cert-verify", "alpn", "client-fingerprint", "network", "ws-opts", "grpc-opts", "packet-encoding"],
+    "vless_only": ["flow", "reality-opts"], "vmess_only": ["alterId", "cipher"],
+    "transports": ["tcp", "ws", "grpc"],
+    "ws_opts": ["path", "headers.Host", "max-early-data", "early-data-header-name"],
+    "grpc_opts": ["grpc-service-name"], "reality_opts": ["public-key", "short-id"],
+    "external_files": false
+  },
+  "groups": {
+    "types": ["select", "url-test", "fallback"], "common": ["name", "type", "proxies"],
+    "automatic": ["url", "interval", "timeout", "lazy", "expected-status"], "url_test_only": ["tolerance"],
+    "max_reference_depth": 16, "reject_cycles_missing_members_duplicates": true,
+    "manual_selection": "Selector only; URLTest/Fallback display core-confirmed current member and members; explicit refresh, no client health-check loop"
+  },
   "rules": ["DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "IP-CIDR6", "MATCH"],
-  "passthrough": ["proxies", "proxy-groups", "rules", "log-level", "ipv6"],
+  "passthrough": ["proxies", "proxy-groups", "rules", "log-level", "ipv6", "unified-delay", "tcp-concurrent"],
   "managed": {
     "mixed-port": 7890, "port": 0, "socks-port": 0, "redir-port": 0, "tproxy-port": 0,
     "allow-lan": false, "bind-address": "127.0.0.1", "external-controller": "127.0.0.1:9090",
@@ -18,9 +37,10 @@
     "profile": {"store-selected": false, "store-fake-ip": false}
   },
   "rejected": ["proxy-providers", "rule-providers", "RULE-SET", "GEOIP", "GEOSITE", "fake-ip", "DNS hijack", "YAML aliases", "multi-document YAML", "external certificates", "all unclassified keys including nested keys"],
-  "dns": {"path": "system resolver; no local DNS listener or fake-ip", "validation": "domain forwarding remains P2-13; API probe does not prove it"},
+  "dns": {"path": "system resolver; no local DNS listener or fake-ip", "validation": "P2 controlled domain CONNECT reaches the independent TLS fixture; API Ready alone does not prove forwarding"},
   "geo": {"supported": false, "assets": [], "next_task": "P3-02"},
-  "errors": ["InvalidYaml", "InvalidConfig", "DuplicateConfigKey", "ConfigLimitExceeded", "UnsupportedConfigFeature", "InvalidListenerPorts", "InvalidControllerSecret"],
+  "errors": ["InvalidYaml", "InvalidConfig", "InvalidConfigField", "DuplicateConfigKey", "ConfigLimitExceeded", "UnsupportedConfigFeature", "InvalidListenerPorts", "InvalidControllerSecret"],
+  "diagnostics": {"max_issues": 32, "codes": ["UnsupportedProtocol", "UnsupportedTransport", "UnsupportedGroup", "UnsupportedRule", "UnsupportedDns", "UnsupportedResource", "UnsupportedField", "InvalidConfigField"], "privacy": "fixed feature vocabulary, structural index paths, phase only; never arbitrary YAML keys, names, URLs or values; English and Chinese presentation"},
   "stages": ["bounded preflight", "semantic immutable YAML", "per-session authenticated materialization", "isolated official core -t", "transactional apply in P2"],
   "parser": "yaml-cpp 0.9.0; preserved original bytes stored separately in P2; no comment round trip guarantee"
 }

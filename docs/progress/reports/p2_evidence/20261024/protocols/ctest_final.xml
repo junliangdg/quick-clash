@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Win32-ninja"
+	tests="7"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="DESKTOP-TNE472C"
+	time="22"
+	timestamp="2026-10-24T15:57:34"
+	>
+	<testcase name="contracts" classname="contracts" time="0.0618624" status="run">
+		<properties/>
+		<system-out>PASS: domain defaults, stale contexts, operation transitions, config subset and sessions
+</system-out>
+	</testcase>
+	<testcase name="runtime" classname="runtime" time="19.177" status="run">
+		<properties/>
+		<system-out>Import, isolated -t, stopped selection, owned Ready, encoded selection readback, mode, stop and restart passed.
+</system-out>
+	</testcase>
+	<testcase name="localization" classname="localization" time="0.0364476" status="run">
+		<properties/>
+		<system-out>Locale preference, Chinese catalog, English and unsupported fallback passed
+</system-out>
+	</testcase>
+	<testcase name="ui_state" classname="ui_state" time="0.153321" status="run">
+		<properties/>
+		<system-out>UI state contracts passed
+</system-out>
+	</testcase>
+	<testcase name="qml_smoke" classname="qml_smoke" time="0.479931" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+</system-out>
+	</testcase>
+	<testcase name="ui_keyboard" classname="ui_keyboard" time="0.943004" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+Keyboard navigation, filter and close confirmation passed
+</system-out>
+	</testcase>
+	<testcase name="ui_responsive" classname="ui_responsive" time="2.11392" status="run">
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.8.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+This plugin does not support raise()
+Responsive 360/599/600/1160, all routes, bottom keyboard and retained state passed
+</system-out>
+	</testcase>
+</testsuite>

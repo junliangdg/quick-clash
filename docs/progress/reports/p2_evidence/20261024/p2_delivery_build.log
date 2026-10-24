@@ -1,0 +1,8 @@
+[0/2] Re-checking globbed directories...
+[1/9] Automatic MOC for target quickclash_runtime
+[2/8] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[3/8] Linking CXX static library quickclash_runtime.lib
+[4/8] Linking CXX executable proxy_lease_test.exe
+[5/8] Linking CXX executable runtime_test.exe
+[6/8] Linking CXX executable ui_state_test.exe
+[7/8] Linking CXX executable quickclash.exe

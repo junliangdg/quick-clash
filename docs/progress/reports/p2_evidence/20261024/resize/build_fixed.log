@@ -1,0 +1,52 @@
+[0/2] Re-checking globbed directories...
+[1/51] Copying qml/main.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/main.qml
+[2/51] Copying qml/components/traffic_sparkline.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/components/traffic_sparkline.qml
+[3/51] Running qmlimportscanner for quickclash
+[4/51] Automatic MOC for target quickclash
+[5/50] Running AUTOMOC file extraction for target quickclash
+[6/50] Running rcc for resource quickclash_raw_qml_0
+[7/50] Running moc --collect-json for target quickclash
+[8/16] Generating .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp, .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp.aotstats
+[9/16] Generating .rcc/qmlcache/quickclash_qml/main_qml.cpp, .rcc/qmlcache/quickclash_qml/main_qml.cpp.aotstats
+[10/16] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.qt\rcc\qrc_quickclash_raw_qml_0.cpp.obj
+[11/16] C:\WINDOWS\system32\cmd.exe /C "cd /D D:\repos\quick-clash && D:\repos\quick-clash\build\p2_responsive\.qt\bin\qt_setup_tool_path.bat C:/Qt/6.8.0/msvc2022_64/bin/qmllint.exe @D:/repos/quick-clash/build/p2_responsive/.rcc/qmllint/quickclash.rsp"
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:5:1: Warnings occurred while importing module "QtQuick.Dialogs": [import]
+import QtQuick.Dialogs
+
+^^^^^^
+---
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+
+---
+
+
+
+[12/16] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\traffic_sparkline_qml.cpp.obj
+[13/16] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\main_qml.cpp.obj
+[14/16] Building CXX object CMakeFiles\quickclash.dir\app\keyboard_probe.cpp.obj
+[15/16] Linking CXX executable quickclash.exe

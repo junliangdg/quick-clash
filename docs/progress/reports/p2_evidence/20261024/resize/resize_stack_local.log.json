@@ -1,0 +1,17 @@
+{
+  "executable": "C:\\Program Files (x86)\\Windows Kits\\10\\Debuggers\\x64\\cdb.exe",
+  "arguments": [
+    "-y",
+    "D:/repos/quick-clash/build/p2_responsive",
+    "-pv",
+    "-p",
+    "30864",
+    "-c",
+    "~*k;qd"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-24T08:36:35.1769315Z",
+  "elapsed_ms": 980,
+  "exit_code": 0,
+  "timed_out": false
+}

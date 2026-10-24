@@ -1,0 +1,10 @@
+[
+  {
+    "file": "qml/main.qml",
+    "matches": true
+  },
+  {
+    "file": "qml/components/traffic_sparkline.qml",
+    "matches": true
+  }
+]

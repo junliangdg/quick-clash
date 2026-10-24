@@ -1,0 +1,143 @@
+
+Microsoft (R) Windows Debugger Version 10.0.22621.755 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+CommandLine: dist/p2_protocols/bin/quickclash.exe --isolated --no-tray --page=proxies --probe-language=zh-CN --window-size=430x850 --runtime-probe=D:/repos/quick-clash/tests/fixtures/mvp/mainstream_valid.yaml --probe-mixed-port=24981 --probe-controller-port=24982 --quit-after-ms=6500
+
+************* Path validation summary **************
+Response                         Time (ms)     Location
+Deferred                                       srv*
+Symbol search path is: srv*
+Executable search path is: 
+ModLoad: 00007ff6`25610000 00007ff6`25774000   quickclash.exe
+ModLoad: 00007ffd`bcec0000 00007ffd`bd128000   ntdll.dll
+ModLoad: 00007ffd`bc200000 00007ffd`bc2cb000   C:\WINDOWS\System32\KERNEL32.DLL
+ModLoad: 00007ffd`ba5b0000 00007ffd`ba9b1000   C:\WINDOWS\System32\KERNELBASE.dll
+ModLoad: 00007ffd`ba2a0000 00007ffd`ba41f000   C:\WINDOWS\System32\CRYPT32.dll
+ModLoad: 00007ffd`365a0000 00007ffd`365ba000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6QuickControls2.dll
+ModLoad: 00007ffd`ba9c0000 00007ffd`bab0c000   C:\WINDOWS\System32\ucrtbase.dll
+ModLoad: 00007ffd`2e770000 00007ffd`2e7cd000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Test.dll
+ModLoad: 00007ffc`f7160000 00007ffc`f7794000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Widgets.dll
+ModLoad: 00007ffd`bc3f0000 00007ffd`bc4ac000   C:\WINDOWS\System32\ADVAPI32.dll
+ModLoad: 00007ffd`bb1b0000 00007ffd`bb259000   C:\WINDOWS\System32\msvcrt.dll
+ModLoad: 00007ffd`bb5f0000 00007ffd`bb698000   C:\WINDOWS\System32\sechost.dll
+ModLoad: 00007ffd`bbf00000 00007ffd`bc018000   C:\WINDOWS\System32\RPCRT4.dll
+ModLoad: 00007ffd`bc020000 00007ffd`bc1f7000   C:\WINDOWS\System32\USER32.dll
+ModLoad: 00007ffd`ba0b0000 00007ffd`ba0d7000   C:\WINDOWS\System32\win32u.dll
+ModLoad: 00007ffd`bad00000 00007ffd`bad81000   C:\WINDOWS\System32\WS2_32.dll
+ModLoad: 00007ffc`f5850000 00007ffc`f5e50000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Quick.dll
+ModLoad: 00007ffd`bacd0000 00007ffd`bacfb000   C:\WINDOWS\System32\GDI32.dll
+ModLoad: 00007ffd`bc580000 00007ffd`bcd1c000   C:\WINDOWS\System32\SHELL32.dll
+ModLoad: 00007ffd`ba0e0000 00007ffd`ba20a000   C:\WINDOWS\System32\gdi32full.dll
+ModLoad: 00007ffd`bab20000 00007ffd`babc3000   C:\WINDOWS\System32\msvcp_win.dll
+ModLoad: 00007ffd`b7e70000 00007ffd`b7ea3000   C:\WINDOWS\SYSTEM32\IPHLPAPI.DLL
+ModLoad: 00007ffd`02930000 00007ffd`02afc000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6QuickTemplates2.dll
+ModLoad: 00007ffc`a66c0000 00007ffc`a6f9f000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Gui.dll
+ModLoad: 00007ffd`b5710000 00007ffd`b573e000   C:\WINDOWS\SYSTEM32\dwmapi.dll
+ModLoad: 00007ffd`badd0000 00007ffd`baf6a000   C:\WINDOWS\System32\ole32.dll
+ModLoad: 00007ffd`bb260000 00007ffd`bb5eb000   C:\WINDOWS\System32\combase.dll
+ModLoad: 00007ffc`a60e0000 00007ffc`a66b4000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Core.dll
+ModLoad: 00007ffd`0b770000 00007ffd`0b7f8000   D:\repos\quick-clash\dist\p2_protocols\bin\MSVCP140.dll
+ModLoad: 00007ffd`2ce00000 00007ffd`2ce1e000   D:\repos\quick-clash\dist\p2_protocols\bin\VCRUNTIME140.dll
+ModLoad: 00007ffd`b55a0000 00007ffd`b5647000   C:\WINDOWS\SYSTEM32\UxTheme.dll
+ModLoad: 00007ffc`bc7f0000 00007ffc`bccf1000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Qml.dll
+ModLoad: 00007ffd`bb730000 00007ffd`bb809000   C:\WINDOWS\System32\OLEAUT32.dll
+ModLoad: 00007ffd`45890000 00007ffd`45899000   D:\repos\quick-clash\dist\p2_protocols\bin\MSVCP140_1.dll
+ModLoad: 00007ffd`43260000 00007ffd`4326b000   D:\repos\quick-clash\dist\p2_protocols\bin\VCRUNTIME140_1.dll
+ModLoad: 00007ffd`2cdd0000 00007ffd`2cdf6000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6QmlMeta.dll
+ModLoad: 00007ffd`93b00000 00007ffd`93d93000   C:\WINDOWS\SYSTEM32\WININET.dll
+ModLoad: 00007ffd`00b10000 00007ffd`00cc4000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6Network.dll
+ModLoad: 00007ffd`b8aa0000 00007ffd`b8ad4000   C:\WINDOWS\SYSTEM32\USERENV.dll
+ModLoad: 00007ffd`0b230000 00007ffd`0b2e6000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6QmlModels.dll
+ModLoad: 00007ffd`20120000 00007ffd`20164000   D:\repos\quick-clash\dist\p2_protocols\bin\MSVCP140_2.dll
+ModLoad: 00007ffd`005b0000 00007ffd`00792000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6OpenGL.dll
+ModLoad: 00007ffd`b6c60000 00007ffd`b6ebf000   C:\WINDOWS\SYSTEM32\d3d11.dll
+ModLoad: 00007ffd`b6ed0000 00007ffd`b700b000   C:\WINDOWS\SYSTEM32\dxgi.dll
+ModLoad: 00007ffd`84ec0000 00007ffd`84ee3000   C:\WINDOWS\SYSTEM32\d3d12.dll
+ModLoad: 00007ffd`b67e0000 00007ffd`b6a4a000   C:\WINDOWS\SYSTEM32\DWrite.dll
+ModLoad: 00007ffd`95f40000 00007ffd`95f61000   C:\WINDOWS\SYSTEM32\MPR.dll
+ModLoad: 00007ffd`b7eb0000 00007ffd`b7f00000   C:\WINDOWS\SYSTEM32\AUTHZ.dll
+ModLoad: 00007ffd`aff90000 00007ffd`affaa000   C:\WINDOWS\SYSTEM32\NETAPI32.dll
+ModLoad: 00007ffd`a6010000 00007ffd`a6047000   C:\WINDOWS\SYSTEM32\WINMM.dll
+ModLoad: 00007ffd`b1140000 00007ffd`b114b000   C:\WINDOWS\SYSTEM32\VERSION.dll
+ModLoad: 00007ffd`2cd40000 00007ffd`2cd53000   D:\repos\quick-clash\dist\p2_protocols\bin\Qt6QmlWorkerScript.dll
+ModLoad: 00007ffd`b7f10000 00007ffd`b8068000   C:\WINDOWS\SYSTEM32\DNSAPI.dll
+ModLoad: 00007ffd`b5430000 00007ffd`b543d000   C:\WINDOWS\SYSTEM32\Secur32.dll
+ModLoad: 00007ffd`b0c00000 00007ffd`b0d2a000   C:\WINDOWS\SYSTEM32\WINHTTP.dll
+ModLoad: 00007ffd`b9d40000 00007ffd`b9d9e000   C:\WINDOWS\SYSTEM32\powrprof.dll
+ModLoad: 00007ffd`b8780000 00007ffd`b878d000   C:\WINDOWS\SYSTEM32\DSPARSE.dll
+ModLoad: 00007ffd`b8680000 00007ffd`b86ca000   C:\WINDOWS\SYSTEM32\SSPICLI.DLL
+ModLoad: 00007ffd`b8ce0000 00007ffd`b8cec000   C:\WINDOWS\SYSTEM32\CRYPTBASE.DLL
+ModLoad: 00007ffd`b7dc0000 00007ffd`b7dcd000   C:\WINDOWS\SYSTEM32\NETUTILS.DLL
+ModLoad: 00007ffd`9b8c0000 00007ffd`9b8e9000   C:\WINDOWS\SYSTEM32\SRVCLI.DLL
+ModLoad: 00007ffd`bad90000 00007ffd`badc1000   C:\WINDOWS\System32\IMM32.DLL
+ModLoad: 00007ffd`ba4f0000 00007ffd`ba59c000   C:\WINDOWS\System32\bcryptPrimitives.dll
+ModLoad: 00007ffd`bc520000 00007ffd`bc52a000   C:\WINDOWS\System32\NSI.dll
+ModLoad: 00007ffd`b9d20000 00007ffd`b9d35000   C:\WINDOWS\SYSTEM32\UMPDC.dll
+ModLoad: 00007ffd`b70b0000 00007ffd`b795e000   C:\WINDOWS\SYSTEM32\windows.storage.dll
+ModLoad: 00007ffd`bcd40000 00007ffd`bce39000   C:\WINDOWS\System32\SHCORE.dll
+ModLoad: 00007ffd`bc380000 00007ffd`bc3e6000   C:\WINDOWS\System32\shlwapi.dll
+ModLoad: 00007ffd`b9fc0000 00007ffd`b9fe9000   C:\WINDOWS\SYSTEM32\profapi.dll
+ModLoad: 00007ffd`01cb0000 00007ffd`01d93000   D:\repos\quick-clash\dist\p2_protocols\plugins\platforms\qwindows.dll
+ModLoad: 00007ffd`bb890000 00007ffd`bbd17000   C:\WINDOWS\System32\SETUPAPI.dll
+ModLoad: 00007ffd`babd0000 00007ffd`bacc5000   C:\WINDOWS\System32\COMDLG32.dll
+ModLoad: 00007ffd`b56e0000 00007ffd`b570a000   C:\WINDOWS\SYSTEM32\WTSAPI32.dll
+ModLoad: 00007ffd`9ae30000 00007ffd`9aee5000   C:\WINDOWS\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_5.82.26100.8328_none_87eede957a2ccddd\COMCTL32.dll
+ModLoad: 00007ffd`3f230000 00007ffd`3f3e2000   C:\WINDOWS\SYSTEM32\d3d9.dll
+ModLoad: 00007ffd`86d20000 00007ffd`87140000   C:\WINDOWS\SYSTEM32\UIAutomationCore.DLL
+ModLoad: 00007ffd`b60d0000 00007ffd`b6114000   C:\WINDOWS\SYSTEM32\dxcore.dll
+ModLoad: 00007ffd`b8400000 00007ffd`b841b000   C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+ModLoad: 00000001`80000000 00000001`80267000   C:\Program Files (x86)\RivaTuner Statistics Server\RTSSHooks64.dll
+ModLoad: 00007ffd`baf80000 00007ffd`bb0dc000   C:\WINDOWS\System32\MSCTF.dll
+ModLoad: 00007ffd`b9c50000 00007ffd`b9c7f000   C:\WINDOWS\SYSTEM32\DEVOBJ.dll
+ModLoad: 00007ffd`b9c90000 00007ffd`b9ce2000   C:\WINDOWS\SYSTEM32\cfgmgr32.dll
+ModLoad: 000001c7`9ce30000 000001c7`9ce82000   C:\WINDOWS\SYSTEM32\CFGMGR32.dll
+ModLoad: 000001c7`9ce90000 000001c7`9cee2000   C:\WINDOWS\SYSTEM32\cfgmgr32.dll
+ModLoad: 00007ffd`ba210000 00007ffd`ba292000   C:\WINDOWS\System32\WINTRUST.dll
+ModLoad: 00007ffd`b8d40000 00007ffd`b8d53000   C:\WINDOWS\SYSTEM32\MSASN1.dll
+ModLoad: 00007ffd`bb0f0000 00007ffd`bb19f000   C:\WINDOWS\System32\clbcatq.dll
+ModLoad: 00007ffd`9de60000 00007ffd`9dfbb000   C:\Windows\System32\Windows.UI.dll
+ModLoad: 00007ffd`9bdb0000 00007ffd`9bf02000   C:\Windows\System32\Windows.UI.Immersive.dll
+ModLoad: 00007ffd`2b080000 00007ffd`2b0b6000   D:\repos\quick-clash\dist\p2_protocols\plugins\styles\qmodernwindowsstyle.dll
+ModLoad: 00007ffd`9b2a0000 00007ffd`9b4cd000   C:\Windows\System32\Windows.Globalization.dll
+ModLoad: 00007ffd`b31a0000 00007ffd`b330a000   C:\Windows\System32\wintypes.dll
+ModLoad: 00007ffd`9d520000 00007ffd`9d57e000   C:\Windows\System32\Bcp47Langs.dll
+ModLoad: 00007ffd`2b210000 00007ffd`2b224000   D:\repos\quick-clash\dist\p2_protocols\plugins\networkinformation\qnetworklistmanager.dll
+ModLoad: 00007ffd`b2a80000 00007ffd`b2aee000   C:\WINDOWS\System32\netprofm.dll
+ModLoad: 00007ffd`b02f0000 00007ffd`b0309000   C:\WINDOWS\System32\npmproxy.dll
+ModLoad: 00007ffd`8cc20000 00007ffd`8ccda000   C:\Windows\System32\Windows.Networking.Connectivity.dll
+ModLoad: 00007ffd`afb30000 00007ffd`afd81000   C:\Windows\System32\twinapi.appcore.dll
+ModLoad: 00007ffd`7f220000 00007ffd`7f257000   C:\Windows\System32\Windows.Networking.HostName.dll
+ModLoad: 00007ffd`b9ec0000 00007ffd`b9f62000   C:\WINDOWS\SYSTEM32\sxs.dll
+ModLoad: 00007ffd`442a0000 00007ffd`442b8000   C:\Windows\System32\dusmapi.dll
+(5530.6a18): Access violation - code c0000005 (first chance)
+First chance exceptions are reported before any exception handling.
+This exception may be expected and handled.
+Qt6Gui!QWindow::resize+0xf:
+00007ffc`a67a473f 488b5908        mov     rbx,qword ptr [rcx+8] ds:00000000`00000008=????????????????
+0:000> cdb: Reading initial command '.sympath D:/repos/quick-clash/build/p2_responsive; sxd av; g; k 30; q'
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+Symbol search path is: D:/repos/quick-clash/build/p2_responsive; sxd av; g; k 30; q
+Expanded Symbol search path is: d:/repos/quick-clash/build/p2_responsive; sxd av; g; k 30; q
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+WARNING: Whitespace at start of path element
+
+************* Path validation summary **************
+Response                         Time (ms)     Location
+OK                                             D:/repos/quick-clash/build/p2_responsive
+0:000> NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\ObjectiveC.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'

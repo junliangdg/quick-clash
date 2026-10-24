@@ -1,7 +1,9 @@
 #include "presentation/feature_registry.h"
 #include "presentation/ui_state.h"
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QTemporaryDir>
+#include <QThread>
 #include <iostream>
 #include <stdexcept>
 
@@ -10,6 +12,15 @@ void check(bool condition, const char* message) {
     if (!condition) {
         throw std::runtime_error(message);
     }
+}
+void ready(quickclash::presentation::UiState& state) {
+    QElapsedTimer timer;
+    timer.start();
+    while (!state.settingsReady() && state.storageError().isEmpty() && timer.elapsed() < 5000) {
+        QCoreApplication::processEvents();
+        QThread::msleep(1);
+    }
+    check(state.settingsReady(), "asynchronous preferences available");
 }
 } // namespace
 int main(int argc, char* argv[]) {
@@ -36,10 +47,20 @@ int main(int argc, char* argv[]) {
         const auto settings = temporary.filePath("ui.ini");
         {
             UiState state(settings);
+            ready(state);
+            const auto compact = state.compactNavigation();
+            check(compact.size() == 3 && compact[0].toMap().value("pageId") == "home" &&
+                      compact[1].toMap().value("pageId") == "proxies" &&
+                      compact[2].toMap().value("pageId") == "settings",
+                  "three compact destinations");
+            check(state.navigate("subscriptions") && state.navigation().size() == 8,
+                  "compact projection keeps secondary routes available");
+            check(state.navigate("home"), "return to dashboard");
             check(!state.replay() && !state.uiVisible(), "safe initial state");
             state.setSystemDark(true);
             check(state.dark(), "system theme fallback");
             state.setThemeMode("light");
+            ready(state);
             state.setSystemDark(true);
             check(!state.dark(), "explicit preference wins");
             check(!state.navigate("unknown") && state.currentPage() == "home",
@@ -90,6 +111,7 @@ int main(int argc, char* argv[]) {
                   "repeated lifecycle leaves no demand");
         }
         UiState reopened(settings);
+        ready(reopened);
         check(reopened.themeMode() == "light", "theme persists across process facade lifetime");
         std::cout << "UI state contracts passed\n";
         return 0;
