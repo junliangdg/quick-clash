@@ -3,12 +3,14 @@
 param(
     [string]$Executable = 'dist/p2_windows/bin/quickclash.exe',
     [Parameter(Mandatory)][string]$OutputDirectory,
+    [string]$Fixture = 'tests/fixtures/mvp/inline_valid.yaml',
     [ValidateRange(10, 30)][int]$Seconds = 10
 )
 $ErrorActionPreference = 'Stop'
 if (-not $IsWindows) { throw 'Windows only.' }
 . (Join-Path $PSScriptRoot 'process_memory.ps1')
 $taskRepo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..')).Path
+$taskFixture = [IO.Path]::GetFullPath($Fixture, $taskRepo)
 $taskOutput = [IO.Path]::GetFullPath($OutputDirectory, $taskRepo)
 if (Test-Path -LiteralPath $taskOutput) { throw 'Use a new evidence directory.' }
 New-Item -ItemType Directory -Path $taskOutput | Out-Null
@@ -28,7 +30,7 @@ $taskStart.UseShellExecute = $false
 $taskStart.CreateNoWindow = $true
 $taskStart.RedirectStandardOutput = $true
 $taskStart.RedirectStandardError = $true
-foreach ($taskArgument in @('--isolated', '--no-tray', "--runtime-probe=$taskRepo/tests/fixtures/mvp/inline_valid.yaml", "--probe-mixed-port=$taskMixed", "--probe-controller-port=$taskController", "--runtime-state=$taskState", "--quit-after-ms=$(($Seconds + 35) * 1000)")) { $taskStart.ArgumentList.Add($taskArgument) }
+foreach ($taskArgument in @('--isolated', '--no-tray', "--runtime-probe=$taskFixture", "--probe-mixed-port=$taskMixed", "--probe-controller-port=$taskController", "--runtime-state=$taskState", "--quit-after-ms=$(($Seconds + 35) * 1000)")) { $taskStart.ArgumentList.Add($taskArgument) }
 $taskProcess = $null
 $taskCore = $null
 $taskRows = [Collections.Generic.List[object]]::new()
@@ -70,6 +72,7 @@ try {
         result = if ($taskPeak -le 100000000) { 'Pass' } else { 'Fail' }
         executable_sha256 = (Get-FileHash -LiteralPath $taskStart.FileName -Algorithm SHA256).Hash.ToLowerInvariant()
         scenario = 'Real Qt Quick home + persistent storage worker + official owned Ready core; local import/selection; system proxy untouched; no replay or sustained traffic'
+        fixture = [IO.Path]::GetFileName($taskFixture)
         client_process_group = @($taskProcess.Id); auxiliary_client_processes = @(); core_pid = $taskCore.Id
         seconds = $Seconds; samples = $taskRows.Count; sample_interval_ms = 100
         client_private_working_set_peak_bytes = $taskPeak

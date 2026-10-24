@@ -1,0 +1,3 @@
+proxies: []
+proxy-groups: []
+rules: ["GEOIP,CN,DIRECT", "GEOSITE,cn,DIRECT", "MATCH,DIRECT"]

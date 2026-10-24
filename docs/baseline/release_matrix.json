@@ -67,8 +67,25 @@
     ]
   },
   "geo": {
-    "supported": false,
-    "reason": "P2 初始子集明确拒绝 GEOIP/GEOSITE，无隐式下载；P3-02 引入受管资源后另行验证。"
+    "supported": true,
+    "snapshot": "2026-10-24",
+    "source": "https://github.com/MetaCubeX/meta-rules-dat",
+    "license": "GPL-3.0",
+    "license_url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/master/LICENSE",
+    "license_sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+    "policy": "Mutable upstream latest URL; exact SHA256 snapshot is authoritative. Offline bundled use only, no automatic updates.",
+    "geoip": {
+      "file": "geoip.dat",
+      "url": "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geoip.dat",
+      "sha256": "a6271d3c96361d96156e6d3f7cf1550ef21b00d2f951deb772f464db91e89ac5",
+      "bytes": 16570425
+    },
+    "geosite": {
+      "file": "geosite.dat",
+      "url": "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/geosite.dat",
+      "sha256": "610e2fa2b57b1232ba2220eeea45eb6e0bbf3675e19ac6ee2d29e8eb3e294b10",
+      "bytes": 4311865
+    }
   },
   "support": {
     "windows": {

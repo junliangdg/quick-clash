@@ -1,7 +1,10 @@
 #include "application/ports.h"
 #include "infra/config/config_preflight.h"
+#include "infra/config/geo_resources.h"
 #include <QCoreApplication>
 #include <QFile>
+#include <QJsonArray>
+#include <QTemporaryDir>
 #include <iostream>
 #include <limits>
 #include <set>
@@ -29,6 +32,14 @@ void expectError(const QByteArray& input, const char* code) {
 int main(int argc, char* argv[]) {
     QCoreApplication app(argc, argv);
     using namespace quickclash::domain;
+    if (app.arguments().contains(QStringLiteral("--geo-resource-probe"))) {
+        QTemporaryDir destination;
+        const auto result = quickclash::infra::prepareGeoResources(
+            "dns: {enable: true}\nrules: []\n", destination.path());
+        std::cout << (std::holds_alternative<Error>(result) ? "GeoResourceIntegrityFailed"
+                                                            : "Verified");
+        return std::holds_alternative<Error>(result) ? 1 : 0;
+    }
     try {
         using quickclash::infra::subscriptionPayloadError;
         check(subscriptionPayloadError(fixture("inline_valid.yaml")).isEmpty(),
@@ -95,8 +106,34 @@ int main(int argc, char* argv[]) {
         check(std::holds_alternative<Error>(quickclash::infra::materializeSession(config, "weak")),
               "weak secret rejected");
         expectError(fixture("provider_unsupported.yaml"), "UnsupportedConfigFeature");
-        expectError(fixture("geo_unsupported.yaml"), "UnsupportedConfigFeature");
-        expectError(fixture("fake_ip_unsupported.yaml"), "UnsupportedConfigFeature");
+        const auto geo = quickclash::infra::preflightConfig(fixture("geo_supported.yaml"), {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(geo),
+              "managed Geo rules accepted");
+        const auto dns = quickclash::infra::preflightConfig(fixture("dns_supported.yaml"), {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(dns),
+              "bounded fake-ip DNS accepted");
+        const auto dnsYaml = std::get<quickclash::infra::PreflightConfig>(dns).semanticYaml;
+        check(dnsYaml.contains("fake-ip") && dnsYaml.contains("enable: true") &&
+                  !dnsYaml.contains("0.0.0.0:53") && dnsYaml.contains("geodata-mode: true"),
+              "DNS semantics retained without external listener");
+        check(quickclash::infra::geoResourceManifest(dnsYaml).value("resources").toArray().size() ==
+                  2,
+              "DNS pins both Geo snapshots");
+        check(!quickclash::infra::redactedConfig(dnsYaml).contains("dns.example.invalid"),
+              "resolver credentials masked in preview");
+        const auto emptyFlow = quickclash::infra::preflightConfig(
+            "proxies: [{name: fixture, type: vless, server: proxy.example.invalid, port: 443, "
+            "uuid: 00000000-0000-4000-8000-000000000001, network: ws, flow: ''}]\n"
+            "proxy-groups: []\nrules: ['MATCH,DIRECT']\n",
+            {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(emptyFlow),
+              "empty VLESS flow imposes no TCP TLS requirement");
+        auto invalidDns = fixture("dns_supported.yaml");
+        invalidDns.replace("https://dns.example.invalid/dns-query", "file:///private/resolver");
+        expectError(invalidDns, "InvalidConfigField");
+        invalidDns = fixture("dns_supported.yaml");
+        invalidDns.replace("198.18.0.1/16", "10.0.0.1/8");
+        expectError(invalidDns, "InvalidConfigField");
         expectError(fixture("invalid.yaml"), "InvalidYaml");
         expectError("proxies: []\nproxies: []", "DuplicateConfigKey");
         expectError("external-controller-pipe: arbitrary", "UnsupportedConfigFeature");
@@ -164,7 +201,7 @@ int main(int argc, char* argv[]) {
               "diagnostics expose fixed vocabulary and structural indexes only");
         QByteArray manyIssues = "proxies: []\nproxy-groups: []\nrules: [\n";
         for (int index = 0; index < 100; ++index)
-            manyIssues += "  'GEOIP,CN,DIRECT',\n";
+            manyIssues += "  'RULE-SET,fixture,DIRECT',\n";
         manyIssues += "]\n";
         const auto bounded = quickclash::infra::preflightConfig(manyIssues, {});
         check(std::holds_alternative<Error>(bounded) &&

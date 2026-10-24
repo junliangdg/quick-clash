@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "infra/config/geo_resources.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -296,7 +297,9 @@ void DesktopRuntime::initialize() {
             hash(std::get<QByteArray>(semantic)) !=
                 selected.value(QStringLiteral("effectiveHash")) ||
             !std::holds_alternative<std::optional<QJsonObject>>(resources) ||
-            !std::get<std::optional<QJsonObject>>(resources)) {
+            !std::get<std::optional<QJsonObject>>(resources) ||
+            *std::get<std::optional<QJsonObject>>(resources) !=
+                infra::geoResourceManifest(std::get<QByteArray>(semantic))) {
             store_.freeze();
             error(QStringLiteral("ArtifactIntegrityFailed"));
             return;
@@ -592,6 +595,7 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
             });
 }
 void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(bool)> completion) {
+    lastError_.clear();
     QFile binary(coreExecutable());
     QCryptographicHash checksum(QCryptographicHash::Sha256);
     if (!binary.open(QIODevice::ReadOnly) || !checksum.addData(&binary) ||
@@ -627,6 +631,13 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         return;
     }
     config.close();
+    const auto resources = infra::prepareGeoResources(semantic, staging_->path());
+    if (const auto* failure = std::get_if<domain::Error>(&resources)) {
+        staging_.reset();
+        error(failure->code);
+        completion(false);
+        return;
+    }
     validationCompletion_ = std::move(completion);
     const auto launched =
         validator_.start(copied,
@@ -664,7 +675,7 @@ void DesktopRuntime::importBytes(const QByteArray& bytes, const QString& name,
         }
         busy_ = false;
         if (!valid) {
-            error(QStringLiteral("CoreConfigValidationFailed"));
+            error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
             return;
         }
         const auto id =
@@ -807,7 +818,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             restorePreferences();
             busy_ = false;
             status_ = engine_.ready() ? QStringLiteral("Ready") : QStringLiteral("Stopped");
-            error(QStringLiteral("CoreConfigValidationFailed"));
+            error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
             return;
         }
         const auto revision = QString::number(std::max(
@@ -826,7 +837,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             result = store_.write(pref, runtimePreferences_);
         }
         if (std::holds_alternative<std::monostate>(result)) {
-            result = store_.write(resources, {{QStringLiteral("resources"), QJsonArray{}}});
+            result = store_.write(resources, infra::geoResourceManifest(semantic));
         }
         if (const auto* failure = std::get_if<domain::Error>(&result)) {
             restorePreferences();
@@ -956,6 +967,21 @@ void DesktopRuntime::launch() {
         return;
     }
     const auto values = preferences();
+    const auto manifest =
+        store_.read(selection.value(QStringLiteral("resourceManifestRef")).toString());
+    if (!std::holds_alternative<std::optional<QJsonObject>>(manifest) ||
+        !std::get<std::optional<QJsonObject>>(manifest) ||
+        *std::get<std::optional<QJsonObject>>(manifest) !=
+            infra::geoResourceManifest(std::get<QByteArray>(semantic))) {
+        failedApply(QStringLiteral("GeoResourceIntegrityFailed"));
+        return;
+    }
+    const auto resources = infra::prepareGeoResources(std::get<QByteArray>(semantic),
+                                                      std::get<QString>(coreDirectory));
+    if (const auto* failure = std::get_if<domain::Error>(&resources)) {
+        failedApply(failure->code);
+        return;
+    }
     status_ = QStringLiteral("Starting");
     publish();
     engine_.start(coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory),

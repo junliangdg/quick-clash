@@ -134,11 +134,12 @@ class Schema final {
                         path + ".reality-opts.short-id");
             }
         }
-        if (proxy["flow"])
-            require(
-                type == "vless" && network == "tcp" && proxy["tls"] && proxy["tls"].as<bool>() &&
-                    oneOf(text(proxy["flow"], path + ".flow", 64, true), {"", "xtls-rprx-vision"}),
-                path + ".flow");
+        if (proxy["flow"]) {
+            const auto flow = text(proxy["flow"], path + ".flow", 64, true);
+            require(flow.empty() || (type == "vless" && network == "tcp" && proxy["tls"] &&
+                                     proxy["tls"].as<bool>() && flow == "xtls-rprx-vision"),
+                    path + ".flow");
+        }
     }
     void proxy(const YAML::Node& proxy, const QString& path) {
         require(proxy.IsMap(), path);
@@ -157,10 +158,10 @@ class Schema final {
             add({"password", "cipher"});
         else if (type == "hysteria2")
             add({"password", "sni", "skip-cert-verify", "alpn", "up", "down", "obfs",
-                 "obfs-password"});
+                 "obfs-password", "ports", "mport", "hop-interval", "fingerprint"});
         else {
             add({"tls", "skip-cert-verify", "alpn", "client-fingerprint", "network", "ws-opts",
-                 "grpc-opts"});
+                 "grpc-opts", "fingerprint"});
             if (type == "trojan")
                 add({"password", "sni"});
             else
@@ -179,6 +180,13 @@ class Schema final {
         for (const auto* field : {"sni", "servername", "username", "client-fingerprint"})
             if (allowed.contains(field) && proxy[field])
                 text(proxy[field], path + '.' + field);
+        if (allowed.contains("fingerprint") && proxy["fingerprint"]) {
+            const auto value = text(proxy["fingerprint"], path + ".fingerprint", 128, true);
+            require(value.empty() || QRegularExpression(QStringLiteral("^[a-fA-F0-9:]{64,95}$"))
+                                         .match(QString::fromStdString(value))
+                                         .hasMatch(),
+                    path + ".fingerprint");
+        }
         if (type == "ss" || type == "trojan" || type == "hysteria2")
             text(proxy["password"], path + ".password", 4096);
         else if (allowed.contains("password") && proxy["password"])
@@ -211,6 +219,35 @@ class Schema final {
                 text(alpn, path + ".alpn[]", 64);
         }
         if (type == "hysteria2") {
+            if (proxy["mport"] && proxy["ports"] && !proxy["mport"].Scalar().empty() &&
+                !proxy["ports"].Scalar().empty())
+                require(proxy["mport"].Scalar() == proxy["ports"].Scalar(), path + ".ports");
+            for (const auto* field : {"ports", "mport"}) {
+                if (!proxy[field])
+                    continue;
+                const auto ranges =
+                    QString::fromStdString(text(proxy[field], path + '.' + field, 1024, true));
+                if (ranges.isEmpty())
+                    continue;
+                for (const auto& range : ranges.split(',')) {
+                    const auto bounds = range.split('-');
+                    require(bounds.size() <= 2, path + '.' + field);
+                    int previous = 0;
+                    for (const auto& bound : bounds) {
+                        bool valid = false;
+                        const auto port = bound.toInt(&valid);
+                        require(valid && port >= 1 && port <= 65535 && port >= previous,
+                                path + '.' + field);
+                        previous = port;
+                    }
+                }
+            }
+            if (proxy["hop-interval"])
+                require(QRegularExpression(QStringLiteral("^[0-9]{1,5}(s)?$"))
+                            .match(QString::fromStdString(
+                                text(proxy["hop-interval"], path + ".hop-interval", 6)))
+                            .hasMatch(),
+                        path + ".hop-interval");
             for (const auto* field : {"up", "down"})
                 if (proxy[field])
                     number(proxy[field], path + '.' + field, 1, 1000000);
@@ -260,14 +297,68 @@ class Schema final {
             const auto dns = root["dns"];
             keys(dns,
                  {"enable", "listen", "enhanced-mode", "nameserver", "fallback",
-                  "default-nameserver", "ipv6"},
+                  "default-nameserver", "ipv6", "fake-ip-range", "fake-ip-filter", "use-hosts",
+                  "respect-rules", "proxy-server-nameserver", "fallback-filter"},
                  "$.dns");
-            if (dns["enable"])
-                boolean(dns["enable"], "$.dns.enable");
-            if ((dns["enable"] && dns["enable"].as<bool>()) ||
-                (dns["enhanced-mode"] &&
-                 text(dns["enhanced-mode"], "$.dns.enhanced-mode") == "fake-ip"))
-                issue("UnsupportedDns", "$.dns", "DNS");
+            for (const auto* field : {"enable", "ipv6", "use-hosts", "respect-rules"})
+                if (dns[field])
+                    boolean(dns[field], QStringLiteral("$.dns.") + field);
+            if (dns["listen"])
+                text(dns["listen"], "$.dns.listen", 256, true);
+            if (dns["enhanced-mode"]) {
+                const auto mode = text(dns["enhanced-mode"], "$.dns.enhanced-mode", 64);
+                if (!oneOf(mode, {"fake-ip", "redir-host", "normal"}))
+                    issue("UnsupportedDns", "$.dns.enhanced-mode", "DNS");
+            }
+            if (dns["fake-ip-range"])
+                require(QRegularExpression(
+                            QStringLiteral(
+                                "^198\\.1[89]\\.[0-9]{1,3}\\.[0-9]{1,3}/(1[6-9]|2[0-9]|30)$"))
+                            .match(QString::fromStdString(
+                                text(dns["fake-ip-range"], "$.dns.fake-ip-range", 32)))
+                            .hasMatch(),
+                        "$.dns.fake-ip-range");
+            const auto list = [&](const YAML::Node& values, const QString& path, bool resolver) {
+                require(values.IsSequence() && values.size() <= 256, path);
+                for (const auto& value : values) {
+                    const auto entry = QString::fromStdString(text(value, path + "[]", 2048));
+                    if (!resolver)
+                        continue;
+                    const QUrl url(entry.contains("://") ? entry
+                                                         : QStringLiteral("udp://") + entry);
+                    require(url.isValid() && !url.host().isEmpty() && url.userInfo().isEmpty() &&
+                                !url.hasFragment() &&
+                                (url.scheme() == "udp" || url.scheme() == "tcp" ||
+                                 url.scheme() == "tls" || url.scheme() == "https"),
+                            path + "[]");
+                }
+            };
+            for (const auto* field :
+                 {"nameserver", "fallback", "default-nameserver", "proxy-server-nameserver"})
+                if (dns[field])
+                    list(dns[field], QStringLiteral("$.dns.") + field, true);
+            if (dns["fake-ip-filter"])
+                list(dns["fake-ip-filter"], "$.dns.fake-ip-filter", false);
+            if (dns["respect-rules"] && dns["respect-rules"].as<bool>())
+                require(dns["proxy-server-nameserver"] && dns["proxy-server-nameserver"].size() > 0,
+                        "$.dns.proxy-server-nameserver");
+            if (dns["fallback-filter"]) {
+                const auto filter = dns["fallback-filter"];
+                keys(filter, {"geoip", "geoip-code", "geosite", "ipcidr", "domain"},
+                     "$.dns.fallback-filter");
+                if (filter["geoip"])
+                    boolean(filter["geoip"], "$.dns.fallback-filter.geoip");
+                if (filter["geoip-code"])
+                    require(QRegularExpression(QStringLiteral("^[a-zA-Z]{2}$"))
+                                .match(QString::fromStdString(text(
+                                    filter["geoip-code"], "$.dns.fallback-filter.geoip-code", 2)))
+                                .hasMatch(),
+                            "$.dns.fallback-filter.geoip-code");
+                for (const auto* field : {"geosite", "ipcidr", "domain"})
+                    if (filter[field])
+                        list(filter[field], QStringLiteral("$.dns.fallback-filter.") + field,
+                             false);
+            }
         }
         if (root["tun"])
             keys(root["tun"], {"enable", "stack", "auto-route", "auto-detect-interface"}, "$.tun");
@@ -380,7 +471,7 @@ class Schema final {
                         QString::fromStdString(text(root["rules"][i], path, 8192)).split(',');
                     const auto type = parts.front().toStdString();
                     if (!oneOf(type, {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR",
-                                      "IP-CIDR6", "MATCH"})) {
+                                      "IP-CIDR6", "GEOIP", "GEOSITE", "MATCH"})) {
                         issue("UnsupportedRule", path,
                               oneOf(type, {"GEOIP", "GEOSITE", "RULE-SET"}) ? type : "rule");
                         return;
@@ -388,7 +479,7 @@ class Schema final {
                     const bool match = type == "MATCH";
                     require(parts.size() == (match ? 2 : 3) ||
                                 (!match && parts.size() == 4 &&
-                                 (type == "IP-CIDR" || type == "IP-CIDR6") &&
+                                 (type == "IP-CIDR" || type == "IP-CIDR6" || type == "GEOIP") &&
                                  parts.back() == "no-resolve"),
                             path);
                     require(names.contains(parts[match ? 1 : 2].toStdString()), path);

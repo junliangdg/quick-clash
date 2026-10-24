@@ -147,23 +147,11 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         if (const auto* failure = std::get_if<domain::Error>(&validated))
             return *failure;
         PreflightConfig output;
-        const std::vector<std::string> managed{"mixed-port",
-                                               "port",
-                                               "socks-port",
-                                               "redir-port",
-                                               "tproxy-port",
-                                               "allow-lan",
-                                               "bind-address",
-                                               "external-controller",
-                                               "secret",
-                                               "external-ui",
-                                               "external-ui-url",
-                                               "tun",
-                                               "dns",
-                                               "profile",
-                                               "mode",
-                                               "geodata-mode",
-                                               "geo-auto-update"};
+        const std::vector<std::string> managed{
+            "mixed-port",  "port",        "socks-port",      "redir-port",
+            "tproxy-port", "allow-lan",   "bind-address",    "external-controller",
+            "secret",      "external-ui", "external-ui-url", "tun",
+            "profile",     "mode",        "geodata-mode",    "geo-auto-update"};
         for (const auto& key : managed) {
             if (root[key]) {
                 output.overriddenFields.push_back(QString::fromStdString(key));
@@ -177,7 +165,24 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         root["mode"] = preferences.mode == domain::ProxyMode::Global   ? "global"
                        : preferences.mode == domain::ProxyMode::Direct ? "direct"
                                                                        : "rule";
-        root["dns"]["enable"] = false;
+        // DNS remains internal to Mihomo; this slice does not expose an OS DNS listener.
+        if (root["dns"]) {
+            if (root["dns"]["listen"])
+                output.overriddenFields.push_back(QStringLiteral("dns.listen"));
+            root["dns"]["listen"] = "";
+        } else {
+            root["dns"]["enable"] = false;
+        }
+        // Some subscription generators emit the legacy mport alias. Normalize it to
+        // Mihomo's actual ports option, and reject conflicting values in the schema.
+        for (auto proxy : root["proxies"]) {
+            if (proxy["mport"]) {
+                if (!proxy["ports"] || proxy["ports"].Scalar().empty())
+                    proxy["ports"] = proxy["mport"].Scalar();
+                proxy.remove("mport");
+            }
+        }
+        root["geodata-mode"] = true;
         root["tun"]["enable"] = false;
         root["geo-auto-update"] = false;
         root["profile"]["store-selected"] = false;
@@ -245,6 +250,8 @@ QString redactedConfig(const QByteArray& semantic) {
         for (auto group : root["proxy-groups"])
             if (group["url"])
                 group["url"] = "[redacted]";
+        if (root["dns"])
+            root["dns"] = "[redacted]";
         const auto bytes = serializeYaml(root);
         if (bytes.size() > 256 * 1024)
             return QStringLiteral("PreviewLimitExceeded");

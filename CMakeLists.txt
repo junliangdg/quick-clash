@@ -35,7 +35,16 @@ add_library(quickclash_application INTERFACE)
 target_include_directories(quickclash_application INTERFACE src)
 target_link_libraries(quickclash_application INTERFACE quickclash_domain)
 add_library(quickclash_config src/infra/config/config_preflight.cpp src/infra/config/config_preflight.h
-    src/infra/config/config_schema.cpp src/infra/config/config_schema.h)
+    src/infra/config/config_schema.cpp src/infra/config/config_schema.h
+    src/infra/config/geo_resources.cpp src/infra/config/geo_resources.h)
+string(JSON QUICKCLASH_GEOIP_SHA256 GET "${QUICKCLASH_RELEASE_MATRIX}" geo geoip sha256)
+string(JSON QUICKCLASH_GEOSITE_SHA256 GET "${QUICKCLASH_RELEASE_MATRIX}" geo geosite sha256)
+target_compile_definitions(quickclash_config PRIVATE
+    QUICKCLASH_GEOIP_SHA256="${QUICKCLASH_GEOIP_SHA256}"
+    QUICKCLASH_GEOSITE_SHA256="${QUICKCLASH_GEOSITE_SHA256}")
+if(BUILD_TESTING)
+    target_compile_definitions(quickclash_config PRIVATE QUICKCLASH_DEVELOPMENT_GEO="${CMAKE_SOURCE_DIR}/.cache/geo")
+endif()
 target_link_libraries(quickclash_config PUBLIC quickclash_domain PRIVATE yaml-cpp::yaml-cpp)
 quickclash_warnings(quickclash_config)
 add_library(quickclash_storage
@@ -174,6 +183,7 @@ if(BUILD_TESTING)
     set_tests_properties(contracts PROPERTIES TIMEOUT 30)
     if(QUICKCLASH_BUILD_UI)
         add_executable(runtime_test tests/integration/runtime_test.cpp
+            tests/integration/subscription_probe.cpp tests/integration/subscription_probe.h
             tests/integration/native_proxy_client.cpp tests/integration/native_proxy_client.h
             tests/integration/network_fixture.cpp tests/integration/network_fixture.h)
         if(WIN32)
@@ -184,7 +194,7 @@ if(BUILD_TESTING)
         quickclash_warnings(proxy_lease_test)
         add_test(NAME proxy_lease COMMAND proxy_lease_test)
         set_tests_properties(proxy_lease PROPERTIES TIMEOUT 15)
-        target_link_libraries(runtime_test PRIVATE quickclash_runtime)
+        target_link_libraries(runtime_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
         quickclash_warnings(runtime_test)
         add_test(NAME runtime COMMAND runtime_test)
         set_tests_properties(runtime PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")

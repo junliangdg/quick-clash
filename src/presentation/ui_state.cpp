@@ -130,7 +130,11 @@ QString UiState::runtimeError() const {
         return tr(
             "This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
             "Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. "
-            "Providers, Geo rules and managed DNS require later development.");
+            "Bundled Geo rules and basic fake-ip DNS are supported. Providers and advanced DNS "
+            "options require later development.");
+    if (code == QStringLiteral("GeoResourceIntegrityFailed"))
+        return tr("The bundled Geo data is missing or damaged. Restore the complete application "
+                  "package.");
     if (code == QStringLiteral("ProxyGroupAutomatic"))
         return tr("Mihomo manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))

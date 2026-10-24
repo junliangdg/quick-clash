@@ -6,6 +6,6 @@ proxies:
 proxy-groups:
   - {name: secret_group_name, type: load-balance, proxies: [secret_node_name, second_node]}
 rules: ["GEOIP,CN,DIRECT", "GEOSITE,private.example.invalid,DIRECT", "RULE-SET,private_set,DIRECT", "MATCH,DIRECT"]
-dns: {enable: true, enhanced-mode: fake-ip}
+dns: {enable: true, enhanced-mode: unsupported-mode}
 geox-url: {geoip: "https://private.example.invalid/data?token=secret_credential"}
 secret_credential: secret_credential

@@ -1,0 +1,17 @@
+proxies:
+  - {name: hopping, type: hysteria2, server: proxy.example.invalid, port: 443, password: public_dummy, ports: '443,2000-2010', mport: '443,2000-2010', fingerprint: ''}
+proxy-groups: []
+rules: ["GEOIP,CN,DIRECT,no-resolve", "GEOSITE,cn,DIRECT", "MATCH,DIRECT"]
+dns:
+  enable: true
+  listen: 0.0.0.0:53
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  ipv6: false
+  use-hosts: true
+  respect-rules: true
+  default-nameserver: [1.1.1.1]
+  proxy-server-nameserver: [1.1.1.1]
+  nameserver: [https://dns.example.invalid/dns-query]
+  fallback: [tls://1.0.0.1:853]
+  fallback-filter: {geoip: true, geoip-code: CN, geosite: [cn], ipcidr: [240.0.0.0/4], domain: ['+.example.invalid']}

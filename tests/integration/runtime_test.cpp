@@ -1,6 +1,7 @@
 #include "application/desktop_runtime.h"
 #include "native_proxy_client.h"
 #include "network_fixture.h"
+#include "subscription_probe.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -47,6 +48,8 @@ int main(int argc, char** argv) {
         return 1;
     quickclash::application::DesktopRuntime runtime(store);
     runtime.initialize();
+    if (app.arguments().contains(QStringLiteral("--subscription-e2e")))
+        return quickclash::test::subscriptionProbe(runtime, store);
     // Opt-in real endpoint check: input and raw content never appear in diagnostics.
     if (app.arguments().contains(QStringLiteral("--subscription-probe"))) {
         std::string source;
@@ -503,6 +506,24 @@ int main(int argc, char** argv) {
                                "automatic_groups_bypass_reject", "automatic_group_projection",
                                "automatic_mutation_rejected", "protocol_selection_readback",
                                "bad_candidate_preserves_running", "protocol_stop_restart"});
+    reopened.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
+                                                "tests/fixtures/mvp/dns_supported.yaml")))
+                            .toString(),
+                        QStringLiteral("Managed DNS and Geo"));
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("profiles").toArray().size() == 2,
+                 "official isolated DNS and Geo validation", reopened))
+        return 54;
+    reopened.selectProfile(
+        reopened.snapshot().value("profiles").toArray()[1].toObject().value("id").toString());
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
+                 "DNS selection", reopened))
+        return 55;
+    reopened.start(false);
+    if (!require(waitFor([&] { return reopened.snapshot().value("ready").toBool(); }),
+                 "DNS Geo Ready", reopened))
+        return 56;
+    reopened.stop();
     QSaveFile evidenceFile(QDir(QCoreApplication::applicationDirPath())
                                .filePath(QStringLiteral("p2_runtime_evidence.json")));
     if (!evidenceFile.open(QIODevice::WriteOnly) ||

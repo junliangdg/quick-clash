@@ -1,5 +1,0 @@
-proxies: []
-proxy-groups: []
-rules: ["MATCH,DIRECT"]
-dns:
-  enhanced-mode: fake-ip

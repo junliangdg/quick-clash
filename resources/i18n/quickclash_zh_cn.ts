@@ -514,8 +514,12 @@
         <translation>配置兼容性问题（最多显示 32 项）：</translation>
     </message>
     <message>
-        <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. Providers, Geo rules and managed DNS require later development.</source>
-        <translation>此配置含尚不支持的功能。当前支持内联 HTTP、SOCKS5、Shadowsocks、Hysteria2、Trojan、VLESS、VMess 节点与 select/url-test/fallback 代理组。提供者、Geo 规则与受管 DNS 将在后续阶段开发。</translation>
+        <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. Bundled Geo rules and basic fake-ip DNS are supported. Providers and advanced DNS options require later development.</source>
+        <translation>此配置含尚不支持的功能。当前支持内联 HTTP、SOCKS5、Shadowsocks、Hysteria2、Trojan、VLESS、VMess 节点与 select/url-test/fallback 代理组，以及随包 Geo 规则和基础 fake-ip DNS。提供者及高级 DNS 选项仍待开发。</translation>
+    </message>
+    <message>
+        <source>The bundled Geo data is missing or damaged. Restore the complete application package.</source>
+        <translation>随包 Geo 数据缺失或损坏，请恢复完整的应用程序包。</translation>
     </message>
     <message>
         <source>Mihomo manages this group's current node automatically.</source>

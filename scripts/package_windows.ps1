@@ -21,6 +21,16 @@ if (-not (Test-Path -LiteralPath $MihomoLicense)) { throw 'Provide the frozen of
 & (Join-Path $PSScriptRoot 'deploy_windows.ps1') -BuildDirectory $BuildDirectory -Destination $taskDestination -CMake $CMake
 New-Item -ItemType Directory -Path (Join-Path $taskDestination 'core'), (Join-Path $taskDestination 'licenses'), (Join-Path $taskDestination 'metadata') | Out-Null
 Copy-Item -LiteralPath $taskCore -Destination (Join-Path $taskDestination 'core/mihomo.exe')
+New-Item -ItemType Directory -Path (Join-Path $taskDestination 'geo') | Out-Null
+foreach ($taskAsset in @($taskMatrix.geo.geoip, $taskMatrix.geo.geosite)) {
+    $taskAssetPath = Join-Path $taskRepo ('.cache/geo/' + $taskAsset.file)
+    if ((Get-Item -LiteralPath $taskAssetPath).Length -ne $taskAsset.bytes -or
+        (Get-FileHash -LiteralPath $taskAssetPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskAsset.sha256) { throw 'Geo snapshot size/hash mismatch.' }
+    Copy-Item -LiteralPath $taskAssetPath -Destination (Join-Path $taskDestination ('geo/' + $taskAsset.file))
+}
+$taskGeoLicense = Join-Path $taskRepo '.cache/geo/license.txt'
+if ((Get-FileHash -LiteralPath $taskGeoLicense -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskMatrix.geo.license_sha256) { throw 'Geo license hash mismatch.' }
+Copy-Item -LiteralPath $taskGeoLicense -Destination (Join-Path $taskDestination 'licenses/meta_rules_dat_gpl_3.txt')
 if (-not (Test-Path -LiteralPath $VcRuntimeDirectory)) { throw 'Provide the Microsoft redistributable x64 CRT directory.' }
 foreach ($taskDll in Get-ChildItem -LiteralPath $VcRuntimeDirectory -Filter '*.dll' -File) {
     Copy-Item -LiteralPath $taskDll.FullName -Destination (Join-Path $taskDestination 'bin')
