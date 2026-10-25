@@ -65,19 +65,22 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
     result.insert(QStringLiteral("nodes"), static_cast<int>(root["proxies"].size()));
     result.insert(QStringLiteral("groups"), static_cast<int>(root["proxy-groups"].size()));
     // Session secret stays inside this process; no raw API body is logged.
-    const auto paths = store.path(QStringLiteral("data/sessions"));
-    const QDir sessions(std::get<QString>(paths));
-    const auto session = sessions.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    if (session.size() != 1)
-        return finish("session", false);
-    QFile config(sessions.filePath(session[0] + QStringLiteral("/config.yaml")));
-    if (!config.open(QIODevice::ReadOnly))
-        return finish("session", false);
-    const auto sessionYaml = YAML::Load(config.readAll().toStdString());
-    const auto secret = QByteArray::fromStdString(sessionYaml["secret"].as<std::string>());
     QNetworkAccessManager api;
     api.setProxy(QNetworkProxy::NoProxy);
     const auto readApi = [&](const QByteArray& path) {
+        const auto paths = store.path(QStringLiteral("data/sessions"));
+        const QDir sessions(std::get<QString>(paths));
+        auto session = sessions.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+        session.removeIf([&](const QString& entry) {
+            return !QFile::exists(sessions.filePath(entry + QStringLiteral("/config.yaml")));
+        });
+        if (session.size() != 1)
+            return QJsonObject{};
+        QFile config(sessions.filePath(session[0] + QStringLiteral("/config.yaml")));
+        if (!config.open(QIODevice::ReadOnly))
+            return QJsonObject{};
+        const auto sessionYaml = YAML::Load(config.readAll().toStdString());
+        const auto secret = QByteArray::fromStdString(sessionYaml["secret"].as<std::string>());
         QNetworkRequest request(QUrl(QStringLiteral("http://127.0.0.1:%1").arg(controller) +
                                      QString::fromLatin1(path)));
         request.setRawHeader("Authorization", "Bearer " + secret);
@@ -122,7 +125,6 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
         QElapsedTimer timer;
         timer.start();
         while (!reply->isFinished() && timer.elapsed() < 16000) {
-            wait([&] { return reply->isFinished(); }, 200);
             const auto connections = readApi("/connections").value("connections").toArray();
             for (const auto& entry : connections) {
                 const auto connection = entry.toObject();
@@ -132,6 +134,7 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
                     chains.contains(name) && !chains.contains(QStringLiteral("DIRECT")))
                     chain = true;
             }
+            wait([&] { return reply->isFinished(); }, 10);
         }
         const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
         const auto bytes = reply->readAll().size();
@@ -148,6 +151,27 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
                           QString::fromStdString(node["type"].as<std::string>()));
             result.insert(QStringLiteral("tls_verified"), true);
             result.insert(QStringLiteral("mode"), QStringLiteral("global"));
+            const auto id = runtime.snapshot().value("selectedId").toString();
+            const auto pid = runtime.snapshot().value("corePid");
+            runtime.updateProfile(id);
+            if (!wait([&] { return !runtime.snapshot().value("busy").toBool(); }, 45000) ||
+                runtime.snapshot()
+                        .value("profiles")
+                        .toArray()[0]
+                        .toObject()
+                        .value("lastUpdateResult") != "Updated" ||
+                !runtime.snapshot().value("ready").toBool() ||
+                readApi("/proxies/GLOBAL").value("now").toString() != name)
+                return finish("update", false);
+            result.insert(QStringLiteral("updated"), true);
+            result.insert(QStringLiteral("unchanged_kept_session"),
+                          runtime.snapshot().value("corePid") == pid);
+            runtime.testWebsite(QStringLiteral("https://speed.cloudflare.com/"));
+            if (!wait(
+                    [&] { return !runtime.snapshot().value("testResult").toString().isEmpty(); }) ||
+                !runtime.snapshot().value("testResult").toString().startsWith("HTTP 200"))
+                return finish("forward_after_update", false);
+            result.insert(QStringLiteral("forward_after_update"), true);
             return finish("https_forward", true);
         }
     }

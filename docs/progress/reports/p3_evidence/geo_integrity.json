@@ -1,0 +1,17 @@
+[
+  {
+    "case": "valid",
+    "exit_code": 0,
+    "output": "Verified"
+  },
+  {
+    "case": "missing",
+    "exit_code": 1,
+    "output": "GeoResourceIntegrityFailed"
+  },
+  {
+    "case": "damaged",
+    "exit_code": 1,
+    "output": "GeoResourceIntegrityFailed"
+  }
+]

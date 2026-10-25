@@ -140,20 +140,8 @@ int main(int argc, char* argv[]) {
                     host.state().runtimeCommand(QStringLiteral("import"),
                                                 {QUrl::fromLocalFile(runtimeProbe).toString(),
                                                  QStringLiteral("Runtime sample")});
-                } else if (*stage == 1 &&
-                           !state.value(QStringLiteral("profiles")).toList().isEmpty()) {
+                } else if (*stage == 1 && state.value(QStringLiteral("ready")).toBool()) {
                     *stage = 2;
-                    host.state().runtimeCommand(QStringLiteral("select"),
-                                                {state.value(QStringLiteral("profiles"))
-                                                     .toList()
-                                                     .first()
-                                                     .toMap()
-                                                     .value(QStringLiteral("id"))
-                                                     .toString()});
-                } else if (*stage == 2 &&
-                           !state.value(QStringLiteral("selectedId")).toString().isEmpty()) {
-                    *stage = 3;
-                    host.state().runtimeCommand(QStringLiteral("start"));
                 }
             });
         const auto stateFile = option(QStringLiteral("--runtime-state"));

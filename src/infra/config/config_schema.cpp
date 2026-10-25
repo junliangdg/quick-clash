@@ -144,7 +144,8 @@ class Schema final {
     void proxy(const YAML::Node& proxy, const QString& path) {
         require(proxy.IsMap(), path);
         const auto type = text(proxy["type"], path + ".type", 64);
-        if (!oneOf(type, {"http", "socks5", "ss", "hysteria2", "trojan", "vless", "vmess"})) {
+        if (!oneOf(type,
+                   {"http", "socks5", "ss", "hysteria2", "trojan", "vless", "vmess", "tuic"})) {
             issue("UnsupportedProtocol", path + ".type",
                   oneOf(type, {"tuic", "hysteria", "wireguard", "ssh", "snell"}) ? type
                                                                                  : "protocol");
@@ -156,6 +157,10 @@ class Schema final {
             add({"username", "password", "tls", "sni", "skip-cert-verify"});
         else if (type == "ss")
             add({"password", "cipher"});
+        else if (type == "tuic")
+            add({"uuid", "password", "token", "sni", "alpn", "disable-sni", "reduce-rtt",
+                 "request-timeout", "udp-relay-mode", "congestion-controller", "heartbeat-interval",
+                 "skip-cert-verify", "max-udp-relay-packet-size", "fast-open", "max-open-streams"});
         else if (type == "hysteria2")
             add({"password", "sni", "skip-cert-verify", "alpn", "up", "down", "obfs",
                  "obfs-password", "ports", "mport", "hop-interval", "fingerprint"});
@@ -172,6 +177,33 @@ class Schema final {
                 add({"alterId", "cipher"});
         }
         keys(proxy, allowed, path);
+        if (type == "tuic") {
+            require((proxy["uuid"] && proxy["password"]) || proxy["token"], path + ".uuid");
+            if (proxy["uuid"])
+                require(QRegularExpression(
+                            QStringLiteral("^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"))
+                            .match(QString::fromStdString(text(proxy["uuid"], path + ".uuid", 36)))
+                            .hasMatch(),
+                        path + ".uuid");
+            for (const auto* field :
+                 {"uuid", "password", "token", "sni", "udp-relay-mode", "congestion-controller"})
+                if (proxy[field])
+                    text(proxy[field], path + '.' + field, 4096);
+            if (proxy["udp-relay-mode"])
+                require(oneOf(proxy["udp-relay-mode"].as<std::string>(), {"native", "quic"}),
+                        path + ".udp-relay-mode");
+            if (proxy["congestion-controller"])
+                require(oneOf(proxy["congestion-controller"].as<std::string>(),
+                              {"cubic", "new_reno", "bbr"}),
+                        path + ".congestion-controller");
+            for (const auto* field : {"disable-sni", "reduce-rtt", "fast-open"})
+                if (proxy[field])
+                    boolean(proxy[field], path + '.' + field);
+            for (const auto* field : {"request-timeout", "heartbeat-interval",
+                                      "max-udp-relay-packet-size", "max-open-streams"})
+                if (proxy[field])
+                    number(proxy[field], path + '.' + field, 1, 1000000);
+        }
         text(proxy["server"], path + ".server");
         number(proxy["port"], path + ".port", 1, 65535);
         for (const auto* field : {"udp", "tls", "skip-cert-verify"})
@@ -296,11 +328,30 @@ class Schema final {
         if (root["dns"]) {
             const auto dns = root["dns"];
             keys(dns,
-                 {"enable", "listen", "enhanced-mode", "nameserver", "fallback",
-                  "default-nameserver", "ipv6", "fake-ip-range", "fake-ip-filter", "use-hosts",
-                  "respect-rules", "proxy-server-nameserver", "fallback-filter"},
+                 {"enable",
+                  "listen",
+                  "enhanced-mode",
+                  "nameserver",
+                  "fallback",
+                  "default-nameserver",
+                  "ipv6",
+                  "fake-ip-range",
+                  "fake-ip-filter",
+                  "use-hosts",
+                  "respect-rules",
+                  "proxy-server-nameserver",
+                  "fallback-filter",
+                  "nameserver-policy",
+                  "direct-nameserver",
+                  "direct-nameserver-follow-policy",
+                  "fake-ip-filter-mode",
+                  "cache-algorithm",
+                  "prefer-h3",
+                  "use-system-hosts"},
                  "$.dns");
-            for (const auto* field : {"enable", "ipv6", "use-hosts", "respect-rules"})
+            for (const auto* field :
+                 {"enable", "ipv6", "use-hosts", "respect-rules", "direct-nameserver-follow-policy",
+                  "prefer-h3", "use-system-hosts"})
                 if (dns[field])
                     boolean(dns[field], QStringLiteral("$.dns.") + field);
             if (dns["listen"])
@@ -331,6 +382,17 @@ class Schema final {
                                 (url.scheme() == "udp" || url.scheme() == "tcp" ||
                                  url.scheme() == "tls" || url.scheme() == "https"),
                             path + "[]");
+                    const auto host = url.host().toLower();
+                    require(!host.startsWith(QStringLiteral("127.")) &&
+                                host != QStringLiteral("::1") &&
+                                !host.startsWith(QStringLiteral("::ffff:127.")) &&
+                                !host.startsWith(QStringLiteral("::ffff:7f")) &&
+                                host != QStringLiteral("::ffff:0.0.0.0") &&
+                                host != QStringLiteral("::ffff:0:0") &&
+                                host != QStringLiteral("::") && host != QStringLiteral("0.0.0.0") &&
+                                host != QStringLiteral("localhost") &&
+                                host != QStringLiteral("localhost."),
+                            path + "[]");
                 }
             };
             for (const auto* field :
@@ -339,6 +401,30 @@ class Schema final {
                     list(dns[field], QStringLiteral("$.dns.") + field, true);
             if (dns["fake-ip-filter"])
                 list(dns["fake-ip-filter"], "$.dns.fake-ip-filter", false);
+            if (dns["direct-nameserver"])
+                list(dns["direct-nameserver"], "$.dns.direct-nameserver", true);
+            if (dns["cache-algorithm"])
+                require(
+                    oneOf(text(dns["cache-algorithm"], "$.dns.cache-algorithm"), {"lru", "arc"}),
+                    "$.dns.cache-algorithm");
+            if (dns["fake-ip-filter-mode"])
+                require(oneOf(text(dns["fake-ip-filter-mode"], "$.dns.fake-ip-filter-mode"),
+                              {"blacklist", "whitelist"}),
+                        "$.dns.fake-ip-filter-mode");
+            if (dns["nameserver-policy"]) {
+                require(dns["nameserver-policy"].IsMap() && dns["nameserver-policy"].size() <= 256,
+                        "$.dns.nameserver-policy");
+                for (const auto& entry : dns["nameserver-policy"]) {
+                    text(entry.first, "$.dns.nameserver-policy.<key>", 2048);
+                    if (entry.second.IsSequence())
+                        list(entry.second, "$.dns.nameserver-policy.<value>", true);
+                    else {
+                        YAML::Node resolverList(YAML::NodeType::Sequence);
+                        resolverList.push_back(entry.second);
+                        list(resolverList, "$.dns.nameserver-policy.<value>", true);
+                    }
+                }
+            }
             if (dns["respect-rules"] && dns["respect-rules"].as<bool>())
                 require(dns["proxy-server-nameserver"] && dns["proxy-server-nameserver"].size() > 0,
                         "$.dns.proxy-server-nameserver");
@@ -384,7 +470,7 @@ class Schema final {
                     const auto name = text(group["name"], path + ".name", 512);
                     require(names.insert(name).second, path + ".name");
                     const auto type = text(group["type"], path + ".type", 64);
-                    if (!oneOf(type, {"select", "url-test", "fallback"})) {
+                    if (!oneOf(type, {"select", "url-test", "fallback", "load-balance"})) {
                         issue("UnsupportedGroup", path + ".type",
                               type == "load-balance" ? type : "group");
                         return;
@@ -394,6 +480,13 @@ class Schema final {
                         fields.insert({"url", "interval", "timeout", "lazy", "expected-status"});
                     if (type == "url-test")
                         fields.insert("tolerance");
+                    if (type == "load-balance") {
+                        fields.insert("strategy");
+                        if (group["strategy"])
+                            require(oneOf(text(group["strategy"], path + ".strategy"),
+                                          {"consistent-hashing", "round-robin", "sticky-sessions"}),
+                                    path + ".strategy");
+                    }
                     keys(group, fields, path);
                     if (type != "select") {
                         const QUrl url(

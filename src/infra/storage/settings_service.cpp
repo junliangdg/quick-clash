@@ -52,6 +52,7 @@ SettingsService::SettingsService(QString root, QObject* parent)
             }
         }
         state->available = true;
+        state->runtime->enableBackgroundManagement();
         emit loaded(value.theme, value.unloadWhenHidden, value.closeAcknowledged);
     });
     connect(
@@ -104,6 +105,9 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
             runtime.addSubscription(argument(0), argument(1));
         } else if (name == QStringLiteral("update")) {
             runtime.updateProfile(argument(0));
+        } else if (name == QStringLiteral("subscription_policy")) {
+            runtime.configureSubscription(argument(0), argument(1).toInt(),
+                                          argument(2) == QStringLiteral("true"));
         } else if (name == QStringLiteral("source")) {
             runtime.changeProfileSource(argument(0), argument(1), argument(2));
         } else if (name == QStringLiteral("select")) {
@@ -131,7 +135,8 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
         } else if (name == QStringLiteral("ports")) {
             runtime.setPorts(argument(0).toInt(), argument(1).toInt());
         } else if (name == QStringLiteral("test")) {
-            runtime.testWebsite(argument(0));
+            runtime.testWebsite(argument(0), argument(1).isEmpty() ? QStringLiteral("CurrentProxy")
+                                                                   : argument(1));
         } else if (name == QStringLiteral("refresh")) {
             runtime.refresh();
         } else if (name == QStringLiteral("system_proxy")) {
@@ -142,6 +147,10 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
             runtime.previewConfiguration();
         } else if (name == QStringLiteral("reapply_system_proxy")) {
             runtime.reapplySystemProxy();
+        } else if (name == QStringLiteral("demands")) {
+            runtime.setDemands(arguments);
+        } else {
+            runtime.featureCommand(name, arguments);
         }
     });
 }

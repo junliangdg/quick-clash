@@ -1,0 +1,12 @@
+{
+  "executable": "D:\\repos\\quick-clash\\dist\\g2_recovery\\bin\\quickclash.exe",
+  "arguments": [
+    "--smoke-test",
+    "--diagnostics=D:\\repos\\quick-clash\\build\\p2_responsive\\logs\\deploy_20261025T082429511Z/smoke.json"
+  ],
+  "working_directory": "D:\\repos\\quick-clash\\dist\\g2_recovery",
+  "started_at_utc": "2026-10-25T08:24:32.5631509Z",
+  "elapsed_ms": 1702,
+  "exit_code": 0,
+  "timed_out": false
+}

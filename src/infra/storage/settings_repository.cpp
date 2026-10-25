@@ -40,7 +40,6 @@ QJsonObject SettingsRepository::runtimeDefaults() {
     return {{QStringLiteral("mode"), QStringLiteral("rule")},
             {QStringLiteral("tunDesired"), false},
             {QStringLiteral("systemProxyDesired"), false},
-            {QStringLiteral("autoStart"), false},
             {QStringLiteral("mixedPort"), 7890},
             {QStringLiteral("controllerPort"), 9090}};
 }

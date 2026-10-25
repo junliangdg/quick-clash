@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
+import QtQuick.Dialogs
 import QuickClash.Ui
 
 ScrollView {
@@ -10,6 +11,59 @@ ScrollView {
     required property ThemeTokens theme
     contentWidth: availableWidth
     clip: true
+    Dialog {
+        id: geoConfirmation
+        title: qsTr("Download and apply Geo databases?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        Label {
+            width: Math.min(360, root.availableWidth - 40)
+            wrapMode: Text.WordWrap
+            text: qsTr("Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Mihomo, and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.")
+        }
+        onAccepted: root.ui.runtimeCommand("update_geo")
+    }
+    Dialog {
+        id: geoRollback
+        title: qsTr("Restore the previous Geo snapshot?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.ui.runtimeCommand("rollback_geo", ["confirmed"])
+    }
+    FileDialog {
+        id: restoreFile
+        title: qsTr("Restore offline profiles")
+        nameFilters: [qsTr("QuickClash backup (*.json)")]
+        onAccepted: restoreConfirmation.open()
+    }
+    Dialog {
+        id: backupConfirmation
+        title: qsTr("Create sensitive local backup?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        Label {
+            width: Math.min(360, root.availableWidth - 40)
+            wrapMode: Text.WordWrap
+            text: qsTr("The backup contains node credentials as plain text. It excludes subscription URLs, session secrets and system proxy leases. Keep it private.")
+        }
+        onAccepted: root.ui.runtimeCommand("backup", ["confirmed"])
+    }
+    Dialog {
+        id: restoreConfirmation
+        title: qsTr("Import profiles from this backup?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        Label {
+            width: Math.min(360, root.availableWidth - 40)
+            wrapMode: Text.WordWrap
+            text: qsTr("Verified profiles are added as new offline profiles. Existing profiles, running sessions and proxy settings are preserved.")
+        }
+        onAccepted: root.ui.runtimeCommand("restore_backup", [restoreFile.selectedFile.toString(), "confirmed"])
+    }
     ColumnLayout {
         width: root.availableWidth
         spacing: 14
@@ -54,7 +108,7 @@ ScrollView {
                 anchors.margins: 20
                 spacing: 12
                 Label {
-                    text: qsTr("Core and network repair")
+                    text: qsTr("Network settings")
                     font.pixelSize: 20
                     font.bold: true
                     color: root.theme.text
@@ -64,6 +118,26 @@ ScrollView {
                     color: root.theme.text
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: qsTr("The network engine runs automatically and restarts after a crash. Turning off these switches keeps it available for local forwarding.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Switch {
+                    text: qsTr("System proxy")
+                    checked: !!root.ui.runtime.systemProxy || !!(root.ui.runtime.preferences || {}).systemProxyDesired
+                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                    onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
+                    palette.windowText: root.theme.text
+                }
+                Switch {
+                    text: qsTr("Virtual network adapter (TUN)")
+                    checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
+                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                    onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
+                    palette.windowText: root.theme.text
                 }
                 GridLayout {
                     columns: root.availableWidth >= 600 ? 4 : 2
@@ -104,11 +178,6 @@ ScrollView {
                     }
                     ActionButton {
                         theme: root.theme
-                        text: qsTr("Stop and restore proxy")
-                        onClicked: root.ui.runtimeCommand("stop")
-                    }
-                    ActionButton {
-                        theme: root.theme
                         text: qsTr("Open data folder")
                         onClicked: Qt.openUrlExternally(root.ui.runtime.dataUrl || "")
                     }
@@ -133,13 +202,13 @@ ScrollView {
                     }
                 }
                 Label {
-                    text: qsTr("Changing mode, profile or ports briefly restarts the core. After a forced exit, reopening checks and restores proxy settings still owned by QuickClash. You can also check Windows Settings → Network & internet → Proxy. Changes made by other apps are preserved. TUN, providers and Geo are not supported yet.")
+                    text: qsTr("Changing mode, profile, DNS or ports briefly restarts the core. After a forced exit, reopening restores proxy settings still owned by QuickClash. Changes made by other apps are preserved.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
                 Label {
-                    text: qsTr("QuickClash manages mode, loopback addresses, ports, controller and session secret. DNS service, TUN, automatic Geo updates and core selection caching are disabled; profile values are overridden.")
+                    text: qsTr("QuickClash manages loopback listeners and session secrets. DNS runs inside Mihomo. Providers are validated snapshots; Geo uses verified bundled resources.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -162,6 +231,80 @@ ScrollView {
             color: root.theme.text
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
+        }
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            implicitHeight: advanced.implicitHeight + 40
+            ColumnLayout {
+                id: advanced
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 12
+                Label { text: qsTr("DNS and diagnostics"); color: root.theme.text; font.bold: true }
+                Label {
+                    text: qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ComboBox {
+                    id: dnsMode
+                    Layout.fillWidth: true
+                    model: [{key: "profile", label: qsTr("Use profile DNS")}, {key: "fake-ip", label: "fake-ip"}, {key: "redir-host", label: "redir-host"}]
+                    textRole: "label"
+                    currentIndex: Math.max(0, model.findIndex(entry => entry.key === ((root.ui.runtime.preferences || {}).dnsMode || "profile")))
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Apply DNS mode")
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy
+                        onClicked: root.ui.runtimeCommand("dns_mode", [dnsMode.model[dnsMode.currentIndex].key])
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Clear DNS cache")
+                        enabled: !!root.ui.runtime.ready && !root.ui.runtime.busy
+                        onClicked: root.ui.runtimeCommand("flush_dns")
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Update Geo databases…")
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        onClicked: geoConfirmation.open()
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Roll back Geo databases…")
+                        enabled: !!(root.ui.runtime.preferences || {}).geoSnapshot && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        onClicked: geoRollback.open()
+                    }
+                    ActionButton { theme: root.theme; text: qsTr("Export safe diagnostics"); onClicked: root.ui.runtimeCommand("diagnostics") }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Open diagnostics")
+                        visible: !!(root.ui.runtime.features || {}).exportUrl
+                        onClicked: Qt.openUrlExternally(root.ui.runtime.features.exportUrl)
+                    }
+                    ActionButton { theme: root.theme; text: qsTr("Back up profiles…"); enabled: !root.ui.runtime.busy; onClicked: backupConfirmation.open() }
+                    ActionButton { theme: root.theme; text: qsTr("Restore profiles…"); enabled: !root.ui.runtime.busy; onClicked: restoreFile.open() }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Open backup folder")
+                        visible: !!(root.ui.runtime.features || {}).backupUrl
+                        onClicked: Qt.openUrlExternally(root.ui.runtime.dataUrl + "/backups")
+                    }
+                }
+                Label {
+                    text: ((root.ui.runtime.features || {}).dnsResult || "") + " · " + ((root.ui.runtime.features || {}).backupResult || "") + " · " + ((root.ui.runtime.features || {}).geoResult || "")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+            }
         }
         FlatTile {
             theme: root.theme

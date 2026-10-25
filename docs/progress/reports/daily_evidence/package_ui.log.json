@@ -1,0 +1,19 @@
+{
+  "executable": "D:\\repos\\quick-clash\\dist\\p3_daily\\bin\\quickclash.exe",
+  "arguments": [
+    "--isolated",
+    "--runtime-probe=tests/fixtures/mvp/dns_supported.yaml",
+    "--probe-mixed-port=17893",
+    "--probe-controller-port=19093",
+    "--probe-language=zh-CN",
+    "--page=subscriptions",
+    "--window-size=720x780",
+    "--capture=D:/repos/quick-clash/docs/progress/reports/daily_evidence/subscriptions.png",
+    "--quit-after-ms=4000"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T05:55:16.7260104Z",
+  "elapsed_ms": 4208,
+  "exit_code": 0,
+  "timed_out": false
+}

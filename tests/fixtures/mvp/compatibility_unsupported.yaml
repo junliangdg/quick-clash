@@ -1,10 +1,10 @@
 # Synthetic unsupported features; diagnostics must not echo any of these private-looking values.
 proxies:
-  - {name: secret_node_name, type: tuic, server: private.example.invalid, port: 443, password: secret_credential}
+  - {name: secret_node_name, type: wireguard, server: private.example.invalid, port: 443, password: secret_credential}
   - {name: second_node, type: vless, server: private.example.invalid, port: 443,
      uuid: 00000000-0000-4000-8000-000000000001, network: xhttp}
 proxy-groups:
-  - {name: secret_group_name, type: load-balance, proxies: [secret_node_name, second_node]}
+  - {name: secret_group_name, type: unsupported-group, proxies: [secret_node_name, second_node]}
 rules: ["GEOIP,CN,DIRECT", "GEOSITE,private.example.invalid,DIRECT", "RULE-SET,private_set,DIRECT", "MATCH,DIRECT"]
 dns: {enable: true, enhanced-mode: unsupported-mode}
 geox-url: {geoip: "https://private.example.invalid/data?token=secret_credential"}

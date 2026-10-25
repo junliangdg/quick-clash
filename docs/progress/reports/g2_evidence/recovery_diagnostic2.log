@@ -1,0 +1,6 @@
+
+--- stderr ---
+next launch recovery
+finished=1 exit=2 stdout=Failed
+ stderr=[{"code":"DataCommitFailed","time":"2026-10-25T08:15:16Z"},{"code":"TransactionRecoveryRequired","time":"2026-10-25T08:15:16Z"}]
+

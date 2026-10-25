@@ -20,7 +20,30 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         connect(settings_.get(), &infra::SettingsService::runtimeChanged, this,
                 [this](const QJsonObject& state) {
                     runtime_ = state.toVariantMap();
+                    const auto epoch = runtime_.value(QStringLiteral("epoch")).toString();
+                    if (epoch != liveEpoch_) {
+                        liveEpoch_ = epoch;
+                        liveUpload_.clear();
+                        liveDownload_.clear();
+                        trafficSample_.clear();
+                    }
+                    const auto sample = runtime_.value(QStringLiteral("features"))
+                                            .toMap()
+                                            .value(QStringLiteral("traffic"))
+                                            .toMap();
+                    const auto timestamp = sample.value(QStringLiteral("time")).toString();
+                    if (!timestamp.isEmpty() && timestamp != trafficSample_) {
+                        trafficSample_ = timestamp;
+                        liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
+                        liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() /
+                                             1024.0);
+                        while (liveUpload_.size() > 120)
+                            liveUpload_.removeFirst();
+                        while (liveDownload_.size() > 120)
+                            liveDownload_.removeFirst();
+                    }
                     emit runtimeChanged();
+                    emit sampleChanged();
                 });
         connect(settings_.get(), &infra::SettingsService::failed, this,
                 [this](const QString& code) {
@@ -127,11 +150,9 @@ QString UiState::runtimeError() const {
         return tr("The server did not return a Clash/Mihomo YAML profile. Use a standard "
                   "subscription URL; Base64 and share links are not supported yet.");
     if (code == QStringLiteral("UnsupportedConfigFeature"))
-        return tr(
-            "This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
-            "Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. "
-            "Bundled Geo rules and basic fake-ip DNS are supported. Providers and advanced DNS "
-            "options require later development.");
+        return tr("This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
+                  "Hysteria2, Trojan, VLESS, VMess, TUIC and select/url-test/fallback/load-balance "
+                  "groups are supported. Check the feature details for unsupported fields.");
     if (code == QStringLiteral("GeoResourceIntegrityFailed"))
         return tr("The bundled Geo data is missing or damaged. Restore the complete application "
                   "package.");
@@ -139,12 +160,18 @@ QString UiState::runtimeError() const {
         return tr("Mihomo manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))
         return tr("The subscription exceeds the 16 MiB limit.");
+    if (code == QStringLiteral("InvalidSubscriptionSchedule"))
+        return tr("Choose a subscription update interval between 15 minutes and 7 days, or manual "
+                  "updates.");
     if (code == QStringLiteral("SubscriptionRedirectUnsupported"))
         return tr(
             "The subscription redirected to another URL. Enter the final HTTPS subscription URL.");
     if (code == QStringLiteral("SubscriptionDownloadFailed"))
         return tr("Unable to download the subscription. Check the network, HTTPS certificate and "
                   "subscription validity.");
+    if (code == QStringLiteral("SubscriptionAuthenticationFailed"))
+        return tr(
+            "The subscription server denied access. Check the URL, account or request headers.");
     if (code == QStringLiteral("HttpsSubscriptionRequired"))
         return tr(
             "Enter a valid HTTPS subscription URL without embedded login details or a fragment.");
@@ -238,7 +265,8 @@ int UiState::activeStreamCount() const {
 }
 void UiState::setDemand(const QString& instanceKey, const QString& stream, bool active) {
     const QStringList streams{QStringLiteral("traffic"), QStringLiteral("proxies"),
-                              QStringLiteral("connections")};
+                              QStringLiteral("connections"), QStringLiteral("logs"),
+                              QStringLiteral("resources")};
     if (instanceKey.isEmpty() || instanceKey.size() > 128 || !streams.contains(stream)) {
         return;
     }
@@ -252,6 +280,9 @@ void UiState::setDemand(const QString& instanceKey, const QString& stream, bool 
 }
 void UiState::updateTimer() {
     const auto streams = demands_.values();
+    if (settings_)
+        settings_->command(QStringLiteral("demands"),
+                           replay_ || !uiVisible_ ? QStringList{} : streams);
     const bool timed = streams.contains(QStringLiteral("traffic")) ||
                        streams.contains(QStringLiteral("connections"));
     if (replay_ && uiVisible_ && timed) {
@@ -263,12 +294,40 @@ void UiState::updateTimer() {
     }
 }
 QString UiState::upload() const {
+    if (!replay_ && runtime_.value(QStringLiteral("features"))
+                        .toMap()
+                        .value(QStringLiteral("traffic"))
+                        .toMap()
+                        .isEmpty())
+        return QStringLiteral("—");
     return replay_ ? QStringLiteral("%1 KiB/s").arg(replayRate(sample_, true), 0, 'f', 1)
-                   : QStringLiteral("—");
+                   : QStringLiteral("%1 KiB/s")
+                         .arg(runtime_.value(QStringLiteral("features"))
+                                      .toMap()
+                                      .value(QStringLiteral("traffic"))
+                                      .toMap()
+                                      .value(QStringLiteral("up"))
+                                      .toDouble() /
+                                  1024.0,
+                              0, 'f', 1);
 }
 QString UiState::download() const {
+    if (!replay_ && runtime_.value(QStringLiteral("features"))
+                        .toMap()
+                        .value(QStringLiteral("traffic"))
+                        .toMap()
+                        .isEmpty())
+        return QStringLiteral("—");
     return replay_ ? QStringLiteral("%1 MiB/s").arg(replayRate(sample_, false), 0, 'f', 1)
-                   : QStringLiteral("—");
+                   : QStringLiteral("%1 KiB/s")
+                         .arg(runtime_.value(QStringLiteral("features"))
+                                      .toMap()
+                                      .value(QStringLiteral("traffic"))
+                                      .toMap()
+                                      .value(QStringLiteral("down"))
+                                      .toDouble() /
+                                  1024.0,
+                              0, 'f', 1);
 }
 QVariantList UiState::uploadHistory() const {
     return history(true);
@@ -277,6 +336,8 @@ QVariantList UiState::downloadHistory() const {
     return history(false);
 }
 QVariantList UiState::history(bool upload) const {
+    if (!replay_)
+        return upload ? liveUpload_ : liveDownload_;
     QVariantList result;
     if (replay_) {
         result.reserve(120);

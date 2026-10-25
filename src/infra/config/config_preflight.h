@@ -1,5 +1,6 @@
 #pragma once
 #include "domain/contracts.h"
+#include <QHash>
 #include <QJsonObject>
 
 namespace quickclash::infra {
@@ -15,6 +16,11 @@ struct PreflightConfig {
 preflightConfig(const QByteArray& input, const domain::RuntimePreferences& preferences);
 // HMACs are local identity tokens, not reversible endpoint/credential descriptions.
 [[nodiscard]] QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key);
+[[nodiscard]] QJsonObject configurationSummary(const QByteArray& semantic);
+// Provider URLs remain on the worker; only bounded HTTPS snapshots are expanded.
+[[nodiscard]] domain::Result<QJsonArray> providerRequests(const QByteArray& input);
+[[nodiscard]] domain::Result<QByteArray>
+expandProviders(const QByteArray& input, const QHash<QString, QByteArray>& payloads);
 // UI only receives a masked semantic template, never a materialized controller secret.
 [[nodiscard]] QString redactedConfig(const QByteArray& semantic);
 [[nodiscard]] domain::Result<QByteArray> materializeSession(const PreflightConfig& config,

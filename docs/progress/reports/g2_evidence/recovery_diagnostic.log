@@ -1,0 +1,6 @@
+
+--- stderr ---
+next launch recovery
+finished=1 exit=2 stdout=Failed
+ stderr=TransactionRecoveryRequired
+

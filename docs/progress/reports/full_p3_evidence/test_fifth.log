@@ -1,0 +1,295 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start 2: contracts
+1/2 Test #2: contracts ........................   Passed    0.06 sec
+    Start 4: runtime
+2/2 Test #4: runtime ..........................***Failed   47.90 sec
+managed HTTPS provider snapshots: {
+    "architecture": "x86_64",
+    "busy": false,
+    "configIssues": [
+    ],
+    "connections": [
+    ],
+    "corePid": 0,
+    "coreVersion": "",
+    "dataDirectory": "C:/Users/Administrator/AppData/Local/Temp/runtime_test-XaXanC",
+    "dataUrl": "file:///C:/Users/Administrator/AppData/Local/Temp/runtime_test-XaXanC",
+    "delays": {
+    },
+    "droppedLogs": 0,
+    "effectivePreview": "",
+    "epoch": "",
+    "error": "UnsupportedSubscriptionFormat",
+    "errors": [
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-25T06:30:33Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-25T06:30:42Z"
+        },
+        {
+            "code": "CoreListenersNotOwned",
+            "time": "2026-10-25T06:30:47Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "code": "EmptySubscription",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "code": "CoreListenersNotOwned",
+            "time": "2026-10-25T06:30:53Z"
+        },
+        {
+            "code": "CoreExited",
+            "time": "2026-10-25T06:30:54Z"
+        },
+        {
+            "code": "ProxyGroupAutomatic",
+            "time": "2026-10-25T06:31:01Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-25T06:31:01Z"
+        },
+        {
+            "code": "InvalidBackup",
+            "time": "2026-10-25T06:31:12Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-25T06:31:12Z"
+        }
+    ],
+    "features": {
+        "backupResult": "Restored",
+        "backupUrl": "file:///C:/Users/Administrator/AppData/Local/Temp/runtime_test-XaXanC/backups/profiles_20261025_063110_312.json",
+        "connectionSample": "2026-10-25T06:31:09Z",
+        "connectionsStale": false,
+        "dnsResult": "Cleared",
+        "memory": {
+            "client": {
+                "privateCommit": "8851456",
+                "privateWorkingSet": "6737920",
+                "workingSet": "34566144"
+            },
+            "core": {
+                "privateCommit": "66650112",
+                "privateWorkingSet": "10506240",
+                "workingSet": "35430400"
+            }
+        },
+        "memorySample": "2026-10-25T06:31:09Z",
+        "nodes": [
+            {
+                "name": "tuic_fixture",
+                "type": "tuic"
+            }
+        ],
+        "websiteTest": {
+            "bytes": 28,
+            "elapsedMs": 214,
+            "epoch": "0c9665f3-1d30-448e-a348-a1a31486a7b7",
+            "path": "CurrentProxy",
+            "state": "Reachable",
+            "status": 200,
+            "time": "2026-10-25T06:30:39Z"
+        }
+    },
+    "groups": [
+    ],
+    "logs": [
+        {
+            "level": "error",
+            "message": "UnsupportedConfigFeature",
+            "source": "App",
+            "time": "2026-10-25T06:30:33Z"
+        },
+        {
+            "level": "error",
+            "message": "UnsupportedConfigFeature",
+            "source": "App",
+            "time": "2026-10-25T06:30:42Z"
+        },
+        {
+            "level": "error",
+            "message": "CoreListenersNotOwned",
+            "source": "App",
+            "time": "2026-10-25T06:30:47Z"
+        },
+        {
+            "level": "error",
+            "message": "UnsupportedSubscriptionFormat",
+            "source": "App",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "level": "error",
+            "message": "UnsupportedSubscriptionFormat",
+            "source": "App",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "level": "error",
+            "message": "EmptySubscription",
+            "source": "App",
+            "time": "2026-10-25T06:30:50Z"
+        },
+        {
+            "level": "error",
+            "message": "CoreListenersNotOwned",
+            "source": "App",
+            "time": "2026-10-25T06:30:53Z"
+        },
+        {
+            "level": "error",
+            "message": "CoreExited",
+            "source": "App",
+            "time": "2026-10-25T06:30:54Z"
+        },
+        {
+            "level": "error",
+            "message": "ProxyGroupAutomatic",
+            "source": "App",
+            "time": "2026-10-25T06:31:01Z"
+        },
+        {
+            "level": "error",
+            "message": "UnsupportedConfigFeature",
+            "source": "App",
+            "time": "2026-10-25T06:31:01Z"
+        },
+        {
+            "level": "error",
+            "message": "InvalidBackup",
+            "source": "App",
+            "time": "2026-10-25T06:31:12Z"
+        },
+        {
+            "level": "error",
+            "message": "UnsupportedSubscriptionFormat",
+            "source": "App",
+            "time": "2026-10-25T06:31:12Z"
+        }
+    ],
+    "operation": {
+        "error": "",
+        "id": "feeb34bb-1385-48a1-ae5c-b73936200540",
+        "kind": "start_core",
+        "state": "Succeeded"
+    },
+    "platform": "Windows 11 Version 26H2",
+    "preferences": {
+        "autoStart": false,
+        "controllerPort": 14673,
+        "mixedPort": 14672,
+        "mode": "rule",
+        "schemaVersion": 1,
+        "systemProxyDesired": false,
+        "tunDesired": false
+    },
+    "profiles": [
+        {
+            "id": "8f2c82da-90d9-4e14-9cf2-bb2502471912",
+            "name": "Synthetic protocols",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "21a9d617ea7dbb5c847a9a9f7a3e25a6949d7544ebaa5499f283012bd1ec94de",
+            "sourceRef": "data/profiles/8f2c82da-90d9-4e14-9cf2-bb2502471912/242b427a-24dd-4453-9135-acf56e2703cf.yaml",
+            "updatedAt": "2026-10-25T06:30:59Z"
+        },
+        {
+            "id": "7e8369fa-0fdd-4d81-9d25-c9dd623414cf",
+            "name": "Managed DNS and Geo",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "970674be43fc9524367fa1926cad2f9e18196df1e7586cdb8710f733c2fbbcd1",
+            "sourceRef": "data/profiles/7e8369fa-0fdd-4d81-9d25-c9dd623414cf/8ac534d4-c0bd-4def-9a66-4f5e472a6aa0.yaml",
+            "updatedAt": "2026-10-25T06:31:03Z"
+        },
+        {
+            "id": "699bff78-e91f-4a0c-8730-de3c3f00ef79",
+            "name": "Advanced DNS and TUIC",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "8cd3d7f3590b44e7fcd6da5b7b6c9d4995fd7eb6417791f0e815bcc7c6aeea67",
+            "sourceRef": "data/profiles/699bff78-e91f-4a0c-8730-de3c3f00ef79/cdba4e13-bf94-4265-b631-450a0165d9eb.yaml",
+            "updatedAt": "2026-10-25T06:31:06Z"
+        },
+        {
+            "id": "3b3ce68e-0e41-4b53-a0ec-b614c59b855c",
+            "name": "Synthetic protocols",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "21a9d617ea7dbb5c847a9a9f7a3e25a6949d7544ebaa5499f283012bd1ec94de",
+            "sourceRef": "data/profiles/3b3ce68e-0e41-4b53-a0ec-b614c59b855c/restored.yaml",
+            "updatedAt": "2026-10-25T06:31:10Z"
+        },
+        {
+            "id": "4bb2d774-6657-49d4-9ae1-9e9102d14f3d",
+            "name": "Managed DNS and Geo",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "970674be43fc9524367fa1926cad2f9e18196df1e7586cdb8710f733c2fbbcd1",
+            "sourceRef": "data/profiles/4bb2d774-6657-49d4-9ae1-9e9102d14f3d/restored.yaml",
+            "updatedAt": "2026-10-25T06:31:11Z"
+        },
+        {
+            "id": "9b6cb3e3-92ba-4176-bf9d-45faf9837a56",
+            "name": "Advanced DNS and TUIC",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "8cd3d7f3590b44e7fcd6da5b7b6c9d4995fd7eb6417791f0e815bcc7c6aeea67",
+            "sourceRef": "data/profiles/9b6cb3e3-92ba-4176-bf9d-45faf9837a56/restored.yaml",
+            "updatedAt": "2026-10-25T06:31:12Z"
+        }
+    ],
+    "providers": [
+    ],
+    "proxyConflict": false,
+    "readOnly": false,
+    "ready": false,
+    "rules": [
+        {
+            "extra": {
+                "disabled": false,
+                "hitAt": "1970-01-01T08:00:00+08:00",
+                "hitCount": 0,
+                "missAt": "1970-01-01T08:00:00+08:00",
+                "missCount": 0
+            },
+            "index": 0,
+            "payload": "",
+            "proxy": "DIRECT",
+            "size": -1,
+            "type": "Match"
+        }
+    ],
+    "selectedId": "699bff78-e91f-4a0c-8730-de3c3f00ef79",
+    "selectedName": "Advanced DNS and TUIC",
+    "selectionGeneration": "20",
+    "status": "Stopped",
+    "systemProxy": false,
+    "testResult": "",
+    "testTarget": "https://fixture.quickclash.invalid:14681/after-update"
+}
+
+
+50% tests passed, 1 tests failed out of 2
+
+Total Test time (real) =  47.98 sec
+
+The following tests FAILED:
+	  4 - runtime (Failed)
+
+--- stderr ---
+Errors while running CTest

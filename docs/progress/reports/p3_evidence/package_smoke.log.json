@@ -1,0 +1,13 @@
+{
+  "executable": "D:\\repos\\quick-clash\\dist\\p3_subscription\\bin\\quickclash.exe",
+  "arguments": [
+    "--isolated",
+    "--no-tray",
+    "--smoke-test"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T05:17:59.4085571Z",
+  "elapsed_ms": 1869,
+  "exit_code": 0,
+  "timed_out": false
+}

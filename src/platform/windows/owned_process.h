@@ -1,6 +1,7 @@
 #pragma once
 #include "domain/contracts.h"
 #include <QObject>
+#include <QProcessEnvironment>
 #include <QTimer>
 #include <memory>
 
@@ -10,9 +11,10 @@ class OwnedProcess final : public QObject {
   public:
     explicit OwnedProcess(QObject* parent = nullptr);
     ~OwnedProcess() override;
-    [[nodiscard]] domain::CommandResult start(const QString& executable,
-                                              const QStringList& arguments,
-                                              const QString& directory, bool isolated = false);
+    [[nodiscard]] domain::CommandResult
+    start(const QString& executable, const QStringList& arguments, const QString& directory,
+          bool isolated = false,
+          const QProcessEnvironment& environment = QProcessEnvironment::systemEnvironment());
     void stop();
     [[nodiscard]] bool running() const;
     [[nodiscard]] quint32 pid() const;

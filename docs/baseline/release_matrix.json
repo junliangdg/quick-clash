@@ -15,7 +15,9 @@
       "Widgets",
       "Network"
     ],
-    "qt_test_modules": ["Test (BUILD_TESTING only)"],
+    "qt_test_modules": [
+      "Test (BUILD_TESTING only)"
+    ],
     "cmake_minimum": "3.24",
     "cmake_observed": "4.3.0",
     "ninja": "1.12.1",
@@ -90,7 +92,7 @@
   "support": {
     "windows": {
       "development": "Windows x64 / installed Qt 6.8.0",
-      "validation": "P2 Windows Release, 10 CTest, headless 2 tests, controlled HTTPS/CONNECT and native WinINet restoration passed; qmllint exit 0 with Qt Dialogs import warnings; local offline package and one resource short run available. G0/G1 baseline Pass, G2 Blocked pending OS-event/kill-recovery and clean ordinary-user acceptance; see docs/progress/reports/20261024_p2_implementation.md",
+      "validation": "P3-11 Windows daily subscription path: Release/WX build, affected 7/7 CTest, final runtime native WinINet HTTPS and exact restore, subscription schedule/auto apply/compensation, representative 56-node VLESS global HTTPS200/1MiB/TLS/node-chain and update/forwarding passed. Package dist/p3_daily, 10s Ready home private working set 59.62MB; G2 Blocked/G3 NotRun, clean ordinary-user environment and full P3 pending. See docs/progress/reports/20261025_daily_use.md",
       "runtime_minimum_candidate": "Windows 10 1809 (Qt 6.8 requirement); clean-system verification P2-16"
     },
     "linux": {

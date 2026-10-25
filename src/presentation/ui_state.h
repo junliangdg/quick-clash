@@ -184,6 +184,10 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
+    QVariantList liveUpload_;
+    QVariantList liveDownload_;
+    QString trafficSample_;
+    QString liveEpoch_;
     std::unique_ptr<infra::SettingsService> settings_;
 };
 } // namespace quickclash::presentation

@@ -1,0 +1,17 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\ctest.exe",
+  "arguments": [
+    "--test-dir",
+    "build/p2_responsive",
+    "--output-on-failure",
+    "-R",
+    "^(contracts|storage|proxy_lease|recovery|ui_state|qml_smoke|ui_responsive)$",
+    "--output-junit",
+    "D:/repos/quick-clash/docs/progress/reports/g2_evidence/affected_tests.xml"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T08:13:27.3041971Z",
+  "elapsed_ms": 19584,
+  "exit_code": 8,
+  "timed_out": false
+}

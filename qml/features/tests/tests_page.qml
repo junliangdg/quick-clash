@@ -4,10 +4,18 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
 
-Item {
+ScrollView {
     id: root
     required property UiState ui
     required property ThemeTokens theme
+    contentWidth: availableWidth
+    clip: true
+    Connections {
+        target: root.ui
+        function onUiVisibleChanged(): void { if (!root.ui.uiVisible) root.ui.runtimeCommand("cancel_test"); }
+    }
+    onVisibleChanged: { if (!visible) ui.runtimeCommand("cancel_test"); }
+    Component.onDestruction: ui.runtimeCommand("cancel_test")
     FlatTile {
         width: parent.width
         theme: root.theme
@@ -23,15 +31,22 @@ Item {
                 font.pixelSize: 20
                 font.bold: true
             }
-            TextField {
+            ComboBox {
+                id: route
+                Layout.fillWidth: true
+                model: [{key: "CurrentProxy", label: qsTr("Current proxy")}, {key: "Direct", label: qsTr("Direct (system routes still apply)")}, {key: "SystemDefault", label: qsTr("System proxy settings")}]
+                textRole: "label"
+            }
+            TextArea {
                 id: target
                 Layout.fillWidth: true
                 placeholderText: qsTr("https://your-website.example")
-                maximumLength: 8192
+                wrapMode: TextEdit.Wrap
+                Layout.preferredHeight: 110
                 text: root.ui.runtime.testTarget || ""
             }
             Label {
-                text: qsTr("Send an HTTPS HEAD request through the current local proxy. No direct fallback or automatic IP lookup.")
+                text: qsTr("Enter up to 8 HTTPS URLs, one per line. Requests run one at a time, with a 64 KiB and 12 second limit. Redirects are reported. Direct requests still follow TUN and system routes.")
                 color: root.theme.muted
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -40,14 +55,47 @@ Item {
                 theme: root.theme
                 text: qsTr("Run test")
                 prominent: true
-                enabled: !!root.ui.runtime.ready
-                onClicked: root.ui.runtimeCommand("test", [target.text])
+                enabled: (route.currentIndex !== 0 || !!root.ui.runtime.ready) && ((root.ui.runtime.features || {}).websiteTest || {}).state !== "Running"
+                onClicked: {
+                    const urls = target.text.split(/\r?\n/).map(text => text.trim()).filter(text => text.length > 0);
+                    if (urls.length > 0 && urls.length <= 8) root.ui.runtimeCommand("test_batch", [route.model[route.currentIndex].key].concat(urls));
+                }
             }
             Label {
                 text: root.ui.runtime.testResult || ""
                 color: root.theme.text
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Cancel test")
+                visible: ((root.ui.runtime.features || {}).websiteTest || {}).state === "Running"
+                onClicked: root.ui.runtimeCommand("cancel_test")
+            }
+            Label {
+                text: {
+                    const result = (root.ui.runtime.features || {}).websiteTest || {};
+                    const states = {Running: qsTr("Testing"), Reachable: qsTr("Reachable"), Redirect: qsTr("Redirect"), HttpError: qsTr("HTTP error"), TlsError: qsTr("TLS error"), Timeout: qsTr("Timed out"), ResponseLimit: qsTr("Response exceeds 64 KiB"), NetworkError: qsTr("Network error"), Cancelled: qsTr("Cancelled")};
+                    return result.state ? (states[result.state] || result.state) + " · HTTP " + (result.status || "—") + " · " + (result.elapsedMs || "—") + " ms · " + (result.resolved || result.path || "") + " · " + (result.time || "") : "";
+                }
+                color: root.theme.muted
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
+            Label {
+                text: qsTr("Recent results: %1 / 32").arg(((root.ui.runtime.features || {}).testHistory || []).length)
+                color: root.theme.muted
+            }
+            Repeater {
+                model: ((root.ui.runtime.features || {}).testHistory || []).slice().reverse()
+                delegate: Label {
+                    required property var modelData
+                    text: (modelData.target || "") + "\n" + modelData.time + " · " + modelData.path + " · HTTP " + (modelData.status || "—") + " · " + modelData.elapsedMs + " ms"
+                    color: root.theme.text
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
             }
         }
     }

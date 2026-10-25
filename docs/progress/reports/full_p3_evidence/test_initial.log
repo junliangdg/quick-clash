@@ -1,0 +1,108 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start 4: runtime
+1/1 Test #4: runtime ..........................***Failed   17.73 sec
+encoded selector readback: {
+    "architecture": "x86_64",
+    "busy": false,
+    "configIssues": [
+    ],
+    "connections": [
+    ],
+    "corePid": 22724,
+    "coreVersion": "v1.19.33",
+    "dataDirectory": "C:/Users/Administrator/AppData/Local/Temp/runtime_test-cLEtBg",
+    "dataUrl": "file:///C:/Users/Administrator/AppData/Local/Temp/runtime_test-cLEtBg",
+    "delays": {
+    },
+    "droppedLogs": 0,
+    "effectivePreview": "",
+    "epoch": "c4b89661-08a6-4348-ac06-a5373789385e",
+    "error": "",
+    "errors": [
+    ],
+    "features": {
+        "nodes": [
+            {
+                "name": "local_fixture",
+                "type": "http"
+            }
+        ]
+    },
+    "groups": [
+        {
+            "canSelect": true,
+            "current": "DIRECT",
+            "members": [
+                "DIRECT",
+                "REJECT",
+                "local_fixture",
+                "代理 / A%?#"
+            ],
+            "name": "GLOBAL",
+            "type": "Selector"
+        },
+        {
+            "canSelect": true,
+            "current": "local_fixture",
+            "members": [
+                "local_fixture",
+                "DIRECT"
+            ],
+            "name": "代理 / A%?#",
+            "type": "Selector"
+        }
+    ],
+    "logs": [
+    ],
+    "operation": {
+        "error": "",
+        "id": "5313b738-5a63-4da0-8b96-be42f3bf6fb5",
+        "kind": "start_core",
+        "state": "Succeeded"
+    },
+    "platform": "Windows 11 Version 26H2",
+    "preferences": {
+        "autoStart": false,
+        "controllerPort": 11899,
+        "mixedPort": 11898,
+        "mode": "rule",
+        "systemProxyDesired": false,
+        "tunDesired": false
+    },
+    "profiles": [
+        {
+            "id": "d8136dcf-df64-4b8a-b909-be496fdc3ba4",
+            "name": "Fixture A",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "eacca0e2f14cdc3ff5fdcb06416d8bfc8cfd7828a517a72af747396a1ee067fd",
+            "sourceRef": "data/profiles/d8136dcf-df64-4b8a-b909-be496fdc3ba4/add07c75-320e-4a9e-bb8d-275a71a74196.yaml",
+            "updatedAt": "2026-10-25T06:14:40Z"
+        }
+    ],
+    "providers": [
+    ],
+    "proxyConflict": false,
+    "readOnly": false,
+    "ready": true,
+    "rules": [
+    ],
+    "selectedId": "d8136dcf-df64-4b8a-b909-be496fdc3ba4",
+    "selectedName": "Fixture A",
+    "selectionGeneration": "2",
+    "status": "Ready",
+    "systemProxy": false,
+    "testResult": "",
+    "testTarget": ""
+}
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =  17.74 sec
+
+The following tests FAILED:
+	  4 - runtime (Failed)
+
+--- stderr ---
+Errors while running CTest

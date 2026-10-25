@@ -1,6 +1,12 @@
 # 开发进度与验收入口
 
-P0为9项Done、P1为6项Done，G0/G1保留历史工程/原型Pass；P2为20Done、2Review、2Blocked，G2 Blocked。P2-24已修复缩放时D3D11等待阻塞及导航布局重复协商，见[本轮报告](reports/20261024_resize_layout.md)；P2-21/22/23见[协议交付](reports/20261024_p2_protocols.md)。当前包dist/p2_resize/bin/quickclash.exe；4/4受影响检查、真实窗口160步连续缩放和一次Ready首页短测通过，客户端专用工作集峰值60.75MB。旧包的相关布局/图形/资源结论对本包Stale；短测不代表完整G2。Geo/fake-ip DNS仍在P3，四份原始私有订阅不能据此判定全部可用。100MB只判断客户端专用工作集，总工作集/私有提交与独立核心另记，维持必要验证范围。
+2026-10-25当前G2恢复：[恢复交付](reports/20261025_g2_recovery.md)。P2-15首次关键失败/停止打断/真实worker强杀后Job及WinINet租约/事务恢复通过，当前runtime原生HTTPS回归通过；P2为21Done/2Review/1Blocked，MVP-05重新Pass，G2仍Blocked。当前本地包dist/g2_recovery，186文件摘要与清Qt PATH smoke通过；单次10秒Ready首页专用工作集峰63.50MB，工作集/私有提交及内核单列，退出清理通过，非组合负载完整验收。P2-11真实OS事件和P2-16普通用户干净环境仍待补，用户确认先做本机开发。
+
+2026-10-25最新方案：[G3 Windows优先调整](reports/20261025_g3_windows_plan.md)，设计基线1.8。当前开发/测试/验收交付Windows日常使用，三平台/五平台后续逐步覆盖；Windows实施同步做跨平台静态兼容，原生构建与真实系统验收分层记录。P3-12方案Done，P3-13静态兼容Todo（已发现Windows耦合）；G2 Blocked、G3 NotRun，不因方案调整改变产品结论。P3当前3Done/1Doing/9Todo，原有工作区功能开发继续核对。
+
+2026-10-25历史P3-11交付：[日常链路](reports/20261025_daily_use.md)完成定时更新、选中自动应用/回退和节点筛选；包dist/p3_daily/bin/quickclash.exe。真实WinINet系统代理/更新后转发/原值恢复及私有56节点VLESS HTTPS、更新后可访问通过；当时客户端专用工作集59.62MB，对新包Stale。G2 Blocked、G3 NotRun，完整P3及干净普通用户验收仍待后续。下段P3-10包/资源也为历史证据。
+
+历史切片：P0为9Done、P1为6Done、P2为20Done/2Review/2Blocked，G2 Blocked。P3-10已完成用户指定代表订阅的固定Geo/内部fake-ip DNS与真实VLESS HTTPS闭环，见[订阅报告](reports/20261024_p3_subscription.md)。P3-10历史包dist/p3_subscription/bin/quickclash.exe，56节点/3组成功导入，HTTPS200/1MiB/TLS及非DIRECT节点链已验证。该包4/4受影响测试和单轮10秒DNS/Geo Ready首页短测通过，客户端专用工作集峰值61.80MB；总工作集/私有提交和内核另记。旧包资源结果对新包Stale，未称全部私有样本/节点或完整P3已通过。
 
 ## 1. 四个固定入口
 
@@ -8,7 +14,7 @@ P0为9项Done、P1为6项Done，G0/G1保留历史工程/原型Pass；P2为20Done
 |---|---|---|
 | [TASKS.md](TASKS.md) | P0—P5 任务、工作包、状态、依赖、负责人、下一步、证据的唯一台账 | 开始/暂停/完成一项任务时 |
 | [CHECKLISTS.md](CHECKLISTS.md) | G0—G5 阶段清单和 MVP-01—16 实际验收结果 | 运行验收、发生回归或切换阶段时 |
-| [DEVLOG.md](DEVLOG.md) | 每次开发的变更、验证、阻塞和下一任务，便于跨会话接续 | 每个开发会话/有意义交付结束时 |
+| [DEVLOG.md](DEVLOG.md) | 每次开发的变更、验证、阻塞和下一任务，便于跨会话接续 | 每项开发或独立改动完成后、继续下一项前；验证产生新结果后再次更新 |
 | [reports/README.md](reports/README.md) | 完成/验收报告与原始证据的存放约定 | 任务进入 Review、验收运行时 |
 
 根目录可执行 `pwsh -NoProfile -File scripts/check_progress.ps1` 查看阶段计数和检查一致性；它不改变状态，也不替代构建、测试、平台或性能验证。没有 CI 前本地执行；接入 CI 后使用同一命令。GitHub Issues/Projects 可以作为导航镜像，暂不建立第二份手动维护的进度权威，也不自动创建远端事项。
@@ -30,6 +36,8 @@ P0为9项Done、P1为6项Done，G0/G1保留历史工程/原型Pass；P2为20Done
 
 ## 3. 每次开发的检查清单
 
+逐项同步是执行顺序要求：每完成一项开发任务或独立改动，先更新受影响文档及台账/报告/DEVLOG，再继续下一项，不等会话结束集中补写。实现已具备但验证尚未完成，记录“验证中/NotRun”；新测试或修复结果产生后再次更新。共同完成一个修复的多文件视为一项，不要求逐文件流水记录，详见[开发规范](../development/cpp_style.md#4-逐项开发与文档同步)。
+
 以下是每次使用的操作清单，不在这里累计勾选；结果写到台账、报告和开发日志。
 
 开始前：
@@ -50,8 +58,8 @@ P0为9项Done、P1为6项Done，G0/G1保留历史工程/原型Pass；P2为20Done
 
 源码与补丁已在 D:/repos/quick-clash；不要重复应用历史补丁。此前 ABI、AutoUic、qmlcache C4702 与审批 401 均有历史记录，本轮 Windows 原生构建已越过并通过，见 [当前验证报告](reports/20261024_p0_p1_validation.md)及[构建基线](../baseline/build_and_package.md)。
 
-下一任务P2-11：补一次代表Windows换网/唤醒事件核对；随后P2-15关键客户端强杀与租约恢复。基础协议/自动组/诊断已完成，P3的Geo/DNS继续独立排期。P2-11实际OS事件、P2-15强杀/首次失败组合、P2-16干净普通用户环境仍待核对；P2-17/G2依赖这些及新基础协议任务，未宣称全部通过。Geo/DNS和高级功能按P3分期，不增长时/图形性能矩阵。
+本次G2本机恢复项已完成，当前包/证据见上方恢复报告。后续功能任务P3-01继续核对分组与单独/批量测速、首页订阅信息及订阅卡片切换的完整页面交付；此前contracts夹具失败已修复并通过，不再列为阻塞。后台管理等runtime受控检查已通过，但不能将其当作全部页面/TUN/服务通过。P3-02—09按实际子项依赖继续，不依赖P2-17阶段汇总后才开始；G3汇总仍须关闭P2-11实际OS事件及P2-16普通用户干净环境等G2缺口。
 
-Linux/macOS原生与CI执行转P4-06，实际多屏/OS文字缩放及屏幕阅读器后置。已完成的100次原型重建、代表DPR和键盘证据保留；新增订阅/设置业务页不直接复用旧视觉/资源结论。完整连接/规则、实时流量、TUN、provider/Geo、fake-ip DNS和完整资源信息属于P3；主流基础协议与url-test/fallback已完成P2子任务范围，尚未测试新增协议公网握手。
+P3-13先收敛已发现的业务层Windows具体头/资源采样、进程类型与CMake源依赖，再核对能力/路径/导航/翻译/生命周期；静态检查不需其他平台设备，也不能声明其他平台支持。Linux/macOS原生与CI执行转P4-06，真实集成归P4-01/02；Windows正式安装/更新P4-04可先行，远期Android/iOS另启动。当前连接/规则、流量、TUN/provider/动态Geo/DNS等工作区实现需按任务实际验收，不因文件存在标Done。单个VLESS公网转发的历史证据不证明其余节点/协议公网可用。
 
 后续开发者或 AI 每次接续都应报告：完成了哪些 ID、对应证据、哪些验收真正运行、当前阻塞、下一任务。此处不创建持续后台监控；进度随实际开发更新，人工随时可看台账或运行脚本。

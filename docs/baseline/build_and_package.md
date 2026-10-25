@@ -4,6 +4,8 @@
 
 最新缩放修复构建目录build/p2_responsive，完整本地包dist/p2_resize；Release与QML lint、4/4受影响UI检查、真实窗口连续缩放及一次10秒Ready首页内存短测通过，详见[缩放报告](../progress/reports/20261024_resize_layout.md)。上段完整矩阵保留历史范围，本轮未重复网络/恢复矩阵，未扩大G2结论。
 
+2026-10-25最新功能包为dist/p3_subscription，沿用build/p2_responsive增量构建，新增固定Geo与内部DNS。4/4受影响测试及真实代表订阅VLESS HTTPS转发通过，Geo异常拒绝、随包smoke和单轮10秒DNS/Geo Ready首页资源结果见[P3-10报告](../progress/reports/20261024_p3_subscription.md)。fetch_dependencies同时验证Geo数据和许可；上游latest可变，必须匹配release_matrix冻结摘要，离线缓存可复用。校验/运行使用相同Geo字节，不联网下载资源。此增补不宣称G2/G3完整通过。
+
 ## 依赖与构建
 
 - C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目接受 Qt ≥6.8，参考/验收环境仍固定 Qt 6.8.0，开发根目录可配置。
@@ -26,7 +28,7 @@
 
 构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多 120 秒，构建和 lint 各 600 秒，可通过 `-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds` 调整；超时仅结束本次创建的进程树。UI 构建自动执行生成模块的 `quickclash_qmllint` 和 CTest，包括 offscreen 软件渲染 smoke；headless 运行契约测试。
 
-本轮 UI 构建目录为 `build/p1_windows`，无 UI 为 `build/p0_headless`。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 已通过；此测试不编译客户端。早期审批服务失败见历史报告，目前 Windows 原生构建与部署已通过。
+当前UI增量构建目录为`build/p2_responsive`，P0/P1历史目录为`build/p1_windows`、`build/p0_headless`。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 已通过；此测试不编译客户端。早期审批服务失败见历史报告，目前 Windows 原生构建与部署已通过。
 
 Linux/macOS 候选环境由 [CI](../../.github/workflows/build.yml) 固定。先运行 fetch_dependencies.ps1 -YamlOnly，再执行 cmake --preset dev、cmake --build --preset dev、ctest --preset dev。CI 未推送触发，三平台通过证据尚不存在。headless preset 只要求 Qt Core，不显式查找 Network/Quick/Qml/Gui/Widgets，契约目标仅使用 Qt Core 和 domain/config/application；domain/application 不包含 QProcess、窗口和 OS 头。Windows CI 使用同一构建脚本，并获取摘要锁定的官方内核运行完整 API/监听归属/Job 探针；工作流保留 UI/headless 和内核证据，尚未执行。
 
@@ -52,7 +54,7 @@ P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildD
 
 安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
 
-停止先释放owned系统代理租约再终止owned Job；当前不发正常退出请求。无服务模式Job随宿主结束内核，但强杀时不能即时恢复系统代理，下次启动先按持久租约核对匹配值，外部变化不覆盖，手工说明见随包指南。系统代理意图独立持久化，退出保留、UserStop清除；无自动启动。完整客户端强杀→下次恢复的产品组合尚未验收。
+停止先释放owned系统代理租约再终止owned Job；当前不发正常退出请求。无服务模式Job随宿主结束内核，但强杀时不能即时恢复系统代理，下次启动先按持久租约核对匹配值，外部变化不覆盖，手工说明见随包指南。系统代理意图独立持久化，退出保留、明确关闭清除；恢复完成后后台运行有效配置并按已确认意图申请代理，不注册系统开机启动。独立真实runtime worker强杀→Job退出/释放端口→下次WinINet租约与未提交事务恢复已通过；GUI进程整体强杀及干净环境另记，见[G2恢复报告](../progress/reports/20261025_g2_recovery.md)。
 
 ## P1 原型的构建与边界
 
@@ -63,3 +65,5 @@ Qt6.8本机basic/D3D11帧延迟等待对象会在连续缩放中阻塞GUI线程�
 `quickclash --replay` 显示 500 节点/1,000 连接，默认关闭；`--replay-connections=10000` 是探索档，拒绝其他值。`--no-tray` 验证关闭退路；`--isolated` 禁用持久偏好和单实例/托盘，供独立场景。`--host-test` 自动核对无托盘/最小化/卸载恢复；`--tray-test` 只启用真实托盘、不写偏好；`--prototype-test` 输出页面与100次重建诊断。隔离运行可用 `--capture=绝对路径.png --quit-after-ms=2500` 保存页面，结合 `--theme=light|dark --page=home --replay`。
 
 bench/measure_windows.ps1默认首页、浅色主题、3秒预热、30秒单轮、100ms采样，通过K32GetProcessMemoryInfo的EX2.PrivateWorkingSetSize判断专用工作集≤100,000,000字节；总工作集/私有提交同时记录但不作为该门槛。API失败则采集失败，执行或预算失败保留证据并退出1。字体改用已安装Microsoft YaHei后，当前部署版六场景×两主题短测均通过。按1.6策略，日常只在资源敏感变化时选一个场景，3秒预热/10—30秒/1次即可；不要求120秒预热/5次重复或帧/GPU/滚动采集。需要专项时显式选择-Theme all -Scenario all，普通交付不运行完整矩阵。短测不证明CPU/长稳或真实转发。隔离截图支持--window-size=720x560；缩放因子不可当作实际DPR。
+
+2026-10-25当前本机验证包：dist/g2_recovery/bin/quickclash.exe，整个目录一起使用；SHA-256 9b26165aeebf4c913f2de75d73ad9ef133b04d00b3038357f8dba0c467ad5fac。186文件摘要、清Qt PATH随包smoke、原生runtime转发/恢复及一次10秒Ready首页资源检查通过，见[G2恢复报告](../progress/reports/20261025_g2_recovery.md)。服务程序随包但本轮没有安装或验证TUN。历史P3-11包/私有单节点记录保留，不能代替当前完整P3验收。仍为未签名本地验证包，干净普通用户及正式发行要求单列。

@@ -1,5 +1,9 @@
 # 任务与验收证据
 
+当前本机交付：[G2恢复与Windows包](20261025_g2_recovery.md)。P2-15 Done，首次失败/停止打断/真实worker强杀后Job、WinINet租约/事务恢复及当前runtime原生转发回归通过；P2为21Done/2Review/1Blocked。包dist/g2_recovery的186文件摘要和清Qt PATH smoke通过，单次10秒Ready首页专用工作集63.50MB且退出清理通过；真实OS事件/普通用户干净环境仍缺，G2 Blocked。逐项文档同步规则已写入开发规范。下文“最新”均为各历史切片的当时记录。
+
+最新方案：[G3 Windows日常使用与平台覆盖路线调整](20261025_g3_windows_plan.md)。P3-12为文档方案Done，P3-13静态兼容Todo；三平台/五平台真实覆盖后置，G2/G3产品验收状态不变。该方案报告不替代当前功能代码与包的运行证据。下文为历史报告导航，当前状态以TASKS/CHECKLISTS为准。
+
 当前最新：[窗口缩放与导航切换修复](20261024_resize_layout.md)。P2-24 Done；P2现20Done/2Review/2Blocked，G2仍Blocked。最终包dist/p2_resize，4/4受影响检查、真实窗口160步缩放及一次Ready首页内存短测通过，中文窄窗截图已核对；下文记录保留当时范围。
 
 此前交付：[P2基础协议/自动组/具体诊断](20261024_p2_protocols.md)。P2-21—23 Done；当时包dist/p2_protocols_final和实际中文代理页核对记录保留，受本次变更影响的布局/图形/资源结论Stale。

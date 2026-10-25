@@ -11,5 +11,11 @@ class SystemEvents final : public QObject, public QAbstractNativeEventFilter {
     bool nativeEventFilter(const QByteArray& type, void* message, qintptr* result) override;
   signals:
     void reconcileRequested();
+
+  private:
+#ifdef Q_OS_WIN
+    void* interfaceNotification_ = nullptr;
+    void* addressNotification_ = nullptr;
+#endif
 };
 } // namespace quickclash

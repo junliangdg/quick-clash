@@ -1,0 +1,14 @@
+{
+  "executable": "C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "scripts/build_design_docs.ps1",
+    "-Check"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T08:27:42.2515763Z",
+  "elapsed_ms": 1015,
+  "exit_code": 0,
+  "timed_out": false
+}

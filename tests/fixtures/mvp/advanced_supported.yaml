@@ -1,0 +1,30 @@
+# Public synthetic endpoints; protocol field validation only.
+proxies:
+  - name: tuic_fixture
+    type: tuic
+    server: 127.0.0.1
+    port: 19877
+    uuid: 00000000-0000-4000-8000-000000000001
+    password: public_fixture_password
+    alpn: [h3]
+    congestion-controller: bbr
+    udp-relay-mode: native
+proxy-groups:
+  - name: Balanced
+    type: load-balance
+    proxies: [tuic_fixture, DIRECT]
+    strategy: consistent-hashing
+    url: https://example.invalid/generate_204
+    interval: 3600
+    lazy: true
+rules: ['MATCH,DIRECT']
+dns:
+  enable: true
+  enhanced-mode: redir-host
+  nameserver: [https://1.1.1.1/dns-query]
+  default-nameserver: [1.1.1.1]
+  proxy-server-nameserver: [https://1.1.1.1/dns-query]
+  nameserver-policy: {'+.example.invalid': [https://8.8.8.8/dns-query]}
+  direct-nameserver: [https://1.1.1.1/dns-query]
+  direct-nameserver-follow-policy: false
+  cache-algorithm: arc

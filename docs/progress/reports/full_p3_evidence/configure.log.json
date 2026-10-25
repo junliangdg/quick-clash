@@ -1,0 +1,15 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "-S",
+    ".",
+    "-B",
+    "build/p2_responsive",
+    "-DFETCHCONTENT_FULLY_DISCONNECTED=ON"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T06:11:21.3538127Z",
+  "elapsed_ms": 3384,
+  "exit_code": 0,
+  "timed_out": false
+}

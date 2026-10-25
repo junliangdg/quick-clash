@@ -62,12 +62,13 @@ void TlsFixture::incomingConnection(qintptr descriptor) {
                     lastAccept = line.mid(separator + 1).trimmed();
             }
         }
-        const auto body = isSubscription
-                              ? (invalidSubscription ? QByteArrayLiteral("proxy-providers: {}")
-                                 : !lastUserAgent.startsWith(requiredUserAgent)
-                                     ? QByteArrayLiteral("c3M6Ly9wdWJsaWMtZml4dHVyZQ==")
-                                     : subscription)
-                              : QByteArrayLiteral("quickclash-controlled-origin");
+        const auto body =
+            isSubscription
+                ? (invalidSubscription ? QByteArrayLiteral("proxy-providers: {}")
+                   : !lastUserAgent.startsWith(requiredUserAgent)
+                       ? QByteArrayLiteral("c3M6Ly9wdWJsaWMtZml4dHVyZQ==")
+                       : subscription)
+                : payloads.value(path, QByteArrayLiteral("quickclash-controlled-origin"));
         socket->write("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nConnection: "
                       "close\r\nContent-Length: " +
                       QByteArray::number(body.size()) + "\r\n\r\n");

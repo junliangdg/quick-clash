@@ -1,0 +1,27 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start  2: contracts
+1/7 Test  #2: contracts ........................***Failed    0.07 sec
+FAIL: InvalidConfigField
+
+    Start  3: proxy_lease
+2/7 Test  #3: proxy_lease ......................   Passed    0.30 sec
+    Start  4: runtime
+3/7 Test  #4: runtime ..........................   Passed   75.09 sec
+    Start  5: localization
+4/7 Test  #5: localization .....................   Passed    0.07 sec
+    Start  6: ui_state
+5/7 Test  #6: ui_state .........................   Passed    0.15 sec
+    Start  8: ui_prototype
+6/7 Test  #8: ui_prototype .....................   Passed    5.70 sec
+    Start 11: ui_responsive
+7/7 Test #11: ui_responsive ....................   Passed    2.45 sec
+
+86% tests passed, 1 tests failed out of 7
+
+Total Test time (real) =  83.97 sec
+
+The following tests FAILED:
+	  2 - contracts (Failed)
+
+--- stderr ---
+Errors while running CTest

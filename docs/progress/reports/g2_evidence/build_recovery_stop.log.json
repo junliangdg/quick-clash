@@ -1,0 +1,16 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--build",
+    "build/p2_responsive",
+    "--target",
+    "recovery_test",
+    "--parallel",
+    "4"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T08:18:37.6367447Z",
+  "elapsed_ms": 4048,
+  "exit_code": 0,
+  "timed_out": false
+}

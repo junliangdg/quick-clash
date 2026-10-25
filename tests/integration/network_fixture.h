@@ -12,6 +12,7 @@ class TlsFixture final : public QTcpServer {
     explicit TlsFixture(QObject* parent = nullptr);
     bool initialize();
     QByteArray subscription;
+    QHash<QByteArray, QByteArray> payloads;
     bool invalidSubscription = false;
     QByteArray requiredUserAgent = "clash.meta/";
     QByteArray lastUserAgent;

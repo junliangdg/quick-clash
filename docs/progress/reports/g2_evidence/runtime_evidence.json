@@ -1,0 +1,85 @@
+{
+    "checks": [
+        "local_import",
+        "isolated_validation",
+        "owned_ready",
+        "encoded_selection_readback",
+        "mode_transaction",
+        "stop_restart",
+        "https_subscription",
+        "domain_connect",
+        "website_current_proxy",
+        "invalid_update_preserves_old",
+        "catalog_rename_delete",
+        "occupied_port_compensation",
+        "bounded_crash_recovery",
+        "merged_reconcile",
+        "persisted_node_restore",
+        "redacted_preview",
+        "source_replacement",
+        "delete_last_profile"
+    ],
+    "mainstreamChecks": [
+        "official_isolated_validation",
+        "owned_ready",
+        "core_health_checks",
+        "automatic_groups_bypass_reject",
+        "automatic_group_projection",
+        "automatic_mutation_rejected",
+        "protocol_selection_readback",
+        "bad_candidate_preserves_running",
+        "protocol_stop_restart"
+    ],
+    "managedCoreChecks": [
+        "empty_waits",
+        "first_import_autostarts",
+        "proxy_off_keeps_core",
+        "batch_node_delays",
+        "switch_invalidates_old_delays",
+        "four_crashes_recover",
+        "exit_cleanup"
+    ],
+    "managedProviderChecks": [
+        "https_snapshots",
+        "offline_nodes",
+        "official_validation_ready",
+        "ruleset_expansion",
+        "bad_update_retains_session"
+    ],
+    "originRequests": [
+        "GET /subscription",
+        "GET /proof",
+        "GET /website-test",
+        "GET /direct",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /after-update",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /subscription",
+        "GET /system-client"
+    ],
+    "p3FeatureChecks": [
+        "advanced_official_validation",
+        "advanced_ready",
+        "rules_api",
+        "dns_cache_flush",
+        "live_traffic_connections_resources",
+        "backup_restore_atomic",
+        "bad_backup_preserves_catalog"
+    ],
+    "result": "Pass",
+    "systemProxy": "native_preconfig_pass_restored",
+    "upstreamConnectTargets": [
+        "fixture.quickclash.invalid:5818",
+        "fixture.quickclash.invalid:5818",
+        "fixture.quickclash.invalid:5818",
+        "fixture.quickclash.invalid:5818"
+    ]
+}

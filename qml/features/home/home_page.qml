@@ -9,14 +9,19 @@ ScrollView {
     required property UiState ui
     required property ThemeTokens theme
     property bool active: ui.uiVisible && visible
+    readonly property var selectedProfile: (ui.runtime.profiles || []).find(profile => profile.id === ui.runtime.selectedId) || ({})
     clip: true
     contentWidth: availableWidth
     function syncDemand(): void {
         ui.setDemand("home:traffic", "traffic", active);
+        ui.setDemand("home:resources", "resources", active);
     }
     onActiveChanged: syncDemand()
     Component.onCompleted: syncDemand()
-    Component.onDestruction: ui.setDemand("home:traffic", "traffic", false)
+    Component.onDestruction: {
+        ui.setDemand("home:traffic", "traffic", false);
+        ui.setDemand("home:resources", "resources", false);
+    }
     ColumnLayout {
         width: root.availableWidth
         spacing: 14
@@ -52,7 +57,7 @@ ScrollView {
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.runtimeError || (root.ui.runtime.ready ? qsTr("Official Mihomo %1 · Local proxy ready").arg(root.ui.runtime.coreVersion) : qsTr("Import and select a profile, then start Mihomo."))
+                        text: root.ui.runtimeError || (root.ui.runtime.ready ? qsTr("Official Mihomo %1 · Local proxy ready").arg(root.ui.runtime.coreVersion) : qsTr("The network engine runs automatically after a valid profile is selected."))
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
@@ -68,15 +73,15 @@ ScrollView {
                         }
                         ActionButton {
                             theme: root.theme
-                            text: root.ui.runtime.ready || root.ui.runtime.busy ? qsTr("Stop / Cancel") : qsTr("Start core")
-                            enabled: root.ui.settingsReady
-                            onClicked: root.ui.runtimeCommand(root.ui.runtime.ready || root.ui.runtime.busy ? "stop" : "start")
-                        }
-                        ActionButton {
-                            theme: root.theme
                             text: root.ui.replay ? qsTr("End replay") : qsTr("Preview replay")
                             onClicked: root.ui.replay = !root.ui.replay
                         }
+                    }
+                    SubscriptionDetails {
+                        visible: !!root.ui.runtime.selectedId && !root.ui.replay
+                        Layout.fillWidth: true
+                        theme: root.theme
+                        profile: root.selectedProfile
                     }
                 }
             }
@@ -116,7 +121,7 @@ ScrollView {
                         }
                         Label {
                             font.family: root.theme.fontFamily
-                            text: root.ui.replay ? qsTr("Synthetic data · 1 Hz") : qsTr("Waiting for core data")
+                            text: root.ui.replay ? qsTr("Synthetic data · 1 Hz") : ((root.ui.runtime.features || {}).traffic ? qsTr("Live core traffic · 1 Hz") : qsTr("Waiting for core data"))
                             color: root.theme.muted
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
@@ -179,14 +184,16 @@ ScrollView {
                     font.family: root.theme.fontFamily
                     text: qsTr("System proxy")
                     enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
-                    checked: !!root.ui.runtime.systemProxy
+                    checked: !!root.ui.runtime.systemProxy || !!(root.ui.runtime.preferences || {}).systemProxyDesired
                     onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                     palette.windowText: root.theme.muted
                 }
                 Switch {
                     font.family: root.theme.fontFamily
-                    text: qsTr("TUN · P3")
-                    enabled: false
+                    text: qsTr("Virtual network adapter (TUN)") + " · " + (root.ui.runtime.tunState === "On" ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : qsTr("Off"))
+                    checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
+                    enabled: !root.ui.replay && !root.ui.runtime.busy && !!root.ui.runtime.selectedId
+                    onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
                     palette.windowText: root.theme.muted
                 }
             }
@@ -267,7 +274,11 @@ ScrollView {
                 }
                 Label {
                     font.family: root.theme.fontFamily
-                    text: qsTr("The dashboard does not load the full connection list. Client / core memory: not sampled.")
+                    text: {
+                        const mem = (root.ui.runtime.features || {}).memory || {};
+                        const client = mem.client || {}, core = mem.core || {};
+                        return qsTr("Client / core private working set: %1 / %2 MB").arg(client.privateWorkingSet ? (Number(client.privateWorkingSet) / 1000000).toFixed(1) : "—").arg(core.privateWorkingSet ? (Number(core.privateWorkingSet) / 1000000).toFixed(1) : "—") + "\n" + qsTr("Working set: %1 / %2 MB · Private commit: %3 / %4 MB").arg(client.workingSet ? (Number(client.workingSet) / 1000000).toFixed(1) : "—").arg(core.workingSet ? (Number(core.workingSet) / 1000000).toFixed(1) : "—").arg(client.privateCommit ? (Number(client.privateCommit) / 1000000).toFixed(1) : "—").arg(core.privateCommit ? (Number(core.privateCommit) / 1000000).toFixed(1) : "—") + "\n" + ((root.ui.runtime.features || {}).memorySample || "") + "\n" + (root.ui.runtime.platform || "") + " · " + (root.ui.runtime.architecture || "") + " · Mihomo " + (root.ui.runtime.coreVersion || "—");
+                    }
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -275,6 +286,13 @@ ScrollView {
                 Label {
                     font.family: root.theme.fontFamily
                     text: qsTr("Active views %1 · Shared streams %2").arg(root.ui.activeDemandCount).arg(root.ui.activeStreamCount)
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: qsTr("Core uptime: %1 s").arg(root.ui.runtime.coreUptimeSeconds || 0) +
+                          ((root.ui.runtime.features || {}).memoryComplete === false ? " · " + qsTr("Resource sample is incomplete") : "")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

@@ -1,0 +1,138 @@
+[0/2] Re-checking globbed directories...
+[1/144] Automatic MOC for target quickclash_storage
+[2/142] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[3/109] Copying qml/components/runtime_list.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/components/runtime_list.qml
+[4/109] Copying qml/features/home/home_page.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/features/home/home_page.qml
+[5/109] Copying qml/features/proxies/proxies_page.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/features/proxies/proxies_page.qml
+[6/109] Copying qml/features/connections/connections_page.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/features/connections/connections_page.qml
+[7/109] Copying qml/features/rules/rules_page.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/features/rules/rules_page.qml
+[8/109] Copying qml/features/logs/logs_page.qml to D:/repos/quick-clash/build/p2_responsive/QuickClash/Ui/features/logs/logs_page.qml
+[9/109] Automatic MOC for target quickclash_engine
+[10/109] Running qmlimportscanner for quickclash
+[11/109] Building CXX object CMakeFiles\quickclash_engine.dir\quickclash_engine_autogen\mocs_compilation.cpp.obj
+[12/109] Automatic MOC for target storage_test
+[13/107] Automatic MOC for target localization_test
+[14/105] Automatic MOC for target qt_cost_probe
+[15/103] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_preflight.cpp.obj
+[16/103] Automatic MOC for target single_instance_test
+[17/101] Automatic MOC for target core_job_probe
+[18/99] Automatic MOC for target core_isolation_probe
+[19/97] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_schema.cpp.obj
+[20/97] Linking CXX static library quickclash_config.lib
+[21/97] Automatic MOC for target contracts_test
+[22/96] Building CXX object CMakeFiles\quickclash_engine.dir\src\infra\core\engine_session.cpp.obj
+[23/96] Linking CXX static library quickclash_engine.lib
+[24/96] Automatic MOC for target quickclash_runtime
+[25/96] Building CXX object CMakeFiles\contracts_test.dir\tests\unit\contracts_test.cpp.obj
+[26/96] Building CXX object CMakeFiles\quickclash_runtime.dir\quickclash_runtime_autogen\mocs_compilation.cpp.obj
+[27/96] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\settings_service.cpp.obj
+[28/96] Linking CXX executable contracts_test.exe
+[29/96] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[30/96] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj
+FAILED: CMakeFiles/quickclash_runtime.dir/src/application/desktop_features.cpp.obj 
+C:\PROGRA~1\MICROS~2\18\COMMUN~1\VC\Tools\MSVC\1450~1.357\bin\Hostx64\x64\cl.exe  /nologo /TP -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQUICKCLASH_DEVELOPMENT_CORE=\"D:/repos/quick-clash/.cache/mihomo/mihomo.exe\" -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -ID:\repos\quick-clash\build\p2_responsive\quickclash_runtime_autogen\include -ID:\repos\quick-clash\src -external:IC:\Qt\6.8.0\msvc2022_64\include\QtCore -external:IC:\Qt\6.8.0\msvc2022_64\include -external:IC:\Qt\6.8.0\msvc2022_64\mkspecs\win32-msvc -external:IC:\Qt\6.8.0\msvc2022_64\include\QtNetwork -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W4 /permissive- /utf-8 /Zc:__cplusplus /WX -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj /FdCMakeFiles\quickclash_runtime.dir\quickclash_runtime.pdb /FS -c D:\repos\quick-clash\src\application\desktop_features.cpp
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(132): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(145): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(146): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(154): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(155): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(171): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(179): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(180): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(196): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(197): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(209): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(210): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(227): error C3646: “lpBaseOfDll”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(228): error C3646: “SizeOfImage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(229): error C3646: “EntryPoint”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(232): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(233): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(247): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(248): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(259): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(260): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(266): error C3646: “FaultingPc”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(267): error C3646: “FaultingVa”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(272): error C3646: “FaultingThreadId”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(273): error C3646: “Flags”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(276): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(277): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(284): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(285): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(292): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(293): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(301): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(302): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(316): error C2086: “int BOOL”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(131): note: 参见“BOOL”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(317): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(324): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(325): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(332): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(333): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(346): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(347): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(354): error C2086: “int DWORD”: 重定义
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(170): note: 参见“DWORD”的声明
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(355): error C2146: 语法错误: 缺少“;”(在标识符“WINAPI”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(385): error C3646: “Flags”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(387): error C3646: “Protection”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(387): error C2059: 语法错误:“:”
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(387): error C2334: “:”的前面有意外标记；跳过明显的函数体
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(400): error C3646: “NumberOfEntries”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(401): error C3646: “WorkingSetInfo”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(401): error C2143: 语法错误: 缺少“,”(在“[”的前面)
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(401): error C2238: 意外的标记位于“;”之前
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(405): error C3646: “Flags”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(408): error C3646: “Valid”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(408): error C2059: 语法错误:“:”
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(408): error C2334: “:”的前面有意外标记；跳过明显的函数体
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(423): error C3646: “Valid”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(423): error C2059: 语法错误:“:”
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(423): error C2334: “:”的前面有意外标记；跳过明显的函数体
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(437): error C3646: “VirtualAddress”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(438): error C3646: “VirtualAttributes”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(449): error C3646: “WINAPI”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(450): error C3646: “K32QueryWorkingSet”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(450): error C2059: 语法错误:“(”
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(454): error C2238: 意外的标记位于“;”之前
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(457): error C3646: “WINAPI”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(458): error C3646: “K32QueryWorkingSetEx”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(458): error C2059: 语法错误:“(”
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(462): error C2238: 意外的标记位于“;”之前
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(467): error C3646: “cb”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(468): error C3646: “PageFaultCount”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(469): error C3646: “PeakWorkingSetSize”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(470): error C3646: “WorkingSetSize”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(471): error C3646: “QuotaPeakPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(472): error C3646: “QuotaPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(473): error C3646: “QuotaPeakNonPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(474): error C3646: “QuotaNonPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(475): error C3646: “PagefileUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(476): error C3646: “PeakPagefileUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(502): error C3646: “cb”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(503): error C3646: “PageFaultCount”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(504): error C3646: “PeakWorkingSetSize”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(505): error C3646: “WorkingSetSize”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(506): error C3646: “QuotaPeakPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(507): error C3646: “QuotaPagedPoolUsage”: 未知重写说明符
+C:\Program Files (x86)\Windows Kits\10\\include\10.0.26100.0\\um\psapi.h(507): fatal error C1003: 错误计数超过 100；正在停止编译
+ninja: build stopped: subcommand failed.
+
+--- stderr ---

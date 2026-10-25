@@ -1,0 +1,8 @@
+{
+  "result": "Pass",
+  "files_scanned": 829,
+  "matches": 0,
+  "known_public_dummy_matches": 2,
+  "paths": [],
+  "scope": "Repository text excluding git/build/dist/cache and agent settings; credential-like token/OwO query values and long IPv4 URL paths. Two exact documented public fixture dummy values excluded; not a full secret audit."
+}

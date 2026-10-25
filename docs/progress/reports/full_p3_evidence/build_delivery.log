@@ -1,0 +1,98 @@
+[0/2] Re-checking globbed directories...
+[1/77] Automatic MOC for target quickclash_engine
+[2/76] Linking CXX executable contracts_test.exe
+[3/76] Building CXX object CMakeFiles\quickclash_engine.dir\src\infra\core\engine_session.cpp.obj
+[4/76] Linking CXX static library quickclash_engine.lib
+[5/76] Automatic MOC for target quickclash_service
+[6/76] Automatic MOC for target quickclash_runtime
+[7/76] Building CXX object CMakeFiles\quickclash_service.dir\quickclash_service_autogen\mocs_compilation.cpp.obj
+[8/76] Building CXX object CMakeFiles\quickclash_service.dir\app\service_main.cpp.obj
+[9/76] Building CXX object CMakeFiles\quickclash_runtime.dir\quickclash_runtime_autogen\mocs_compilation.cpp.obj
+[10/76] Building CXX object CMakeFiles\quickclash_service.dir\src\platform\windows\service_host.cpp.obj
+[11/76] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\settings_service.cpp.obj
+[12/76] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj
+FAILED: CMakeFiles/quickclash_runtime.dir/src/application/desktop_features.cpp.obj 
+C:\PROGRA~1\MICROS~2\18\COMMUN~1\VC\Tools\MSVC\1450~1.357\bin\Hostx64\x64\cl.exe  /nologo /TP -DQT_CORE_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQUICKCLASH_DEVELOPMENT_CORE=\"D:/repos/quick-clash/.cache/mihomo/mihomo.exe\" -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -ID:\repos\quick-clash\build\p2_responsive\quickclash_runtime_autogen\include -ID:\repos\quick-clash\src -external:IC:\Qt\6.8.0\msvc2022_64\include\QtCore -external:IC:\Qt\6.8.0\msvc2022_64\include -external:IC:\Qt\6.8.0\msvc2022_64\mkspecs\win32-msvc -external:IC:\Qt\6.8.0\msvc2022_64\include\QtNetwork -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W4 /permissive- /utf-8 /Zc:__cplusplus /WX -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj /FdCMakeFiles\quickclash_runtime.dir\quickclash_runtime.pdb /FS -c D:\repos\quick-clash\src\application\desktop_features.cpp
+D:\repos\quick-clash\src\application\desktop_features.cpp(251): error C2039: "takeFirst": 不是 "QJsonArray" 的成员
+C:\Qt\6.8.0\msvc2022_64\include\QtCore\qjsonarray.h(17): note: 参见“QJsonArray”的声明
+D:\repos\quick-clash\src\application\desktop_features.cpp(252): error C3536: “restored”: 初始化之前无法使用
+D:\repos\quick-clash\src\application\desktop_features.cpp(252): error C2737: “reference”: 必须初始化 const 对象
+D:\repos\quick-clash\src\application\desktop_features.cpp(257): error C3536: “reference”: 初始化之前无法使用
+D:\repos\quick-clash\src\application\desktop_features.cpp(258): error C2672: “std::holds_alternative”: 未找到匹配的重载函数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1148): note: 可能是“bool std::holds_alternative(const std::variant<_Types...> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(258): note: “bool std::holds_alternative(const std::variant<_Types...> &) noexcept”: 无法从“const <error type>”推导出“const std::variant<_Types...> &”的 模板 参数
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): error C2672: “std::get”: 未找到匹配的重载函数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1234): note: 可能是“decltype(auto) std::get(const std::variant<_Types...> &&)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “decltype(auto) std::get(const std::variant<_Types...> &&)”: 无法从“const <error type>”推导出“const std::variant<_Types...> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1223): note: 或    “decltype(auto) std::get(const std::variant<_Types...> &)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “decltype(auto) std::get(const std::variant<_Types...> &)”: 无法从“const <error type>”推导出“const std::variant<_Types...> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1212): note: 或    “decltype(auto) std::get(std::variant<_Types...> &&)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “decltype(auto) std::get(std::variant<_Types...> &&)”: 无法从“const <error type>”推导出“std::variant<_Types...> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1201): note: 或    “decltype(auto) std::get(std::variant<_Types...> &)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “decltype(auto) std::get(std::variant<_Types...> &)”: 无法从“const <error type>”推导出“std::variant<_Types...> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1190): note: 或    “decltype(auto) std::get(const std::variant<_Types...> &&)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1180): note: 或    “decltype(auto) std::get(const std::variant<_Types...> &)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1170): note: 或    “decltype(auto) std::get(std::variant<_Types...> &&)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\variant(1160): note: 或    “decltype(auto) std::get(std::variant<_Types...> &)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\tuple(969): note: 或    “const _Ty &&std::get(const std::tuple<_Types...> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty &&std::get(const std::tuple<_Types...> &&) noexcept”: 无法从“const <error type>”推导出“const std::tuple<_Types...> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\tuple(957): note: 或    “_Ty &&std::get(std::tuple<_Types...> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty &&std::get(std::tuple<_Types...> &&) noexcept”: 无法从“const <error type>”推导出“std::tuple<_Types...> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\tuple(945): note: 或    “const _Ty &std::get(const std::tuple<_Types...> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty &std::get(const std::tuple<_Types...> &) noexcept”: 无法从“const <error type>”推导出“const std::tuple<_Types...> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\tuple(933): note: 或    “_Ty &std::get(std::tuple<_Types...> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty &std::get(std::tuple<_Types...> &) noexcept”: 无法从“const <error type>”推导出“std::tuple<_Types...> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\__msvc_iter_core.hpp(433): note: 或    “auto std::ranges::get(const std::ranges::subrange<_It,_Se,_Ki> &)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::ranges::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\__msvc_iter_core.hpp(437): note: 或    “auto std::ranges::get(std::ranges::subrange<_It,_Se,_Ki> &&)”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::ranges::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(764): note: 或    “const _Ty2 &&std::get(const std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty2 &&std::get(const std::pair<_Ty1,_Ty2> &&) noexcept”: 无法从“const <error type>”推导出“const std::pair<_Ty1,QByteArray> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(758): note: 或    “const _Ty1 &&std::get(const std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty1 &&std::get(const std::pair<_Ty1,_Ty2> &&) noexcept”: 无法从“const <error type>”推导出“const std::pair<QByteArray,_Ty2> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(748): note: 或    “const tuple_element<_Idx,std::pair<_Ty1,_Ty2>>::type &&std::get(const std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(742): note: 或    “_Ty2 &&std::get(std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty2 &&std::get(std::pair<_Ty1,_Ty2> &&) noexcept”: 无法从“const <error type>”推导出“std::pair<_Ty1,QByteArray> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(736): note: 或    “_Ty1 &&std::get(std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty1 &&std::get(std::pair<_Ty1,_Ty2> &&) noexcept”: 无法从“const <error type>”推导出“std::pair<QByteArray,_Ty2> &&”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(726): note: 或    “tuple_element<_Idx,std::pair<_Ty1,_Ty2>>::type &&std::get(std::pair<_Ty1,_Ty2> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(720): note: 或    “const _Ty2 &std::get(const std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty2 &std::get(const std::pair<_Ty1,_Ty2> &) noexcept”: 无法从“const <error type>”推导出“const std::pair<_Ty1,QByteArray> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(714): note: 或    “const _Ty1 &std::get(const std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “const _Ty1 &std::get(const std::pair<_Ty1,_Ty2> &) noexcept”: 无法从“const <error type>”推导出“const std::pair<QByteArray,_Ty2> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(704): note: 或    “const tuple_element<_Idx,std::pair<_Ty1,_Ty2>>::type &std::get(const std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(698): note: 或    “_Ty2 &std::get(std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty2 &std::get(std::pair<_Ty1,_Ty2> &) noexcept”: 无法从“const <error type>”推导出“std::pair<_Ty1,QByteArray> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(692): note: 或    “_Ty1 &std::get(std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “_Ty1 &std::get(std::pair<_Ty1,_Ty2> &) noexcept”: 无法从“const <error type>”推导出“std::pair<QByteArray,_Ty2> &”的 模板 参数
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(682): note: 或    “tuple_element<_Idx,std::pair<_Ty1,_Ty2>>::type &std::get(std::pair<_Ty1,_Ty2> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(206): note: 或    “const _Ty &&std::get(const std::array<_Ty,_Size> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(203): note: 或    “_Ty &&std::get(std::array<_Ty,_Size> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(200): note: 或    “const _Ty &std::get(const std::array<_Ty,_Size> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(197): note: 或    “_Ty &std::get(std::array<_Ty,_Size> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Idx”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(194): note: 或    “const tuple_element<_Index,std::tuple<_Types...>>::type &&std::get(const std::tuple<_Types...> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Index”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(191): note: 或    “tuple_element<_Index,std::tuple<_Types...>>::type &&std::get(std::tuple<_Types...> &&) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Index”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(188): note: 或    “const tuple_element<_Index,std::tuple<_Types...>>::type &std::get(const std::tuple<_Types...> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Index”的模板参数无效，应为编译时常量表达式
+C:\Program Files\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.50.35717\include\utility(185): note: 或    “tuple_element<_Index,std::tuple<_Types...>>::type &std::get(std::tuple<_Types...> &) noexcept”
+D:\repos\quick-clash\src\application\desktop_features.cpp(260): note: “std::get”:“_Index”的模板参数无效，应为编译时常量表达式
+[13/76] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[14/76] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_providers.cpp.obj
+[15/76] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_backup.cpp.obj
+ninja: build stopped: subcommand failed.
+
+--- stderr ---

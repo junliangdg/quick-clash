@@ -1,0 +1,125 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start  3: proxy_lease
+1/6 Test  #3: proxy_lease ......................   Passed    0.37 sec
+    Start  4: runtime
+2/6 Test  #4: runtime ..........................***Failed   22.70 sec
+unsupported subscription preserves running configuration: {
+    "busy": false,
+    "configIssues": [
+    ],
+    "corePid": 28868,
+    "coreVersion": "v1.19.33",
+    "dataDirectory": "C:/Users/Administrator/AppData/Local/Temp/runtime_test-wHSzxj",
+    "dataUrl": "file:///C:/Users/Administrator/AppData/Local/Temp/runtime_test-wHSzxj",
+    "effectivePreview": "",
+    "error": "UnsupportedSubscriptionFormat",
+    "errors": [
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-25T05:43:56Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-25T05:44:05Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-25T05:44:08Z"
+        }
+    ],
+    "groups": [
+        {
+            "canSelect": true,
+            "current": "DIRECT",
+            "members": [
+                "DIRECT",
+                "REJECT",
+                "fixture",
+                "upstream"
+            ],
+            "name": "GLOBAL",
+            "type": "Selector"
+        },
+        {
+            "canSelect": true,
+            "current": "fixture",
+            "members": [
+                "fixture",
+                "DIRECT"
+            ],
+            "name": "upstream",
+            "type": "Selector"
+        }
+    ],
+    "operation": {
+        "error": "",
+        "id": "68525713-4311-4b67-9b9c-f5111bba537f",
+        "kind": "start_core",
+        "state": "Succeeded"
+    },
+    "preferences": {
+        "autoStart": false,
+        "controllerPort": 6855,
+        "mixedPort": 6854,
+        "mode": "rule",
+        "schemaVersion": 1,
+        "systemProxyDesired": false,
+        "tunDesired": false
+    },
+    "profiles": [
+        {
+            "id": "360d4668-b509-4174-9131-97d560d4a6c0",
+            "name": "Fixture A",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "eacca0e2f14cdc3ff5fdcb06416d8bfc8cfd7828a517a72af747396a1ee067fd",
+            "sourceRef": "data/profiles/360d4668-b509-4174-9131-97d560d4a6c0/4cbde7e2-e994-4f9d-ab12-b80780653cc2.yaml",
+            "updatedAt": "2026-10-25T05:43:48Z"
+        },
+        {
+            "autoApply": false,
+            "id": "0c7e395a-3e36-421f-b28c-b809cd4edf5e",
+            "lastAttemptAt": "2026-10-25T07:45:52Z",
+            "lastUpdateError": "UnsupportedSubscriptionFormat",
+            "lastUpdateResult": "Failed",
+            "name": "Fixture B HTTPS",
+            "nextUpdateAt": "",
+            "pendingApply": false,
+            "secretRef": "888a51bb-1854-4ee8-a5f5-06b40d07d4f0",
+            "sourceHash": "a98f9e81a8b0f4e7ae66d3ae8b40f5e7187e3e1f8c78a4b13fddc11f83b56e34",
+            "sourceRef": "data/profiles/0c7e395a-3e36-421f-b28c-b809cd4edf5e/98a39fee-7b6c-475f-ba33-bfa3a4cc4f9d.yaml",
+            "updateFailures": 2,
+            "updateIntervalMinutes": 0,
+            "updatedAt": "2026-10-25T05:44:05Z"
+        }
+    ],
+    "proxyConflict": false,
+    "readOnly": false,
+    "ready": true,
+    "selectedId": "0c7e395a-3e36-421f-b28c-b809cd4edf5e",
+    "selectedName": "Fixture B HTTPS",
+    "selectionGeneration": "9",
+    "status": "Ready",
+    "systemProxy": false,
+    "testResult": "",
+    "testTarget": "https://fixture.quickclash.invalid:4631/after-update"
+}
+
+    Start  5: localization
+3/6 Test  #5: localization .....................   Passed    0.07 sec
+    Start  6: ui_state
+4/6 Test  #6: ui_state .........................   Passed    0.18 sec
+    Start  9: qml_smoke
+5/6 Test  #9: qml_smoke ........................   Passed    0.54 sec
+    Start 11: ui_responsive
+6/6 Test #11: ui_responsive ....................   Passed    2.56 sec
+
+83% tests passed, 1 tests failed out of 6
+
+Total Test time (real) =  26.56 sec
+
+The following tests FAILED:
+	  4 - runtime (Failed)
+
+--- stderr ---
+Errors while running CTest

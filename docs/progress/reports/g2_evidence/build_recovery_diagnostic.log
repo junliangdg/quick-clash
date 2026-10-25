@@ -1,0 +1,6 @@
+[0/2] Re-checking globbed directories...
+[1/5] Automatic MOC for target recovery_test
+[2/4] Building CXX object CMakeFiles\recovery_test.dir\tests\integration\recovery_test.cpp.obj
+[3/4] Linking CXX executable recovery_test.exe
+
+--- stderr ---

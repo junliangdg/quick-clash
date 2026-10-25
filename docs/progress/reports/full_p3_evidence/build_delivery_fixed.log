@@ -1,0 +1,30 @@
+[0/2] Re-checking globbed directories...
+[1/64] Automatic MOC for target quickclash_runtime
+[2/63] Linking CXX executable quickclash_service.exe
+[3/63] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj
+[4/63] Linking CXX static library quickclash_runtime.lib
+[5/63] Automatic MOC for target runtime_test
+[6/62] Automatic MOC for target ui_state_test
+[7/61] Automatic MOC for target quickclash
+[8/60] Linking CXX executable proxy_lease_test.exe
+[9/60] Running AUTOMOC file extraction for target quickclash
+[10/60] Running rcc for resource quickclash_raw_qml_0
+[11/60] Running moc --collect-json for target quickclash
+[12/28] Generating .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp.aotstats
+[13/28] Generating .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp.aotstats
+[14/28] Generating .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp.aotstats
+[15/28] Generating .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp.aotstats
+[16/28] Building CXX object CMakeFiles\ui_state_test.dir\src\presentation\ui_state.cpp.obj
+[17/28] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\subscription_probe.cpp.obj
+[18/28] Building CXX object CMakeFiles\quickclash.dir\src\presentation\ui_state.cpp.obj
+[19/28] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\home\home_page_qml.cpp.obj
+[20/28] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\subscriptions\subscriptions_page_qml.cpp.obj
+[21/28] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\tests\tests_page_qml.cpp.obj
+[22/28] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.qt\rcc\qrc_quickclash_raw_qml_0.cpp.obj
+[23/28] Linking CXX executable ui_state_test.exe
+[24/28] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+[25/28] Linking CXX executable runtime_test.exe
+[26/28] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\settings\settings_page_qml.cpp.obj
+[27/28] Linking CXX executable quickclash.exe
+
+--- stderr ---

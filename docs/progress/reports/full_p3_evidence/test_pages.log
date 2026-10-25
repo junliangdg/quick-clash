@@ -1,0 +1,19 @@
+Test project D:/repos/quick-clash/build/p2_responsive
+    Start  2: contracts
+1/6 Test  #2: contracts ........................   Passed    0.08 sec
+    Start  4: runtime
+2/6 Test  #4: runtime ..........................   Passed   49.93 sec
+    Start  5: localization
+3/6 Test  #5: localization .....................   Passed    0.06 sec
+    Start  6: ui_state
+4/6 Test  #6: ui_state .........................   Passed    0.20 sec
+    Start  8: ui_prototype
+5/6 Test  #8: ui_prototype .....................   Passed    5.69 sec
+    Start 11: ui_responsive
+6/6 Test #11: ui_responsive ....................   Passed    2.56 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Total Test time (real) =  58.61 sec
+
+--- stderr ---

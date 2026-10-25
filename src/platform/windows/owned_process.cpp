@@ -54,10 +54,10 @@ QString quote(const QString& value) {
     }
     return output + QString(slashes * 2, QLatin1Char('\\')) + QLatin1Char('"');
 }
-bool grant(const QString& path, PSID sid, DWORD access) {
+bool grant(const QString& path, PSID sid, DWORD access, bool revoke = false) {
     EXPLICIT_ACCESSW entry{};
     entry.grfAccessPermissions = access;
-    entry.grfAccessMode = GRANT_ACCESS;
+    entry.grfAccessMode = revoke ? REVOKE_ACCESS : GRANT_ACCESS;
     entry.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
     entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
     entry.Trustee.ptstrName = static_cast<LPWSTR>(sid);
@@ -87,11 +87,17 @@ struct OwnedProcess::State {
     Handle output;
     quint32 pid = 0;
     QString profile;
+    QString grantedDirectory;
+    QString grantedExecutable;
     PSID sid = nullptr;
     ~State() {
         // Kill before removing the temporary security profile.
         job.reset();
         if (sid) {
+            if (!grantedDirectory.isEmpty())
+                (void)grant(grantedDirectory, sid, 0, true);
+            if (!grantedExecutable.isEmpty())
+                (void)grant(grantedExecutable, sid, 0, true);
             FreeSid(sid);
         }
         if (!profile.isEmpty()) {
@@ -124,7 +130,8 @@ quint32 OwnedProcess::pid() const {
 #endif
 }
 domain::CommandResult OwnedProcess::start(const QString& executable, const QStringList& arguments,
-                                          const QString& directory, bool isolated) {
+                                          const QString& directory, bool isolated,
+                                          const QProcessEnvironment& environment) {
     if (running()) {
         return infra::storageError("CoreAlreadyRunning");
     }
@@ -172,6 +179,8 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     } cleanup{list};
     SECURITY_CAPABILITIES capabilities{};
     if (isolated) {
+        state_->grantedDirectory = directory;
+        state_->grantedExecutable = executable;
         state_->profile = QStringLiteral("QuickClash.Validate.") +
                           QUuid::createUuid().toString(QUuid::WithoutBraces);
         const auto* name = reinterpret_cast<LPCWSTR>(state_->profile.utf16());
@@ -206,11 +215,17 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
         command += QLatin1Char(' ') + quote(argument);
     }
     PROCESS_INFORMATION process{};
+    auto variables = environment.toStringList();
+    variables.sort(Qt::CaseInsensitive);
+    auto environmentBlock = variables.join(QChar::Null);
+    environmentBlock.append(QChar::Null);
+    environmentBlock.append(QChar::Null);
     if (!CreateProcessW(reinterpret_cast<LPCWSTR>(executable.utf16()),
                         reinterpret_cast<LPWSTR>(command.data()), nullptr, nullptr, TRUE,
-                        CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT, nullptr,
-                        reinterpret_cast<LPCWSTR>(directory.utf16()), &startup.StartupInfo,
-                        &process)) {
+                        CREATE_SUSPENDED | CREATE_NO_WINDOW | EXTENDED_STARTUPINFO_PRESENT |
+                            CREATE_UNICODE_ENVIRONMENT,
+                        environmentBlock.data(), reinterpret_cast<LPCWSTR>(directory.utf16()),
+                        &startup.StartupInfo, &process)) {
         return infra::storageError("CoreProcessFailed");
     }
     state_->process.reset(process.hProcess);
@@ -232,6 +247,7 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     Q_UNUSED(arguments)
     Q_UNUSED(directory)
     Q_UNUSED(isolated)
+    Q_UNUSED(environment)
     return infra::storageError("CorePlatformUnsupported");
 #endif
 }

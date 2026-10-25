@@ -1,0 +1,15 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\ctest.exe",
+  "arguments": [
+    "--test-dir",
+    "build/p2_responsive",
+    "-R",
+    "^contracts$",
+    "--output-on-failure"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T07:36:22.6684961Z",
+  "elapsed_ms": 170,
+  "exit_code": 8,
+  "timed_out": false
+}

@@ -1,0 +1,40 @@
+[0/2] Re-checking globbed directories...
+[1/62] Automatic MOC for target quickclash
+[2/61] Automatic MOC for target localization_test
+[3/60] Running AUTOMOC file extraction for target quickclash
+[4/60] Running moc --collect-json for target quickclash
+[5/38] Building CXX object CMakeFiles\localization_test.dir\tests\unit\localization_test.cpp.obj
+[6/38] Building CXX object CMakeFiles\ui_state_test.dir\tests\unit\ui_state_test.cpp.obj
+[7/38] Building CXX object CMakeFiles\ui_state_test.dir\src\presentation\ui_state.cpp.obj
+[8/38] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+[9/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\main_qml.cpp.obj
+[10/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qmlcache_loader.cpp.obj
+[11/38] Building CXX object CMakeFiles\quickclash.dir\app\application_host.cpp.obj
+[12/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\flat_tile_qml.cpp.obj
+[13/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\action_button_qml.cpp.obj
+[14/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\theme_tokens_qml.cpp.obj
+[15/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\deferred_content_qml.cpp.obj
+[16/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\replay_list_qml.cpp.obj
+[17/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\runtime_list_qml.cpp.obj
+[18/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\subscription_details_qml.cpp.obj
+[19/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\components\traffic_sparkline_qml.cpp.obj
+[20/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\shell\page_host_qml.cpp.obj
+[21/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\shell\embedded_host_qml.cpp.obj
+[22/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\home\home_page_qml.cpp.obj
+[23/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\proxies\proxies_page_qml.cpp.obj
+[24/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\proxies\proxy_summary_qml.cpp.obj
+[25/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\connections\connections_page_qml.cpp.obj
+[26/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\subscriptions\subscriptions_page_qml.cpp.obj
+[27/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\rules\rules_page_qml.cpp.obj
+[28/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.qt\rcc\qrc_quickclash_raw_qml_0.cpp.obj
+[29/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\logs\logs_page_qml.cpp.obj
+[30/38] Linking CXX executable runtime_test.exe
+[31/38] Linking CXX executable proxy_lease_test.exe
+[32/38] Linking CXX executable localization_test.exe
+[33/38] Linking CXX executable ui_state_test.exe
+[34/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\tests\tests_page_qml.cpp.obj
+[35/38] Building CXX object CMakeFiles\quickclash.dir\build\p2_responsive\.rcc\qmlcache\quickclash_qml\features\settings\settings_page_qml.cpp.obj
+[36/38] Building CXX object CMakeFiles\quickclash.dir\app\keyboard_probe.cpp.obj
+[37/38] Linking CXX executable quickclash.exe
+
+--- stderr ---

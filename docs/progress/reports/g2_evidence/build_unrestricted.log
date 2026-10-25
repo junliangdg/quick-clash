@@ -1,0 +1,198 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (2.8s)
+-- Generating done (0.5s)
+-- Build files have been written to: D:/repos/quick-clash/build/p2_responsive
+[0/4] Re-checking globbed directories...
+[1/144] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[2/111] Automatic MOC for target quickclash_storage
+[3/109] Automatic MOC for target localization_test
+[4/107] Automatic MOC for target qt_cost_probe
+[5/105] Automatic MOC for target contracts_test
+[6/104] Automatic MOC for target storage_test
+[7/102] Automatic MOC for target quickclash_engine
+[8/100] Automatic MOC for target single_instance_test
+[9/98] Automatic MOC for target core_job_probe
+[10/96] Automatic MOC for target core_isolation_probe
+[11/94] Automatic MOC for target quickclash_service
+[12/92] Automatic MOC for target quickclash_runtime
+[13/92] Building CXX object CMakeFiles\quickclash_runtime.dir\quickclash_runtime_autogen\mocs_compilation.cpp.obj
+[14/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\settings_service.cpp.obj
+[15/92] Building CXX object CMakeFiles\contracts_test.dir\tests\unit\contracts_test.cpp.obj
+[16/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[17/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_backup.cpp.obj
+[18/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_providers.cpp.obj
+[19/92] Linking CXX executable contracts_test.exe
+[20/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj
+[21/92] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_resources.cpp.obj
+[22/92] Linking CXX static library quickclash_runtime.lib
+[23/92] Automatic MOC for target runtime_test
+[24/91] Automatic MOC for target proxy_lease_test
+[25/90] Automatic MOC for target recovery_test
+[26/90] Automatic MOC for target ui_state_test
+[27/89] Building CXX object CMakeFiles\recovery_test.dir\recovery_test_autogen\mocs_compilation.cpp.obj
+[28/89] Automatic MOC for target quickclash
+[29/89] Running AUTOMOC file extraction for target quickclash
+[30/89] Running moc --collect-json for target quickclash
+[31/47] Building CXX object CMakeFiles\recovery_test.dir\tests\integration\recovery_test.cpp.obj
+[32/47] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\subscription_probe.cpp.obj
+[33/47] Building CXX object CMakeFiles\quickclash.dir\quickclash_autogen\mocs_compilation.cpp.obj
+[34/47] Building CXX object CMakeFiles\quickclash.dir\app\system_events.cpp.obj
+FAILED: CMakeFiles/quickclash.dir/app/system_events.cpp.obj 
+C:\PROGRA~1\MICROS~2\18\COMMUN~1\VC\Tools\MSVC\1450~1.357\bin\Hostx64\x64\cl.exe  /nologo /TP -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_OPENGL_LIB -DQT_QMLINTEGRATION_LIB -DQT_QMLMETA_LIB -DQT_QMLMODELS_LIB -DQT_QMLWORKERSCRIPT_LIB -DQT_QML_LIB -DQT_QUICKCONTROLS2_LIB -DQT_QUICK_LIB -DQT_TESTCASE_BUILDDIR=\"D:/repos/quick-clash/build/p2_responsive\" -DQT_TESTCASE_SOURCEDIR=\"D:/repos/quick-clash\" -DQT_TESTLIB_LIB -DQT_WIDGETS_LIB -DQUICKCLASH_TEST_PROBES -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -ID:\repos\quick-clash\build\p2_responsive\quickclash_autogen\include -ID:\repos\quick-clash\src\presentation -ID:\repos\quick-clash -ID:\repos\quick-clash\src -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQml\6.8.0 -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQml\6.8.0\QtQml -external:IC:\Qt\6.8.0\msvc2022_64\include\QtCore\6.8.0 -external:IC:\Qt\6.8.0\msvc2022_64\include\QtCore\6.8.0\QtCore -external:IC:\Qt\6.8.0\msvc2022_64\include\QtCore -external:IC:\Qt\6.8.0\msvc2022_64\include -external:IC:\Qt\6.8.0\msvc2022_64\mkspecs\win32-msvc -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQml -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQmlIntegration -external:IC:\Qt\6.8.0\msvc2022_64\include\QtNetwork -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQuick -external:IC:\Qt\6.8.0\msvc2022_64\include\QtGui -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQmlMeta -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQmlModels -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQmlWorkerScript -external:IC:\Qt\6.8.0\msvc2022_64\include\QtOpenGL -external:IC:\Qt\6.8.0\msvc2022_64\include\QtQuickControls2 -external:IC:\Qt\6.8.0\msvc2022_64\include\QtWidgets -external:IC:\Qt\6.8.0\msvc2022_64\include\QtTest -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W4 /permissive- /utf-8 /Zc:__cplusplus /WX -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\quickclash.dir\app\system_events.cpp.obj /FdCMakeFiles\quickclash.dir\ /FS -c D:\repos\quick-clash\app\system_events.cpp
+D:\repos\quick-clash\app\system_events.cpp(23): error C2187: 语法错误: 此处出现意外的“PMIB_IPINTERFACE_ROW”
+D:\repos\quick-clash\app\system_events.cpp(23): error C2059: 语法错误:“,”
+D:\repos\quick-clash\app\system_events.cpp(23): error C2143: 语法错误: 缺少“;”(在“{”的前面)
+D:\repos\quick-clash\app\system_events.cpp(24): error C2065: “context”: 未声明的标识符
+D:\repos\quick-clash\app\system_events.cpp(24): error C3535: 无法推导“auto *”的类型(依据“<错误>”)
+D:\repos\quick-clash\app\system_events.cpp(25): error C2665: “QMetaObject::invokeMethod”: 没有重载函数可以转换所有参数类型
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(349): note: 可能是“bool QMetaObject::invokeMethod(QObject *,const char *,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”: 无法将参数 1 从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(315): note: 或    “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericReturnArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericReturnArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”: 无法将参数 1 从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(506): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,Qt::ConnectionType>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,Qt::ConnectionType &&)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,Qt::ConnectionType>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,Qt::ConnectionType &&)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(491): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,QTemplatedMetaMethodReturnArgument<void>)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,QTemplatedMetaMethodReturnArgument<void>)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(477): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,Qt::ConnectionType)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,Qt::ConnectionType)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(452): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,void *)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(25): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_1>>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *,Func &&,void *)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_1>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_1>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(462): note: 或    “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Args>...>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<QtPrivate::Callable<Func,Args...>::ReturnType>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Args>...>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<QtPrivate::Callable<Func,Args...>::ReturnType>,Args ...)”: 应输入 5 个参数，却提供了 3 个
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(435): note: 或    “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Func>>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QtPrivate::Callable<Func,>::ReturnType *)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Func>>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QtPrivate::Callable<Func,>::ReturnType *)”: 应输入 4 个参数，却提供了 3 个
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(410): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(26): note: “初始化”: 无法从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(398): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,QTemplatedMetaMethodReturnArgument<T>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,QTemplatedMetaMethodReturnArgument<T>,Args ...)”: 无法从“Qt::ConnectionType”推导出“QTemplatedMetaMethodReturnArgument<T>”的 模板 参数
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(386): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(26): note: “初始化”: 无法从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(26): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(372): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<T>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(25): note: “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<T>,Args ...)”: 应输入 5 个参数，却提供了 3 个
+D:\repos\quick-clash\app\system_events.cpp(25): note: 尝试匹配参数列表“(<error type> *, quickclash::SystemEvents::{ctor}::<lambda_1>, Qt::ConnectionType)”时
+D:\repos\quick-clash\app\system_events.cpp(27): error C2059: 语法错误:“,”
+D:\repos\quick-clash\app\system_events.cpp(28): error C2059: 语法错误:“)”
+D:\repos\quick-clash\app\system_events.cpp(31): error C2187: 语法错误: 此处出现意外的“PMIB_UNICASTIPADDRESS_ROW”
+D:\repos\quick-clash\app\system_events.cpp(31): error C2059: 语法错误:“,”
+D:\repos\quick-clash\app\system_events.cpp(31): error C2143: 语法错误: 缺少“;”(在“{”的前面)
+D:\repos\quick-clash\app\system_events.cpp(32): error C2065: “context”: 未声明的标识符
+D:\repos\quick-clash\app\system_events.cpp(32): error C3535: 无法推导“auto *”的类型(依据“<错误>”)
+D:\repos\quick-clash\app\system_events.cpp(33): error C2665: “QMetaObject::invokeMethod”: 没有重载函数可以转换所有参数类型
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(349): note: 可能是“bool QMetaObject::invokeMethod(QObject *,const char *,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”: 无法将参数 1 从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(315): note: 或    “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericReturnArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod(QObject *,const char *,QGenericReturnArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument,QGenericArgument)”: 无法将参数 1 从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(506): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,Qt::ConnectionType>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,Qt::ConnectionType &&)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,Qt::ConnectionType>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,Qt::ConnectionType &&)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(491): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,QTemplatedMetaMethodReturnArgument<void>)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,QTemplatedMetaMethodReturnArgument<void>)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(477): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,Qt::ConnectionType)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>,>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,Qt::ConnectionType)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(452): note: 或    “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,void *)”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(33): note: “bool QMetaObject::invokeMethod<quickclash::SystemEvents::{ctor}::<lambda_2>>(QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *,Func &&,void *)”: 无法将参数 1 从“<error type> *”转换为“QtPrivate::ContextTypeForFunctor<quickclash::SystemEvents::{ctor}::<lambda_2>,void>::ContextType *”
+        with
+        [
+            Func=quickclash::SystemEvents::{ctor}::<lambda_2>
+        ]
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(462): note: 或    “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Args>...>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<QtPrivate::Callable<Func,Args...>::ReturnType>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Args>...>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<QtPrivate::Callable<Func,Args...>::ReturnType>,Args ...)”: 应输入 5 个参数，却提供了 3 个
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(435): note: 或    “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Func>>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QtPrivate::Callable<Func,>::ReturnType *)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “enable_if<!std::disjunction_v<std::is_convertible<Prototype,const char*>,std::disjunction<std::is_base_of<QGenericArgument,Func>>>,bool>::type QMetaObject::invokeMethod(QtPrivate::ContextTypeForFunctor<Func,void>::ContextType *,Func &&,Qt::ConnectionType,QtPrivate::Callable<Func,>::ReturnType *)”: 应输入 4 个参数，却提供了 3 个
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(410): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(34): note: “初始化”: 无法从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(398): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,QTemplatedMetaMethodReturnArgument<T>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,QTemplatedMetaMethodReturnArgument<T>,Args ...)”: 无法从“Qt::ConnectionType”推导出“QTemplatedMetaMethodReturnArgument<T>”的 模板 参数
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(386): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(34): note: “初始化”: 无法从“<error type> *”转换为“QObject *”
+D:\repos\quick-clash\app\system_events.cpp(34): note: 指向的类型不相关; 转换需要 reinterpret_cast、C 样式强制转换或带圆括号的函数样式强制转换
+C:\Qt\6.8.0\msvc2022_64\include\QtCore/qobjectdefs.h(372): note: 或    “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<T>,Args ...)”
+D:\repos\quick-clash\app\system_events.cpp(33): note: “enable_if<!AreOldStyleArgs<Args...>::value,bool>::type QMetaObject::invokeMethod(QObject *,const char *,Qt::ConnectionType,QTemplatedMetaMethodReturnArgument<T>,Args ...)”: 应输入 5 个参数，却提供了 3 个
+D:\repos\quick-clash\app\system_events.cpp(33): note: 尝试匹配参数列表“(<error type> *, quickclash::SystemEvents::{ctor}::<lambda_2>, Qt::ConnectionType)”时
+D:\repos\quick-clash\app\system_events.cpp(35): error C2059: 语法错误:“,”
+D:\repos\quick-clash\app\system_events.cpp(36): error C2059: 语法错误:“)”
+D:\repos\quick-clash\app\system_events.cpp(50): error C3861: “CancelMibChangeNotify2”: 找不到标识符
+D:\repos\quick-clash\app\system_events.cpp(52): error C3861: “CancelMibChangeNotify2”: 找不到标识符
+[35/47] Building CXX object CMakeFiles\quickclash.dir\app\application_host.cpp.obj
+[36/47] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+[37/47] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+ninja: build stopped: subcommand failed.
+
+--- stderr ---

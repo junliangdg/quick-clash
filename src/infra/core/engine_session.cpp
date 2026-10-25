@@ -2,10 +2,12 @@
 #include "infra/storage/json_store.h"
 #include <QCryptographicHash>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QNetworkProxy>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <QUrlQuery>
 
 namespace quickclash::infra {
 namespace {
@@ -17,6 +19,53 @@ domain::Error coreError(const char* code) {
 }
 } // namespace
 EngineSession::EngineSession(QObject* parent) : QObject(parent) {
+    servicePoll_.setInterval(1000);
+    connect(&servicePoll_, &QTimer::timeout, this, [this] {
+        if (!serviceMode_ || !ready_)
+            return;
+        const auto generation = generation_;
+        service_.command(QStringLiteral("status"), {},
+                         [this, generation](domain::Result<QJsonObject> result) {
+                             if (generation != generation_)
+                                 return;
+                             const auto* value = std::get_if<QJsonObject>(&result);
+                             if (!value || !value->value(QStringLiteral("ready")).toBool() ||
+                                 !value->value(QStringLiteral("tun")).toBool()) {
+                                 stop();
+                                 emit stopped(true);
+                             }
+                         });
+        for (const auto& name : serviceStreams_)
+            service_.command(
+                name, {}, [this, name, generation](domain::Result<QJsonObject> result) {
+                    if (generation != generation_ || !serviceMode_ ||
+                        !serviceStreams_.contains(name))
+                        return;
+                    if (const auto* value = std::get_if<QJsonObject>(&result)) {
+                        if (name == QStringLiteral("logs")) {
+                            for (const auto& entry :
+                                 value->value(QStringLiteral("entries")).toArray())
+                                emit streamData(name, entry.toObject());
+                            if (value->value(QStringLiteral("dropped")).toInt() > 0)
+                                emit streamData(
+                                    name,
+                                    {{QStringLiteral("type"), QStringLiteral("warning")},
+                                     {QStringLiteral("payload"),
+                                      QStringLiteral("Service log buffer dropped old entries")}});
+                        } else
+                            emit streamData(name, *value);
+                    }
+                });
+    });
+    connect(&service_, &ServiceClient::lost, this, [this] {
+        if (!serviceMode_)
+            return;
+        const bool unexpected = ready_;
+        stop();
+        emit stopped(unexpected);
+        if (!unexpected)
+            emit failed(QStringLiteral("ServiceUnavailable"));
+    });
     network_.setProxy(QNetworkProxy::NoProxy);
     probeTimer_.setInterval(150);
     deadline_.setSingleShot(true);
@@ -34,11 +83,25 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
     });
 }
 EngineSession::~EngineSession() {
+    serviceMode_ = false;
+    service_.close();
     stop();
 }
 void EngineSession::start(const QString& executable, const QString& config,
                           const QString& directory, const QByteArray& secret, quint16 mixedPort,
-                          quint16 controllerPort, const QString& expectedMode) {
+                          quint16 controllerPort, const QString& expectedMode, bool serviceMode) {
+    if (serviceCleanupUncertain_) {
+        emit failed(QStringLiteral("ServiceCleanupUncertain"));
+        return;
+    }
+    if (serviceStopping_) {
+        afterServiceStop_ = [this, executable, config, directory, secret, mixedPort, controllerPort,
+                             expectedMode, serviceMode] {
+            start(executable, config, directory, secret, mixedPort, controllerPort, expectedMode,
+                  serviceMode);
+        };
+        return;
+    }
     if (running()) {
         emit failed(QStringLiteral("CoreAlreadyRunning"));
         return;
@@ -61,6 +124,40 @@ void EngineSession::start(const QString& executable, const QString& config,
     controllerPort_ = controllerPort;
     expectedMode_ = expectedMode;
     ++generation_;
+    if (serviceMode) {
+        QFile source(config);
+        if (!source.open(QIODevice::ReadOnly) || source.size() > 16 * 1024 * 1024) {
+            fail(QStringLiteral("ServiceConfigRejected"));
+            return;
+        }
+        serviceMode_ = true;
+        const auto generation = generation_;
+        service_.command(
+            QStringLiteral("start"),
+            {{QStringLiteral("yaml"), QString::fromLatin1(source.readAll().toBase64())},
+             {QStringLiteral("mixedPort"), mixedPort},
+             {QStringLiteral("mode"), expectedMode},
+             {QStringLiteral("dnsMode"), QStringLiteral("profile")}},
+            [this, generation](domain::Result<QJsonObject> result) {
+                if (generation != generation_)
+                    return;
+                if (const auto* error = std::get_if<domain::Error>(&result)) {
+                    fail(error->code);
+                    return;
+                }
+                const auto value = std::get<QJsonObject>(result);
+                if (!value.value(QStringLiteral("tun")).toBool()) {
+                    fail(QStringLiteral("ServiceTunReadbackFailed"));
+                    return;
+                }
+                servicePid_ = static_cast<quint32>(value.value(QStringLiteral("pid")).toInt());
+                ready_ = true;
+                servicePoll_.start();
+                emit becameReady(QStringLiteral("v1.19.33"));
+                refreshGroups();
+            });
+        return;
+    }
     const auto result = process_.start(
         executable, {QStringLiteral("-f"), config, QStringLiteral("-d"), directory}, directory);
     if (const auto* error = std::get_if<domain::Error>(&result)) {
@@ -74,9 +171,37 @@ void EngineSession::start(const QString& executable, const QString& config,
 void EngineSession::stop() {
     ++generation_;
     ready_ = false;
+    const bool stopService = serviceMode_;
+    serviceMode_ = false;
+    servicePid_ = 0;
+    servicePoll_.stop();
+    serviceStreams_.clear();
+    afterServiceStop_ = {};
+    if (stopService && !serviceStopping_) {
+        serviceStopping_ = true;
+        service_.command(QStringLiteral("stop"), {}, [this](domain::Result<QJsonObject> result) {
+            serviceStopping_ = false;
+            auto continuation = std::move(afterServiceStop_);
+            afterServiceStop_ = {};
+            service_.close();
+            if (const auto* error = std::get_if<domain::Error>(&result)) {
+                serviceCleanupUncertain_ = true;
+                emit failed(error->code);
+                return;
+            }
+            if (continuation)
+                continuation();
+        });
+    } else if (!serviceStopping_)
+        service_.close();
     probing_ = false;
     probeTimer_.stop();
     deadline_.stop();
+    const auto streams = streams_;
+    streams_.clear();
+    for (const auto& stream : streams)
+        if (stream)
+            stream->abort();
     const auto replies = replies_;
     replies_.clear();
     for (const auto& reply : replies) {
@@ -88,12 +213,144 @@ void EngineSession::stop() {
     secret_.fill('\0');
     secret_.clear();
 }
+void EngineSession::probeService(ApiHandler handler) {
+    service_.command(QStringLiteral("status"), {},
+                     [this, handler = std::move(handler)](domain::Result<QJsonObject> result) {
+                         if (const auto* value = std::get_if<QJsonObject>(&result);
+                             value && value->value(QStringLiteral("clean")).toBool())
+                             serviceCleanupUncertain_ = false;
+                         handler(std::move(result));
+                     });
+}
+void EngineSession::serviceResources(ApiHandler handler) {
+    service_.command(QStringLiteral("resources"), {}, std::move(handler));
+}
+void EngineSession::api(const QByteArray& method, const QByteArray& path, const QJsonObject& body,
+                        ApiHandler handler) {
+    if (!ready_) {
+        handler(coreError("CoreNotReady"));
+        return;
+    }
+    request(method, path, body, std::move(handler));
+}
+void EngineSession::setStream(const QString& name, bool enabled) {
+    if (name != QStringLiteral("traffic") && name != QStringLiteral("logs"))
+        return;
+    if (serviceMode_) {
+        if (name == QStringLiteral("logs") && serviceStreams_.contains(name) != (enabled && ready_))
+            service_.command(QStringLiteral("log_demand"),
+                             {{QStringLiteral("enabled"), enabled && ready_}},
+                             [](domain::Result<QJsonObject>) {});
+        if (enabled && ready_)
+            serviceStreams_.insert(name);
+        else
+            serviceStreams_.remove(name);
+        return;
+    }
+    if (!enabled || !ready_) {
+        const auto reply = streams_.take(name);
+        if (reply)
+            reply->abort();
+        return;
+    }
+    if (streams_.value(name))
+        return;
+    const auto generation = generation_;
+    const auto path = name == QStringLiteral("logs") ? "/logs?level=info" : "/traffic";
+    QNetworkRequest request(QUrl(QStringLiteral("http://127.0.0.1:%1%2")
+                                     .arg(controllerPort_)
+                                     .arg(QString::fromLatin1(path))));
+    request.setRawHeader("Authorization", "Bearer " + secret_);
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                         QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(5000);
+    auto* reply = network_.get(request);
+    reply->setReadBufferSize(65537);
+    streams_.insert(name, reply);
+    auto buffer = std::make_shared<QByteArray>();
+    connect(reply, &QIODevice::readyRead, this, [this, reply, buffer, generation, name] {
+        if (generation != generation_ || streams_.value(name) != reply)
+            return;
+        buffer->append(reply->read(65537 - buffer->size()));
+        if (buffer->size() > 65536) {
+            reply->abort();
+            return;
+        }
+        qsizetype newline = 0;
+        while ((newline = buffer->indexOf('\n')) >= 0) {
+            const auto line = buffer->first(newline);
+            buffer->remove(0, newline + 1);
+            const auto document = QJsonDocument::fromJson(line);
+            if (document.isObject())
+                emit streamData(name, document.object());
+        }
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation, name] {
+        if (generation == generation_ && streams_.value(name) == reply)
+            streams_.remove(name);
+        reply->deleteLater();
+    });
+}
 void EngineSession::fail(const QString& code) {
     stop();
     emit failed(code);
 }
 void EngineSession::request(const QByteArray& method, const QByteArray& path,
                             const QJsonObject& body, ReplyHandler handler) {
+    if (serviceMode_) {
+        QString action;
+        QJsonObject payload;
+        if (method == "GET" && path == "/proxies")
+            action = QStringLiteral("groups");
+        else if (method == "GET" && path == "/rules")
+            action = QStringLiteral("rules");
+        else if (method == "GET" && path == "/connections")
+            action = QStringLiteral("connections");
+        else if (method == "GET" && path == "/providers/proxies")
+            action = QStringLiteral("proxy_providers");
+        else if (method == "GET" && path == "/providers/rules")
+            action = QStringLiteral("rule_providers");
+        else if (method == "POST" && path == "/cache/dns/flush")
+            action = QStringLiteral("flush_dns");
+        else if (method == "DELETE" && path == "/connections")
+            action = QStringLiteral("close_connections");
+        else if (method == "DELETE" && path.startsWith("/connections/")) {
+            action = QStringLiteral("close_connection");
+            payload.insert(QStringLiteral("id"), QUrl::fromPercentEncoding(path.mid(13)));
+        } else if (path.startsWith("/proxies/")) {
+            const auto name = QUrl::fromPercentEncoding(path.mid(9).split('/').first());
+            if (method == "PUT") {
+                action = QStringLiteral("select");
+                payload = {{QStringLiteral("group"), name},
+                           {QStringLiteral("member"), body.value(QStringLiteral("name"))}};
+            } else if (method == "GET" && path.contains("/delay?")) {
+                const QUrl url(QStringLiteral("http://localhost") + QString::fromLatin1(path));
+                action = QStringLiteral("delay");
+                payload = {{QStringLiteral("name"), name},
+                           {QStringLiteral("url"), QUrlQuery(url).queryItemValue(
+                                                       QStringLiteral("url"), QUrl::FullyDecoded)}};
+            } else if (method == "GET") {
+                service_.command(
+                    QStringLiteral("groups"), {},
+                    [name, handler = std::move(handler)](domain::Result<QJsonObject> result) {
+                        if (const auto* value = std::get_if<QJsonObject>(&result))
+                            handler(value->value(QStringLiteral("proxies"))
+                                        .toObject()
+                                        .value(name)
+                                        .toObject());
+                        else
+                            handler(std::get<domain::Error>(result));
+                    });
+                return;
+            }
+        }
+        if (action.isEmpty()) {
+            handler(coreError("ServiceActionRejected"));
+            return;
+        }
+        service_.command(action, payload, std::move(handler));
+        return;
+    }
     if (replies_.size() >= 4) {
         handler(coreError("CoreRequestBusy"));
         return;

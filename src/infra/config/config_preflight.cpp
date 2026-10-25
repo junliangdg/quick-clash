@@ -3,6 +3,7 @@
 #include <QJsonArray>
 #include <QMessageAuthenticationCode>
 #include <QStringList>
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -173,6 +174,20 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         } else {
             root["dns"]["enable"] = false;
         }
+        require(preferences.dnsMode == QStringLiteral("profile") ||
+                    preferences.dnsMode == QStringLiteral("fake-ip") ||
+                    preferences.dnsMode == QStringLiteral("redir-host"),
+                "InvalidDnsMode");
+        if (preferences.dnsMode != QStringLiteral("profile")) {
+            root["dns"]["enable"] = true;
+            root["dns"]["enhanced-mode"] = preferences.dnsMode.toStdString();
+            if (!root["dns"]["nameserver"]) {
+                root["dns"]["nameserver"].push_back("https://1.1.1.1/dns-query");
+                root["dns"]["nameserver"].push_back("https://8.8.8.8/dns-query");
+            }
+            if (!root["dns"]["default-nameserver"])
+                root["dns"]["default-nameserver"].push_back("1.1.1.1");
+        }
         // Some subscription generators emit the legacy mport alias. Normalize it to
         // Mihomo's actual ports option, and reject conflicting values in the schema.
         for (auto proxy : root["proxies"]) {
@@ -213,21 +228,21 @@ QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key) {
         }
         for (const auto& group : root["proxy-groups"]) {
             const auto name = QString::fromStdString(group["name"].as<std::string>());
-            identities.insert(
-                name, QStringLiteral("group:") +
-                          QString::fromLatin1(QMessageAuthenticationCode::hash(
-                                                  name.toUtf8() + serializeYaml(root["proxies"]) +
-                                                      serializeYaml(root["proxy-groups"]),
-                                                  key, QCryptographicHash::Sha256)
-                                                  .toHex()));
+            auto descriptor = YAML::Clone(group);
+            descriptor.remove("proxies");
+            identities.insert(name, QStringLiteral("group:") +
+                                        QString::fromLatin1(QMessageAuthenticationCode::hash(
+                                                                serializeYaml(descriptor), key,
+                                                                QCryptographicHash::Sha256)
+                                                                .toHex()));
         }
         identities.insert(QStringLiteral("DIRECT"), QStringLiteral("builtin:direct"));
         identities.insert(QStringLiteral("REJECT"), QStringLiteral("builtin:reject"));
         identities.insert(QStringLiteral("GLOBAL"),
                           QStringLiteral("global:") +
                               QString::fromLatin1(
-                                  QMessageAuthenticationCode::hash(serializeYaml(root["proxies"]),
-                                                                   key, QCryptographicHash::Sha256)
+                                  QMessageAuthenticationCode::hash(QByteArrayLiteral("GLOBAL"), key,
+                                                                   QCryptographicHash::Sha256)
                                       .toHex()));
     } catch (const YAML::Exception&) {
         return {};
@@ -235,6 +250,43 @@ QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key) {
         return {};
     }
     return identities;
+}
+QJsonObject configurationSummary(const QByteArray& semantic) {
+    try {
+        const auto root = YAML::Load(semantic.toStdString());
+        QJsonArray groups, nodes, all;
+        all.append(QStringLiteral("DIRECT"));
+        all.append(QStringLiteral("REJECT"));
+        for (const auto& node : root["proxies"]) {
+            const auto name = QString::fromStdString(node["name"].as<std::string>());
+            all.append(name);
+            nodes.append(QJsonObject{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("type"), QString::fromStdString(node["type"].as<std::string>())}});
+        }
+        for (const auto& group : root["proxy-groups"]) {
+            QJsonArray members;
+            for (const auto& member : group["proxies"])
+                members.append(QString::fromStdString(member.as<std::string>()));
+            const auto name = QString::fromStdString(group["name"].as<std::string>());
+            const auto type = QString::fromStdString(group["type"].as<std::string>());
+            all.append(name);
+            groups.append(QJsonObject{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("type"), type},
+                {QStringLiteral("canSelect"), type == QStringLiteral("select")},
+                {QStringLiteral("current"), members.isEmpty() ? QJsonValue{} : members.first()},
+                {QStringLiteral("members"), members}});
+        }
+        groups.prepend(QJsonObject{{QStringLiteral("name"), QStringLiteral("GLOBAL")},
+                                   {QStringLiteral("type"), QStringLiteral("select")},
+                                   {QStringLiteral("canSelect"), true},
+                                   {QStringLiteral("current"), all.first()},
+                                   {QStringLiteral("members"), all}});
+        return {{QStringLiteral("groups"), groups}, {QStringLiteral("nodes"), nodes}};
+    } catch (const YAML::Exception&) {
+        return {};
+    }
 }
 QString redactedConfig(const QByteArray& semantic) {
     try {
@@ -260,6 +312,178 @@ QString redactedConfig(const QByteArray& semantic) {
         return QStringLiteral("InvalidYaml");
     } catch (const InvalidConfig&) {
         return QStringLiteral("InvalidYaml");
+    }
+}
+
+namespace {
+YAML::Node boundedYaml(const QByteArray& input) {
+    require(input.size() <= 16 * 1024 * 1024, "ConfigLimitExceeded");
+    std::istringstream stream(input.toStdString());
+    YAML::Parser parser(stream);
+    ParseBudget budget;
+    while (parser.HandleNextDocument(budget)) {
+    }
+    const auto documents = YAML::LoadAll(input.toStdString());
+    require(documents.size() == 1, "InvalidYaml");
+    std::size_t count = 100000;
+    inspectTree(documents.front(), 0, count);
+    return documents.front();
+}
+} // namespace
+domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
+    try {
+        const auto root = boundedYaml(input);
+        require(root.IsMap());
+        QJsonArray requests;
+        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
+            const auto providers = root[kind];
+            if (!providers)
+                continue;
+            require(providers.IsMap() && providers.size() <= 32, "ProviderLimitExceeded");
+            for (const auto& entry : providers) {
+                require(entry.first.IsScalar() && entry.first.Scalar().size() <= 512);
+                const auto value = entry.second;
+                require(value.IsMap() && value["type"] && value["type"].as<std::string>() == "http",
+                        "ProviderHttpsRequired");
+                const std::set<std::string> allowed{"type",     "url",          "path",
+                                                    "interval", "health-check", "behavior",
+                                                    "format",   "size-limit"};
+                for (const auto& field : value)
+                    require(allowed.contains(field.first.as<std::string>()),
+                            "UnsupportedProviderField");
+                const auto urlText = QString::fromStdString(value["url"].as<std::string>());
+                const QUrl url(urlText);
+                require(urlText.size() <= 8192 && url.isValid() && url.scheme() == "https" &&
+                            !url.host().isEmpty() && url.userInfo().isEmpty() && !url.hasFragment(),
+                        "ProviderHttpsRequired");
+                const auto format = value["format"] ? value["format"].as<std::string>() : "yaml";
+                require(format == "yaml" ||
+                            (std::string(kind) == "rule-providers" && format == "text"),
+                        "UnsupportedProviderFormat");
+                const auto behavior =
+                    value["behavior"] ? value["behavior"].as<std::string>() : "classical";
+                require(behavior == "classical" || behavior == "domain" || behavior == "ipcidr",
+                        "UnsupportedProviderFormat");
+                requests.append(QJsonObject{
+                    {QStringLiteral("key"), QString::fromLatin1(kind) + ':' +
+                                                QString::fromStdString(entry.first.Scalar())},
+                    {QStringLiteral("name"), QString::fromStdString(entry.first.Scalar())},
+                    {QStringLiteral("kind"), QString::fromLatin1(kind)},
+                    {QStringLiteral("url"), urlText}});
+            }
+        }
+        require(requests.size() <= 32, "ProviderLimitExceeded");
+        return requests;
+    } catch (const InvalidConfig& failure) {
+        return inputError(failure.code);
+    } catch (const YAML::Exception&) {
+        return inputError("InvalidProviderConfig");
+    }
+}
+domain::Result<QByteArray> expandProviders(const QByteArray& input,
+                                           const QHash<QString, QByteArray>& payloads) {
+    try {
+        auto root = boundedYaml(input);
+        std::map<std::string, std::vector<std::string>> proxyNames, ruleValues;
+        if (!root["proxies"])
+            root["proxies"] = YAML::Node(YAML::NodeType::Sequence);
+        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
+            for (const auto& entry : root[kind]) {
+                const auto name = entry.first.as<std::string>();
+                const auto key = QString::fromLatin1(kind) + ':' + QString::fromStdString(name);
+                require(payloads.contains(key), "ProviderSnapshotMissing");
+                const auto bytes = payloads.value(key);
+                require(bytes.size() <= 4 * 1024 * 1024, "ProviderLimitExceeded");
+                YAML::Node values;
+                const auto format =
+                    entry.second["format"] ? entry.second["format"].as<std::string>() : "yaml";
+                if (format == "text") {
+                    values = YAML::Node(YAML::NodeType::Sequence);
+                    for (const auto& line : QString::fromUtf8(bytes).split('\n')) {
+                        const auto value = line.trimmed();
+                        if (!value.isEmpty() && !value.startsWith('#'))
+                            values.push_back(value.toStdString());
+                    }
+                } else {
+                    const auto document = boundedYaml(bytes);
+                    values =
+                        document[std::string(kind) == "proxy-providers" ? "proxies" : "payload"];
+                }
+                require(values.IsSequence() && values.size() <= 20000, "InvalidProviderPayload");
+                if (std::string(kind) == "proxy-providers") {
+                    proxyNames[name] = {};
+                    for (const auto& proxy : values) {
+                        proxyNames[name].push_back(proxy["name"].as<std::string>());
+                        root["proxies"].push_back(YAML::Clone(proxy));
+                    }
+                } else {
+                    ruleValues[name] = {};
+                    const auto behavior = entry.second["behavior"]
+                                              ? entry.second["behavior"].as<std::string>()
+                                              : "classical";
+                    for (const auto& item : values) {
+                        auto value = item.as<std::string>();
+                        require(value.size() <= 8192, "ProviderLimitExceeded");
+                        if (behavior == "domain") {
+                            if (value.starts_with("+."))
+                                value = "DOMAIN-SUFFIX," + value.substr(2);
+                            else if (value.starts_with("*."))
+                                value = "DOMAIN-SUFFIX," + value.substr(2);
+                            else
+                                value = "DOMAIN," + value;
+                        } else if (behavior == "ipcidr")
+                            value =
+                                (value.find(':') == std::string::npos ? "IP-CIDR," : "IP-CIDR6,") +
+                                value;
+                        ruleValues[name].push_back(value);
+                    }
+                }
+            }
+            root.remove(kind);
+        }
+        for (auto group : root["proxy-groups"]) {
+            if (!group["use"])
+                continue;
+            require(group["use"].IsSequence() && group["use"].size() <= 32,
+                    "InvalidProviderConfig");
+            if (!group["proxies"])
+                group["proxies"] = YAML::Node(YAML::NodeType::Sequence);
+            for (const auto& reference : group["use"]) {
+                const auto name = reference.as<std::string>();
+                require(proxyNames.contains(name), "ProviderSnapshotMissing");
+                for (const auto& member : proxyNames[name])
+                    group["proxies"].push_back(member);
+            }
+            group.remove("use");
+        }
+        YAML::Node rules(YAML::NodeType::Sequence);
+        for (const auto& rule : root["rules"]) {
+            const auto parts = QString::fromStdString(rule.as<std::string>()).split(',');
+            if (parts.first() != "RULE-SET") {
+                rules.push_back(YAML::Clone(rule));
+                continue;
+            }
+            require(parts.size() == 3 || (parts.size() == 4 && parts[3] == "no-resolve"),
+                    "InvalidProviderConfig");
+            const auto name = parts[1].toStdString();
+            require(ruleValues.contains(name), "ProviderSnapshotMissing");
+            for (auto value : ruleValues[name]) {
+                const bool noResolve = value.ends_with(",no-resolve") || parts.size() == 4;
+                if (value.ends_with(",no-resolve"))
+                    value.resize(value.size() - 11);
+                value += ',' + parts[2].toStdString();
+                if (noResolve)
+                    value += ",no-resolve";
+                rules.push_back(value);
+                require(rules.size() <= 20000, "ProviderLimitExceeded");
+            }
+        }
+        root["rules"] = rules;
+        return serializeYaml(root);
+    } catch (const InvalidConfig& failure) {
+        return inputError(failure.code);
+    } catch (const YAML::Exception&) {
+        return inputError("InvalidProviderPayload");
     }
 }
 

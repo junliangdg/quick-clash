@@ -19,6 +19,20 @@
 #include <iostream>
 
 namespace {
+class MemoryProxySettings final : public quickclash::platform::ProxySettings {
+  public:
+    QJsonObject value{{QStringLiteral("flags"), 1},
+                      {QStringLiteral("server"), QString{}},
+                      {QStringLiteral("bypass"), QString{}},
+                      {QStringLiteral("pac"), QString{}}};
+    quickclash::domain::Result<QJsonObject> read() override {
+        return value;
+    }
+    quickclash::domain::CommandResult write(const QJsonObject& next) override {
+        value = next;
+        return std::monostate{};
+    }
+};
 bool waitFor(const std::function<bool()>& condition, int limit = 15000) {
     QElapsedTimer time;
     time.start();
@@ -80,6 +94,18 @@ int main(int argc, char** argv) {
         return 2;
     const auto id =
         runtime.snapshot().value("profiles").toArray()[0].toObject().value("id").toString();
+    if (!require(runtime.snapshot().value("selectedId").toString() == id &&
+                     !runtime.snapshot().value("groups").toArray().isEmpty() &&
+                     !runtime.snapshot().value("ready").toBool(),
+                 "first import selects profile and exposes offline groups", runtime))
+        return 100;
+    runtime.selectProxy(QString::fromUtf8("代理 / A%?#"), QStringLiteral("DIRECT"));
+    bool offlineSelected = false;
+    for (const auto& value : runtime.snapshot().value("groups").toArray())
+        offlineSelected |= value.toObject().value("name") == QString::fromUtf8("代理 / A%?#") &&
+                           value.toObject().value("current") == QStringLiteral("DIRECT");
+    if (!require(offlineSelected, "select node before starting core", runtime))
+        return 101;
     runtime.selectProfile(id);
     if (!require(waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }) &&
                      runtime.snapshot().value("selectedId").toString() == id,
@@ -87,7 +113,8 @@ int main(int argc, char** argv) {
         return 3;
     runtime.start(false);
     if (!require(waitFor([&] {
-                     return runtime.snapshot().value("ready").toBool() ||
+                     return (runtime.snapshot().value("ready").toBool() &&
+                             !runtime.snapshot().value("busy").toBool()) ||
                             (!runtime.snapshot().value("busy").toBool() &&
                              !runtime.snapshot().value("error").toString().isEmpty());
                  }) &&
@@ -117,9 +144,13 @@ int main(int argc, char** argv) {
                  "mode", runtime))
         return 7;
     runtime.stop();
-    if (!require(!runtime.snapshot().value("ready").toBool(), "stop", runtime))
+    if (!require(!runtime.snapshot().value("ready").toBool() &&
+                     !runtime.snapshot().value("groups").toArray().isEmpty(),
+                 "stop retains offline nodes", runtime))
         return 8;
-    quickclash::application::DesktopRuntime reopened(store);
+    auto subscriptionTime = QDateTime::currentDateTimeUtc();
+    quickclash::application::DesktopRuntime reopened(store, nullptr, nullptr,
+                                                     [&] { return subscriptionTime; });
     reopened.initialize();
     if (!require(reopened.snapshot().value("selectedId").toString() == id &&
                      reopened.snapshot().value("preferences").toObject().value("mode") ==
@@ -172,7 +203,7 @@ int main(int argc, char** argv) {
                      origin.lastAccept.contains("application/yaml"),
                  "https subscription", reopened))
         return 13;
-    const auto second = reopened.snapshot().value("profiles").toArray()[1].toObject();
+    auto second = reopened.snapshot().value("profiles").toArray()[1].toObject();
     reopened.selectProfile(second.value("id").toString());
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
                  "second selection", reopened))
@@ -208,6 +239,32 @@ int main(int argc, char** argv) {
                          .startsWith(QStringLiteral("HTTP 200")),
                  "website current proxy", reopened))
         return 18;
+    const auto ordinaryPid = reopened.snapshot().value("corePid");
+    reopened.setTun(true);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot().value("corePid") == ordinaryPid &&
+                     reopened.snapshot().value("tunState") == QStringLiteral("Off"),
+                 "unavailable service preserves ordinary proxy", reopened))
+        return 181;
+    reopened.testWebsite(QStringLiteral("https://127.0.0.1:%1/direct").arg(origin.serverPort()),
+                         QStringLiteral("Direct"));
+    if (!require(waitFor([&] {
+                     return reopened.snapshot()
+                                .value("features")
+                                .toObject()
+                                .value("websiteTest")
+                                .toObject()
+                                .value("state") != QStringLiteral("Running");
+                 }) &&
+                     reopened.snapshot()
+                             .value("features")
+                             .toObject()
+                             .value("websiteTest")
+                             .toObject()
+                             .value("path") == QStringLiteral("Direct"),
+                 "explicit direct request reports selected path", reopened))
+        return 182;
     origin.invalidSubscription = true;
     reopened.updateProfile(second.value("id").toString());
     if (!require(
@@ -218,7 +275,162 @@ int main(int argc, char** argv) {
             "invalid update preserves running configuration", reopened))
         return 19;
     origin.invalidSubscription = false;
+    const auto subscriptionId = second.value("id").toString();
+    reopened.configureSubscription(subscriptionId, 60, true);
+    reopened.selectProxy(QStringLiteral("upstream"), QStringLiteral("fixture"));
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
+                 "selection before update", reopened))
+        return 60;
+    const auto updatePid = reopened.snapshot().value("corePid");
+    const auto requestsBefore = origin.requests.size();
+    origin.subscription += "# updated public fixture\n";
+    origin.subscription.replace(
+        "proxy-groups:",
+        "  - {name: added, type: http, server: 127.0.0.1, port: 1}\nproxy-groups:");
+    origin.subscription.replace("proxies: [fixture, DIRECT]", "proxies: [fixture, DIRECT, added]");
+    subscriptionTime = subscriptionTime.addSecs(61 * 60);
+    for (int i = 0; i < 20; ++i)
+        reopened.reconcile();
+    if (!require(
+            waitFor([&] {
+                const auto state = reopened.snapshot();
+                return !state.value("busy").toBool() && state.value("ready").toBool() &&
+                       state.value("corePid") != updatePid &&
+                       state.value("profiles").toArray()[1].toObject().value("lastUpdateResult") ==
+                           "Updated";
+            }) &&
+                origin.requests.size() == requestsBefore + 1,
+            "overdue schedule coalesces and applies selected update", reopened))
+        return 61;
+    bool selectedRestored = false;
+    for (const auto& group : reopened.snapshot().value("groups").toArray())
+        if (group.toObject().value("name") == "upstream" &&
+            group.toObject().value("current") == "fixture")
+            selectedRestored = true;
+    reopened.testWebsite(QStringLiteral("https://fixture.quickclash.invalid:%1/after-update")
+                             .arg(origin.serverPort()));
+    if (!require(
+            selectedRestored && waitFor([&] {
+                return reopened.snapshot().value("testResult").toString().startsWith("HTTP 200");
+            }),
+            "selection and forwarding survive automatic apply", reopened))
+        return 62;
+    const auto unchangedPid = reopened.snapshot().value("corePid");
+    reopened.updateProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("corePid") == unchangedPid,
+                 "unchanged update does not restart core", reopened))
+        return 63;
+    origin.invalidSubscription = true;
+    subscriptionTime = subscriptionTime.addSecs(61 * 60);
+    reopened.reconcile();
+    if (!require(waitFor([&] {
+                     return reopened.snapshot()
+                                .value("profiles")
+                                .toArray()[1]
+                                .toObject()
+                                .value("lastUpdateResult") == "Failed";
+                 }) &&
+                     reopened.snapshot().value("corePid") == unchangedPid &&
+                     QDateTime::fromString(reopened.snapshot()
+                                               .value("profiles")
+                                               .toArray()[1]
+                                               .toObject()
+                                               .value("nextUpdateAt")
+                                               .toString(),
+                                           Qt::ISODate) > subscriptionTime,
+                 "rejected background update preserves core and backs off", reopened))
+        return 64;
+    origin.invalidSubscription = false;
+    reopened.configureSubscription(subscriptionId, 0, false);
+    origin.subscription += "# manual apply\n";
+    reopened.updateProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("corePid") == unchangedPid &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool(),
+                 "auto apply can be disabled", reopened))
+        return 65;
+    reopened.selectProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     !reopened.snapshot()
+                          .value("profiles")
+                          .toArray()[1]
+                          .toObject()
+                          .value("pendingApply")
+                          .toBool(),
+                 "manual use confirms downloaded candidate", reopened))
+        return 66;
+    reopened.updateProfile(subscriptionId);
+    reopened.stop();
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()[1]
+                             .toObject()
+                             .value("lastUpdateResult") == "Cancelled" &&
+                     !reopened.snapshot().value("ready").toBool(),
+                 "stop cancels pending update without restart", reopened))
+        return 67;
+    reopened.start(false);
+    if (!require(waitFor([&] {
+                     return reopened.snapshot().value("ready").toBool() &&
+                            !reopened.snapshot().value("busy").toBool();
+                 }),
+                 "restart after cancelled update", reopened))
+        return 68;
     const auto validSubscription = origin.subscription;
+    second = reopened.snapshot().value("profiles").toArray()[1].toObject();
+    // Fail only the candidate's listener, then let compensation restart the old session.
+    reopened.configureSubscription(subscriptionId, 0, true);
+    QTcpServer candidatePortBlocker;
+    bool candidateBlocked = false;
+    const auto beforeRejectedApply = reopened.snapshot().value("selectionGeneration");
+    const auto applyFailure =
+        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &app,
+                         [&](const QJsonObject& state) {
+                             if (state.value("status") == "Starting" && !candidateBlocked) {
+                                 candidateBlocked = candidatePortBlocker.listen(
+                                     QHostAddress::LocalHost, static_cast<quint16>(mixed));
+                             }
+                             if (candidateBlocked && !state.value("error").toString().isEmpty())
+                                 candidatePortBlocker.close();
+                         });
+    origin.subscription += "# rejected candidate start\n";
+    reopened.updateProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                     candidateBlocked && reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot().value("selectionGeneration") == beforeRejectedApply &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()[1]
+                             .toObject()
+                             .value("lastUpdateResult") == "Failed" &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool(),
+                 "automatic apply failure compensates to confirmed session", reopened))
+        return 69;
+    QObject::disconnect(applyFailure);
+    reopened.setMode(QStringLiteral("rule"));
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool(),
+                 "mode change cannot mark unapplied download as applied", reopened))
+        return 70;
+    reopened.configureSubscription(subscriptionId, 0, false);
+    second = reopened.snapshot().value("profiles").toArray()[1].toObject();
     for (const auto& body : {QByteArrayLiteral("<html>Sign in</html>"),
                              QByteArrayLiteral("c3M6Ly9wdWJsaWMtZml4dHVyZQ=="), QByteArray{}}) {
         origin.subscription = body;
@@ -301,6 +513,20 @@ int main(int argc, char** argv) {
                          std::get<QJsonObject>(firstLease) == std::get<QJsonObject>(repeatedLease),
                      "native idempotent acquire", reopened))
             return 31;
+        reopened.configureSubscription(subscriptionId, 60, true);
+        origin.subscription += "# native system proxy update\n";
+        reopened.updateProfile(subscriptionId);
+        if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                         reopened.snapshot().value("ready").toBool() &&
+                         reopened.snapshot().value("systemProxy").toBool() &&
+                         !reopened.snapshot()
+                              .value("profiles")
+                              .toArray()[0]
+                              .toObject()
+                              .value("pendingApply")
+                              .toBool(),
+                     "native lease restored after subscription auto apply", reopened))
+            return 71;
         const auto migratedPort = port();
         reopened.setPorts(migratedPort, controller);
         if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
@@ -350,6 +576,17 @@ int main(int argc, char** argv) {
             return 28;
     }
     reopened.stop();
+    {
+        quickclash::application::DesktopRuntime restoredSchedule(store);
+        restoredSchedule.initialize();
+        const auto policy = restoredSchedule.snapshot().value("profiles").toArray()[0].toObject();
+        if (!require(policy.value("updateIntervalMinutes").toInt() == (nativePassed ? 60 : 0) &&
+                         policy.value("autoApply").toBool() == nativePassed &&
+                         !restoredSchedule.snapshot().value("ready").toBool(),
+                     "subscription policy survives app reopen without starting core",
+                     restoredSchedule))
+            return 72;
+    }
     const auto stoppedOperation = reopened.stopProxy(quickclash::domain::StopReason::UserStop);
     if (!require(!stoppedOperation.isNull() &&
                      reopened.snapshot().value("operation").toObject().value("state") ==
@@ -524,6 +761,284 @@ int main(int argc, char** argv) {
                  "DNS Geo Ready", reopened))
         return 56;
     reopened.stop();
+    reopened.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
+                                                "tests/fixtures/mvp/advanced_supported.yaml")))
+                            .toString(),
+                        QStringLiteral("Advanced DNS and TUIC"));
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("profiles").toArray().size() == 3,
+                 "advanced official isolated validation", reopened))
+        return 110;
+    reopened.selectProfile(
+        reopened.snapshot().value("profiles").toArray()[2].toObject().value("id").toString());
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
+                 "advanced selection", reopened))
+        return 111;
+    reopened.start(false);
+    if (!require(waitFor([&] {
+                     return reopened.snapshot().value("ready").toBool() &&
+                            !reopened.snapshot().value("busy").toBool();
+                 }),
+                 "advanced Ready", reopened))
+        return 112;
+    reopened.featureCommand(QStringLiteral("rules"), {});
+    if (!require(waitFor([&] { return !reopened.snapshot().value("rules").toArray().isEmpty(); }),
+                 "rules API", reopened))
+        return 113;
+    reopened.featureCommand(QStringLiteral("flush_dns"), {});
+    if (!require(waitFor([&] {
+                     return !reopened.snapshot()
+                                 .value("features")
+                                 .toObject()
+                                 .value("dnsResult")
+                                 .toString()
+                                 .isEmpty();
+                 }) &&
+                     reopened.snapshot().value("features").toObject().value("dnsResult") ==
+                         "Cleared",
+                 "DNS cache API", reopened))
+        return 114;
+    reopened.setDemands(
+        {QStringLiteral("traffic"), QStringLiteral("resources"), QStringLiteral("connections")});
+    if (!require(waitFor([&] {
+                     const auto f = reopened.snapshot().value("features").toObject();
+                     return f.contains("traffic") && f.contains("memory") &&
+                            f.contains("connectionSample");
+                 }),
+                 "live feature demand", reopened))
+        return 115;
+    reopened.setDemands({});
+    reopened.stop();
+    reopened.featureCommand(QStringLiteral("backup"), {QStringLiteral("confirmed")});
+    const auto archiveUrl =
+        reopened.snapshot().value("features").toObject().value("backupUrl").toString();
+    if (!require(!archiveUrl.isEmpty(), "offline backup", reopened))
+        return 116;
+    QFile archive(QUrl(archiveUrl).toLocalFile());
+    if (!archive.open(QIODevice::ReadOnly))
+        return 117;
+    auto archiveObject = QJsonDocument::fromJson(archive.readAll()).object();
+    if (archiveObject.contains("secretRef") ||
+        archiveObject.value("profiles").toArray().size() != 3)
+        return 118;
+    reopened.featureCommand(QStringLiteral("restore_backup"),
+                            {archiveUrl, QStringLiteral("confirmed")});
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                     reopened.snapshot().value("profiles").toArray().size() == 6,
+                 "atomic backup restore", reopened))
+        return 119;
+    auto corrupt = archiveObject.value("profiles").toArray();
+    auto firstEntry = corrupt[0].toObject();
+    firstEntry.insert(QStringLiteral("sha256"), QStringLiteral("bad"));
+    corrupt[0] = firstEntry;
+    archiveObject.insert(QStringLiteral("profiles"), corrupt);
+    const auto badArchivePath = directory.filePath(QStringLiteral("bad_backup.json"));
+    QFile badArchive(badArchivePath);
+    if (!badArchive.open(QIODevice::WriteOnly))
+        return 120;
+    badArchive.write(QJsonDocument(archiveObject).toJson());
+    badArchive.close();
+    reopened.featureCommand(
+        QStringLiteral("restore_backup"),
+        {QUrl::fromLocalFile(badArchivePath).toString(), QStringLiteral("confirmed")});
+    if (!require(reopened.snapshot().value("error") == "InvalidBackup" &&
+                     reopened.snapshot().value("profiles").toArray().size() == 6,
+                 "bad backup leaves catalog intact", reopened))
+        return 121;
+    evidence.insert(QStringLiteral("p3FeatureChecks"),
+                    QJsonArray{"advanced_official_validation", "advanced_ready", "rules_api",
+                               "dns_cache_flush", "live_traffic_connections_resources",
+                               "backup_restore_atomic", "bad_backup_preserves_catalog"});
+    origin.requiredUserAgent = "clash.meta/";
+    origin.payloads.insert(
+        "/provider_nodes",
+        "proxies:\n  - {name: managed_fixture, type: http, server: 127.0.0.1, port: 9}\n");
+    origin.payloads.insert("/provider_rules",
+                           "payload: ['DOMAIN,example.invalid', 'DOMAIN-SUFFIX,example.com']\n");
+    origin.subscription =
+        "proxy-providers:\n  managed:\n    type: http\n    url: https://127.0.0.1:" +
+        QByteArray::number(origin.serverPort()) +
+        "/provider_nodes\n    interval: 3600\nrule-providers:\n  domains:\n    type: http\n    "
+        "behavior: classical\n    url: https://127.0.0.1:" +
+        QByteArray::number(origin.serverPort()) +
+        "/provider_rules\n    interval: 3600\nproxy-groups:\n  - {name: managed_group, type: "
+        "select, use: [managed]}\nrules:\n  - RULE-SET,domains,managed_group\n  - MATCH,DIRECT\n";
+    reopened.addSubscription(source, QStringLiteral("Managed providers"));
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("profiles").toArray().size() == 7,
+                 "managed HTTPS provider snapshots", reopened))
+        return 122;
+    const auto providerId =
+        reopened.snapshot().value("profiles").toArray().last().toObject().value("id").toString();
+    reopened.selectProfile(providerId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     !reopened.snapshot().value("groups").toArray().isEmpty(),
+                 "provider nodes offline", reopened))
+        return 123;
+    reopened.start(false);
+    if (!require(waitFor([&] {
+                     return reopened.snapshot().value("ready").toBool() &&
+                            !reopened.snapshot().value("busy").toBool();
+                 }),
+                 "managed provider Ready", reopened))
+        return 124;
+    reopened.featureCommand(QStringLiteral("rules"), {});
+    if (!require(waitFor([&] { return reopened.snapshot().value("rules").toArray().size() >= 3; }),
+                 "expanded RULE-SET installed", reopened))
+        return 125;
+    const auto providerHash =
+        reopened.snapshot().value("profiles").toArray().last().toObject().value("snapshotHash");
+    origin.payloads.insert("/provider_nodes", "invalid");
+    reopened.updateProfile(providerId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()
+                             .last()
+                             .toObject()
+                             .value("snapshotHash") == providerHash,
+                 "bad provider preserves running snapshot", reopened))
+        return 126;
+    reopened.stop();
+    evidence.insert(QStringLiteral("managedProviderChecks"),
+                    QJsonArray{"https_snapshots", "offline_nodes", "official_validation_ready",
+                               "ruleset_expansion", "bad_update_retains_session"});
+    if (!require(!reopened.snapshot().value("groups").toArray().isEmpty(),
+                 "offline nodes remain after stop", reopened))
+        return 127;
+    reopened.featureCommand(QStringLiteral("cancel_test"), {});
+    if (!require(reopened.snapshot()
+                         .value("features")
+                         .toObject()
+                         .value("websiteTest")
+                         .toObject()
+                         .value("state") == "Cancelled",
+                 "cancel clears website state even between queued requests", reopened))
+        return 128;
+    // The retained subscription revision restores only after confirmation.
+    for (const auto& entry : reopened.snapshot().value("profiles").toArray()) {
+        const auto item = entry.toObject();
+        if (item.value("history").toArray().isEmpty())
+            continue;
+        const auto previousHash =
+            item.value("history").toArray().first().toObject().value("sourceHash");
+        reopened.featureCommand(QStringLiteral("rollback_profile"),
+                                {item.value("id").toString(), QStringLiteral("confirmed")});
+        if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
+                     "rollback completes", reopened))
+            return 129;
+        bool found = false;
+        for (const auto& restored : reopened.snapshot().value("profiles").toArray())
+            found |= restored.toObject().value("id") == item.value("id") &&
+                     restored.toObject().value("sourceHash") == previousHash;
+        if (!require(found, "previous snapshot restored", reopened))
+            return 130;
+        break;
+    }
+    {
+        QTemporaryDir managedDirectory;
+        quickclash::infra::JsonStore managedStore(managedDirectory.path());
+        if (!std::holds_alternative<std::monostate>(managedStore.open()))
+            return 131;
+        MemoryProxySettings settings;
+        const auto original = settings.value;
+        quickclash::application::DesktopRuntime managed(managedStore, nullptr, &settings);
+        managed.initialize();
+        int managedMixed = port(), managedController = port();
+        while (managedMixed == managedController)
+            managedController = port();
+        managed.setPorts(managedMixed, managedController);
+        managed.enableBackgroundManagement();
+        if (!require(!managed.snapshot().value("ready").toBool() &&
+                         !managed.snapshot().value("recovering").toBool(),
+                     "empty managed runtime waits for a profile", managed))
+            return 132;
+        const auto fixturePath = managedDirectory.filePath(QStringLiteral("nodes.yaml"));
+        QFile managedFixture(fixturePath);
+        if (!managedFixture.open(QIODevice::WriteOnly))
+            return 133;
+        managedFixture.write(
+            "proxies:\n  - {name: first, type: http, server: 127.0.0.1, port: 9}\n"
+            "  - {name: second, type: http, server: 127.0.0.1, port: 9}\n"
+            "proxy-groups:\n  - {name: managed_group, type: select, proxies: [first, second]}\n"
+            "rules: ['MATCH,managed_group']\n");
+        managedFixture.close();
+        managed.importFile(QUrl::fromLocalFile(fixturePath).toString(),
+                           QStringLiteral("Managed A"));
+        const auto isReady = [&] {
+            return managed.snapshot().value("ready").toBool() &&
+                   !managed.snapshot().value("busy").toBool();
+        };
+        if (!require(waitFor(isReady) && !managed.snapshot().value("systemProxy").toBool(),
+                     "first import starts background core without enabling network switches",
+                     managed))
+            return 134;
+        const auto firstId = managed.snapshot().value("selectedId").toString();
+        const auto firstPid = managed.snapshot().value("corePid").toInt();
+        (void)managed.setSystemProxy(true);
+        (void)managed.setSystemProxy(false);
+        if (!require(isReady() && managed.snapshot().value("corePid").toInt() == firstPid &&
+                         settings.value == original,
+                     "system proxy off preserves core and restores platform settings", managed))
+            return 135;
+        managed.featureCommand(
+            QStringLiteral("delay_batch"),
+            {QStringLiteral("managed_group"), QStringLiteral("https://example.invalid/")});
+        if (!require(waitFor([&] {
+                         return managed.snapshot()
+                                    .value("features")
+                                    .toObject()
+                                    .value("delayTest")
+                                    .toObject()
+                                    .value("state") == "Completed";
+                     }) &&
+                         managed.snapshot().value("delays").toObject().size() == 2,
+                     "batch delay tests every node and completes despite unavailable nodes",
+                     managed))
+            return 136;
+        managed.featureCommand(
+            QStringLiteral("delay"),
+            {QStringLiteral("first"), QStringLiteral("https://example.invalid/")});
+        managed.featureCommand(QStringLiteral("cancel_delays"), {});
+        managed.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
+                                                   "tests/fixtures/mvp/dns_supported.yaml")))
+                               .toString(),
+                           QStringLiteral("Managed B"));
+        if (!require(waitFor([&] { return !managed.snapshot().value("busy").toBool(); }),
+                     "second managed import", managed))
+            return 137;
+        const auto secondId =
+            managed.snapshot().value("profiles").toArray().last().toObject().value("id").toString();
+        managed.selectProfile(secondId);
+        if (!require(waitFor(isReady) && managed.snapshot().value("selectedId") == secondId &&
+                         managed.snapshot().value("delays").toObject().isEmpty(),
+                     "card selection switches running profile and invalidates old delay results",
+                     managed))
+            return 138;
+        managed.selectProfile(firstId);
+        if (!require(waitFor(isReady), "switch back to managed subscription", managed))
+            return 139;
+        for (int crash = 0; crash < 4; ++crash) {
+            const auto pid = managed.snapshot().value("corePid").toInt();
+            if (!quickclash::test::terminateOwnedFixture(static_cast<quint32>(pid)) ||
+                !require(waitFor([&] {
+                             return isReady() && managed.snapshot().value("corePid").toInt() != pid;
+                         }),
+                         "managed core keeps recovering beyond three crashes", managed))
+                return 140;
+        }
+        managed.stop(quickclash::domain::StopReason::AppExit);
+        if (!require(!managed.snapshot().value("ready").toBool() &&
+                         !managed.snapshot().value("recovering").toBool() &&
+                         settings.value == original,
+                     "exit cancels recovery and restores network", managed))
+            return 141;
+    }
+    evidence.insert(QStringLiteral("managedCoreChecks"),
+                    QJsonArray{"empty_waits", "first_import_autostarts", "proxy_off_keeps_core",
+                               "batch_node_delays", "switch_invalidates_old_delays",
+                               "four_crashes_recover", "exit_cleanup"});
     QSaveFile evidenceFile(QDir(QCoreApplication::applicationDirPath())
                                .filePath(QStringLiteral("p2_runtime_evidence.json")));
     if (!evidenceFile.open(QIODevice::WriteOnly) ||

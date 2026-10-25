@@ -62,6 +62,8 @@ if(QUICKCLASH_BUILD_UI)
 find_package(Qt6 ${QUICKCLASH_MINIMUM_QT_VERSION} REQUIRED COMPONENTS Network)
 add_library(quickclash_engine
     src/platform/windows/owned_process.cpp src/platform/windows/owned_process.h
+    src/infra/core/service_client.cpp src/infra/core/service_client.h
+    src/infra/core/pipe_http.cpp src/infra/core/pipe_http.h
     src/infra/core/engine_session.cpp src/infra/core/engine_session.h)
 set_target_properties(quickclash_engine PROPERTIES AUTOMOC ON)
 target_link_libraries(quickclash_engine PUBLIC quickclash_storage Qt6::Network)
@@ -69,14 +71,23 @@ if(WIN32)
     target_link_libraries(quickclash_engine PRIVATE iphlpapi ws2_32 userenv advapi32)
 endif()
 quickclash_warnings(quickclash_engine)
+if(WIN32)
+    add_executable(quickclash_service app/service_main.cpp
+        src/platform/windows/service_host.cpp src/platform/windows/service_host.h)
+    set_target_properties(quickclash_service PROPERTIES AUTOMOC ON)
+    target_link_libraries(quickclash_service PRIVATE quickclash_engine quickclash_config yaml-cpp::yaml-cpp iphlpapi advapi32 psapi)
+    quickclash_warnings(quickclash_service)
+    install(TARGETS quickclash_service RUNTIME DESTINATION bin)
+endif()
 add_library(quickclash_runtime
     src/infra/storage/settings_service.cpp src/infra/storage/settings_service.h
     src/platform/windows/system_proxy.cpp src/platform/windows/system_proxy.h
     src/application/desktop_runtime.cpp src/application/desktop_runtime.h)
+target_sources(quickclash_runtime PRIVATE src/application/desktop_features.cpp src/application/desktop_providers.cpp src/application/desktop_backup.cpp src/application/desktop_resources.cpp)
 set_target_properties(quickclash_runtime PROPERTIES AUTOMOC ON)
 target_link_libraries(quickclash_runtime PUBLIC quickclash_engine quickclash_config)
 if(WIN32)
-    target_link_libraries(quickclash_runtime PRIVATE wininet)
+    target_link_libraries(quickclash_runtime PRIVATE wininet psapi)
 endif()
 if(BUILD_TESTING)
     target_compile_definitions(quickclash_runtime PRIVATE
@@ -113,6 +124,9 @@ if(QUICKCLASH_BUILD_UI)
         app/host_probe.cpp app/host_probe.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network quickclash_application quickclash_runtime quickclash_localization)
+    if(WIN32)
+        target_link_libraries(quickclash PRIVATE iphlpapi ws2_32)
+    endif()
     target_include_directories(quickclash PRIVATE src/presentation)
     quickclash_warnings(quickclash)
     set_target_properties(quickclash PROPERTIES WIN32_EXECUTABLE TRUE MACOSX_BUNDLE TRUE MACOSX_BUNDLE_BUNDLE_NAME QuickClash)
@@ -124,6 +138,8 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/action_button.qml
         qml/components/deferred_content.qml
         qml/components/replay_list.qml
+        qml/components/runtime_list.qml
+        qml/components/subscription_details.qml
         qml/components/traffic_sparkline.qml
         qml/shell/page_host.qml
         qml/shell/embedded_host.qml
@@ -198,6 +214,13 @@ if(BUILD_TESTING)
         quickclash_warnings(runtime_test)
         add_test(NAME runtime COMMAND runtime_test)
         set_tests_properties(runtime PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+        if(WIN32)
+            add_executable(recovery_test tests/integration/recovery_test.cpp)
+            target_link_libraries(recovery_test PRIVATE quickclash_runtime)
+            quickclash_warnings(recovery_test)
+            add_test(NAME recovery COMMAND recovery_test)
+            set_tests_properties(recovery PROPERTIES TIMEOUT 60 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+        endif()
         find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
         add_executable(localization_test tests/unit/localization_test.cpp)
         target_link_libraries(localization_test PRIVATE quickclash_localization)

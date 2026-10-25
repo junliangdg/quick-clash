@@ -53,26 +53,54 @@ domain::Error failure() {
     return error;
 }
 } // namespace
-QJsonObject geoResourceManifest(const QByteArray& semantic) {
+QJsonObject geoResourceManifest(const QByteArray& semantic, const QJsonObject& snapshot) {
     QJsonArray resources;
     if (needed(semantic))
-        for (const auto& asset : kAssets)
-            resources.append(
+        for (const auto& asset : kAssets) {
+            const auto entry = snapshot.value(QLatin1String(asset.source)).toObject();
+            auto record =
                 QJsonObject{{QStringLiteral("name"), QString::fromLatin1(asset.target)},
-                            {QStringLiteral("sha256"), QString::fromLatin1(asset.sha256)}});
+                            {QStringLiteral("sha256"), QString::fromLatin1(asset.sha256)}};
+            if (!snapshot.isEmpty()) {
+                record.insert(QStringLiteral("sha256"), entry.value(QStringLiteral("sha256")));
+                record.insert(QStringLiteral("sourceRef"),
+                              entry.value(QStringLiteral("sourceRef")));
+            }
+            resources.append(record);
+        }
     return {{QStringLiteral("schemaVersion"), 1}, {QStringLiteral("resources"), resources}};
 }
-domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QString& directory) {
+domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QString& directory,
+                                          const QJsonObject& snapshot, const QString& storageRoot) {
     if (!needed(semantic))
         return std::monostate{};
     const QDir source(sourceDirectory());
     for (const auto& asset : kAssets) {
-        QFile input(source.filePath(QString::fromLatin1(asset.source)));
+        auto path = source.filePath(QString::fromLatin1(asset.source));
+        auto expected = QByteArray(asset.sha256);
+        if (!snapshot.isEmpty()) {
+            const auto entry = snapshot.value(QLatin1String(asset.source)).toObject();
+            expected = entry.value(QStringLiteral("sha256")).toString().toLatin1();
+            const auto reference = entry.value(QStringLiteral("sourceRef")).toString();
+            if (storageRoot.isEmpty() || expected.size() != 64 ||
+                QByteArray::fromHex(expected).toHex() != expected ||
+                reference != QStringLiteral("data/geo/%1/%2")
+                                 .arg(QString::fromLatin1(expected), QLatin1String(asset.source)))
+                return failure();
+            path = QDir(storageRoot).filePath(reference);
+            for (auto info = QFileInfo(path);
+                 info.absoluteFilePath() != QDir(storageRoot).absolutePath();
+                 info = QFileInfo(info.absolutePath())) {
+                if (!info.exists() || info.isSymbolicLink() || info.isJunction() || info.isRoot())
+                    return failure();
+            }
+        }
+        QFile input(path);
         if (!input.open(QIODevice::ReadOnly) || input.size() > 32 * 1024 * 1024)
             return failure();
         const auto bytes = input.readAll();
         if (input.error() != QFileDevice::NoError ||
-            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex() != asset.sha256)
+            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex() != expected)
             return failure();
         QSaveFile output(QDir(directory).filePath(QString::fromLatin1(asset.target)));
         if (!output.open(QIODevice::WriteOnly) || output.write(bytes) != bytes.size() ||

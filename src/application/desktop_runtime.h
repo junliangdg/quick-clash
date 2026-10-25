@@ -5,6 +5,8 @@
 #include "infra/storage/settings_repository.h"
 #include "platform/windows/credential_store.h"
 #include "platform/windows/system_proxy.h"
+#include <QDateTime>
+#include <QElapsedTimer>
 #include <QJsonArray>
 #include <QNetworkAccessManager>
 #include <QSet>
@@ -18,12 +20,16 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     Q_OBJECT
   public:
     DesktopRuntime(infra::JsonStore& store, QObject* parent = nullptr,
-                   platform::ProxySettings* proxySettings = nullptr);
+                   platform::ProxySettings* proxySettings = nullptr,
+                   std::function<QDateTime()> clock = {});
     ~DesktopRuntime() override;
     void initialize();
+    // Enabled by the desktop host after storage and UI settings have loaded.
+    void enableBackgroundManagement();
     void importFile(const QString& url, const QString& name);
     void addSubscription(const QString& url, const QString& name);
     void updateProfile(const QString& id);
+    void configureSubscription(const QString& id, int intervalMinutes, bool autoApply);
     void changeProfileSource(const QString& id, const QString& url, const QString& headers);
     void selectProfile(const QString& id);
     void renameProfile(const QString& id, const QString& name);
@@ -38,10 +44,13 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void setMode(const QString& mode);
     void selectProxy(const QString& group, const QString& member);
     void setPorts(int mixed, int controller);
-    void testWebsite(const QString& target);
+    void setTun(bool desired);
+    void testWebsite(const QString& target, const QString& path = QStringLiteral("CurrentProxy"));
     void refresh();
     void previewConfiguration();
     void reapplySystemProxy();
+    void setDemands(const QStringList& streams);
+    void featureCommand(const QString& command, const QStringList& arguments);
     [[nodiscard]] QJsonObject snapshot() const;
   signals:
     void changed(const QJsonObject& state);
@@ -55,7 +64,14 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void download(const QString& url, const QString& name, const QString& id = {},
                   const QJsonObject& headers = {});
     void importBytes(const QByteArray& bytes, const QString& name, const QString& secretRef,
-                     const QString& id = {});
+                     const QString& id = {}, const QByteArray& original = {},
+                     const QJsonObject& metadata = {});
+    void resolveImport(const QByteArray& bytes, const QString& name, const QString& secretRef,
+                       const QString& id = {}, const QJsonObject& metadata = {});
+    void fetchProvider(const QByteArray& source, const QJsonArray& requests, qsizetype index,
+                       QHash<QString, QByteArray> payloads, const QString& name,
+                       const QString& secretRef, const QString& id, const QJsonObject& metadata,
+                       quint64 generation);
     void validate(const QByteArray& semantic, std::function<void(bool)> completion);
     void applyProfile(const QString& id, bool startAfter);
     void launch();
@@ -64,6 +80,22 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void cleanupSession();
     void collectGarbage();
     void restorePreferences();
+    void loadOfflineGroups();
+    void pollFeatures();
+    void appendLog(const QString& source, const QString& level, const QString& message);
+    void backupProfiles();
+    void closeNextConnection(const QJsonArray& targets, qsizetype index, const QString& epoch);
+    void startDelayTests(const QStringList& names, const QString& target);
+    void pumpDelayTests();
+    void cancelDelayTests();
+    void restoreBackup(const QString& url);
+    void restoreNext(const QJsonArray& entries, qsizetype index, QJsonArray staged,
+                     quint64 generation);
+    void updateGeo();
+    void fetchGeo(int index, QJsonObject snapshot, quint64 generation);
+    void scheduleSubscriptions();
+    void completeSubscriptionUpdate(const QString& result);
+    void scheduleBackgroundStart(bool afterFailure = false);
     [[nodiscard]] domain::CommandResult saveProxyIntent(bool desired);
     [[nodiscard]] QUuid beginOperation(const QString& kind);
     void finishOperation(domain::OperationState state, const QString& error = {});
@@ -83,6 +115,32 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QTimer validationDeadline_;
     QTimer recoveryTimer_;
     QTimer reconcileTimer_;
+    QTimer subscriptionTimer_;
+    QTimer featureTimer_;
+    QSet<QString> featureDemands_;
+    QJsonObject featureState_;
+    QJsonArray connections_;
+    QJsonArray rules_;
+    QJsonArray providers_;
+    QJsonArray logs_;
+    QJsonObject delays_;
+    bool featureRequest_ = false;
+    bool delayRunning_ = false;
+    QStringList delayQueue_;
+    QSet<QString> activeDelays_;
+    QString delayTarget_;
+    quint64 delayGeneration_ = 0;
+    bool closingConnections_ = false;
+    int droppedLogs_ = 0;
+    int resourceTick_ = 0;
+    qint64 connectionSampleMs_ = 0;
+    QElapsedTimer coreUptime_;
+    std::function<QDateTime()> clock_;
+    QString updatingSubscription_;
+    bool shuttingDown_ = false;
+    bool backgroundManaged_ = false;
+    bool backgroundSuppressed_ = false;
+    int recoveryFailures_ = 0;
     QList<qint64> crashTimes_;
     QPointer<QNetworkReply> downloadReply_;
     QPointer<QNetworkReply> testReply_;
@@ -110,6 +168,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QString lastError_;
     QString testResult_;
     QString testTarget_;
+    QStringList testQueue_;
+    QString testPath_;
+    quint64 testGeneration_ = 0;
     QString effectivePreview_;
     QString stopFailure_;
     QString epoch_;
@@ -124,5 +185,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool persistedProxyIntent_ = false;
     std::optional<bool> previousProxyIntent_;
     quint64 operationGeneration_ = 0;
+    quint64 reconcileRequests_ = 0;
+    quint64 reconcileCount_ = 0;
 };
 } // namespace quickclash::application

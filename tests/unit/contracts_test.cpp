@@ -8,6 +8,7 @@
 #include <iostream>
 #include <limits>
 #include <set>
+#include <source_location>
 #include <stdexcept>
 #include <string>
 
@@ -23,10 +24,14 @@ QByteArray fixture(const char* name) {
     check(file.open(QIODevice::ReadOnly), "fixture open");
     return file.readAll();
 }
-void expectError(const QByteArray& input, const char* code) {
+void expectError(const QByteArray& input, const char* code,
+                 const std::source_location location = std::source_location::current()) {
     const auto result = quickclash::infra::preflightConfig(input, {});
     check(std::holds_alternative<quickclash::domain::Error>(result), "input must fail");
-    check(std::get<quickclash::domain::Error>(result).code == QString::fromLatin1(code), code);
+    const auto actual = std::get<quickclash::domain::Error>(result).code;
+    if (actual != QString::fromLatin1(code))
+        throw std::runtime_error("line " + std::to_string(location.line()) + ": expected " + code +
+                                 ", got " + actual.toStdString());
 }
 } // namespace
 int main(int argc, char* argv[]) {
@@ -55,11 +60,19 @@ int main(int argc, char* argv[]) {
         check(subscriptionPayloadError("proxies: []\nproxies: []") == "DuplicateConfigKey",
               "format detection preserves duplicate-key rejection");
         const ConfigHistory history;
+        QTemporaryDir geoRoot, geoDestination;
+        QJsonObject invalidGeo{
+            {QStringLiteral("geoip.dat"),
+             QJsonObject{{QStringLiteral("sha256"), QString(64, QLatin1Char('a'))},
+                         {QStringLiteral("sourceRef"), QStringLiteral("../escape")}}}};
+        check(std::holds_alternative<Error>(quickclash::infra::prepareGeoResources(
+                  "dns: {enable: true}\nrules: []\n", geoDestination.path(), invalidGeo,
+                  geoRoot.path())),
+              "Geo snapshot rejects paths outside the resource store");
         check(!history.activeRevision && !history.lastGoodRevision,
               "first run has no confirmed history");
         const RuntimePreferences preferences;
-        check(!preferences.autoStart && !preferences.tunDesired && !preferences.systemProxyDesired,
-              "safe defaults");
+        check(!preferences.tunDesired && !preferences.systemProxyDesired, "safe defaults");
         check(formatBytes(std::numeric_limits<std::uint64_t>::max()) ==
                   QStringLiteral("18446744073709551615"),
               "64-bit precision");
@@ -131,6 +144,13 @@ int main(int argc, char* argv[]) {
         auto invalidDns = fixture("dns_supported.yaml");
         invalidDns.replace("https://dns.example.invalid/dns-query", "file:///private/resolver");
         expectError(invalidDns, "InvalidConfigField");
+        for (const auto* resolver :
+             {"https://127.0.0.1/dns-query", "tcp://[::ffff:127.0.0.1]:53", "udp://0.0.0.0:53"}) {
+            auto loopback = fixture("dns_supported.yaml");
+            loopback.replace("https://dns.example.invalid/dns-query",
+                             QByteArray("'") + resolver + '\'');
+            expectError(loopback, "InvalidConfigField");
+        }
         invalidDns = fixture("dns_supported.yaml");
         invalidDns.replace("198.18.0.1/16", "10.0.0.1/8");
         expectError(invalidDns, "InvalidConfigField");
@@ -207,6 +227,37 @@ int main(int argc, char* argv[]) {
         check(std::holds_alternative<Error>(bounded) &&
                   std::get<Error>(bounded).configIssues.size() == 32,
               "compatibility summaries remain bounded");
+        const QByteArray providerConfig =
+            "proxy-providers: {remote: {type: http, url: 'https://example.invalid/proxies', path: "
+            "'../escape'}}\n"
+            "rule-providers: {domains: {type: http, url: 'https://example.invalid/rules', "
+            "behavior: domain}}\n"
+            "proxy-groups: [{name: Main, type: select, use: [remote]}]\n"
+            "rules: ['RULE-SET,domains,Main', 'MATCH,DIRECT']\n";
+        const auto requests = quickclash::infra::providerRequests(providerConfig);
+        check(std::holds_alternative<QJsonArray>(requests) &&
+                  std::get<QJsonArray>(requests).size() == 2,
+              "managed providers discovered without accepting source paths");
+        const auto expanded = quickclash::infra::expandProviders(
+            providerConfig,
+            {{QStringLiteral("proxy-providers:remote"),
+              QByteArrayLiteral(
+                  "proxies: [{name: remote_node, type: http, server: 127.0.0.1, port: 8080}]")},
+             {QStringLiteral("rule-providers:domains"),
+              QByteArrayLiteral("payload: ['+.example.invalid']")}});
+        check(std::holds_alternative<QByteArray>(expanded), "provider snapshots expand");
+        const auto expandedBytes = std::get<QByteArray>(expanded);
+        check(!expandedBytes.contains("https://") && !expandedBytes.contains("../escape") &&
+                  expandedBytes.contains("DOMAIN-SUFFIX,example.invalid,Main") &&
+                  std::holds_alternative<quickclash::infra::PreflightConfig>(
+                      quickclash::infra::preflightConfig(expandedBytes, {})),
+              "expanded providers use safe inline policy and preserve rule target");
+        auto insecureProvider = providerConfig;
+        insecureProvider.replace("https://", "http://");
+        check(std::holds_alternative<Error>(quickclash::infra::providerRequests(insecureProvider)),
+              "insecure provider rejected");
+        check(std::holds_alternative<Error>(quickclash::infra::expandProviders(providerConfig, {})),
+              "missing provider cannot silently drop rules");
         std::cout << "PASS: domain defaults, stale contexts, operation transitions, config subset "
                      "and sessions\n";
         return 0;

@@ -1,4 +1,5 @@
 #include "application_host.h"
+#include <QAction>
 #include <QApplication>
 #include <QIcon>
 #include <QPainter>
@@ -79,17 +80,43 @@ void ApplicationHost::setupTray(bool noTray) {
     painter.end();
     trayMenu_ = std::make_unique<QMenu>();
     trayMenu_->addAction(tr("Open QuickClash"), this, [this] { (void)showWindow(); });
-    auto* status = trayMenu_->addAction(tr("Core stopped"));
+    auto* status = trayMenu_->addAction(tr("Waiting for a valid profile"));
     status->setEnabled(false);
     connect(&state_, &presentation::UiState::runtimeChanged, status, [this, status] {
-        status->setText(state_.runtime().value(QStringLiteral("ready")).toBool()
-                            ? tr("Mihomo ready")
-                            : tr("Core stopped"));
+        const auto runtime = state_.runtime();
+        status->setText(runtime.value(QStringLiteral("ready")).toBool() ? tr("Network engine ready")
+                        : runtime.value(QStringLiteral("selectedId")).toString().isEmpty()
+                            ? tr("Waiting for a valid profile")
+                            : tr("Network engine starting or recovering"));
     });
-    trayMenu_->addAction(tr("Start proxy"), this,
-                         [this] { state_.runtimeCommand(QStringLiteral("start_proxy")); });
-    trayMenu_->addAction(tr("Stop and restore proxy"), this,
-                         [this] { state_.runtimeCommand(QStringLiteral("stop")); });
+    auto* systemProxy = trayMenu_->addAction(tr("System proxy"));
+    auto* tun = trayMenu_->addAction(tr("Virtual network adapter (TUN)"));
+    systemProxy->setCheckable(true);
+    tun->setCheckable(true);
+    const auto syncNetwork = [this, systemProxy, tun] {
+        const auto runtime = state_.runtime();
+        const auto preferences = runtime.value(QStringLiteral("preferences")).toMap();
+        const bool enabled = !runtime.value(QStringLiteral("selectedId")).toString().isEmpty() &&
+                             !runtime.value(QStringLiteral("busy")).toBool() &&
+                             !runtime.value(QStringLiteral("readOnly")).toBool();
+        systemProxy->setEnabled(enabled);
+        tun->setEnabled(enabled);
+        systemProxy->setChecked(runtime.value(QStringLiteral("systemProxy")).toBool() ||
+                                preferences.value(QStringLiteral("systemProxyDesired")).toBool());
+        tun->setChecked(runtime.value(QStringLiteral("tunState")).toString() ==
+                            QStringLiteral("On") ||
+                        preferences.value(QStringLiteral("tunDesired")).toBool());
+    };
+    connect(&state_, &presentation::UiState::runtimeChanged, systemProxy, syncNetwork);
+    connect(systemProxy, &QAction::triggered, this, [this](bool checked) {
+        state_.runtimeCommand(QStringLiteral("system_proxy"),
+                              {checked ? QStringLiteral("true") : QStringLiteral("false")});
+    });
+    connect(tun, &QAction::triggered, this, [this](bool checked) {
+        state_.runtimeCommand(QStringLiteral("tun"),
+                              {checked ? QStringLiteral("true") : QStringLiteral("false")});
+    });
+    syncNetwork();
     trayMenu_->addSeparator();
     trayMenu_->addAction(tr("Settings"), this, [this] {
         (void)state_.navigate(QStringLiteral("settings"));

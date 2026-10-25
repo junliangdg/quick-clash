@@ -31,22 +31,22 @@ FeatureRegistry::FeatureRegistry() {
              QCoreApplication::translate("FeatureRegistry", availability), std::move(keys)});
     };
     add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "⌂",
-        "features/home/home_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Prototype"));
+        "features/home/home_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"), "⇄",
-        "features/proxies/proxies_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Replay"),
+        "features/proxies/proxies_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"group"});
     add("subscriptions", QT_TRANSLATE_NOOP("FeatureRegistry", "Subscriptions"), "▤",
         "features/subscriptions/subscriptions_page.qml",
-        QT_TRANSLATE_NOOP("FeatureRegistry", "P2"));
+        QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"), "⇌",
-        "features/connections/connections_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Replay"),
+        "features/connections/connections_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"filter"});
     add("rules", QT_TRANSLATE_NOOP("FeatureRegistry", "Rules"), "≡",
-        "features/rules/rules_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "P3"));
+        "features/rules/rules_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "☷", "features/logs/logs_page.qml",
-        QT_TRANSLATE_NOOP("FeatureRegistry", "P2 / P3"));
+        QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("tests", QT_TRANSLATE_NOOP("FeatureRegistry", "Tests"), "⌁",
-        "features/tests/tests_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "P2"));
+        "features/tests/tests_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("settings", QT_TRANSLATE_NOOP("FeatureRegistry", "Settings"), "⚙",
         "features/settings/settings_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Preferences"));
     embedded_.append({QStringLiteral("proxy_summary"),

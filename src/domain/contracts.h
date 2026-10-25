@@ -87,10 +87,10 @@ struct RuntimePreferences {
     ProxyMode mode = ProxyMode::Rule;
     bool tunDesired = false;
     bool systemProxyDesired = false;
-    bool autoStart = false;
     std::uint16_t mixedPort = 7890;
     std::uint16_t controllerPort = 9090;
     Generation version = 0;
+    QString dnsMode = QStringLiteral("profile");
 };
 struct EngineStatus {
     QUuid epoch;

@@ -1,0 +1,9 @@
+{
+  "result": "Pass",
+  "package_sample_sha_match": true,
+  "client_exit_code": 0,
+  "owned_core_exited": true,
+  "private_url_and_credential_patterns": "none in current G2 report/evidence/test",
+  "private_subscriptions_requested": false,
+  "scope": "Current G2 additions only; public fixture endpoints retained"
+}

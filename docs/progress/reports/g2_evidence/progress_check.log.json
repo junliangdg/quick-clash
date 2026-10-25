@@ -1,0 +1,13 @@
+{
+  "executable": "C:\\Users\\Administrator\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "scripts/check_progress.ps1"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T08:28:31.3493032Z",
+  "elapsed_ms": 811,
+  "exit_code": 0,
+  "timed_out": false
+}
