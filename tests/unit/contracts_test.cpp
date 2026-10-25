@@ -1,4 +1,5 @@
 #include "application/ports.h"
+#include "infra/config/config_metadata.h"
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
 #include <QCoreApplication>
@@ -72,6 +73,45 @@ int main(int argc, char* argv[]) {
         check(!history.activeRevision && !history.lastGoodRevision,
               "first run has no confirmed history");
         const RuntimePreferences preferences;
+        const auto routingConfig = quickclash::infra::configurationSummary(
+            "proxies: [{name: node, type: http}]\nproxy-groups:\n"
+            "- {name: Z-primary, type: select, proxies: [A-auto]}\n"
+            "- {name: A-auto, type: fallback, proxies: [node]}\nrules: [\"MATCH,Z-primary\"]\n");
+        QJsonObject live;
+        for (const auto& value : routingConfig.value("groups").toArray()) {
+            const auto group = value.toObject();
+            live.insert(
+                group.value("name").toString(),
+                QJsonObject{{"type", group.value("canSelect").toBool() ? "Selector" : "Fallback"},
+                            {"now", group.value("current")},
+                            {"all", group.value("members")}});
+        }
+        live["GLOBAL"] = QJsonObject{{"type", "Selector"}, {"now", "Z-primary"}};
+        const auto ordered =
+            quickclash::infra::orderedProxyGroups(routingConfig.value("groups").toArray(), live);
+        check(ordered[1].toObject().value("name") == "Z-primary" &&
+                  ordered[2].toObject().value("name") == "A-auto",
+              "live groups retain subscription order rather than sorted object keys");
+        const auto outbound = quickclash::infra::outboundSummary(
+            ordered, routingConfig.value("defaultPolicy").toString(), "rule", true);
+        check(outbound.value("policy") == "Z-primary" && outbound.value("node") == "node" &&
+                  outbound.value("chain").toArray().size() == 3,
+              "default MATCH follows nested live selections to the actual leaf");
+        check(quickclash::infra::outboundSummary(ordered, "Z-primary", "global", true)
+                          .value("node") == "node" &&
+                  quickclash::infra::outboundSummary(ordered, "Z-primary", "direct", true)
+                          .value("node") == "DIRECT" &&
+                  quickclash::infra::outboundSummary(ordered, {}, "rule", false)
+                      .value("policy")
+                      .toString()
+                      .isEmpty(),
+              "global/direct/no-default do not invent a single rule outbound");
+        live["A-auto"] = QJsonObject{{"type", "LoadBalance"}, {"now", "node"}};
+        const auto balancing = quickclash::infra::outboundSummary(
+            quickclash::infra::orderedProxyGroups(routingConfig.value("groups").toArray(), live),
+            "Z-primary", "rule", true);
+        check(balancing.value("balanced").toBool() && balancing.value("node").toString().isEmpty(),
+              "load balancing does not claim every connection uses one node");
         check(!preferences.tunDesired && !preferences.systemProxyDesired, "safe defaults");
         check(formatBytes(std::numeric_limits<std::uint64_t>::max()) ==
                   QStringLiteral("18446744073709551615"),
@@ -118,6 +158,43 @@ int main(int argc, char* argv[]) {
               "session requires secret");
         check(std::holds_alternative<Error>(quickclash::infra::materializeSession(config, "weak")),
               "weak secret rejected");
+        const auto flowInput = quickclash::infra::preflightConfig(
+            "{proxies: [{name: node, type: http, server: example.invalid, port: 80}], "
+            "proxy-groups: [{name: group, type: select, proxies: [node]}], rules: "
+            "[\"MATCH,group\"]}",
+            {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(flowInput),
+              "flow root accepted");
+        const auto flowSession = quickclash::infra::materializeSession(
+            std::get<quickclash::infra::PreflightConfig>(flowInput),
+            QByteArray(32, 'x') + "\nsecret: injected");
+        check(std::holds_alternative<QByteArray>(flowSession) &&
+                  std::holds_alternative<quickclash::infra::PreflightConfig>(
+                      quickclash::infra::preflightConfig(std::get<QByteArray>(flowSession), {})),
+              "canonical block root and quoted secret preserve one valid document");
+        const auto legacySession = quickclash::infra::materializeSession(
+            {"{proxies: [], proxy-groups: [], rules: ['MATCH,DIRECT']}", {}}, QByteArray(32, 'x'));
+        check(std::holds_alternative<QByteArray>(legacySession) &&
+                  std::holds_alternative<quickclash::infra::PreflightConfig>(
+                      quickclash::infra::preflightConfig(std::get<QByteArray>(legacySession), {})),
+              "legacy flow artifact still materializes after upgrade");
+        const auto metadata = quickclash::infra::configMetadata(
+            "proxies: []\nignored: {nested: [one, {two: three}]}\n"
+            "dns: {enable: true}\nrules: ['GEOIP,CN,DIRECT', 'MATCH,DIRECT']\n");
+        check(std::holds_alternative<quickclash::infra::ConfigMetadata>(metadata) &&
+                  std::get<quickclash::infra::ConfigMetadata>(metadata).defaultPolicy ==
+                      QStringLiteral("DIRECT") &&
+                  std::get<quickclash::infra::ConfigMetadata>(metadata).geoRule &&
+                  !std::get<quickclash::infra::ConfigMetadata>(metadata).fieldsYaml.contains(
+                      "ignored"),
+              "metadata skips irrelevant trees while keeping routing summary");
+        check(std::holds_alternative<Error>(quickclash::infra::configMetadata(
+                  "proxies: []\nignored: {nested: 1, nested: 2}\n")) &&
+                  std::holds_alternative<Error>(
+                      quickclash::infra::configMetadata("proxies: []\n---\nproxies: []\n")) &&
+                  std::holds_alternative<Error>(quickclash::infra::configMetadata(
+                      "proxies: []\nignored: &a [one]\nother: *a\n")),
+              "metadata keeps duplicate, document and alias rejection in skipped fields");
         expectError(fixture("provider_unsupported.yaml"), "UnsupportedConfigFeature");
         const auto geo = quickclash::infra::preflightConfig(fixture("geo_supported.yaml"), {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(geo),

@@ -9,7 +9,7 @@ ScrollView {
     required property UiState ui
     required property ThemeTokens theme
     property bool active: ui.uiVisible && visible
-    readonly property var selectedProfile: (ui.runtime.profiles || []).find(profile => profile.id === ui.runtime.selectedId) || ({})
+    readonly property var selectedProfile: ui.profiles.find(profile => profile.id === ui.runtime.selectedId) || ({})
     clip: true
     contentWidth: availableWidth
     function syncDemand(): void {
@@ -220,7 +220,7 @@ ScrollView {
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("Example subscription · Usage and expiry unknown") : qsTr("%1 profiles · %2").arg((root.ui.runtime.profiles || []).length).arg(root.ui.runtime.ready ? qsTr("Core ready") : qsTr("Core stopped"))
+                        text: root.ui.replay ? qsTr("Example subscription · Usage and expiry unknown") : qsTr("%1 profiles · %2").arg(root.ui.profiles.length).arg(root.ui.runtime.ready ? qsTr("Core ready") : qsTr("Core stopped"))
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
@@ -272,13 +272,41 @@ ScrollView {
                         onClicked: root.ui.navigate("connections")
                     }
                 }
-                Label {
-                    font.family: root.theme.fontFamily
-                    text: {
-                        const mem = (root.ui.runtime.features || {}).memory || {};
-                        const client = mem.client || {}, core = mem.core || {};
-                        return qsTr("Client / core private working set: %1 / %2 MB").arg(client.privateWorkingSet ? (Number(client.privateWorkingSet) / 1000000).toFixed(1) : "—").arg(core.privateWorkingSet ? (Number(core.privateWorkingSet) / 1000000).toFixed(1) : "—") + "\n" + qsTr("Working set: %1 / %2 MB · Private commit: %3 / %4 MB").arg(client.workingSet ? (Number(client.workingSet) / 1000000).toFixed(1) : "—").arg(core.workingSet ? (Number(core.workingSet) / 1000000).toFixed(1) : "—").arg(client.privateCommit ? (Number(client.privateCommit) / 1000000).toFixed(1) : "—").arg(core.privateCommit ? (Number(core.privateCommit) / 1000000).toFixed(1) : "—") + "\n" + ((root.ui.runtime.features || {}).memorySample || "") + "\n" + (root.ui.runtime.platform || "") + " · " + (root.ui.runtime.architecture || "") + " · Mihomo " + (root.ui.runtime.coreVersion || "—");
+                GridLayout {
+                    Layout.fillWidth: true
+                    columns: width >= 600 ? 2 : 1
+                    columnSpacing: 24
+                    rowSpacing: 12
+                    Repeater {
+                        model: ["client", "core"]
+                        delegate: ColumnLayout {
+                            id: memoryColumn
+                            required property string modelData
+                            readonly property var counters: ((root.ui.runtime.features || {}).memory || {})[modelData] || ({})
+                            function megabytes(value): string { return value !== undefined ? (Number(value) / 1000000).toFixed(1) : "—"; }
+                            Layout.fillWidth: true
+                            Label {
+                                text: memoryColumn.modelData === "client" ? qsTr("QuickClash · Client") : qsTr("Mihomo · Core")
+                                color: root.theme.text
+                                font.bold: true
+                            }
+                            Label {
+                                text: qsTr("Private working set: %1 MB").arg(memoryColumn.megabytes(memoryColumn.counters.privateWorkingSet))
+                                color: root.theme.text
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                            }
+                            Label {
+                                text: qsTr("Working set: %1 MB").arg(memoryColumn.megabytes(memoryColumn.counters.workingSet)) + "\n" + qsTr("Private commit: %1 MB").arg(memoryColumn.megabytes(memoryColumn.counters.privateCommit))
+                                color: root.theme.muted
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                            }
+                        }
                     }
+                }
+                Label {
+                    text: qsTr("Client includes the helper service when running; core memory is counted separately.") + "\n" + ((root.ui.runtime.features || {}).memorySample || "") + "\n" + (root.ui.runtime.platform || "") + " · " + (root.ui.runtime.architecture || "") + " · Mihomo " + (root.ui.runtime.coreVersion || "—")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

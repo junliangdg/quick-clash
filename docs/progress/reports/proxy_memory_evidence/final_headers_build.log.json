@@ -1,0 +1,18 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--build",
+    "build/p2_responsive",
+    "--parallel",
+    "4",
+    "--target",
+    "quickclash",
+    "quickclash_service",
+    "contracts_test"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T10:23:22.5560069Z",
+  "elapsed_ms": 10186,
+  "exit_code": 0,
+  "timed_out": false
+}

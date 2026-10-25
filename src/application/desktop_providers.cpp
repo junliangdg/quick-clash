@@ -2,6 +2,7 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <algorithm>
 
 namespace quickclash::application {
 void DesktopRuntime::resolveImport(const QByteArray& bytes, const QString& name,
@@ -59,7 +60,8 @@ void DesktopRuntime::fetchProvider(const QByteArray& source, const QJsonArray& r
     reply->setReadBufferSize(4 * 1024 * 1024 + 1);
     auto bytes = std::make_shared<QByteArray>();
     connect(reply, &QIODevice::readyRead, this, [reply, bytes] {
-        bytes->append(reply->read(4 * 1024 * 1024 + 1 - bytes->size()));
+        bytes->append(
+            reply->read(std::min(reply->bytesAvailable(), 4 * 1024 * 1024 + 1 - bytes->size())));
         if (bytes->size() > 4 * 1024 * 1024)
             reply->abort();
     });
@@ -73,7 +75,8 @@ void DesktopRuntime::fetchProvider(const QByteArray& source, const QJsonArray& r
                 reply->deleteLater();
                 if (generation != operationGeneration_)
                     return;
-                bytes->append(reply->read(4 * 1024 * 1024 + 1 - bytes->size()));
+                bytes->append(reply->read(
+                    std::min(reply->bytesAvailable(), 4 * 1024 * 1024 + 1 - bytes->size())));
                 qsizetype total = bytes->size();
                 for (const auto& payload : payloads)
                     total += payload.size();

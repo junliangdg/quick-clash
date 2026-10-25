@@ -2,6 +2,9 @@
 #include "host_probe.h"
 #include "presentation/localization.h"
 #include "single_instance.h"
+#ifdef QUICKCLASH_TEST_PROBES
+#include "subscription_memory_probe.h"
+#endif
 #include <QApplication>
 #include <QDir>
 #include <QEvent>
@@ -73,7 +76,8 @@ int main(int argc, char* argv[]) {
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
     const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
     const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
-                          responsiveTest || arguments.contains(QStringLiteral("--isolated"));
+                          responsiveTest || arguments.contains(QStringLiteral("--isolated")) ||
+                          arguments.contains(QStringLiteral("--subscription-memory-test"));
     const auto option = [&arguments](const QString& key) {
         const auto prefix = key + QLatin1Char('=');
         for (const auto& argument : arguments) {
@@ -91,7 +95,8 @@ int main(int argc, char* argv[]) {
         return 16;
     }
     const auto runtimeProbe = option(QStringLiteral("--runtime-probe"));
-    if (isolated && !runtimeProbe.isEmpty()) {
+    if (isolated && (!runtimeProbe.isEmpty() ||
+                     arguments.contains(QStringLiteral("--subscription-memory-test")))) {
         probeDirectory = std::make_unique<QTemporaryDir>();
         if (!probeDirectory->isValid())
             return 15;
@@ -123,7 +128,7 @@ int main(int argc, char* argv[]) {
     QObject::connect(&instance, &quickclash::SingleInstance::activationRequested, &host,
                      [&host] { (void)host.showWindow(); });
 #ifdef QUICKCLASH_TEST_PROBES
-    if (!probeSettings.isEmpty()) {
+    if (!probeSettings.isEmpty() && !runtimeProbe.isEmpty()) {
         auto stage = std::make_shared<int>(0);
         QObject::connect(
             &host.state(), &quickclash::presentation::UiState::runtimeChanged, &host,
@@ -182,6 +187,32 @@ int main(int argc, char* argv[]) {
     if (!host.showWindow()) {
         return 1;
     }
+#ifdef QUICKCLASH_TEST_PROBES
+    if (arguments.contains(QStringLiteral("--subscription-memory-test"))) {
+        QTimer::singleShot(1000, &host, [&host] {
+            auto& ui = host.state();
+            if (!ui.settingsReady()) {
+                QCoreApplication::exit(20);
+                return;
+            }
+            ui.navigate(QStringLiteral("subscriptions"));
+            const quickclash::test::SubscriptionProbeRuntime client{
+                [&] { return QJsonObject::fromVariantMap(ui.runtime()); },
+                [&](int mixed, int controller) {
+                    ui.runtimeCommand(QStringLiteral("ports"),
+                                      {QString::number(mixed), QString::number(controller)});
+                },
+                [&](const QString& url) {
+                    ui.runtimeCommand(QStringLiteral("subscribe"),
+                                      {url, QStringLiteral("Public memory fixture")});
+                },
+                [&] { ui.runtimeCommand(QStringLiteral("start")); },
+                [&](const QString& id) { ui.runtimeCommand(QStringLiteral("update"), {id}); },
+                [&] { ui.runtimeCommand(QStringLiteral("stop")); }};
+            QCoreApplication::exit(quickclash::test::subscriptionMemoryProbe(client));
+        });
+    }
+#endif
     const auto windowSize = option(QStringLiteral("--window-size"));
     if (isolated && !windowSize.isEmpty()) {
         const auto dimensions = windowSize.split(QLatin1Char('x'));

@@ -1,7 +1,9 @@
 #include "infra/config/config_preflight.h"
+#include "infra/config/config_metadata.h"
 #include "infra/config/config_schema.h"
 #include <QJsonArray>
 #include <QMessageAuthenticationCode>
+#include <QSet>
 #include <QStringList>
 #include <map>
 #include <set>
@@ -93,6 +95,14 @@ QByteArray serializeYaml(const YAML::Node& node) {
     require(emitter.good());
     return QByteArray(emitter.c_str(), static_cast<qsizetype>(emitter.size()));
 }
+void checkParseBudget(const QByteArray& input) {
+    // Release the event scanner, its token buffers and the stream copy before Node allocation.
+    std::istringstream stream(input.toStdString());
+    YAML::Parser parser(stream);
+    ParseBudget budget;
+    while (parser.HandleNextDocument(budget)) {
+    }
+}
 } // namespace
 
 QString subscriptionPayloadError(const QByteArray& input) {
@@ -104,18 +114,15 @@ QString subscriptionPayloadError(const QByteArray& input) {
     if (content.trimmed().isEmpty())
         return QStringLiteral("EmptySubscription");
     try {
-        std::istringstream stream(content.toStdString());
-        YAML::Parser parser(stream);
-        ParseBudget parseBudget;
-        while (parser.HandleNextDocument(parseBudget)) {
-        }
-        const auto documents = YAML::LoadAll(content.toStdString());
-        require(documents.size() == 1, "UnsupportedSubscriptionFormat");
-        const auto root = documents.front();
-        require(root.IsMap(), "UnsupportedSubscriptionFormat");
-        std::size_t budget = 100000;
-        inspectTree(root, 0, budget);
-        require(root["proxies"] || root["proxy-providers"], "UnsupportedSubscriptionFormat");
+        const auto metadata = configMetadata(content);
+        if (const auto* failure = std::get_if<domain::Error>(&metadata))
+            return failure->code == QStringLiteral("InvalidYaml")
+                       ? QStringLiteral("UnsupportedSubscriptionFormat")
+                       : failure->code;
+        const auto& keys = std::get<ConfigMetadata>(metadata).keys;
+        require(keys.contains(QStringLiteral("proxies")) ||
+                    keys.contains(QStringLiteral("proxy-providers")),
+                "UnsupportedSubscriptionFormat");
         return {};
     } catch (const InvalidConfig& error) {
         return QString::fromLatin1(error.code);
@@ -134,17 +141,15 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         return inputError("InvalidListenerPorts");
     }
     try {
-        std::istringstream stream(input.toStdString());
-        YAML::Parser parser(stream);
-        ParseBudget parseBudget;
-        while (parser.HandleNextDocument(parseBudget)) {
-        }
-        const auto documents = YAML::LoadAll(input.toStdString());
-        require(documents.size() == 1);
-        auto root = documents.front();
+        checkParseBudget(input); // Preserve budget errors before structural/schema diagnostics.
+        const auto metadata = configMetadata(input, true);
+        if (const auto* failure = std::get_if<domain::Error>(&metadata))
+            return *failure;
+        const auto& fields = std::get<ConfigMetadata>(metadata);
+        auto root = YAML::Load(fields.fieldsYaml.toStdString());
         std::size_t budget = 100000;
         inspectTree(root, 0, budget);
-        const auto validated = validateConfigSchema(root);
+        const auto validated = validateConfigSchema(root, &fields.rules);
         if (const auto* failure = std::get_if<domain::Error>(&validated))
             return *failure;
         PreflightConfig output;
@@ -202,7 +207,18 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         root["geo-auto-update"] = false;
         root["profile"]["store-selected"] = false;
         root["profile"]["store-fake-ip"] = false;
+        root.SetStyle(YAML::EmitterStyle::Block);
+        root.remove("rules");
         output.semanticYaml = serializeYaml(root);
+        YAML::Emitter rules;
+        rules << YAML::BeginSeq;
+        for (const auto& rule : fields.rules)
+            rules << rule;
+        rules << YAML::EndSeq;
+        require(rules.good());
+        output.semanticYaml += "\nrules:\n";
+        output.semanticYaml.append(rules.c_str(), static_cast<qsizetype>(rules.size()));
+        output.semanticYaml += '\n';
         return output;
     } catch (const InvalidConfig& error) {
         return inputError(error.code);
@@ -216,7 +232,10 @@ QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key) {
     if (key.size() < 32)
         return identities;
     try {
-        const auto root = YAML::Load(semantic.toStdString());
+        const auto metadata = configMetadata(semantic);
+        if (!std::holds_alternative<ConfigMetadata>(metadata))
+            return {};
+        const auto root = YAML::Load(std::get<ConfigMetadata>(metadata).fieldsYaml.toStdString());
         for (const auto& node : root["proxies"]) {
             const auto name = QString::fromStdString(node["name"].as<std::string>());
             auto descriptor = YAML::Clone(node);
@@ -253,7 +272,11 @@ QJsonObject nodeIdentities(const QByteArray& semantic, const QByteArray& key) {
 }
 QJsonObject configurationSummary(const QByteArray& semantic) {
     try {
-        const auto root = YAML::Load(semantic.toStdString());
+        const auto metadata = configMetadata(semantic);
+        if (!std::holds_alternative<ConfigMetadata>(metadata))
+            return {};
+        const auto& fields = std::get<ConfigMetadata>(metadata);
+        const auto root = YAML::Load(fields.fieldsYaml.toStdString());
         QJsonArray groups, nodes, all;
         all.append(QStringLiteral("DIRECT"));
         all.append(QStringLiteral("REJECT"));
@@ -283,10 +306,70 @@ QJsonObject configurationSummary(const QByteArray& semantic) {
                                    {QStringLiteral("canSelect"), true},
                                    {QStringLiteral("current"), all.first()},
                                    {QStringLiteral("members"), all}});
-        return {{QStringLiteral("groups"), groups}, {QStringLiteral("nodes"), nodes}};
+        return {{QStringLiteral("groups"), groups},
+                {QStringLiteral("nodes"), nodes},
+                {QStringLiteral("defaultPolicy"), fields.defaultPolicy}};
     } catch (const YAML::Exception&) {
         return {};
     }
+}
+QJsonArray orderedProxyGroups(const QJsonArray& configured, const QJsonObject& live) {
+    QJsonArray result;
+    QSet<QString> added;
+    const auto append = [&](const QString& name) {
+        const auto value = live.value(name).toObject();
+        const auto type = value.value(QStringLiteral("type")).toString();
+        if (added.contains(name) ||
+            (type != QStringLiteral("Selector") && type != QStringLiteral("URLTest") &&
+             type != QStringLiteral("Fallback") && type != QStringLiteral("LoadBalance")))
+            return;
+        added.insert(name);
+        result.append(QJsonObject{{QStringLiteral("name"), name},
+                                  {QStringLiteral("type"), type},
+                                  {QStringLiteral("canSelect"), type == QStringLiteral("Selector")},
+                                  {QStringLiteral("current"), value.value(QStringLiteral("now"))},
+                                  {QStringLiteral("members"), value.value(QStringLiteral("all"))}});
+    };
+    for (const auto& group : configured)
+        append(group.toObject().value(QStringLiteral("name")).toString());
+    // Include core-generated groups without changing the subscription sequence.
+    for (auto it = live.begin(); it != live.end(); ++it)
+        append(it.key());
+    return result;
+}
+QJsonObject outboundSummary(const QJsonArray& groups, const QString& defaultPolicy,
+                            const QString& mode, bool ready) {
+    const auto policy = mode == QStringLiteral("direct")   ? QStringLiteral("DIRECT")
+                        : mode == QStringLiteral("global") ? QStringLiteral("GLOBAL")
+                                                           : defaultPolicy;
+    QJsonObject byName;
+    for (const auto& value : groups) {
+        const auto group = value.toObject();
+        byName.insert(group.value(QStringLiteral("name")).toString(), group);
+    }
+    QJsonArray chain;
+    QSet<QString> visited;
+    auto current = policy;
+    QString node;
+    bool balanced = false;
+    while (!current.isEmpty() && !visited.contains(current)) {
+        visited.insert(current);
+        chain.append(current);
+        if (!byName.contains(current)) {
+            node = current;
+            break;
+        }
+        const auto group = byName.value(current).toObject();
+        const auto type = group.value(QStringLiteral("type")).toString().toLower();
+        if (type == QStringLiteral("loadbalance") || type == QStringLiteral("load-balance")) {
+            balanced = true;
+            break; // A balancing group has no single node for every new connection.
+        }
+        current = group.value(QStringLiteral("current")).toString();
+    }
+    return {{QStringLiteral("mode"), mode},         {QStringLiteral("policy"), policy},
+            {QStringLiteral("chain"), chain},       {QStringLiteral("node"), node},
+            {QStringLiteral("balanced"), balanced}, {QStringLiteral("confirmed"), ready}};
 }
 QString redactedConfig(const QByteArray& semantic) {
     try {
@@ -318,11 +401,7 @@ QString redactedConfig(const QByteArray& semantic) {
 namespace {
 YAML::Node boundedYaml(const QByteArray& input) {
     require(input.size() <= 16 * 1024 * 1024, "ConfigLimitExceeded");
-    std::istringstream stream(input.toStdString());
-    YAML::Parser parser(stream);
-    ParseBudget budget;
-    while (parser.HandleNextDocument(budget)) {
-    }
+    checkParseBudget(input);
     const auto documents = YAML::LoadAll(input.toStdString());
     require(documents.size() == 1, "InvalidYaml");
     std::size_t count = 100000;
@@ -332,7 +411,10 @@ YAML::Node boundedYaml(const QByteArray& input) {
 } // namespace
 domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
     try {
-        const auto root = boundedYaml(input);
+        const auto metadata = configMetadata(input);
+        if (const auto* failure = std::get_if<domain::Error>(&metadata))
+            return *failure;
+        const auto root = YAML::Load(std::get<ConfigMetadata>(metadata).fieldsYaml.toStdString());
         require(root.IsMap());
         QJsonArray requests;
         for (const auto* kind : {"proxy-providers", "rule-providers"}) {
@@ -493,9 +575,25 @@ domain::Result<QByteArray> materializeSession(const PreflightConfig& config,
         return inputError("InvalidControllerSecret");
     }
     try {
-        auto root = YAML::Load(config.semanticYaml.toStdString());
-        root["secret"] = secret.toStdString();
-        return serializeYaml(root);
+        if (config.semanticYaml.trimmed().startsWith('{')) {
+            // Older stored artifacts can retain a flow root. Keep them readable on upgrade.
+            auto root = YAML::Load(config.semanticYaml.toStdString());
+            require(root.IsMap());
+            root["secret"] = secret.toStdString();
+            return serializeYaml(root);
+        }
+        // Preflight emits a block root mapping with managed secret removed. Append the only
+        // session field without rebuilding the entire (possibly 20,000-rule) YAML graph.
+        // The scalar still uses the YAML emitter so arbitrary secret bytes cannot inject YAML.
+        YAML::Emitter scalar;
+        scalar << YAML::DoubleQuoted << secret.toStdString();
+        if (!scalar.good() || config.semanticYaml.isEmpty())
+            return inputError("InvalidYaml");
+        auto session = config.semanticYaml;
+        session += "\nsecret: ";
+        session.append(scalar.c_str(), static_cast<qsizetype>(scalar.size()));
+        session += '\n';
+        return session;
     } catch (const YAML::Exception&) {
         return inputError("InvalidYaml");
     } catch (const InvalidConfig& error) {

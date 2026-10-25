@@ -20,6 +20,11 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         connect(settings_.get(), &infra::SettingsService::runtimeChanged, this,
                 [this](const QJsonObject& state) {
                     runtime_ = state.toVariantMap();
+                    const auto profiles = runtime_.value(QStringLiteral("profiles")).toList();
+                    if (profiles_ != profiles) {
+                        profiles_ = profiles;
+                        emit profilesChanged();
+                    }
                     const auto epoch = runtime_.value(QStringLiteral("epoch")).toString();
                     if (epoch != liveEpoch_) {
                         liveEpoch_ = epoch;

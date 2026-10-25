@@ -10,7 +10,7 @@ ScrollView {
     required property UiState ui
     required property ThemeTokens theme
     property string managedId: ""
-    readonly property var managedProfile: (ui.runtime.profiles || []).find(profile => profile.id === managedId) || ({})
+    readonly property var managedProfile: ui.profiles.find(profile => profile.id === managedId) || ({})
     contentWidth: availableWidth
     clip: true
     FileDialog {
@@ -161,14 +161,14 @@ ScrollView {
             Layout.fillWidth: true
         }
         Label { text: qsTr("Subscriptions"); color: root.theme.text; font.pixelSize: 20; font.bold: true }
-        Label { visible: !(root.ui.runtime.profiles || []).length; text: qsTr("No subscriptions yet"); color: root.theme.muted }
+        Label { visible: !root.ui.profiles.length; text: qsTr("No subscriptions yet"); color: root.theme.muted }
         GridLayout {
             Layout.fillWidth: true
             columns: root.availableWidth >= 900 ? 3 : root.availableWidth >= 580 ? 2 : 1
             columnSpacing: 12
             rowSpacing: 12
             Repeater {
-                model: root.ui.runtime.profiles || []
+                model: root.ui.profiles
                 delegate: FlatTile {
                     id: tile
                     required property var modelData

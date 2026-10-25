@@ -73,7 +73,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
                        const QString& secretRef, const QString& id, const QJsonObject& metadata,
                        quint64 generation);
     void validate(const QByteArray& semantic, std::function<void(bool)> completion);
-    void applyProfile(const QString& id, bool startAfter);
+    // Nonempty semantic bytes are only passed by the immediately preceding successful import
+    // validation while this worker still owns the operation; never accepted from the UI.
+    void applyProfile(const QString& id, bool startAfter, const QByteArray& validatedSemantic = {});
     void launch();
     void confirmed();
     void failedApply(const QString& code);
@@ -133,6 +135,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool closingConnections_ = false;
     int droppedLogs_ = 0;
     int resourceTick_ = 0;
+    int proxyTick_ = 0;
     qint64 connectionSampleMs_ = 0;
     QElapsedTimer coreUptime_;
     std::function<QDateTime()> clock_;
@@ -148,6 +151,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     std::function<void(bool)> validationCompletion_;
     QJsonArray profiles_;
     QJsonArray groups_;
+    QJsonArray configuredGroups_;
+    QString defaultPolicy_;
     QJsonArray errors_;
     QJsonArray configIssues_;
     QJsonObject runtimePreferences_;

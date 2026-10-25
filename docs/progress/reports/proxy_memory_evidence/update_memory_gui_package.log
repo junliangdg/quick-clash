@@ -1,0 +1,33 @@
+{
+    "after": {
+        "privateCommit": "224403456",
+        "privateWorkingSet": "76341248",
+        "samples": "299",
+        "workingSet": "180150272"
+    },
+    "before": {
+        "privateCommit": "226758656",
+        "privateWorkingSet": "72007680",
+        "samples": "121",
+        "workingSet": "175640576"
+    },
+    "changedApplied": true,
+    "changedUpdate": {
+        "privateCommit": "228347904",
+        "privateWorkingSet": "76451840",
+        "samples": "151",
+        "workingSet": "180097024"
+    },
+    "error": "",
+    "scenario": "Public loopback HTTPS; 56 nodes / 12001 rules / DNS+Geo; no system proxy or TUN",
+    "sourceBytes": 508300,
+    "unchangedKeptCore": true,
+    "unchangedUpdate": {
+        "privateCommit": "222785536",
+        "privateWorkingSet": "72867840",
+        "samples": "8",
+        "workingSet": "176500736"
+    }
+}
+
+--- stderr ---

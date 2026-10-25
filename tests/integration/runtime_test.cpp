@@ -1,6 +1,7 @@
 #include "application/desktop_runtime.h"
 #include "native_proxy_client.h"
 #include "network_fixture.h"
+#include "subscription_memory_probe.h"
 #include "subscription_probe.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -56,6 +57,8 @@ bool require(bool value, const char* message, quickclash::application::DesktopRu
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--update-memory-probe")))
+        return quickclash::test::subscriptionMemoryProbe();
     QTemporaryDir directory;
     quickclash::infra::JsonStore store(directory.path());
     if (std::holds_alternative<quickclash::domain::Error>(store.open()))

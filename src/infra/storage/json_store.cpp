@@ -153,7 +153,10 @@ domain::Result<QByteArray> JsonStore::readBytes(const QString& reference, qsizet
     if (!file.open(QIODevice::ReadOnly) || file.size() > limit || file.size() < 0) {
         return storageError("DataReadFailed");
     }
-    const auto bytes = file.read(limit + 1);
+    // QIODevice::read(maxSize) can retain maxSize capacity after a short read. Reading a
+    // 500 KiB profile with the 16 MiB policy limit must not retain a 16 MiB buffer.
+    const auto expected = file.size();
+    const auto bytes = file.read(expected + 1);
     if (bytes.size() > limit || file.error() != QFileDevice::NoError) {
         return storageError("DataReadFailed");
     }

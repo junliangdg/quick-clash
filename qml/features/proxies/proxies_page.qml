@@ -9,10 +9,19 @@ Item {
     required property UiState ui
     required property ThemeTokens theme
     property string groupName: ""
+    readonly property string stateKey: "proxies:" + (ui.runtime.selectedId || "")
     readonly property var groups: (ui.runtime.groups || []).filter(group => group.name !== "GLOBAL" || (ui.runtime.preferences || {}).mode === "global" || (ui.runtime.groups || []).length === 1)
-    readonly property var group: groups.find(group => group.name === groupName) || groups[0] || ({})
+    readonly property var group: groups.find(group => group.name === groupName) || groups.find(group => group.name === (ui.runtime.outbound || {}).policy) || groups[0] || ({})
+    Component.onCompleted: {
+        groupName = ui.readState(stateKey).group || "";
+        ui.setDemand("proxies:page", "proxies", active);
+    }
+    onStateKeyChanged: groupName = ui.readState(stateKey).group || ""
     readonly property var progress: (ui.runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
+    readonly property bool active: ui.uiVisible && visible && !ui.replay
+    onActiveChanged: ui.setDemand("proxies:page", "proxies", active)
+    Component.onDestruction: ui.setDemand("proxies:page", "proxies", false)
     function delayText(name): string {
         const result = (ui.runtime.delays || {})[name];
         return result === "Testing" ? qsTr("Testing…") : result === "Failed" ? qsTr("Unavailable") : result === "Cancelled" ? qsTr("Cancelled") : result || "—";
@@ -51,13 +60,24 @@ Item {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
+        OutboundStatus { ui: root.ui; theme: root.theme; Layout.fillWidth: true }
+        Label {
+            text: qsTr("Rules can use different groups. Viewing a group does not change routing.")
+            color: root.theme.muted
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+        Label { text: qsTr("Viewing group"); color: root.theme.muted }
         ComboBox {
             id: groupSelector
             Layout.fillWidth: true
             model: root.groups
             textRole: "name"
             currentIndex: Math.max(0, root.groups.findIndex(group => group.name === root.group.name))
-            onActivated: root.groupName = root.groups[currentIndex].name
+            onActivated: {
+                root.groupName = root.groups[currentIndex].name;
+                root.ui.saveState(root.stateKey, {group: root.groupName});
+            }
         }
         Label {
             text: (root.group.current || "") + " · " + (["URLTest", "url-test"].includes(root.group.type) ? qsTr("Automatic latency selection · url-test") : ["Fallback", "fallback"].includes(root.group.type) ? qsTr("Automatic failover · fallback") : ["LoadBalance", "load-balance"].includes(root.group.type) ? qsTr("Load balancing · load-balance") : qsTr("Manual selection · select"))

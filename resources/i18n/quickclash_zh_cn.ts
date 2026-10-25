@@ -1,5 +1,5 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!DOCTYPE TS []>
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE TS[]>
 <TS version="2.1" language="zh_CN" sourcelanguage="en">
   <context>
     <name>DesktopRuntime</name>
@@ -570,6 +570,30 @@
       <source>Active views %1 · Shared streams %2</source>
       <translation>活跃展示需求 %1 · 合并数据流 %2</translation>
     </message>
+    <message>
+      <source>QuickClash · Client</source>
+      <translation>QuickClash · 客户端</translation>
+    </message>
+    <message>
+      <source>Client includes the helper service when running; core memory is counted separately.</source>
+      <translation>客户端包含运行中的辅助服务；内核内存单独统计。</translation>
+    </message>
+    <message>
+      <source>Working set: %1 MB</source>
+      <translation>工作集：%1 MB</translation>
+    </message>
+    <message>
+      <source>Private working set: %1 MB</source>
+      <translation>专用工作集：%1 MB</translation>
+    </message>
+    <message>
+      <source>Private commit: %1 MB</source>
+      <translation>私有提交：%1 MB</translation>
+    </message>
+    <message>
+      <source>Mihomo · Core</source>
+      <translation>Mihomo · 内核</translation>
+    </message>
   </context>
   <context>
     <name>logs_page</name>
@@ -817,6 +841,14 @@
       <source>Members: %1</source>
       <translation type="vanished">成员：%1</translation>
     </message>
+    <message>
+      <source>Rules can use different groups. Viewing a group does not change routing.</source>
+      <translation>不同规则可能使用不同分组。查看分组不会改变路由。</translation>
+    </message>
+    <message>
+      <source>Viewing group</source>
+      <translation>正在查看的分组</translation>
+    </message>
   </context>
   <context>
     <name>proxy_summary</name>
@@ -844,6 +876,14 @@
       <location filename="../../qml/features/proxies/proxy_summary.qml" line="36" />
       <source>View group policies and available selections on the proxies page.</source>
       <translation>在代理页面查看组策略与可选节点。</translation>
+    </message>
+    <message>
+      <source>New connections follow this policy. Other rules and existing connections may use different nodes.</source>
+      <translation>新连接按此策略转发；其他规则和已有连接可能使用不同节点。</translation>
+    </message>
+    <message>
+      <source>Current outbound</source>
+      <translation>当前出口</translation>
     </message>
   </context>
   <context>
@@ -1884,6 +1924,33 @@
       <location filename="../../src/presentation/replay_model.cpp" line="26" />
       <source>TCP · Replay</source>
       <translation>TCP · 回放</translation>
+    </message>
+  </context>
+  <context>
+    <name>outbound_status</name>
+    <message>
+      <source>Global outbound</source>
+      <translation>全局出口</translation>
+    </message>
+    <message>
+      <source>Direct connection</source>
+      <translation>直连</translation>
+    </message>
+    <message>
+      <source>Default rule outbound</source>
+      <translation>默认规则出口</translation>
+    </message>
+    <message>
+      <source>Determined by matching rules</source>
+      <translation>由命中规则决定</translation>
+    </message>
+    <message>
+      <source>Pending engine confirmation</source>
+      <translation>等待内核确认</translation>
+    </message>
+    <message>
+      <source>Load balancing · node varies by connection</source>
+      <translation>负载均衡 · 节点随连接变化</translation>
     </message>
   </context>
 </TS>

@@ -1,5 +1,7 @@
 # 任务与验收证据
 
+本轮功能修复：[代理出口与订阅更新内存](20261025_proxy_memory_fixes.md)。分组顺序、默认出口与查看语义、客户端/内核内存展示及更新缓冲已修复；7/7受影响回归、最终包真实GUI有变更新峰76.45MB专用工作集，原始公开夹具日志位于proxy_memory_evidence/。新包dist/proxy_memory_fixes，186文件摘要、随包smoke和两张中文实际配置截图通过。完整P3与G2/G3状态不变，旧包资源结论对新二进制Stale。下文为历史交付与范围记录。
+
 当前范围评审：[G2必要/后移/移除](20261025_g2_scope_review.md)，设计1.9。G2本机最小闭环保留16项必要条件，干净普通用户环境及真实OS/GUI宿主补证归P3-14/G3；全协议握手、故障全排列和重复性能矩阵不再作为统一门槛。P2现21Done/2Review/1Todo，P3现3Done/1Doing/10Todo；G2修订范围NotRun，G3 NotRun，未新增产品Pass。下段恢复交付及后续报告保留当时状态，当前以TASKS/CHECKLISTS为准。
 
 当前本机交付：[G2恢复与Windows包](20261025_g2_recovery.md)。P2-15 Done，首次失败/停止打断/真实worker强杀后Job、WinINet租约/事务恢复及当前runtime原生转发回归通过；P2为21Done/2Review/1Blocked。包dist/g2_recovery的186文件摘要和清Qt PATH smoke通过，单次10秒Ready首页专用工作集63.50MB且退出清理通过；真实OS事件/普通用户干净环境仍缺，G2 Blocked。逐项文档同步规则已写入开发规范。下文“最新”均为各历史切片的当时记录。

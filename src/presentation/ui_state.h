@@ -34,6 +34,7 @@ class UiState : public QObject {
     Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
+    Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(QString upload READ upload NOTIFY sampleChanged)
     Q_PROPERTY(QString download READ download NOTIFY sampleChanged)
     Q_PROPERTY(QVariantList uploadHistory READ uploadHistory NOTIFY sampleChanged)
@@ -49,6 +50,9 @@ class UiState : public QObject {
     explicit UiState(QString settingsFile = {}, QObject* parent = nullptr);
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
+    }
+    [[nodiscard]] QVariantList profiles() const {
+        return profiles_;
     }
     Q_INVOKABLE void runtimeCommand(const QString& command, const QStringList& arguments = {});
     [[nodiscard]] QString storageError() const {
@@ -144,6 +148,7 @@ class UiState : public QObject {
     void routeChanged();
     void storageChanged();
     void runtimeChanged();
+    void profilesChanged();
     void filterChanged(const QString& pageId, const QString& text);
     void routeErrorChanged();
     void themeChanged();
@@ -184,6 +189,7 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
+    QVariantList profiles_;
     QVariantList liveUpload_;
     QVariantList liveDownload_;
     QString trafficSample_;

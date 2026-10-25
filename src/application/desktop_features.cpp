@@ -21,6 +21,8 @@ void DesktopRuntime::loadOfflineGroups() {
     if (engine_.ready())
         return;
     groups_ = {};
+    configuredGroups_ = {};
+    defaultPolicy_.clear();
     const auto selection = repository_.manifest().value(QStringLiteral("selection")).toObject();
     if (selection.isEmpty())
         return;
@@ -46,6 +48,8 @@ void DesktopRuntime::loadOfflineGroups() {
     identities_ = infra::nodeIdentities(semantic, std::get<QByteArray>(key));
     const auto summary = infra::configurationSummary(semantic);
     groups_ = summary.value(QStringLiteral("groups")).toArray();
+    configuredGroups_ = groups_;
+    defaultPolicy_ = summary.value(QStringLiteral("defaultPolicy")).toString();
     featureState_.insert(QStringLiteral("nodes"), summary.value(QStringLiteral("nodes")));
     for (qsizetype i = 0; i < groups_.size(); ++i) {
         auto group = groups_[i].toObject();
@@ -63,7 +67,8 @@ void DesktopRuntime::loadOfflineGroups() {
 void DesktopRuntime::setDemands(const QStringList& streams) {
     featureDemands_.clear();
     const QStringList allowed{QStringLiteral("traffic"), QStringLiteral("connections"),
-                              QStringLiteral("logs"), QStringLiteral("resources")};
+                              QStringLiteral("logs"), QStringLiteral("resources"),
+                              QStringLiteral("proxies")};
     for (const auto& stream : streams)
         if (allowed.contains(stream))
             featureDemands_.insert(stream);
@@ -198,6 +203,8 @@ void DesktopRuntime::pollFeatures() {
         publish();
         return;
     }
+    if (featureDemands_.contains(QStringLiteral("proxies")) && !busy_ && proxyTick_++ % 5 == 0)
+        engine_.refreshGroups();
     engine_.setStream(QStringLiteral("traffic"),
                       featureDemands_.contains(QStringLiteral("traffic")));
     engine_.setStream(QStringLiteral("logs"), featureDemands_.contains(QStringLiteral("logs")));

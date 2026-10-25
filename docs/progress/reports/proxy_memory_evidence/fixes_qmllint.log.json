@@ -1,0 +1,14 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--build",
+    "build/p2_responsive",
+    "--target",
+    "quickclash_qmllint"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-25T10:19:19.8627781Z",
+  "elapsed_ms": 891,
+  "exit_code": 0,
+  "timed_out": false
+}

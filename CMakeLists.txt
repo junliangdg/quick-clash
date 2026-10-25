@@ -35,6 +35,7 @@ add_library(quickclash_application INTERFACE)
 target_include_directories(quickclash_application INTERFACE src)
 target_link_libraries(quickclash_application INTERFACE quickclash_domain)
 add_library(quickclash_config src/infra/config/config_preflight.cpp src/infra/config/config_preflight.h
+    src/infra/config/config_metadata.cpp src/infra/config/config_metadata.h
     src/infra/config/config_schema.cpp src/infra/config/config_schema.h
     src/infra/config/geo_resources.cpp src/infra/config/geo_resources.h)
 string(JSON QUICKCLASH_GEOIP_SHA256 GET "${QUICKCLASH_RELEASE_MATRIX}" geo geoip sha256)
@@ -140,6 +141,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/replay_list.qml
         qml/components/runtime_list.qml
         qml/components/subscription_details.qml
+        qml/components/outbound_status.qml
         qml/components/traffic_sparkline.qml
         qml/shell/page_host.qml
         qml/shell/embedded_host.qml
@@ -200,6 +202,7 @@ if(BUILD_TESTING)
     if(QUICKCLASH_BUILD_UI)
         add_executable(runtime_test tests/integration/runtime_test.cpp
             tests/integration/subscription_probe.cpp tests/integration/subscription_probe.h
+            tests/integration/subscription_memory_probe.cpp tests/integration/subscription_memory_probe.h
             tests/integration/native_proxy_client.cpp tests/integration/native_proxy_client.h
             tests/integration/network_fixture.cpp tests/integration/network_fixture.h)
         if(WIN32)
@@ -227,6 +230,8 @@ if(BUILD_TESTING)
         quickclash_warnings(localization_test)
         add_test(NAME localization COMMAND localization_test)
         target_sources(quickclash PRIVATE app/keyboard_probe.cpp)
+        target_sources(quickclash PRIVATE tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp)
+        target_include_directories(quickclash PRIVATE tests/integration)
         target_link_libraries(quickclash PRIVATE Qt6::Test)
         target_compile_definitions(quickclash PRIVATE QUICKCLASH_TEST_PROBES)
         add_executable(qt_cost_probe bench/qt_cost_probe.cpp)

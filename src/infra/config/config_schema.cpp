@@ -291,7 +291,7 @@ class Schema final {
         if (type == "trojan" || type == "vless" || type == "vmess")
             transport(proxy, type, path);
     }
-    void validate(const YAML::Node& root) {
+    void validate(const YAML::Node& root, const std::vector<std::string>* separateRules) {
         keys(root,
              {"proxies",
               "proxy-groups",
@@ -555,13 +555,16 @@ class Schema final {
             Q_UNUSED(members)
             attempt([&] { visit(name, 1); }, "$.proxy-groups[].proxies[]");
         }
-        require(root["rules"].IsSequence() && root["rules"].size() <= 20000, "$.rules");
-        for (std::size_t i = 0; i < root["rules"].size(); ++i) {
+        const auto ruleCount = separateRules ? separateRules->size() : root["rules"].size();
+        require(root["rules"].IsSequence() && ruleCount <= 20000, "$.rules");
+        for (std::size_t i = 0; i < ruleCount; ++i) {
             const auto path = QStringLiteral("$.rules[%1]").arg(i);
             attempt(
                 [&] {
-                    const auto parts =
-                        QString::fromStdString(text(root["rules"][i], path, 8192)).split(',');
+                    const auto value =
+                        separateRules ? (*separateRules)[i] : text(root["rules"][i], path, 8192);
+                    require(!value.empty() && value.size() <= 8192, path);
+                    const auto parts = QString::fromStdString(value).split(',');
                     const auto type = parts.front().toStdString();
                     if (!oneOf(type, {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR",
                                       "IP-CIDR6", "GEOIP", "GEOSITE", "MATCH"})) {
@@ -582,12 +585,13 @@ class Schema final {
     }
 };
 } // namespace
-domain::CommandResult validateConfigSchema(const YAML::Node& root) {
+domain::CommandResult validateConfigSchema(const YAML::Node& root,
+                                           const std::vector<std::string>* rules) {
     Schema schema;
     domain::Error error;
     error.stage = QStringLiteral("preflight");
     try {
-        schema.validate(root);
+        schema.validate(root, rules);
     } catch (const InvalidField& field) {
         schema.issue("InvalidConfigField", field.path, "field", "P2");
     } catch (const YAML::Exception&) {

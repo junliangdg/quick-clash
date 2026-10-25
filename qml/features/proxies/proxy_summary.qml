@@ -20,20 +20,14 @@ FlatTile {
         spacing: 10
         Label {
             font.family: root.theme.fontFamily
-            text: qsTr("Primary proxy group")
+            text: qsTr("Current outbound")
             color: root.theme.text
             font.bold: true
         }
+        OutboundStatus { ui: root.ui; theme: root.theme; compact: true; Layout.fillWidth: true; maximumLineCount: 2; elide: Text.ElideRight }
         Label {
             font.family: root.theme.fontFamily
-            text: root.ui.replay ? qsTr("Example group → Sample node 0001") : ((root.ui.runtime.groups || []).length ? root.ui.runtime.groups[0].name + " → " + root.ui.runtime.groups[0].current : qsTr("No proxy groups available"))
-            color: root.theme.muted
-            Layout.fillWidth: true
-            elide: Text.ElideRight
-        }
-        Label {
-            font.family: root.theme.fontFamily
-            text: qsTr("View group policies and available selections on the proxies page.")
+            text: qsTr("New connections follow this policy. Other rules and existing connections may use different nodes.")
             color: root.theme.muted
             Layout.fillWidth: true
             wrapMode: Text.WordWrap

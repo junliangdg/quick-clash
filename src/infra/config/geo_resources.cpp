@@ -1,4 +1,5 @@
 #include "infra/config/geo_resources.h"
+#include "infra/config/config_metadata.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -20,14 +21,15 @@ constexpr std::array kAssets{Asset{"geoip.dat", "GeoIP.dat", QUICKCLASH_GEOIP_SH
                              Asset{"geosite.dat", "GeoSite.dat", QUICKCLASH_GEOSITE_SHA256}};
 bool needed(const QByteArray& semantic) {
     try {
-        const auto root = YAML::Load(semantic.toStdString());
+        const auto metadata = configMetadata(semantic);
+        if (!std::holds_alternative<ConfigMetadata>(metadata))
+            return true;
+        const auto& fields = std::get<ConfigMetadata>(metadata);
+        if (fields.geoRule)
+            return true;
+        const auto root = YAML::Load(fields.fieldsYaml.toStdString());
         if (root["dns"] && root["dns"]["enable"] && root["dns"]["enable"].as<bool>())
             return true; // DNS fallback defaults can use GeoIP even without a GEOIP rule.
-        for (const auto& rule : root["rules"]) {
-            const auto value = rule.as<std::string>();
-            if (value.starts_with("GEOIP,") || value.starts_with("GEOSITE,"))
-                return true;
-        }
     } catch (const YAML::Exception&) {
         return true; // Fail closed if a corrupt artifact reaches this boundary.
     }
@@ -98,13 +100,21 @@ domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QStr
         QFile input(path);
         if (!input.open(QIODevice::ReadOnly) || input.size() > 32 * 1024 * 1024)
             return failure();
-        const auto bytes = input.readAll();
-        if (input.error() != QFileDevice::NoError ||
-            QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex() != expected)
-            return failure();
         QSaveFile output(QDir(directory).filePath(QString::fromLatin1(asset.target)));
-        if (!output.open(QIODevice::WriteOnly) || output.write(bytes) != bytes.size() ||
-            !output.commit())
+        if (!output.open(QIODevice::WriteOnly))
+            return failure();
+        // Hash and copy the same bounded chunks; never retain entire Geo assets in the client.
+        QCryptographicHash checksum(QCryptographicHash::Sha256);
+        qint64 copied = 0;
+        while (!input.atEnd()) {
+            const auto chunk = input.read(64 * 1024);
+            if (chunk.isEmpty() || output.write(chunk) != chunk.size())
+                return failure();
+            checksum.addData(chunk);
+            copied += chunk.size();
+        }
+        if (input.error() != QFileDevice::NoError || copied != input.size() ||
+            checksum.result().toHex() != expected || !output.commit())
             return failure();
     }
     return std::monostate{};
