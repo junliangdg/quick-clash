@@ -2,7 +2,7 @@
 
 仓库目录名统一为 `quick-clash`，本机目标工作路径为 `D:/repos/quick-clash`；应用显示名为 `QuickClash`，CMake project/程序基础名/命名空间使用 `quickclash`。本轮已观测实际目录迁移完成，状态及迁移后的构建处理见 [迁移记录](docs/progress/reports/20261024_repository_rename.md)。
 
-基于C++20/Qt Quick的Mihomo客户端，内核使用官方预编译程序。P0/P1完成，Windows P2已有订阅—官方内核—系统代理链路、窄窗三底栏、自动中英文及[主流协议/自动组/兼容性诊断](docs/progress/reports/20261024_p2_protocols.md)。本轮修复连续缩放时D3D11等待阻塞及导航布局重复协商，见[缩放修复](docs/progress/reports/20261024_resize_layout.md)。当前本地包dist/p2_resize/bin/quickclash.exe，需保留完整目录并退出旧版本后启动，使用方式见[Windows指南](docs/baseline/windows_user_guide.md)。P2为20Done/2Review/2Blocked，G2仍Blocked；真实Windows事件、关键恢复和干净普通用户环境尚待核对。Geo/fake-ip DNS仍按P3分期，新增协议的公网握手未测，不能把链接识别或官方内核加载当作全部订阅可用。跨平台/CI后置P4，只做必要检查与单轮短测。
+基于C++20/Qt Quick的Mihomo客户端，使用官方预编译内核。P0/P1完成，Windows已有订阅—官方内核—系统代理真实链路、窄窗三底栏、中英文及主流协议/自动组支持，当前本机包为dist/g2_recovery/bin/quickclash.exe，需保留完整目录并退出旧版本后启动，见[Windows指南](docs/baseline/windows_user_guide.md)。按设计1.9的[G2范围复核](docs/progress/reports/20261025_g2_scope_review.md)，G2聚焦本机最小闭环，P2现21Done/2Review/1Todo，G2 NotRun待证据汇总；干净普通用户环境与有限真实OS/GUI宿主补证归P3-14/G3。完整Windows日常功能仍在开发，未宣称可交付。当前运行事实见[恢复报告](docs/progress/reports/20261025_g2_recovery.md)，跨平台原生/CI后置P4，不统一要求全协议握手或故障/性能穷举矩阵。
 
 - [设计文档与范围](docs/design/README.md)：模块、UI、配置/订阅/内核/平台代理、恢复与阶段计划。
 - [开发进度入口](docs/progress/README.md)：任务台账、G0—G5 清单、16 项 MVP 结果、报告与接续日志。

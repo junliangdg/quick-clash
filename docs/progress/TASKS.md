@@ -2,9 +2,9 @@
 
 状态唯一来源为本表；状态与证据规则见 [使用说明](README.md)。设计范围见 [18 实施任务](../design/18-实施任务与验收清单.md)。
 
-核对日期：2026-10-25，设计基线1.8。P0为9项Done、P1为6项Done，P2为21项Done、2项Review、1项Blocked，G2 Blocked。P2-15关键恢复Done，见[G2恢复报告](reports/20261025_g2_recovery.md)；P2-11真实OS事件及P2-16普通用户干净环境待补。P3为3项Done、1项Doing、9项Todo，P4/P5为8项Todo，G3 NotRun。新增P3-12完成[G3 Windows方案调整](reports/20261025_g3_windows_plan.md)，P3-13负责静态兼容收敛；方案Done不表示产品或静态兼容通过。P3-10/11的历史订阅闭环及本机包证据保留，见[日常链路报告](reports/20261025_daily_use.md)，当前未完成工作区不自动继承其产品结论。任务数不代表产品百分比。
+核对日期：2026-10-25，设计基线1.9。P0为9项Done、P1为6项Done，P2为21项Done、2项Review、1项Todo，G2 NotRun（修订范围待汇总，未改Pass）。[G2范围复核](reports/20261025_g2_scope_review.md)将干净普通用户环境和真实OS/GUI宿主补证集中到P3-14；P2-11/16仍Review待核对本机证据，P2-17从旧范围Blocked改Todo。P2-15关键恢复Done，见[恢复报告](reports/20261025_g2_recovery.md)。P3为3项Done、1项Doing、10项Todo，P4/P5为8项Todo，G3 NotRun。P3-12方案Done，P3-13静态兼容Todo；历史P3-10/11订阅闭环及包证据保留，当前未完成切片不自动继承其结论。任务数不代表产品百分比。
 
-G3聚焦Windows日常使用，三平台/五平台按设计01/4.1后续逐步覆盖。功能切片按已完成的实际依赖开发；P2-17/G2的Windows恢复与干净环境缺口仍是G3汇总前置。P4-04的Windows正式安装/更新可以先行，不等待Linux/macOS；所有非Windows原生/真实覆盖当前均不宣称通过。
+G2聚焦Windows本机最小闭环和必要恢复，仍须一条GUI订阅—节点选择—真实转发主路径及16项证据汇总；不穷举协议/故障/资源矩阵。G3聚焦Windows日常使用，P3-14补有限环境/宿主集成证据，缺干净机器不阻塞其他开发，但G3汇总前须关闭。三平台/五平台后续覆盖，Windows正式安装/更新P4-04可先行；非Windows原生/真实覆盖未宣称通过。
 
 ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留旧 ID 的范围/证据记录，避免改号导致报告失效。依赖仅列必须完成的前置子项；阶段门另由 CHECKLISTS 管理。开始任务时填写执行者，未开始项保留未分配。证据使用相对本文件的本地 Markdown 报告链接；子任务 Done 不表示阶段门通过。
 
@@ -35,13 +35,13 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P2-08 | P2 | W13 | Windows 系统代理适配/租约/迁移 | Done | Codex | P2-01, P2-03, P2-05 | [P2交付](reports/20261024_p2_implementation.md) | WinINet LAN快照读回/幂等/迁移/冲突/显式重开/磁盘失败恢复；不覆盖WinHTTP/RAS |
 | P2-09 | P2 | W08, W13 | 组合启停/崩溃有限恢复/退出清理 | Done | Codex | P2-06, P2-08 | [P2交付](reports/20261024_p2_implementation.md) | 首页/托盘统一门面，代理意图独立持久化及补偿、退出保留/UserStop清除；强杀组合归P2-15 |
 | P2-10 | P2 | W12, W15 | 有界错误日志/最小修复入口 | Done | Codex | P2-05, P2-09 | [P2交付](reports/20261024_p2_implementation.md) | 无内核错误/端口/导入选择/停止恢复、打开数据目录及手工修复说明可用 |
-| P2-11 | P2 | W17 | Windows 换网/休眠最小核对 | Review | Codex | P2-07, P2-09 | [G2恢复开发](reports/20261025_g2_recovery.md) | 接口/IP/连通性及唤醒通知已接；20次请求合并1次、立即失效旧测试、退出忽略事件已测；待一次实际换网/唤醒核对 |
+| P2-11 | P2 | W17 | Windows通知接入与有界合并核对 | Review | Codex | P2-07, P2-09 | [G2恢复开发](reports/20261025_g2_recovery.md)、[范围复核](reports/20261025_g2_scope_review.md) | 接口/IP/连通性及唤醒已接，20→1/PID不变/旧测试失效/退出忽略已有证据；待按1.9逐条件核对，真实OS事件转P3-14，不自动Done |
 | P2-12 | P2 | W20 | 可配置单目标 HTTPS 测试 | Done | Codex | P2-06, P2-09 | [P2交付](reports/20261024_p2_implementation.md) | 自设目标DPAPI保存、当前入口HEAD/12秒/并发1、拒redirect/无直连回退 |
 | P2-13 | P2 | W20 | 受控远端代理/HTTPS 端到端夹具 | Done | Codex | P2-05, P2-06, P2-07 | [P2交付](reports/20261024_p2_implementation.md) | 独立GET经owned入口/域名CONNECT到受控TLS服务，远端记录断言通过；本机夹具范围 |
 | P2-14 | P2 | W13, W20 | 系统代理端到端/重复租约/端口迁移 | Done | Codex | P2-08, P2-09, P2-13 | [P2交付](reports/20261024_p2_implementation.md) | 真实PRECONFIG HTTPS/重复开启/迁移及原快照恢复通过，PAC/冲突另有注入适配器证据 |
 | P2-15 | P2 | W07, W08, W09, W11, W13 | 首次失败/事务中断/核心崩溃/强杀恢复 | Done | Codex | P2-07, P2-09, P2-10, P2-14 | [G2恢复开发](reports/20261025_g2_recovery.md) | 首次关键失败/停止打断/worker强杀→Job及真实WinINet下次租约/事务恢复、manifest前后、连续四次受管恢复及系统客户端回归通过；非全故障矩阵，真实OS事件独立归P2-11 |
-| P2-16 | P2 | W18 | Windows 离线验证包与干净环境运行 | Review | Codex | P0-09, P2-03, P2-04, P2-07, P2-10, P2-12, P2-14 | [G2恢复开发](reports/20261025_g2_recovery.md) | 当前dist/g2_recovery包186文件摘要/固定CRT/官方内核和清Qt PATH smoke通过；用户暂无普通用户无Qt开发工具的干净环境，保留待验收 |
-| P2-17 | P2 | W06, W19, W20 | G2全部MVP证据与真实闭环资源报告 | Blocked | Codex | P2-12, P2-13, P2-15, P2-16, P2-21, P2-22, P2-23, P1-05 | [G2恢复开发](reports/20261025_g2_recovery.md) | 关键恢复与原生回归已通过；仍缺真实OS事件和普通用户干净环境，资源及剩余MVP组合范围按清单记录 |
+| P2-16 | P2 | W18 | Windows本机完整离线包与依赖/启动核对 | Review | Codex | P0-09, P2-03, P2-04, P2-07, P2-10, P2-12, P2-14 | [G2恢复开发](reports/20261025_g2_recovery.md)、[范围复核](reports/20261025_g2_scope_review.md) | dist/g2_recovery的186文件摘要/CRT/官方内核与清Qt PATH smoke通过；核对本地导入/Ready及随包修复说明证据，干净普通用户机器转P3-14，不自动Done |
+| P2-17 | P2 | W06, W19, W20 | G2本机16项MVP证据与单场景资源汇总 | Todo | Codex | P2-11, P2-12, P2-13, P2-15, P2-16, P2-21, P2-22, P2-23, P1-05 | [范围复核](reports/20261025_g2_scope_review.md) | 先映射1.9条件与有效证据；只补GUI主链路及缺失的下载限额/TLS、身份/迟到/秘密保护定向检查，复用Ready首页短测；缺干净环境不再是本任务阻塞 |
 | P2-18 | P2 | W05 | 窄窗竖屏布局与三个底部导航入口 | Done | Codex | P2-06 | [初始交付](reports/20261024_p2_responsive_localization.md)、[缩放修复](reports/20261024_resize_layout.md) | 360×480、600断点、八路由/状态/键盘保留；P2-24补真实窗口连续缩放，不代表真实转发时帧验收 |
 | P2-19 | P2 | W05, W15 | 英文源文案/中文翻译/自动系统语言 | Done | Codex | P2-18 | [本轮交付](reports/20261024_p2_responsive_localization.md) | Qt词表内嵌，系统首选序匹配/英文回退、172条翻译和中英文截图通过 |
 | P2-20 | P2 | W11 | 标准HTTPS订阅链接协商/内容识别/错误说明 | Done | Codex | P2-07 | [本轮交付](reports/20261024_p2_responsive_localization.md) | 默认UA/Accept、头覆盖/空白、误标MIME与坏更新保留通过；4个私有样本仅识别，配置能力待扩展 |
@@ -55,13 +55,14 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P3-04 | P3 | W14 | Windows 权限服务/隔离控制器/TUN | Todo | 未分配 | P2-03, P2-05, P2-08, P2-09 | — | 核对现有服务实现；完成固定IPC/权限与TUN真实转发、迁移和退出清理，代码存在不等于验收通过 |
 | P3-05 | P3 | W15 | 完整设置/备份/诊断 | Todo | 未分配 | P2-01, P2-02, P2-10, P2-12 | — | 核对当前工作区安全恢复、支持包与schema；网络设置面向系统代理/TUN开关，平台差异经能力提供 |
 | P3-06 | P3 | W20 | 网站/系统资源完整能力与可选 IP 边界 | Todo | 未分配 | P2-06, P2-12, P2-13 | — | 核对NET/RES及当前工作区实现，资源采样移出业务层；IP启用则验收，否则隐藏 |
-| P3-07 | P3 | W06, W19 | G3 Windows日常使用交付与必要验收汇总 | Todo | 未分配 | P2-17, P3-01, P3-02, P3-03, P3-04, P3-05, P3-06, P3-08, P3-09, P3-12, P3-13 | — | 关闭Windows关键恢复/干净环境缺口，汇总订阅到真实转发/恢复、八页面和静态兼容；资源采用有效证据/必要单场景短测，其他平台原生后置 |
-| P3-08 | P3 | W09, W15 | fake-ip/redir-host DNS、解析/过滤/缓存与回环防护 | Todo | 未分配 | P2-23, P3-02, P3-10 | [内部DNS切片](reports/20261024_p3_subscription.md) | 核对高级policy/设置/缓存/回环与规则匹配，修复当前contracts测试失败后再留证；外部监听/系统DNS劫持另依赖P3-04 |
+| P3-07 | P3 | W06, W19 | G3 Windows日常使用交付与必要验收汇总 | Todo | 未分配 | P2-17, P3-01, P3-02, P3-03, P3-04, P3-05, P3-06, P3-08, P3-09, P3-12, P3-13, P3-14 | — | 汇总八页面、真实转发/恢复、P3-14有限环境/宿主证据及静态兼容；资源复用有效证据/必要单场景短测，其他平台原生后置 |
+| P3-08 | P3 | W09, W15 | fake-ip/redir-host DNS、解析/过滤/缓存与回环防护 | Todo | 未分配 | P2-23, P3-02, P3-10 | [内部DNS切片](reports/20261024_p3_subscription.md)、[夹具修复](reports/20261025_g2_recovery.md) | 核对高级policy/设置/缓存/回环与规则匹配，原contracts夹具失败已修复，不再列阻塞；外部监听/系统DNS劫持另依赖P3-04 |
 | P3-09 | P3 | W09, W10 | TUIC等高级协议/传输与load-balance策略扩展 | Todo | 未分配 | P2-21, P2-22, P2-23 | [功能分期](reports/20261024_mihomo_feature_plan.md) | 核对当前工作区分项实现和支持矩阵，不任意透传外部文件/下载字段，不扩大为全部协议真实握手通过 |
 | P3-10 | P3 | W09, W10, W11, W20 | 代表订阅的受管Geo/最小DNS兼容及真实节点HTTPS链路 | Done | Codex | P2-07, P2-21, P2-22, P2-23 | [订阅闭环](reports/20261024_p3_subscription.md) | S3导入56节点/3组，VLESS全局HTTPS200/1MiB/TLS及所选节点链通过；Geo缺失/损坏拒绝、Windows包及单轮短测通过；完整P3-02/08继续开发 |
 | P3-11 | P3 | W10, W11, W18, W20 | Windows日常订阅调度/自动应用/节点筛选与可用包 | Done | Codex | P3-10, P2-08, P2-09 | [日常链路](reports/20261025_daily_use.md) | 定时更新/退避/自动应用/补偿与筛选完成；WinINet转发/精确恢复及私有56节点VLESS HTTPS/更新后转发通过；dist/p3_daily，完整G3仍待后续 |
 | P3-12 | P3 | W02, W03, W19 | G3 Windows优先方案、三/五平台路线与验收边界 | Done | Codex | — | [方案调整](reports/20261025_g3_windows_plan.md) | 设计1.8与任务/清单同步；仅文档方案交付，未改变G2/G3或产品兼容结论 |
 | P3-13 | P3 | W02, W03, W16 | 跨平台静态兼容核对与Windows耦合收敛 | Todo | 未分配 | P3-12 | [初步缺口](reports/20261025_g3_windows_plan.md) | 先抽离DesktopRuntime具体凭据/代理头、desktop_features的Win32/SCM采样及EngineSession的Windows进程类型；再核对CMake/能力/路径/导航/翻译/生命周期，原生运行转P4 |
+| P3-14 | P3 | W04, W13, W17, W18 | Windows普通用户包与有限OS/GUI宿主集成补证 | Todo | 未分配 | P1-04, P2-11, P2-15, P2-16 | [范围复核](reports/20261025_g2_scope_review.md) | G3前补干净普通用户包/代表路径/基本修复、一次真实换网或唤醒、GUI整体强杀/下次恢复、运行会话隐藏重建及一次外部代理变更；只补差异，暂无干净环境不阻塞其他开发 |
 | P4-01 | P4 | W16, W18 | Linux代理/托盘/服务与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中Linux原生基线就绪后逐项实现，记录GNOME/KDE/X11/Wayland及安装/更新范围；不等待macOS完成 |
 | P4-02 | P4 | W16, W18 | macOS菜单栏/代理/helper与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中macOS原生基线就绪后逐项实现，记录多网络服务/签名/公证/授权与安装更新；不等待Linux完成 |
 | P4-03 | P4 | W17 | 三平台网络/电源矩阵 | Todo | 未分配 | P4-01, P4-02 | — | 运行休眠、换网、时钟/会话变化用例 |

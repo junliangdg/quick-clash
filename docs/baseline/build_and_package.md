@@ -46,11 +46,11 @@ clang-format 21.1.2 处理自有 C++；clang-tidy 21.1.2 配置已可解析，�
 
 ## P2 离线验证包
 
-P0 定义布局，P2-16 实现在无开发工具的普通用户机器验证，不把空壳叫作离线产品：bin/quickclash.exe、Qt DLL/platforms/styles/TLS/QML imports、core/mihomo.exe、metadata/release_matrix.json、licenses/第三方许可与源码获取说明。
+P0定义布局，P2-16交付本机完整离线包并核对清开发Qt PATH后的本地导入/Ready，P3-14在G3前补无Qt/开发工具的普通用户干净环境；清PATH不代表干净机器。包包括bin/quickclash.exe、Qt DLL/platforms/styles/TLS/QML imports、CRT、core/mihomo.exe、metadata/release_matrix.json、licenses/第三方许可与源码获取说明，已声明固定Geo资源也须随包。范围见[G2复核](../progress/reports/20261025_g2_scope_review.md)。
 
-运行 `pwsh -NoProfile -File scripts/deploy_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p1_validated`，工具不在 PATH 时补 `-CMake`。脚本将 prefix 解析为绝对路径，通过 qt_generate_deploy_qml_app_script 收集 Qt/QML，临时移除开发 Qt PATH 后用随包 Windows 插件执行 smoke，保存输出/退出码。当前部署通过；仍需在 P2-16 核验干净环境 TLS、VC runtime 和发行裁剪。Mihomo 原始字节校验后单独加入，不构建 Go 源码。P2 无 Geo 资源，许可义务见 [台账](licenses.md)。
+运行 `pwsh -NoProfile -File scripts/deploy_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p1_validated`，工具不在PATH时补-CMake。脚本将prefix解析为绝对路径，通过qt_generate_deploy_qml_app_script收集Qt/QML，移除开发Qt PATH后用随包Windows插件执行smoke并留结果。P2-16核对完整依赖/CRT/内核及启动证据，P3-14补干净环境TLS/运行路径；Mihomo字节校验后单独加入，不构建Go源码。当前固定Geo范围见P3-10，许可义务见[台账](licenses.md)。
 
-P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境仍是P2-16的待验收项。
+P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境由P3-14在G3前验收，未按本机清PATH放行。
 
 安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
 
