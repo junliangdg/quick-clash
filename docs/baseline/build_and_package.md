@@ -14,6 +14,18 @@
 - 0.8.0 声明 CMake 3.4，触发 CMake 4 删除的旧策略兼容；0.9.0 原文声明 3.5...3.30，现已在 CMake 4.3.0 完整构建和契约测试通过。
 - 版本化缓存名避免旧 yaml_cpp.tar.gz 固定旧版本；CMake 从清单读取缓存名和摘要，每次配置刷新 FetchContent 来源。无需删除整个 build 目录。
 
+### 依赖初始化与 Geo 更新边界
+
+2026-10-26获取修复替代上文历史记录中的latest下载方式：默认依赖获取是**获取锁定快照**，不是升级至上游最新版。Geo沿用2026-10-24快照，数据来源固定为官方提交`bfa68b978ec9c0494203d7c0d64e186640f7257b`，许可证固定为`964be7423e659538e4aa4b77ff908188b7102890`；原摘要、大小和数据字节不变。上游数据分支会强制推送，固定提交不等于永久托管保证，应保存已验证的离线副本。
+
+仅解除CMake配置的yaml-cpp缺失时，可执行`pwsh -NoProfile -File scripts/fetch_dependencies.ps1 -YamlOnly`；已有缓存可追加`-Offline`验证。省略`-YamlOnly`才准备Mihomo和Geo等运行/打包资源。`-YamlOnly`成功不代表完整运行资源已齐备。
+
+摘要不匹配时，脚本报告来源、文件路径、预期/实际SHA-256；超限报告实际大小和上限。失败下载不发布为有效缓存，并清理本次临时文件；已有缓存即使校验失败也不自动覆盖，应先核实后仅移走明确损坏的单项，不删除整个缓存。缺少离线文件时提示恢复冻结文件或显式联网获取。不要关闭校验、把临时文件改名，或自动接受本次下载摘要。
+
+需要更新Geo时，必须另行核实新快照来源，显式更新日期、固定提交、摘要及大小，并完成受影响的兼容/功能验收；初始化脚本不自动升级数据或改写清单。此次获取修复与验证边界见[报告](../progress/reports/20261026_dependency_fetch_fix.md)。
+
+获取行为的独立回归入口为`pwsh -NoProfile -File tests/scripts/fetch_dependencies_test.ps1`，使用隔离缓存和模拟网络，不编译产品，也不替代真实资产下载/校验。
+
 在仓库根目录执行：
 
 仓库目录统一为 `quick-clash`，实际工作路径为 `D:/repos/quick-clash`，[目录迁移](../progress/reports/20261024_repository_rename.md)及会话写权限更新已完成。移动源码目录后，旧 CMake/Ninja 生成文件含原绝对路径，不能直接复用；保留旧 `build/` 作为历史资料，使用全新目录，例如 `-BuildDirectory build/windows_x64`、`-BuildDirectory build/headless_x64 -Headless`。脚本和 presets 均从当前仓库位置求路径，下载缓存 `.cache/` 可继续按摘要校验使用。

@@ -1,0 +1,28 @@
+{
+  "checked_at_utc": "2026-10-26T01:52:05.7479884Z",
+  "revision": "bfa68b978ec9c0494203d7c0d64e186640f7257b",
+  "license_revision": "964be7423e659538e4aa4b77ff908188b7102890",
+  "assets": [
+    {
+      "file": "geoip.dat",
+      "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/bfa68b978ec9c0494203d7c0d64e186640f7257b/geoip.dat",
+      "bytes": 16570425,
+      "sha256": "a6271d3c96361d96156e6d3f7cf1550ef21b00d2f951deb772f464db91e89ac5",
+      "matches_frozen_baseline": true
+    },
+    {
+      "file": "geosite.dat",
+      "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/bfa68b978ec9c0494203d7c0d64e186640f7257b/geosite.dat",
+      "bytes": 4311865,
+      "sha256": "610e2fa2b57b1232ba2220eeea45eb6e0bbf3675e19ac6ee2d29e8eb3e294b10",
+      "matches_frozen_baseline": true
+    },
+    {
+      "file": "license.txt",
+      "url": "https://raw.githubusercontent.com/MetaCubeX/meta-rules-dat/964be7423e659538e4aa4b77ff908188b7102890/LICENSE",
+      "bytes": 35149,
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986",
+      "matches_frozen_baseline": true
+    }
+  ]
+}

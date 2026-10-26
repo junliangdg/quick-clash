@@ -1,0 +1,2 @@
+PASS: 35 source directories and 134 files follow QuickClash naming rules.
+Product source files inspected: 99. Formatting, compilation and runtime behavior require separate checks.
