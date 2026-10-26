@@ -1,0 +1,57 @@
+{
+    "after": {
+        "privateCommit": "103940096",
+        "privateWorkingSet": "28786688",
+        "samples": "399",
+        "workingSet": "87568384"
+    },
+    "before": {
+        "privateCommit": "100397056",
+        "privateWorkingSet": "26054656",
+        "samples": "128",
+        "workingSet": "84533248"
+    },
+    "changedApplied": true,
+    "changedUpdate": {
+        "privateCommit": "106135552",
+        "privateWorkingSet": "30171136",
+        "samples": "148",
+        "workingSet": "88809472"
+    },
+    "error": "",
+    "home": {
+        "privateCommit": "106033152",
+        "privateWorkingSet": "31117312",
+        "samples": "387",
+        "workingSet": "92205056"
+    },
+    "homeOutbound": {
+        "balanced": false,
+        "chain": [
+            "自动选择",
+            "🇯🇵日本高速02|CTCU|0.5x͸"
+        ],
+        "confirmed": true,
+        "mode": "rule",
+        "node": "🇯🇵日本高速02|CTCU|0.5x͸",
+        "policy": "自动选择"
+    },
+    "homeOutboundTextObserved": true,
+    "homeTextCheckAvailable": true,
+    "missingGlyphOnUpdate": true,
+    "qtVersion": "6.8.0",
+    "scenario": "Public loopback HTTPS; 58 nodes / 12001 rules / DNS+Geo; no system proxy or TUN",
+    "sourceBytes": 508416,
+    "unchangedKeptCore": true,
+    "unchangedUpdate": {
+        "privateCommit": "101650432",
+        "privateWorkingSet": "26791936",
+        "samples": "5",
+        "workingSet": "85426176"
+    },
+    "unicodeOnUpdate": true,
+    "updatedNodeSelected": true
+}
+
+--- stderr ---
+DirectWrite: CreateFontFaceFromHDC() failed (指示输入文件 (例如字体文件) 中的错误。) for QFontDef(Family="ADMUI3Lg", stylename=Regular, pointsize=9, pixelsize=13, styleHint=5, weight=400, stretch=100, hintingPreference=0) LOGFONT("ADMUI3Lg", lfWidth=0, lfHeight=-13) dpi=96

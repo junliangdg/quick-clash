@@ -1,0 +1,17 @@
+Test project D:/repos/quick-clash/build/dev
+    Start 14: localization
+1/5 Test #14: localization .....................   Passed    0.05 sec
+    Start 15: ui_state
+2/5 Test #15: ui_state .........................   Passed    0.16 sec
+    Start 18: qml_smoke
+3/5 Test #18: qml_smoke ........................   Passed    0.52 sec
+    Start 20: ui_responsive
+4/5 Test #20: ui_responsive ....................   Passed    2.51 sec
+    Start 21: ui_runtime_lists
+5/5 Test #21: ui_runtime_lists .................   Passed    1.03 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   4.31 sec
+
+--- stderr ---

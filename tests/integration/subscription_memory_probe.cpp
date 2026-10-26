@@ -62,8 +62,11 @@ int subscriptionMemoryProbe() {
          [&](const QString& url) {
              runtime.addSubscription(url, QStringLiteral("Public memory fixture"));
          },
-         [&] { runtime.start(false); }, [&](const QString& id) { runtime.updateProfile(id); },
-         [&] { runtime.stop(); }});
+         [&] { runtime.start(false); },
+         [&](const QString& id) { runtime.updateProfile(id); },
+         [&] { runtime.stop(); },
+         {},
+         {}});
 #endif
 }
 int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
@@ -79,7 +82,7 @@ int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
     if (!origin.initialize())
         return 2;
     QByteArray source = "proxies:\n";
-    for (int i = 0; i < 56; ++i)
+    for (int i = 0; i < 58; ++i)
         source += "- {name: node_" + QByteArray::number(i) +
                   ", type: http, server: 127.0.0.1, port: 9}\n";
     source += "proxy-groups:\n- {name: primary, type: select, proxies: [node_0, DIRECT]}\n"
@@ -103,8 +106,9 @@ int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
     const auto id = runtime.snapshot().value("selectedId").toString();
     const auto originalPid = runtime.snapshot().value("corePid");
     const auto originalGeneration = runtime.snapshot().value("selectionGeneration");
-    std::array<Peak, 4> peaks;
+    std::array<Peak, 5> peaks;
     std::atomic<int> phase = 0;
+    QString updatedNode = QStringLiteral("node_0");
     {
         std::jthread sampler([&](std::stop_token stop) {
             while (!stop.stop_requested()) {
@@ -146,6 +150,20 @@ int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
             return 8;
         phase = 2;
         origin.subscription.replace("site_0.invalid", "updated.invalid");
+        const bool unicode =
+            QCoreApplication::arguments().contains(QStringLiteral("--probe-unicode"));
+        if (unicode) {
+            // Introduce fallback glyphs only on update, as real subscription names can change.
+            updatedNode =
+                QStringLiteral("\U0001f1ef\U0001f1f5\u65e5\u672c\u9ad8\u901f02|CTCU|0.5x");
+            origin.subscription.replace("primary",
+                                        QStringLiteral("\u81ea\u52a8\u9009\u62e9").toUtf8());
+        }
+        if (QCoreApplication::arguments().contains(QStringLiteral("--probe-missing-glyph"))) {
+            // Valid YAML text with an unassigned character exercises exhausted font fallback.
+            updatedNode += QChar(0x0378);
+        }
+        origin.subscription.replace("node_0", updatedNode.toUtf8());
         runtime.update(id); // Changed content exercises preflight, validation and apply.
         if (!waitFor([&] { return runtime.snapshot().value("busy").toBool(); }) ||
             !waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }))
@@ -154,11 +172,24 @@ int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
             runtime.snapshot().value("selectionGeneration") == originalGeneration)
             return 9;
         phase = 3;
-        idle(5000);
+        idle(6000);
+        if (runtime.returnHome) {
+            phase = 4;
+            runtime.returnHome();
+            idle(6000);
+        }
     }
+    const auto outbound = runtime.snapshot().value("outbound").toObject();
+    const bool nodeMatched = outbound.value("node").toString() == updatedNode;
+    const bool textObserved = runtime.homeContainsNode && runtime.homeContainsNode(updatedNode);
     QJsonObject result{
         {"scenario",
-         "Public loopback HTTPS; 56 nodes / 12001 rules / DNS+Geo; no system proxy or TUN"},
+         "Public loopback HTTPS; 58 nodes / 12001 rules / DNS+Geo; no system proxy or TUN"},
+        {"qtVersion", qVersion()},
+        {"unicodeOnUpdate",
+         QCoreApplication::arguments().contains(QStringLiteral("--probe-unicode"))},
+        {"missingGlyphOnUpdate",
+         QCoreApplication::arguments().contains(QStringLiteral("--probe-missing-glyph"))},
         {"sourceBytes", source.size()},
         {"unchangedKeptCore", true},
         {"changedApplied", true},
@@ -166,10 +197,17 @@ int subscriptionMemoryProbe(const SubscriptionProbeRuntime& runtime) {
         {"unchangedUpdate", peaks[1].json()},
         {"changedUpdate", peaks[2].json()},
         {"after", peaks[3].json()},
+        {"home", peaks[4].json()},
+        {"homeOutbound", outbound},
+        {"updatedNodeSelected", nodeMatched},
+        {"homeTextCheckAvailable", bool(runtime.homeContainsNode)},
+        {"homeOutboundTextObserved", textObserved},
         {"error", runtime.snapshot().value("error")}};
     runtime.stop();
     std::cout << QJsonDocument(result).toJson().constData();
-    return result.value("error").toString().isEmpty() ? 0 : 7;
+    if (!result.value("error").toString().isEmpty())
+        return 7;
+    return runtime.homeContainsNode && (!nodeMatched || !textObserved) ? 21 : 0;
 #endif
 }
 } // namespace quickclash::test

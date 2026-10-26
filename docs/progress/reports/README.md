@@ -6,6 +6,7 @@
 
 | 主题 | 报告 |
 |---|---|
+| 订阅更新后内存异常调查 | [调查与对照证据](20261026_subscription_memory_investigation.md) |
 | 客户端内存优化及最终跨批次审查 | [持续报告与验证矩阵](20261026_client_memory_optimization.md) |
 | 系统代理冲突显式开启重建基线 | [修复报告](20261026_system_proxy_conflict_fix.md) |
 | 首页精简与代理组布局 | [界面调整报告](20261026_proxy_group_layout.md) |

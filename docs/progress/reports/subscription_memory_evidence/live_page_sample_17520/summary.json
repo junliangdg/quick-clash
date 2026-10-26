@@ -1,0 +1,11 @@
+{
+  "status": "Sampled",
+  "client_pids": [
+    17520
+  ],
+  "core_pids": [],
+  "requested_seconds": 10,
+  "interval_ms": 100,
+  "rows": 92,
+  "limitations": "Query-only explicit PIDs. No executable/source identity claim, automatic child discovery, product acceptance or memory-budget Pass. Include all required client services explicitly. Core restarts require a new sample."
+}

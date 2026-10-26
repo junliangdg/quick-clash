@@ -1,0 +1,13 @@
+[0/2] Re-checking globbed directories...
+[1/59] Automatic MOC for target runtime_test
+[2/58] Automatic MOC for target quickclash
+[3/57] Running AUTOMOC file extraction for target quickclash
+[4/57] Running moc --collect-json for target quickclash
+[5/11] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\subscription_memory_probe.cpp.obj
+[6/11] Building CXX object CMakeFiles\quickclash.dir\tests\integration\subscription_memory_probe.cpp.obj
+[7/11] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+[8/11] Linking CXX executable quickclash.exe
+[9/11] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+[10/11] Linking CXX executable runtime_test.exe
+
+--- stderr ---

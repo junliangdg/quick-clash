@@ -1,0 +1,16 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\quickclash.exe",
+  "arguments": [
+    "--subscription-memory-test",
+    "--probe-management",
+    "--probe-unicode",
+    "--probe-missing-glyph",
+    "--probe-language=zh-CN",
+    "--capture=D:/repos/quick-clash/docs/progress/reports/subscription_memory_evidence/vector_home.png"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T13:29:30.1902352Z",
+  "elapsed_ms": 20641,
+  "exit_code": 0,
+  "timed_out": false
+}

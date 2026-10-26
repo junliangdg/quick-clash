@@ -1,0 +1,14 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--build",
+    "build/dev",
+    "--target",
+    "quickclash"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T14:09:22.0422905Z",
+  "elapsed_ms": 5864,
+  "exit_code": 0,
+  "timed_out": false
+}

@@ -8,6 +8,7 @@
 
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
+| 订阅更新后内存异常调查 | Review | Codex | NotRun | [调查报告](reports/20261026_subscription_memory_investigation.md)；可选--software-rendering构建/3项UI测试通过，旧页面已销毁；真实GPU专用175.68MB，Qt软件129.34—131.44MB仍超目标，字体驻留504→491MB仍存在；继续定位Qt字体触发/私有分配，异常修复未关闭 |
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#28-最终实现验证矩阵)；另获构建授权后补新源码定向验证 |
 | 系统代理冲突显式开启重建基线 | Done | Zoo | Review | [修复报告](reports/20261026_system_proxy_conflict_fix.md)；增量构建/proxy_lease/recovery 退出0；全量 CTest 受既有 provider_stream_test 编译错误影响，GUI/原生转发验收 NotRun |
 

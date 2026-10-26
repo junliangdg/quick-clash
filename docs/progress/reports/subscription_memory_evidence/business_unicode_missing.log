@@ -1,0 +1,53 @@
+{
+    "after": {
+        "privateCommit": "9297920",
+        "privateWorkingSet": "6791168",
+        "samples": "385",
+        "workingSet": "31875072"
+    },
+    "before": {
+        "privateCommit": "7774208",
+        "privateWorkingSet": "5971968",
+        "samples": "129",
+        "workingSet": "31010816"
+    },
+    "changedApplied": true,
+    "changedUpdate": {
+        "privateCommit": "13725696",
+        "privateWorkingSet": "10215424",
+        "samples": "173",
+        "workingSet": "35278848"
+    },
+    "error": "",
+    "home": {
+        "privateCommit": "0",
+        "privateWorkingSet": "0",
+        "samples": "0",
+        "workingSet": "0"
+    },
+    "homeOutbound": {
+        "balanced": false,
+        "chain": [
+            "自动选择",
+            "🇭🇰 香港 🚀"
+        ],
+        "confirmed": true,
+        "mode": "rule",
+        "node": "🇭🇰 香港 🚀",
+        "policy": "自动选择"
+    },
+    "missingGlyphOnUpdate": true,
+    "qtVersion": "6.8.0",
+    "scenario": "Public loopback HTTPS; 58 nodes / 12001 rules / DNS+Geo; no system proxy or TUN",
+    "sourceBytes": 508416,
+    "unchangedKeptCore": true,
+    "unchangedUpdate": {
+        "privateCommit": "9805824",
+        "privateWorkingSet": "6955008",
+        "samples": "12",
+        "workingSet": "31993856"
+    },
+    "unicodeOnUpdate": true
+}
+
+--- stderr ---

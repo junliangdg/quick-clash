@@ -1,0 +1,15 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\ctest.exe",
+  "arguments": [
+    "--test-dir",
+    "build/dev",
+    "-R",
+    "^(qml_smoke|ui_responsive|ui_runtime_lists)$",
+    "--output-on-failure"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T14:11:37.5429739Z",
+  "elapsed_ms": 4216,
+  "exit_code": 0,
+  "timed_out": false
+}

@@ -17,14 +17,20 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQuickStyle>
+#include <QQuickWindow>
+#ifdef QUICKCLASH_TEST_PROBES
+#include <QQuickItem>
+#endif
 #include <QSGRendererInterface>
 #include <QSaveFile>
 #include <QScreen>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <string_view>
 #ifdef Q_OS_WIN
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -33,6 +39,9 @@
 #endif
 
 int main(int argc, char* argv[]) {
+    const bool softwareRendering = std::any_of(argv + 1, argv + argc, [](const char* argument) {
+        return std::string_view(argument) == "--software-rendering";
+    });
 #ifdef Q_OS_WIN
     // Qt 6.8/D3D11 threaded teardown grows handles in the reference environment.
     // The basic render loop retains the native GPU backend and passed 100 rebuilds.
@@ -44,13 +53,17 @@ int main(int argc, char* argv[]) {
     // but disable the waitable object on this default path. Respect overrides.
     const auto rhiBackend = qgetenv("QSG_RHI_BACKEND");
     if (qgetenv("QSG_RENDER_LOOP") == "basic" && (rhiBackend.isEmpty() || rhiBackend == "d3d11") &&
-        !qEnvironmentVariableIsSet("QT_QUICK_BACKEND") &&
+        !softwareRendering && !qEnvironmentVariableIsSet("QT_QUICK_BACKEND") &&
         !qEnvironmentVariableIsSet("QT_D3D_MAX_FRAME_LATENCY") &&
         !qEnvironmentVariableIsSet("QT_D3D_NO_FLIP")) {
         qputenv("QT_D3D_MAX_FRAME_LATENCY", "0");
     }
 #endif
     QApplication app(argc, argv);
+    if (softwareRendering) {
+        // Qt Quick owns the cross-platform raster scene graph; fonts keep normal Qt fallback.
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Software);
+    }
     quickclash::presentation::Localization localization;
     if (!localization.load()) {
         std::fputs("Translation catalog unavailable; using English.\n", stderr);
@@ -78,10 +91,11 @@ int main(int argc, char* argv[]) {
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
     const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
     const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
+    const bool pageMemoryTest = arguments.contains(QStringLiteral("--page-memory-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
                           responsiveTest || runtimeListTest || subscriptionUiTest ||
-                          arguments.contains(QStringLiteral("--isolated")) ||
+                          pageMemoryTest || arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
     const auto option = [&arguments](const QString& key) {
         const auto prefix = key + QLatin1Char('=');
@@ -212,8 +226,43 @@ int main(int argc, char* argv[]) {
                                       {url, QStringLiteral("Public memory fixture")});
                 },
                 [&] { ui.runtimeCommand(QStringLiteral("start")); },
-                [&](const QString& id) { ui.runtimeCommand(QStringLiteral("update"), {id}); },
-                [&] { ui.runtimeCommand(QStringLiteral("stop")); }};
+                [&](const QString& id) {
+                    if (QCoreApplication::arguments().contains(
+                            QStringLiteral("--probe-management"))) {
+                        auto* page = host.window()->findChild<QObject*>(
+                            QStringLiteral("subscriptions_page"));
+                        if (page)
+                            QMetaObject::invokeMethod(page, "manage", Q_ARG(QVariant, id));
+                    }
+                    ui.runtimeCommand(QStringLiteral("update"), {id});
+                },
+                [&] { ui.runtimeCommand(QStringLiteral("stop")); },
+                [&] {
+                    ui.navigate(QStringLiteral("home"));
+                    // Match inspecting the resource card near the bottom of Home.
+                    QTimer::singleShot(500, &host, [&host] {
+                        for (auto* item : host.window()->findChildren<QQuickItem*>()) {
+                            if (item->inherits("QQuickFlickable") && item->isVisible()) {
+                                const auto bottom =
+                                    item->property("contentHeight").toReal() - item->height();
+                                item->setProperty("contentY", std::max(0.0, bottom));
+                            }
+                        }
+                    });
+                },
+                [&](const QString& node) {
+                    const auto containsNode = [&](auto&& self, QQuickItem* item) -> bool {
+                        if (!item || !item->isVisible())
+                            return false;
+                        if (item->property("text").toString().contains(node))
+                            return true;
+                        for (auto* child : item->childItems())
+                            if (self(self, child))
+                                return true;
+                        return false;
+                    };
+                    return containsNode(containsNode, host.window()->contentItem());
+                }};
             QCoreApplication::exit(quickclash::test::subscriptionMemoryProbe(client));
         });
     }
@@ -238,6 +287,9 @@ int main(int argc, char* argv[]) {
     }
     if (runtimeListTest) {
         return quickclash::runRuntimeListProbe(host);
+    }
+    if (pageMemoryTest) {
+        return quickclash::runPageMemoryProbe(host);
     }
     if (responsiveTest) {
         return quickclash::runResponsiveProbe(host);

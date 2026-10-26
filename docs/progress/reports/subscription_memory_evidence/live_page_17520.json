@@ -1,0 +1,2411 @@
+{
+  "pid": 17520,
+  "executable": "quickclash.exe",
+  "sampled_at": "2026-10-26T21:57:47.4252279+08:00",
+  "working_set": 786448384,
+  "private_commit": 243101696,
+  "entries": [
+    {
+      "Name": "[private]",
+      "Committed": 200847360,
+      "Resident": 188022784,
+      "PrivateResident": 188014592,
+      "Regions": 358
+    },
+    {
+      "Name": "mingliub.ttc",
+      "Committed": 37113856,
+      "Resident": 37113856,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "NotoSerifSC-VF.ttf",
+      "Committed": 25133056,
+      "Resident": 25133056,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "simsunb.ttf",
+      "Committed": 21897216,
+      "Resident": 21897216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msjh.ttc",
+      "Committed": 21405696,
+      "Resident": 21405696,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msyh.ttc",
+      "Committed": 19705856,
+      "Resident": 19705856,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "simsun.ttc",
+      "Committed": 18317312,
+      "Resident": 18317312,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "NotoSansSC-VF.ttf",
+      "Committed": 17776640,
+      "Resident": 17776640,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msyhbd.ttc",
+      "Committed": 16883712,
+      "Resident": 16883712,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "001700000007A37E4D567DBB",
+      "Committed": 16777216,
+      "Resident": 16777216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "FontCache-Obsolete-656.dat",
+      "Committed": 16777216,
+      "Resident": 16777216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Dengb.ttf",
+      "Committed": 16453632,
+      "Resident": 16453632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Deng.ttf",
+      "Committed": 16326656,
+      "Resident": 16326656,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Dengl.ttf",
+      "Committed": 15437824,
+      "Resident": 15437824,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msjhbd.ttc",
+      "Committed": 14442496,
+      "Resident": 14442496,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "YuGothM.ttc",
+      "Committed": 13910016,
+      "Resident": 13910016,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "YuGothR.ttc",
+      "Committed": 13836288,
+      "Resident": 13836288,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "malgun.ttf",
+      "Committed": 13459456,
+      "Resident": 13459456,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguiemj.ttf",
+      "Committed": 12935168,
+      "Resident": 12935168,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msjhl.ttc",
+      "Committed": 12877824,
+      "Resident": 12877824,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "[mapped]",
+      "Committed": 12763136,
+      "Resident": 12750848,
+      "PrivateResident": 0,
+      "Regions": 80
+    },
+    {
+      "Name": "malgunbd.ttf",
+      "Committed": 12603392,
+      "Resident": 12603392,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msyhl.ttc",
+      "Committed": 12189696,
+      "Resident": 12189696,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "simkai.ttf",
+      "Committed": 11780096,
+      "Resident": 11780096,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "simfang.ttf",
+      "Committed": 10571776,
+      "Resident": 10571776,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "simhei.ttf",
+      "Committed": 9748480,
+      "Resident": 9748480,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msgothic.ttc",
+      "Committed": 8990720,
+      "Resident": 8990720,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "~FontCache-S-1-5-21-3007652936-1815278709-1269357703-500.dat",
+      "Committed": 8388608,
+      "Resident": 8388608,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "nvwgf2umx.dll",
+      "Committed": 90284032,
+      "Resident": 8253440,
+      "PrivateResident": 647168,
+      "Regions": 52
+    },
+    {
+      "Name": "Nirmala.ttc",
+      "Committed": 5308416,
+      "Resident": 5308416,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "malgunsl.ttf",
+      "Committed": 5087232,
+      "Resident": 5087232,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "nvgpucomp64.dll",
+      "Committed": 110788608,
+      "Resident": 4554752,
+      "PrivateResident": 1073152,
+      "Regions": 30
+    },
+    {
+      "Name": "Qt6Gui.dll",
+      "Committed": 9302016,
+      "Resident": 4255744,
+      "PrivateResident": 122880,
+      "Regions": 14
+    },
+    {
+      "Name": "Qt6Quick.dll",
+      "Committed": 6291456,
+      "Resident": 3829760,
+      "PrivateResident": 147456,
+      "Regions": 7
+    },
+    {
+      "Name": "SansSerifCollection.ttf",
+      "Committed": 3776512,
+      "Resident": 3776512,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "SimsunExtG.ttf",
+      "Committed": 3551232,
+      "Resident": 3551232,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6Qml.dll",
+      "Committed": 5246976,
+      "Resident": 3526656,
+      "PrivateResident": 65536,
+      "Regions": 7
+    },
+    {
+      "Name": "Qt6Core.dll",
+      "Committed": 6111232,
+      "Resident": 3497984,
+      "PrivateResident": 49152,
+      "Regions": 13
+    },
+    {
+      "Name": "SortDefault.nls",
+      "Committed": 3387392,
+      "Resident": 3387392,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ntdll.dll",
+      "Committed": 2527232,
+      "Resident": 2527232,
+      "PrivateResident": 53248,
+      "Regions": 6
+    },
+    {
+      "Name": "seguisym.ttf",
+      "Committed": 2514944,
+      "Resident": 2514944,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "windows.storage.dll",
+      "Committed": 9105408,
+      "Resident": 2109440,
+      "PrivateResident": 69632,
+      "Regions": 6
+    },
+    {
+      "Name": "combase.dll",
+      "Committed": 3719168,
+      "Resident": 2011136,
+      "PrivateResident": 40960,
+      "Regions": 6
+    },
+    {
+      "Name": "SegUIVar.ttf",
+      "Committed": 1851392,
+      "Resident": 1851392,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Gabriola.ttf",
+      "Committed": 1806336,
+      "Resident": 1806336,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cambria.ttc",
+      "Committed": 1794048,
+      "Resident": 1794048,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "calibri.ttf",
+      "Committed": 1650688,
+      "Resident": 1650688,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguihis.ttf",
+      "Committed": 1626112,
+      "Resident": 1626112,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "quickclash.exe",
+      "Committed": 2486272,
+      "Resident": 1622016,
+      "PrivateResident": 32768,
+      "Regions": 9
+    },
+    {
+      "Name": "calibrib.ttf",
+      "Committed": 1617920,
+      "Resident": 1617920,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "calibril.ttf",
+      "Committed": 1441792,
+      "Resident": 1441792,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "KernelBase.dll",
+      "Committed": 4202496,
+      "Resident": 1302528,
+      "PrivateResident": 49152,
+      "Regions": 9
+    },
+    {
+      "Name": "calibrii.ttf",
+      "Committed": 1204224,
+      "Resident": 1204224,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6QuickTemplates2.dll",
+      "Committed": 1884160,
+      "Resident": 1196032,
+      "PrivateResident": 65536,
+      "Regions": 7
+    },
+    {
+      "Name": "times.ttf",
+      "Committed": 1191936,
+      "Resident": 1191936,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6Network.dll",
+      "Committed": 1785856,
+      "Resident": 1183744,
+      "PrivateResident": 32768,
+      "Regions": 9
+    },
+    {
+      "Name": "timesbd.ttf",
+      "Committed": 1171456,
+      "Resident": 1171456,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "calibriz.ttf",
+      "Committed": 1167360,
+      "Resident": 1167360,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6Widgets.dll",
+      "Committed": 6504448,
+      "Resident": 1150976,
+      "PrivateResident": 45056,
+      "Regions": 9
+    },
+    {
+      "Name": "d3d11.dll",
+      "Committed": 2490368,
+      "Resident": 1138688,
+      "PrivateResident": 28672,
+      "Regions": 8
+    },
+    {
+      "Name": "ebrimabd.ttf",
+      "Committed": 1101824,
+      "Resident": 1101824,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "DWrite.dll",
+      "Committed": 2535424,
+      "Resident": 1081344,
+      "PrivateResident": 49152,
+      "Regions": 6
+    },
+    {
+      "Name": "calibrili.ttf",
+      "Committed": 1069056,
+      "Resident": 1069056,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "arial.ttf",
+      "Committed": 1048576,
+      "Resident": 1048576,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ebrima.ttf",
+      "Committed": 1024000,
+      "Resident": 1024000,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "arialbd.ttf",
+      "Committed": 991232,
+      "Resident": 991232,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguisb.ttf",
+      "Committed": 974848,
+      "Resident": 974848,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "timesi.ttf",
+      "Committed": 966656,
+      "Resident": 966656,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeui.ttf",
+      "Committed": 962560,
+      "Resident": 962560,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeuib.ttf",
+      "Committed": 950272,
+      "Resident": 950272,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "tahoma.ttf",
+      "Committed": 921600,
+      "Resident": 921600,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeuil.ttf",
+      "Committed": 913408,
+      "Resident": 913408,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "timesbi.ttf",
+      "Committed": 905216,
+      "Resident": 905216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cambriai.ttf",
+      "Committed": 892928,
+      "Resident": 892928,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "crypt32.dll",
+      "Committed": 1572864,
+      "Resident": 880640,
+      "PrivateResident": 45056,
+      "Regions": 6
+    },
+    {
+      "Name": "locale.nls",
+      "Committed": 864256,
+      "Resident": 864256,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cambriaz.ttf",
+      "Committed": 860160,
+      "Resident": 860160,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "micross.ttf",
+      "Committed": 860160,
+      "Resident": 860160,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeuisl.ttf",
+      "Committed": 851968,
+      "Resident": 851968,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "tahomabd.ttf",
+      "Committed": 851968,
+      "Resident": 851968,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cambriab.ttf",
+      "Committed": 843776,
+      "Resident": 843776,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cour.ttf",
+      "Committed": 819200,
+      "Resident": 819200,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "courbd.ttf",
+      "Committed": 819200,
+      "Resident": 819200,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "TextInputFramework.dll",
+      "Committed": 1339392,
+      "Resident": 811008,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "msctf.dll",
+      "Committed": 1429504,
+      "Resident": 778240,
+      "PrivateResident": 28672,
+      "Regions": 6
+    },
+    {
+      "Name": "YuGothB.ttc",
+      "Committed": 14733312,
+      "Resident": 778240,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "YuGothL.ttc",
+      "Committed": 13971456,
+      "Resident": 774144,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "nvspcap64.dll",
+      "Committed": 1495040,
+      "Resident": 761856,
+      "PrivateResident": 36864,
+      "Regions": 10
+    },
+    {
+      "Name": "rpcrt4.dll",
+      "Committed": 1150976,
+      "Resident": 757760,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "CascadiaCode.ttf",
+      "Committed": 737280,
+      "Resident": 737280,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "RTSSHooks64.dll",
+      "Committed": 2519040,
+      "Resident": 733184,
+      "PrivateResident": 90112,
+      "Regions": 19
+    },
+    {
+      "Name": "CoreMessaging.dll",
+      "Committed": 1224704,
+      "Resident": 733184,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "ariali.ttf",
+      "Committed": 724992,
+      "Resident": 724992,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "arialbi.ttf",
+      "Committed": 724992,
+      "Resident": 724992,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "iertutil.dll",
+      "Committed": 2904064,
+      "Resident": 720896,
+      "PrivateResident": 40960,
+      "Regions": 10
+    },
+    {
+      "Name": "CascadiaMono.ttf",
+      "Committed": 716800,
+      "Resident": 716800,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "KernelBase.dll.mui",
+      "Committed": 712704,
+      "Resident": 712704,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "dxgi.dll",
+      "Committed": 1294336,
+      "Resident": 712704,
+      "PrivateResident": 53248,
+      "Regions": 20
+    },
+    {
+      "Name": "ucrtbase.dll",
+      "Committed": 1363968,
+      "Resident": 700416,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "CoreUIComponents.dll",
+      "Committed": 3035136,
+      "Resident": 688128,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "couri.ttf",
+      "Committed": 684032,
+      "Resident": 684032,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "shell32.dll",
+      "Committed": 7983104,
+      "Resident": 667648,
+      "PrivateResident": 73728,
+      "Regions": 8
+    },
+    {
+      "Name": "nvapi64_impl.dll",
+      "Committed": 5840896,
+      "Resident": 663552,
+      "PrivateResident": 188416,
+      "Regions": 16
+    },
+    {
+      "Name": "{AFBF9F1A-8EE8-4C77-AF34-C647E37CA0D9}.1.ver0x000000000000004a.db",
+      "Committed": 647168,
+      "Resident": 647168,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6QuickControls2Basic.dll",
+      "Committed": 1384448,
+      "Resident": 626688,
+      "PrivateResident": 45056,
+      "Regions": 7
+    },
+    {
+      "Name": "segoesc.ttf",
+      "Committed": 598016,
+      "Resident": 598016,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoescb.ttf",
+      "Committed": 593920,
+      "Resident": 593920,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "courbi.ttf",
+      "Committed": 593920,
+      "Resident": 593920,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "qwindows.dll",
+      "Committed": 929792,
+      "Resident": 589824,
+      "PrivateResident": 28672,
+      "Regions": 9
+    },
+    {
+      "Name": "DejaVuMathTeXGyre.ttf",
+      "Committed": 581632,
+      "Resident": 581632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "monbaiti.ttf",
+      "Committed": 581632,
+      "Resident": 581632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "himalaya.ttf",
+      "Committed": 573440,
+      "Resident": 573440,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "user32.dll",
+      "Committed": 1933312,
+      "Resident": 573440,
+      "PrivateResident": 32768,
+      "Regions": 6
+    },
+    {
+      "Name": "SitkaVF-Italic.ttf",
+      "Committed": 561152,
+      "Resident": 561152,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "twinapi.appcore.dll",
+      "Committed": 2433024,
+      "Resident": 561152,
+      "PrivateResident": 32768,
+      "Regions": 6
+    },
+    {
+      "Name": "NvMemMapStoragex.dll",
+      "Committed": 1421312,
+      "Resident": 552960,
+      "PrivateResident": 32768,
+      "Regions": 10
+    },
+    {
+      "Name": "CascadiaCodeItalic.ttf",
+      "Committed": 544768,
+      "Resident": 544768,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeuiz.ttf",
+      "Committed": 544768,
+      "Resident": 544768,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeuii.ttf",
+      "Committed": 532480,
+      "Resident": 532480,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "CascadiaMonoItalic.ttf",
+      "Committed": 528384,
+      "Resident": 528384,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "urlmon.dll",
+      "Committed": 1961984,
+      "Resident": 520192,
+      "PrivateResident": 40960,
+      "Regions": 10
+    },
+    {
+      "Name": "SitkaVF.ttf",
+      "Committed": 520192,
+      "Resident": 520192,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "kernel32.dll",
+      "Committed": 835584,
+      "Resident": 503808,
+      "PrivateResident": 28672,
+      "Regions": 6
+    },
+    {
+      "Name": "pala.ttf",
+      "Committed": 475136,
+      "Resident": 475136,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "SegoeIcons.ttf",
+      "Committed": 475136,
+      "Resident": 475136,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6QmlModels.dll",
+      "Committed": 745472,
+      "Resident": 475136,
+      "PrivateResident": 32768,
+      "Regions": 7
+    },
+    {
+      "Name": "seguisli.ttf",
+      "Committed": 466944,
+      "Resident": 466944,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "consolai.ttf",
+      "Committed": 462848,
+      "Resident": 462848,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguili.ttf",
+      "Committed": 458752,
+      "Resident": 458752,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguisbi.ttf",
+      "Committed": 458752,
+      "Resident": 458752,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "constanz.ttf",
+      "Committed": 458752,
+      "Resident": 458752,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "consola.ttf",
+      "Committed": 454656,
+      "Resident": 454656,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "constanb.ttf",
+      "Committed": 454656,
+      "Resident": 454656,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "constan.ttf",
+      "Committed": 450560,
+      "Resident": 450560,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "constani.ttf",
+      "Committed": 450560,
+      "Resident": 450560,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "bcryptprimitives.dll",
+      "Committed": 708608,
+      "Resident": 442368,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "palab.ttf",
+      "Committed": 421888,
+      "Resident": 421888,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "palai.ttf",
+      "Committed": 417792,
+      "Resident": 417792,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "dnsapi.dll",
+      "Committed": 1413120,
+      "Resident": 413696,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "nvldumdx.dll",
+      "Committed": 843776,
+      "Resident": 409600,
+      "PrivateResident": 28672,
+      "Regions": 5
+    },
+    {
+      "Name": "d3d9.dll",
+      "Committed": 1781760,
+      "Resident": 409600,
+      "PrivateResident": 53248,
+      "Regions": 20
+    },
+    {
+      "Name": "UIAutomationCore.dll",
+      "Committed": 4329472,
+      "Resident": 405504,
+      "PrivateResident": 53248,
+      "Regions": 10
+    },
+    {
+      "Name": "consolaz.ttf",
+      "Committed": 405504,
+      "Resident": 405504,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "consolab.ttf",
+      "Committed": 393216,
+      "Resident": 393216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "LeelawUI.ttf",
+      "Committed": 393216,
+      "Resident": 393216,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Windows.Networking.Connectivity.dll",
+      "Committed": 765952,
+      "Resident": 393216,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "LeelUIsl.ttf",
+      "Committed": 385024,
+      "Resident": 385024,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "uxtheme.dll",
+      "Committed": 688128,
+      "Resident": 376832,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "bahnschrift.ttf",
+      "Committed": 364544,
+      "Resident": 364544,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "seguibli.ttf",
+      "Committed": 352256,
+      "Resident": 352256,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Windows.UI.dll",
+      "Committed": 1425408,
+      "Resident": 344064,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "gdi32full.dll",
+      "Committed": 1224704,
+      "Resident": 339968,
+      "PrivateResident": 32768,
+      "Regions": 8
+    },
+    {
+      "Name": "ole32.dll",
+      "Committed": 1683456,
+      "Resident": 339968,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "mmrtext.ttf",
+      "Committed": 339968,
+      "Resident": 339968,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "palabi.ttf",
+      "Committed": 335872,
+      "Resident": 335872,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "nvppex.dll",
+      "Committed": 7499776,
+      "Resident": 327680,
+      "PrivateResident": 36864,
+      "Regions": 8
+    },
+    {
+      "Name": "LeelaUIb.ttf",
+      "Committed": 327680,
+      "Resident": 327680,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "advapi32.dll",
+      "Committed": 774144,
+      "Resident": 323584,
+      "PrivateResident": 36864,
+      "Regions": 6
+    },
+    {
+      "Name": "msvcp_win.dll",
+      "Committed": 671744,
+      "Resident": 323584,
+      "PrivateResident": 32768,
+      "Regions": 8
+    },
+    {
+      "Name": "seguibl.ttf",
+      "Committed": 319488,
+      "Resident": 319488,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "directxdatabasehelper.dll",
+      "Committed": 393216,
+      "Resident": 319488,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "mmrtextb.ttf",
+      "Committed": 319488,
+      "Resident": 319488,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "l_10646.ttf",
+      "Committed": 311296,
+      "Resident": 311296,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "javatext.ttf",
+      "Committed": 307200,
+      "Resident": 307200,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msyi.ttf",
+      "Committed": 303104,
+      "Resident": 303104,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "msvcrt.dll",
+      "Committed": 696320,
+      "Resident": 294912,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "corbelz.ttf",
+      "Committed": 294912,
+      "Resident": 294912,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "WinTypes.dll",
+      "Committed": 1486848,
+      "Resident": 294912,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "corbelb.ttf",
+      "Committed": 294912,
+      "Resident": 294912,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "SHCore.dll",
+      "Committed": 1024000,
+      "Resident": 290816,
+      "PrivateResident": 28672,
+      "Regions": 9
+    },
+    {
+      "Name": "Windows.Globalization.dll",
+      "Committed": 2285568,
+      "Resident": 286720,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "dcomp.dll",
+      "Committed": 2265088,
+      "Resident": 286720,
+      "PrivateResident": 28672,
+      "Regions": 10
+    },
+    {
+      "Name": "segmdl2.ttf",
+      "Committed": 286720,
+      "Resident": 286720,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "corbeli.ttf",
+      "Committed": 286720,
+      "Resident": 286720,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "wininet.dll",
+      "Committed": 2703360,
+      "Resident": 278528,
+      "PrivateResident": 32768,
+      "Regions": 6
+    },
+    {
+      "Name": "oleaut32.dll",
+      "Committed": 892928,
+      "Resident": 278528,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "corbel.ttf",
+      "Committed": 278528,
+      "Resident": 278528,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "comic.ttf",
+      "Committed": 274432,
+      "Resident": 274432,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "schannel.dll",
+      "Committed": 823296,
+      "Resident": 270336,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "setupapi.dll",
+      "Committed": 4751360,
+      "Resident": 270336,
+      "PrivateResident": 28672,
+      "Regions": 8
+    },
+    {
+      "Name": "sylfaen.ttf",
+      "Committed": 262144,
+      "Resident": 262144,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Windows.UI.Immersive.dll",
+      "Committed": 1388544,
+      "Resident": 262144,
+      "PrivateResident": 28672,
+      "Regions": 6
+    },
+    {
+      "Name": "propsys.dll",
+      "Committed": 1007616,
+      "Resident": 262144,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "msvcp140.dll",
+      "Committed": 643072,
+      "Resident": 262144,
+      "PrivateResident": 16384,
+      "Regions": 7
+    },
+    {
+      "Name": "Candaraz.ttf",
+      "Committed": 258048,
+      "Resident": 258048,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "comici.ttf",
+      "Committed": 258048,
+      "Resident": 258048,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "comicbd.ttf",
+      "Committed": 258048,
+      "Resident": 258048,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "trebuc.ttf",
+      "Committed": 258048,
+      "Resident": 258048,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "comicz.ttf",
+      "Committed": 253952,
+      "Resident": 253952,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Candaral.ttf",
+      "Committed": 253952,
+      "Resident": 253952,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Candarab.ttf",
+      "Committed": 253952,
+      "Resident": 253952,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "trebucit.ttf",
+      "Committed": 253952,
+      "Resident": 253952,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Candarai.ttf",
+      "Committed": 253952,
+      "Resident": 253952,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "gadugib.ttf",
+      "Committed": 249856,
+      "Resident": 249856,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "gadugi.ttf",
+      "Committed": 245760,
+      "Resident": 245760,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Candara.ttf",
+      "Committed": 245760,
+      "Resident": 245760,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "DXCore.dll",
+      "Committed": 282624,
+      "Resident": 245760,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "trebucbd.ttf",
+      "Committed": 245760,
+      "Resident": 245760,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "verdana.ttf",
+      "Committed": 245760,
+      "Resident": 245760,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ws2_32.dll",
+      "Committed": 532480,
+      "Resident": 241664,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "verdanaz.ttf",
+      "Committed": 233472,
+      "Resident": 233472,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "clbcatq.dll",
+      "Committed": 720896,
+      "Resident": 233472,
+      "PrivateResident": 32768,
+      "Regions": 8
+    },
+    {
+      "Name": "wintrust.dll",
+      "Committed": 536576,
+      "Resident": 233472,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "trebucbi.ttf",
+      "Committed": 229376,
+      "Resident": 229376,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "netprofm.dll",
+      "Committed": 454656,
+      "Resident": 229376,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "verdanai.ttf",
+      "Committed": 225280,
+      "Resident": 225280,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "BCP47Langs.dll",
+      "Committed": 389120,
+      "Resident": 225280,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "mswsock.dll",
+      "Committed": 446464,
+      "Resident": 221184,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "georgia.ttf",
+      "Committed": 221184,
+      "Resident": 221184,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "qschannelbackend.dll",
+      "Committed": 258048,
+      "Resident": 217088,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "sechost.dll",
+      "Committed": 692224,
+      "Resident": 217088,
+      "PrivateResident": 28672,
+      "Regions": 6
+    },
+    {
+      "Name": "georgiaz.ttf",
+      "Committed": 212992,
+      "Resident": 212992,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "verdanab.ttf",
+      "Committed": 212992,
+      "Resident": 212992,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "impact.ttf",
+      "Committed": 208896,
+      "Resident": 208896,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "georgiai.ttf",
+      "Committed": 208896,
+      "Resident": 208896,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "georgiab.ttf",
+      "Committed": 208896,
+      "Resident": 208896,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6QuickControls2Impl.dll",
+      "Committed": 294912,
+      "Resident": 204800,
+      "PrivateResident": 28672,
+      "Regions": 5
+    },
+    {
+      "Name": "Inkfree.ttf",
+      "Committed": 200704,
+      "Resident": 200704,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "C_936.NLS",
+      "Committed": 200704,
+      "Resident": 200704,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "nvapi64.dll",
+      "Committed": 561152,
+      "Resident": 192512,
+      "PrivateResident": 16384,
+      "Regions": 5
+    },
+    {
+      "Name": "Candarali.ttf",
+      "Committed": 192512,
+      "Resident": 192512,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "shlwapi.dll",
+      "Committed": 421888,
+      "Resident": 184320,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "wldp.dll",
+      "Committed": 532480,
+      "Resident": 180224,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "corbell.ttf",
+      "Committed": 176128,
+      "Resident": 176128,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "cryptnet.dll",
+      "Committed": 245760,
+      "Resident": 176128,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "winhttp.dll",
+      "Committed": 1224704,
+      "Resident": 176128,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "segoepr.ttf",
+      "Committed": 172032,
+      "Resident": 172032,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Roboto-Regular.ttf",
+      "Committed": 172032,
+      "Resident": 172032,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6QuickDialogs2QuickImpl.dll",
+      "Committed": 2023424,
+      "Resident": 172032,
+      "PrivateResident": 20480,
+      "Regions": 10
+    },
+    {
+      "Name": "corbelli.ttf",
+      "Committed": 172032,
+      "Resident": 172032,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ariblk.ttf",
+      "Committed": 167936,
+      "Resident": 167936,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "segoeprb.ttf",
+      "Committed": 167936,
+      "Resident": 167936,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "C_932.NLS",
+      "Committed": 163840,
+      "Resident": 163840,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "gdi32.dll",
+      "Committed": 180224,
+      "Resident": 163840,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "drvstore.dll",
+      "Committed": 1552384,
+      "Resident": 163840,
+      "PrivateResident": 28672,
+      "Regions": 7
+    },
+    {
+      "Name": "Qt6QuickLayouts.dll",
+      "Committed": 217088,
+      "Resident": 159744,
+      "PrivateResident": 16384,
+      "Regions": 5
+    },
+    {
+      "Name": "sspicli.dll",
+      "Committed": 307200,
+      "Resident": 159744,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "comdlg32.dll",
+      "Committed": 1007616,
+      "Resident": 155648,
+      "PrivateResident": 36864,
+      "Regions": 8
+    },
+    {
+      "Name": "FWPUCLNT.DLL",
+      "Committed": 552960,
+      "Resident": 155648,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "framdit.ttf",
+      "Committed": 151552,
+      "Resident": 151552,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "IPHLPAPI.DLL",
+      "Committed": 212992,
+      "Resident": 147456,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "win32u.dll",
+      "Committed": 159744,
+      "Resident": 147456,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "framd.ttf",
+      "Committed": 135168,
+      "Resident": 135168,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "profapi.dll",
+      "Committed": 172032,
+      "Resident": 135168,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "bcrypt.dll",
+      "Committed": 176128,
+      "Resident": 135168,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "sxs.dll",
+      "Committed": 667648,
+      "Resident": 135168,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "DataExchange.dll",
+      "Committed": 380928,
+      "Resident": 135168,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "Qt6OpenGL.dll",
+      "Committed": 1974272,
+      "Resident": 131072,
+      "PrivateResident": 16384,
+      "Regions": 7
+    },
+    {
+      "Name": "cfgmgr32.dll",
+      "Committed": 339968,
+      "Resident": 126976,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "Qt6QuickDialogs2.dll",
+      "Committed": 159744,
+      "Resident": 126976,
+      "PrivateResident": 16384,
+      "Regions": 5
+    },
+    {
+      "Name": "ncryptsslp.dll",
+      "Committed": 299008,
+      "Resident": 122880,
+      "PrivateResident": 20480,
+      "Regions": 10
+    },
+    {
+      "Name": "winmm.dll",
+      "Committed": 229376,
+      "Resident": 122880,
+      "PrivateResident": 20480,
+      "Regions": 6
+    },
+    {
+      "Name": "webdings.ttf",
+      "Committed": 122880,
+      "Resident": 122880,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ncrypt.dll",
+      "Committed": 200704,
+      "Resident": 122880,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "comctl32.dll",
+      "Committed": 745472,
+      "Resident": 118784,
+      "PrivateResident": 24576,
+      "Regions": 6
+    },
+    {
+      "Name": "Qt6QmlMeta.dll",
+      "Committed": 155648,
+      "Resident": 118784,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "lucon.ttf",
+      "Committed": 114688,
+      "Resident": 114688,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "Qt6Svg.dll",
+      "Committed": 520192,
+      "Resident": 114688,
+      "PrivateResident": 16384,
+      "Regions": 5
+    },
+    {
+      "Name": "qmodernwindowsstyle.dll",
+      "Committed": 221184,
+      "Resident": 110592,
+      "PrivateResident": 16384,
+      "Regions": 5
+    },
+    {
+      "Name": "rsaenh.dll",
+      "Committed": 237568,
+      "Resident": 110592,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "phagspab.ttf",
+      "Committed": 98304,
+      "Resident": 98304,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "imm32.dll",
+      "Committed": 204800,
+      "Resident": 98304,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "Windows.Networking.HostName.dll",
+      "Committed": 229376,
+      "Resident": 98304,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "qopensslbackend.dll",
+      "Committed": 323584,
+      "Resident": 98304,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "phagspa.ttf",
+      "Committed": 94208,
+      "Resident": 94208,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "devobj.dll",
+      "Committed": 196608,
+      "Resident": 94208,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "Qt6Test.dll",
+      "Committed": 380928,
+      "Resident": 94208,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "dhcpcsvc.dll",
+      "Committed": 155648,
+      "Resident": 86016,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "Qt6QuickControls2.dll",
+      "Committed": 106496,
+      "Resident": 86016,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "wingding.ttf",
+      "Committed": 86016,
+      "Resident": 86016,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ntmarta.dll",
+      "Committed": 225280,
+      "Resident": 86016,
+      "PrivateResident": 16384,
+      "Regions": 7
+    },
+    {
+      "Name": "powrprof.dll",
+      "Committed": 389120,
+      "Resident": 86016,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "dwmapi.dll",
+      "Committed": 192512,
+      "Resident": 81920,
+      "PrivateResident": 20480,
+      "Regions": 8
+    },
+    {
+      "Name": "mvboli.ttf",
+      "Committed": 81920,
+      "Resident": 81920,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ntailu.ttf",
+      "Committed": 77824,
+      "Resident": 77824,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "D3D12.dll",
+      "Committed": 147456,
+      "Resident": 77824,
+      "PrivateResident": 12288,
+      "Regions": 8
+    },
+    {
+      "Name": "userenv.dll",
+      "Committed": 217088,
+      "Resident": 77824,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "cryptsp.dll",
+      "Committed": 114688,
+      "Resident": 73728,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "srvcli.dll",
+      "Committed": 172032,
+      "Resident": 73728,
+      "PrivateResident": 32768,
+      "Regions": 8
+    },
+    {
+      "Name": "msasn1.dll",
+      "Committed": 81920,
+      "Resident": 73728,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "dhcpcsvc6.dll",
+      "Committed": 126976,
+      "Resident": 73728,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "npmproxy.dll",
+      "Committed": 106496,
+      "Resident": 73728,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "symbol.ttf",
+      "Committed": 69632,
+      "Resident": 69632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ntailub.ttf",
+      "Committed": 69632,
+      "Resident": 69632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "taile.ttf",
+      "Committed": 69632,
+      "Resident": 69632,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "vcruntime140.dll",
+      "Committed": 180224,
+      "Resident": 69632,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "imagehlp.dll",
+      "Committed": 135168,
+      "Resident": 69632,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "qjpeg.dll",
+      "Committed": 585728,
+      "Resident": 65536,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "kernel.appcore.dll",
+      "Committed": 114688,
+      "Resident": 65536,
+      "PrivateResident": 16384,
+      "Regions": 6
+    },
+    {
+      "Name": "qnetworklistmanager.dll",
+      "Committed": 81920,
+      "Resident": 65536,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "authz.dll",
+      "Committed": 331776,
+      "Resident": 65536,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "wtsapi32.dll",
+      "Committed": 176128,
+      "Resident": 65536,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "32e6a93bbc832bad.nvph",
+      "Committed": 65536,
+      "Resident": 65536,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "dusmapi.dll",
+      "Committed": 102400,
+      "Resident": 61440,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "taileb.ttf",
+      "Committed": 61440,
+      "Resident": 61440,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "mpr.dll",
+      "Committed": 139264,
+      "Resident": 57344,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "DirectXApps.sdb",
+      "Committed": 1609728,
+      "Resident": 57344,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "qwebp.dll",
+      "Committed": 565248,
+      "Resident": 53248,
+      "PrivateResident": 12288,
+      "Regions": 7
+    },
+    {
+      "Name": "virtdisk.dll",
+      "Committed": 98304,
+      "Resident": 53248,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "qtiff.dll",
+      "Committed": 446464,
+      "Resident": 53248,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "Qt6QuickControls2BasicStyleImpl.dll",
+      "Committed": 69632,
+      "Resident": 53248,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "unispace bd.ttf",
+      "Committed": 53248,
+      "Resident": 53248,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "ntasn1.dll",
+      "Committed": 262144,
+      "Resident": 53248,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "msvcp140_2.dll",
+      "Committed": 274432,
+      "Resident": 53248,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "netapi32.dll",
+      "Committed": 110592,
+      "Resident": 53248,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "msvcp140_atomic_wait.dll",
+      "Committed": 90112,
+      "Resident": 49152,
+      "PrivateResident": 12288,
+      "Regions": 7
+    },
+    {
+      "Name": "Qt6QmlWorkerScript.dll",
+      "Committed": 77824,
+      "Resident": 49152,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "Microsoft.Internal.WarpPal.dll",
+      "Committed": 110592,
+      "Resident": 49152,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "umpdc.dll",
+      "Committed": 90112,
+      "Resident": 45056,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "winnsi.dll",
+      "Committed": 61440,
+      "Resident": 45056,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "qcertonlybackend.dll",
+      "Committed": 110592,
+      "Resident": 45056,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qicns.dll",
+      "Committed": 61440,
+      "Resident": 40960,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "secur32.dll",
+      "Committed": 57344,
+      "Resident": 40960,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "rasadhlp.dll",
+      "Committed": 49152,
+      "Resident": 40960,
+      "PrivateResident": 12288,
+      "Regions": 6
+    },
+    {
+      "Name": "qico.dll",
+      "Committed": 57344,
+      "Resident": 40960,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "cryptbase.dll",
+      "Committed": 49152,
+      "Resident": 40960,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "qtga.dll",
+      "Committed": 49152,
+      "Resident": 36864,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qsvg.dll",
+      "Committed": 49152,
+      "Resident": 36864,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "Qt6QuickDialogs2Utils.dll",
+      "Committed": 53248,
+      "Resident": 36864,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qgif.dll",
+      "Committed": 57344,
+      "Resident": 36864,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qtquickcontrols2plugin.dll",
+      "Committed": 49152,
+      "Resident": 36864,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qwbmp.dll",
+      "Committed": 49152,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "vcruntime140_1.dll",
+      "Committed": 49152,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "version.dll",
+      "Committed": 49152,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "dpapi.dll",
+      "Committed": 40960,
+      "Resident": 32768,
+      "PrivateResident": 12288,
+      "Regions": 5
+    },
+    {
+      "Name": "nsi.dll",
+      "Committed": 40960,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "netutils.dll",
+      "Committed": 57344,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "dsparse.dll",
+      "Committed": 57344,
+      "Resident": 32768,
+      "PrivateResident": 8192,
+      "Regions": 6
+    },
+    {
+      "Name": "marlett.ttf",
+      "Committed": 28672,
+      "Resident": 28672,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "qtquickdialogsplugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "mtextra.ttf",
+      "Committed": 28672,
+      "Resident": 28672,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "qtquickcontrols2implplugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qtquickcontrols2basicstyleimplplugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qtquicktemplates2plugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "msvcp140_1.dll",
+      "Committed": 36864,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qquicklayoutsplugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "qtquickcontrols2basicstyleplugin.dll",
+      "Committed": 40960,
+      "Resident": 28672,
+      "PrivateResident": 8192,
+      "Regions": 5
+    },
+    {
+      "Name": "l_intl.nls",
+      "Committed": 24576,
+      "Resident": 24576,
+      "PrivateResident": 0,
+      "Regions": 2
+    },
+    {
+      "Name": "crypt32.dll.mui",
+      "Committed": 28672,
+      "Resident": 12288,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "user32.dll.mui",
+      "Committed": 24576,
+      "Resident": 8192,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "kernel32.dll.mui",
+      "Committed": 405504,
+      "Resident": 8192,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "KingsoftUE.ttf",
+      "Committed": 4096,
+      "Resident": 4096,
+      "PrivateResident": 0,
+      "Regions": 1
+    },
+    {
+      "Name": "C_1252.NLS",
+      "Committed": 69632,
+      "Resident": 4096,
+      "PrivateResident": 0,
+      "Regions": 1
+    }
+  ],
+  "limitations": "Read-only VirtualQueryEx/QueryWorkingSetEx; file basenames only, no content, dumps, commands or URLs. Non-atomic page samples. Shared pages may be shareable rather than actively shared."
+}

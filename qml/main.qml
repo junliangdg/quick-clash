@@ -7,7 +7,7 @@ import QuickClash.Ui
 ApplicationWindow {
     id: window
     required property UiState ui
-    required property string uiFontFamily
+    required property font uiFont
     property bool compact: width < 1000
     readonly property bool narrow: width < 600
     property bool expandedRail: false
@@ -21,7 +21,7 @@ ApplicationWindow {
     minimumHeight: 480
     visible: false
     title: "QuickClash"
-    font.family: uiFontFamily
+    font: uiFont
     color: tokens.background
     palette.window: tokens.background
     palette.windowText: tokens.text
@@ -35,7 +35,7 @@ ApplicationWindow {
     ThemeTokens {
         id: tokens
         dark: window.ui.dark
-        fontFamily: window.uiFontFamily
+        fontFamily: window.uiFont.family
     }
     onClosing: function (close) {
         close.accepted = false;

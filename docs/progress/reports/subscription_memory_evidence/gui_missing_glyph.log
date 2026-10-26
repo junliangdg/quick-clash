@@ -1,0 +1,43 @@
+{
+    "after": {
+        "privateCommit": "232984576",
+        "privateWorkingSet": "77357056",
+        "samples": "386",
+        "workingSet": "177287168"
+    },
+    "before": {
+        "privateCommit": "243142656",
+        "privateWorkingSet": "77324288",
+        "samples": "129",
+        "workingSet": "176979968"
+    },
+    "changedApplied": true,
+    "changedUpdate": {
+        "privateCommit": "245309440",
+        "privateWorkingSet": "79593472",
+        "samples": "189",
+        "workingSet": "179265536"
+    },
+    "error": "",
+    "home": {
+        "privateCommit": "219234304",
+        "privateWorkingSet": "68210688",
+        "samples": "418",
+        "workingSet": "171487232"
+    },
+    "missingGlyphOnUpdate": true,
+    "qtVersion": "6.8.0",
+    "scenario": "Public loopback HTTPS; 58 nodes / 12001 rules / DNS+Geo; no system proxy or TUN",
+    "sourceBytes": 508416,
+    "unchangedKeptCore": true,
+    "unchangedUpdate": {
+        "privateCommit": "243695616",
+        "privateWorkingSet": "77996032",
+        "samples": "6",
+        "workingSet": "177659904"
+    },
+    "unicodeOnUpdate": false
+}
+
+--- stderr ---
+DirectWrite: CreateFontFaceFromHDC() failed (指示输入文件 (例如字体文件) 中的错误。) for QFontDef(Family="ADMUI3Lg", stylename=Regular, pointsize=9, pixelsize=13, styleHint=0, weight=400, stretch=100, hintingPreference=0) LOGFONT("ADMUI3Lg", lfWidth=0, lfHeight=-13) dpi=96

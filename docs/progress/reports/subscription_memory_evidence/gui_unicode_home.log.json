@@ -1,0 +1,12 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\quickclash.exe",
+  "arguments": [
+    "--subscription-memory-test",
+    "--probe-unicode"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T12:41:06.3847754Z",
+  "elapsed_ms": 20838,
+  "exit_code": 0,
+  "timed_out": false
+}

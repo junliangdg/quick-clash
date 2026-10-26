@@ -1,0 +1,17 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\quickclash.exe",
+  "arguments": [
+    "-platform",
+    "windows:fontengine=gdi",
+    "--subscription-memory-test",
+    "--probe-management",
+    "--probe-unicode",
+    "--probe-missing-glyph",
+    "--probe-language=zh-CN"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T13:30:33.5266619Z",
+  "elapsed_ms": 20702,
+  "exit_code": 0,
+  "timed_out": false
+}

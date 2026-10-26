@@ -10,6 +10,8 @@ struct SubscriptionProbeRuntime {
     std::function<void()> start;
     std::function<void(const QString&)> update;
     std::function<void()> stop;
+    std::function<void()> returnHome;
+    std::function<bool(const QString&)> homeContainsNode;
 };
 int subscriptionMemoryProbe();
 int subscriptionMemoryProbe(const SubscriptionProbeRuntime& client);

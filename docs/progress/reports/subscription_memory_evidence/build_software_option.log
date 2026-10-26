@@ -1,0 +1,8 @@
+[0/2] Re-checking globbed directories...
+[1/53] Automatic MOC for target quickclash
+[2/52] Running AUTOMOC file extraction for target quickclash
+[3/52] Running moc --collect-json for target quickclash
+[4/6] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+[5/6] Linking CXX executable quickclash.exe
+
+--- stderr ---

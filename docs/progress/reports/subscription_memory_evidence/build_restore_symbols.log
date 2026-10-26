@@ -1,0 +1,140 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (3.4s)
+-- Generating done (0.5s)
+-- Build files have been written to: D:/repos/quick-clash/build/dev
+[0/4] Re-checking globbed directories...
+[1/109] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[2/76] Copying qml/main.qml to D:/repos/quick-clash/build/dev/QuickClash/Ui/main.qml
+[3/76] Copying qml/components/action_button.qml to D:/repos/quick-clash/build/dev/QuickClash/Ui/components/action_button.qml
+[4/76] Copying qml/features/proxies/proxies_page.qml to D:/repos/quick-clash/build/dev/QuickClash/Ui/features/proxies/proxies_page.qml
+[5/76] Copying qml/features/connections/connections_page.qml to D:/repos/quick-clash/build/dev/QuickClash/Ui/features/connections/connections_page.qml
+[6/76] Automatic MOC for target quickclash_storage
+[7/74] Automatic MOC for target quickclash_engine
+[8/72] Automatic MOC for target quickclash_runtime
+[9/70] Running qmlimportscanner for quickclash
+[10/70] Automatic MOC for target quickclash
+[11/69] Running AUTOMOC file extraction for target quickclash
+[12/69] Running rcc for resource qmake_QuickClash_Ui
+[13/69] Generating .rcc/qmlcache/quickclash_qmlcache_loader.cpp
+[14/69] Running rcc for resource quickclash_raw_qml_0
+[15/69] Running moc --collect-json for target quickclash
+[16/67] Generating .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp, .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp.aotstats
+[17/67] Generating .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp, .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp.aotstats
+[18/67] Generating .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp, .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp.aotstats
+[19/67] Generating .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp, .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp.aotstats
+[20/67] Generating .rcc/qmlcache/quickclash_qml/main_qml.cpp, .rcc/qmlcache/quickclash_qml/main_qml.cpp.aotstats
+[21/67] Generating .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp, .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp.aotstats
+[22/67] Generating .rcc/qmlcache/quickclash_qml/components/runtime_list_qml.cpp, .rcc/qmlcache/quickclash_qml/components/runtime_list_qml.cpp.aotstats
+[23/67] Generating .rcc/qmlcache/quickclash_qml/components/subscription_details_qml.cpp, .rcc/qmlcache/quickclash_qml/components/subscription_details_qml.cpp.aotstats
+[24/67] Generating .rcc/qmlcache/quickclash_qml/components/outbound_status_qml.cpp, .rcc/qmlcache/quickclash_qml/components/outbound_status_qml.cpp.aotstats
+[25/67] Generating .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp, .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp.aotstats
+[26/67] Generating .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp.aotstats
+[27/67] Generating .rcc/qmlcache/quickclash_qml/components/subscription_card_qml.cpp, .rcc/qmlcache/quickclash_qml/components/subscription_card_qml.cpp.aotstats
+[28/67] Generating .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp.aotstats
+[29/67] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp.aotstats
+[30/67] Generating .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp.aotstats
+[31/67] Generating .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp.aotstats
+[32/67] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp.aotstats
+[33/67] Generating .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp.aotstats
+[34/67] Generating .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp.aotstats
+[35/67] Generating .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp.aotstats
+[36/67] Generating .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp.aotstats
+[37/67] Generating .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp.aotstats
+[38/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.qt\rcc\qrc_qmake_QuickClash_Ui.cpp.obj
+[39/67] C:\WINDOWS\system32\cmd.exe /C "cd /D D:\repos\quick-clash && D:\repos\quick-clash\build\dev\.qt\bin\qt_setup_tool_path.bat C:/Qt/6.8.0/msvc2022_64/bin/qmllint.exe @D:/repos/quick-clash/build/dev/.rcc/qmllint/quickclash.rsp"
+Warning: D:/repos/quick-clash/qml/components/runtime_list.qml:24:17: Cannot assign binding of type quickclash::presentation::RuntimeListModel to QObject [incompatible-type]
+        target: root.listModel
+                ^^^^^^^^^^^^^^
+Warning: D:/repos/quick-clash/qml/components/runtime_list.qml:79:36: Property "describe" is a var property. It may or may not be a method. Use a regular function instead. [use-proper-function]
+                        text: root.describe(tile.entry)
+                                   ^^^^^^^^
+Warning: D:/repos/quick-clash/qml/components/subscription_card.qml:50:31: Member "hovered" not found on type "QQuickItem" [missing-property]
+                color: parent.hovered ? root.theme.accentSurface : "transparent"
+                              ^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/home/home_page.qml:146:48: Detected width on an item that is managed by a layout. This is undefined behavior; use implicitWidth or Layout.preferredWidth instead. [Quick.layout-positioning]
+                                        width: 10
+                                               ^^
+Warning: D:/repos/quick-clash/qml/features/home/home_page.qml:147:49: Detected height on an item that is managed by a layout. This is undefined behavior; use implictHeight or Layout.preferredHeight instead. [Quick.layout-positioning]
+                                        height: 10
+                                                ^^
+Warning: D:/repos/quick-clash/qml/features/home/home_page.qml:16:17: Cannot assign binding of type quickclash::presentation::ProfileModel to QObject [incompatible-type]
+        target: root.ui.profileModel
+                ^^^^^^^^^^^^^^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:5:1: Warnings occurred while importing module "QtQuick.Dialogs": [import]
+import QtQuick.Dialogs
+^^^^^^
+---
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. ColorDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FontDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FileDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. MessageDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialog 6.0 is defined multiple times. [import]
+Warning: Ambiguous type detected. FolderDialogDelegate 6.0 is defined multiple times. [import]
+---
+
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:52:17: Cannot assign binding of type quickclash::presentation::ProfileModel to QObject [incompatible-type]
+        target: root.ui.profileModel
+                ^^^^^^^^^^^^^^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:77:25: Member "overlay" not found on type "QQuickOverlay" [missing-property]
+        parent: Overlay.overlay
+                        ^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:86:25: Member "overlay" not found on type "QQuickOverlay" [missing-property]
+        parent: Overlay.overlay
+                        ^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:103:25: Member "overlay" not found on type "QQuickOverlay" [missing-property]
+        parent: Overlay.overlay
+                        ^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:306:33: Member "implicitHeight" not found on type "QObject" [missing-property]
+            height: item ? item.implicitHeight : 0
+                                ^^^^^^^^^^^^^^
+Warning: D:/repos/quick-clash/qml/features/subscriptions/subscriptions_page.qml:320:33: Member "implicitHeight" not found on type "QObject" [missing-property]
+            height: item ? item.implicitHeight : 0
+                                ^^^^^^^^^^^^^^
+[40/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\outbound_status_qml.cpp.obj
+[41/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\action_button_qml.cpp.obj
+[42/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\deferred_content_qml.cpp.obj
+[43/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\shell\page_host_qml.cpp.obj
+[44/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\traffic_sparkline_qml.cpp.obj
+[45/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\subscription_details_qml.cpp.obj
+[46/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\main_qml.cpp.obj
+[47/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.qt\rcc\qrc_quickclash_raw_qml_0.cpp.obj
+[48/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\theme_tokens_qml.cpp.obj
+[49/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\flat_tile_qml.cpp.obj
+[50/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\runtime_list_qml.cpp.obj
+[51/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qmlcache_loader.cpp.obj
+[52/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\shell\embedded_host_qml.cpp.obj
+[53/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\replay_list_qml.cpp.obj
+[54/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\home\home_page_qml.cpp.obj
+[55/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\components\subscription_card_qml.cpp.obj
+[56/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\proxies\proxies_page_qml.cpp.obj
+[57/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\subscriptions\subscriptions_page_qml.cpp.obj
+[58/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\proxies\proxy_summary_qml.cpp.obj
+[59/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\rules\rules_page_qml.cpp.obj
+[60/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\connections\connections_page_qml.cpp.obj
+[61/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\tests\tests_page_qml.cpp.obj
+[62/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\logs\logs_page_qml.cpp.obj
+[63/67] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\settings\settings_page_qml.cpp.obj
+[64/67] Linking CXX executable quickclash.exe
+
+--- stderr ---

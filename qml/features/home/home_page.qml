@@ -59,6 +59,7 @@ ScrollView {
                     Label {
                         font.family: root.theme.fontFamily
                         text: root.ui.runtime.selectedName || qsTr("Start with a subscription")
+                        textFormat: Text.PlainText
                         color: root.theme.text
                         font.pixelSize: 23
                         font.bold: true

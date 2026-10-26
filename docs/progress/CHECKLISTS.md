@@ -37,6 +37,8 @@
 
 追加功能检查（不替代下列G2-A—E或16项MVP）：
 
+- [ ] 本机Qt6.8更新/切页内存异常调查：真实GPU EX2专用175.68MB/工作集768.73MB；Qt软件129.34—131.44MB/690.97—693.07MB，字体驻留504→491MB仍存在，未达100MB目标。可选--software-rendering构建与3项UI测试通过，隔离切页确认旧页面/节点控件销毁；保留原符号/Qt字体，实际异常修复未关闭。[调查报告](reports/20261026_subscription_memory_investigation.md)
+
 - [x] P2-18：360×480、600断点、三底部入口、全部路由/键盘/状态保留；[响应式/语言/链接适配交付](reports/20261024_p2_responsive_localization.md)。
 - [x] P2-19：英文源文本、172条中文、系统首选序与英文回退、随包资源；[响应式/语言/链接适配交付](reports/20261024_p2_responsive_localization.md)。
 - [x] P2-20：标准链接协商、误标MIME内容识别、显式头及坏更新保留；[响应式/语言/链接适配交付](reports/20261024_p2_responsive_localization.md)。

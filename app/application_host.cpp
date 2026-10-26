@@ -182,9 +182,8 @@ bool ApplicationHost::showWindow() {
                 [this](const QList<QQmlError>& warnings) {
                     qmlErrorCount_ += static_cast<int>(warnings.size());
                 });
-        engine_->setInitialProperties(
-            {{QStringLiteral("ui"), QVariant::fromValue(&state_)},
-             {QStringLiteral("uiFontFamily"), QGuiApplication::font().family()}});
+        engine_->setInitialProperties({{QStringLiteral("ui"), QVariant::fromValue(&state_)},
+                                       {QStringLiteral("uiFont"), QGuiApplication::font()}});
         engine_->loadFromModule("QuickClash.Ui", "Main");
         if (engine_->rootObjects().size() != 1) {
             engine_.reset();

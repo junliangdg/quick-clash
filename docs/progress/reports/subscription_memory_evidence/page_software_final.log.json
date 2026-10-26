@@ -1,0 +1,13 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\quickclash.exe",
+  "arguments": [
+    "--page-memory-test",
+    "--probe-language=zh-CN",
+    "--window-size=1120x760"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T14:06:00.1804007Z",
+  "elapsed_ms": 16617,
+  "exit_code": 0,
+  "timed_out": false
+}

@@ -1,0 +1,12 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\quickclash.exe",
+  "arguments": [
+    "--subscription-ui-test",
+    "--probe-language=zh-CN"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-26T12:59:27.5605527Z",
+  "elapsed_ms": 937,
+  "exit_code": 82,
+  "timed_out": false
+}
