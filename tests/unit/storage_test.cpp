@@ -104,9 +104,16 @@ int main(int argc, char* argv[]) {
             infra::SettingsRepository settings(store);
             check(std::get<infra::UiPreferences>(settings.load()).theme == "system",
                   "safe UI default");
+            check(!std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
+                  "low-memory unload remains off by default");
             check(good(settings.save({"dark", true, true})), "preferences committed");
             check(std::get<infra::UiPreferences>(settings.load()).theme == "dark",
                   "preferences reload");
+            check(std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
+                  "existing true unload preference retained without schema migration");
+            check(good(settings.save({"dark", false, true})), "disable unload preference");
+            check(!std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
+                  "existing false unload preference retained");
             check(std::holds_alternative<domain::Error>(settings.save({"invalid", false, false})),
                   "invalid preferences retain saved values");
 #ifdef Q_OS_WIN

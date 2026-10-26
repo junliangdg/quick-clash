@@ -36,6 +36,7 @@ target_include_directories(quickclash_application INTERFACE src)
 target_link_libraries(quickclash_application INTERFACE quickclash_domain)
 add_library(quickclash_config src/infra/config/config_preflight.cpp src/infra/config/config_preflight.h
     src/infra/config/config_metadata.cpp src/infra/config/config_metadata.h
+    src/infra/config/config_provider_stream.cpp
     src/infra/config/config_schema.cpp src/infra/config/config_schema.h
     src/infra/config/geo_resources.cpp src/infra/config/geo_resources.h)
 string(JSON QUICKCLASH_GEOIP_SHA256 GET "${QUICKCLASH_RELEASE_MATRIX}" geo geoip sha256)
@@ -50,6 +51,8 @@ target_link_libraries(quickclash_config PUBLIC quickclash_domain PRIVATE yaml-cp
 quickclash_warnings(quickclash_config)
 add_library(quickclash_storage
     src/infra/storage/json_store.cpp src/infra/storage/json_store.h
+    src/infra/storage/geo_resource_writer.cpp src/infra/storage/geo_resource_writer.h
+    src/infra/storage/provider_stage.cpp src/infra/storage/provider_stage.h
     src/infra/storage/config_repository.cpp src/infra/storage/config_repository.h
     src/infra/storage/settings_repository.cpp src/infra/storage/settings_repository.h
     src/platform/windows/credential_store.cpp src/platform/windows/credential_store.h)
@@ -81,6 +84,8 @@ if(WIN32)
     install(TARGETS quickclash_service RUNTIME DESTINATION bin)
 endif()
 add_library(quickclash_runtime
+    src/infra/storage/latest_mailbox.cpp src/infra/storage/latest_mailbox.h
+    src/application/runtime_update.h
     src/infra/storage/settings_service.cpp src/infra/storage/settings_service.h
     src/platform/windows/system_proxy.cpp src/platform/windows/system_proxy.h
     src/application/desktop_runtime.cpp src/application/desktop_runtime.h)
@@ -121,6 +126,7 @@ if(QUICKCLASH_BUILD_UI)
     # as a uic-generated header in the application and subsequent test targets.
     set(CMAKE_AUTOUIC OFF)
     qt_add_executable(quickclash app/main.cpp app/application_host.cpp app/application_host.h
+        app/deferred_ui_unload.cpp app/deferred_ui_unload.h
         app/system_events.cpp app/system_events.h
         app/host_probe.cpp app/host_probe.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
@@ -141,6 +147,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/replay_list.qml
         qml/components/runtime_list.qml
         qml/components/subscription_details.qml
+        qml/components/subscription_card.qml
         qml/components/outbound_status.qml
         qml/components/traffic_sparkline.qml
         qml/shell/page_host.qml
@@ -172,6 +179,8 @@ if(QUICKCLASH_BUILD_UI)
         RESOURCE_PREFIX /qt/qml
         QML_FILES ${QUICKCLASH_QML_FILES}
         SOURCES src/presentation/ui_state.cpp src/presentation/ui_state.h
+                src/presentation/profile_model.cpp src/presentation/profile_model.h
+                src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
                 src/presentation/replay_model.cpp src/presentation/replay_model.h)
     if(MSVC)
         # Qt 6.8 qmlcachegen instantiations trigger C4702 with optimized MSVC.
@@ -188,6 +197,21 @@ if(QUICKCLASH_BUILD_UI)
     install(SCRIPT ${quickclash_deploy})
 endif()
 if(BUILD_TESTING)
+    add_executable(provider_stream_test tests/unit/provider_stream_test.cpp)
+    target_link_libraries(provider_stream_test PRIVATE quickclash_storage quickclash_config)
+    quickclash_warnings(provider_stream_test)
+    add_test(NAME provider_stream COMMAND provider_stream_test)
+    set_tests_properties(provider_stream PROPERTIES TIMEOUT 30)
+    add_executable(bounded_read_test tests/unit/bounded_read_test.cpp)
+    target_link_libraries(bounded_read_test PRIVATE quickclash_domain)
+    quickclash_warnings(bounded_read_test)
+    add_test(NAME bounded_read COMMAND bounded_read_test)
+    set_tests_properties(bounded_read PROPERTIES TIMEOUT 15)
+    add_executable(geo_resource_writer_test tests/unit/geo_resource_writer_test.cpp)
+    target_link_libraries(geo_resource_writer_test PRIVATE quickclash_storage)
+    quickclash_warnings(geo_resource_writer_test)
+    add_test(NAME geo_resource_writer COMMAND geo_resource_writer_test)
+    set_tests_properties(geo_resource_writer PROPERTIES TIMEOUT 30)
     add_executable(storage_test tests/unit/storage_test.cpp)
     target_link_libraries(storage_test PRIVATE quickclash_storage)
     quickclash_warnings(storage_test)
@@ -225,19 +249,52 @@ if(BUILD_TESTING)
             set_tests_properties(recovery PROPERTIES TIMEOUT 60 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         endif()
         find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+        add_executable(deferred_ui_unload_test tests/unit/deferred_ui_unload_test.cpp
+            app/deferred_ui_unload.cpp app/deferred_ui_unload.h)
+        target_include_directories(deferred_ui_unload_test PRIVATE app)
+        target_link_libraries(deferred_ui_unload_test PRIVATE Qt6::Core Qt6::Test)
+        quickclash_warnings(deferred_ui_unload_test)
+        add_test(NAME deferred_ui_unload COMMAND deferred_ui_unload_test)
+        set_tests_properties(deferred_ui_unload PROPERTIES TIMEOUT 15)
+        add_executable(profile_model_test tests/unit/profile_model_test.cpp
+            src/presentation/profile_model.cpp src/presentation/profile_model.h)
+        target_link_libraries(profile_model_test PRIVATE quickclash_application Qt6::Qml Qt6::Test)
+        quickclash_warnings(profile_model_test)
+        add_test(NAME profile_model COMMAND profile_model_test)
+        set_tests_properties(profile_model PROPERTIES TIMEOUT 15)
+        add_executable(latest_mailbox_test tests/unit/latest_mailbox_test.cpp)
+        target_link_libraries(latest_mailbox_test PRIVATE quickclash_runtime Qt6::Test)
+        quickclash_warnings(latest_mailbox_test)
+        add_test(NAME latest_mailbox COMMAND latest_mailbox_test)
+        set_tests_properties(latest_mailbox PROPERTIES TIMEOUT 15)
+        add_executable(runtime_publication_test tests/unit/runtime_publication_test.cpp)
+        target_link_libraries(runtime_publication_test PRIVATE quickclash_runtime Qt6::Test)
+        quickclash_warnings(runtime_publication_test)
+        add_test(NAME runtime_publication COMMAND runtime_publication_test)
+        set_tests_properties(runtime_publication PROPERTIES TIMEOUT 15)
+        add_executable(runtime_list_model_test tests/unit/runtime_list_model_test.cpp
+            src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h)
+        target_link_libraries(runtime_list_model_test PRIVATE quickclash_application Qt6::Qml Qt6::Test)
+        quickclash_warnings(runtime_list_model_test)
+        add_test(NAME runtime_list_model COMMAND runtime_list_model_test)
+        set_tests_properties(runtime_list_model PROPERTIES TIMEOUT 15)
         add_executable(localization_test tests/unit/localization_test.cpp)
         target_link_libraries(localization_test PRIVATE quickclash_localization)
         quickclash_warnings(localization_test)
         add_test(NAME localization COMMAND localization_test)
         target_sources(quickclash PRIVATE app/keyboard_probe.cpp)
+        target_sources(quickclash PRIVATE tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h)
+        target_sources(quickclash PRIVATE tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h)
         target_sources(quickclash PRIVATE tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp)
-        target_include_directories(quickclash PRIVATE tests/integration)
+        target_include_directories(quickclash PRIVATE tests/integration app)
         target_link_libraries(quickclash PRIVATE Qt6::Test)
         target_compile_definitions(quickclash PRIVATE QUICKCLASH_TEST_PROBES)
         add_executable(qt_cost_probe bench/qt_cost_probe.cpp)
         target_link_libraries(qt_cost_probe PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)
         quickclash_warnings(qt_cost_probe)
         add_executable(ui_state_test tests/unit/ui_state_test.cpp
+            src/presentation/profile_model.cpp src/presentation/profile_model.h
+            src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
             src/presentation/feature_registry.cpp src/presentation/ui_state.cpp src/presentation/ui_state.h
             src/presentation/replay_model.cpp src/presentation/replay_model.h)
         target_link_libraries(ui_state_test PRIVATE quickclash_application quickclash_runtime Qt6::Qml)
@@ -259,6 +316,17 @@ if(BUILD_TESTING)
         add_test(NAME qml_smoke COMMAND quickclash --smoke-test)
         add_test(NAME ui_keyboard COMMAND quickclash --keyboard-test)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
+        add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test)
+        add_test(NAME ui_subscriptions COMMAND quickclash --subscription-ui-test)
+        add_test(NAME ui_subscriptions_zh COMMAND quickclash --subscription-ui-test --probe-language=zh-CN)
+        set_tests_properties(ui_subscriptions ui_subscriptions_zh PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
+            TIMEOUT 15)
+        set_tests_properties(ui_runtime_lists PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
+            TIMEOUT 15)
         set_tests_properties(ui_responsive PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Error loading QML"

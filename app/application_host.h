@@ -1,4 +1,5 @@
 #pragma once
+#include "deferred_ui_unload.h"
 #include "presentation/ui_state.h"
 #include "system_events.h"
 #include <QElapsedTimer>
@@ -42,17 +43,23 @@ class ApplicationHost final : public QObject {
 
   private:
     void setupTray(bool noTray);
+    [[nodiscard]] bool recoverableFromTray() const;
+    [[nodiscard]] bool backgroundWindow() const;
+    void updateDeferredUnload();
     presentation::UiState state_;
     SystemEvents systemEvents_;
     std::unique_ptr<QQmlApplicationEngine> engine_;
     QPointer<QQuickWindow> window_;
     std::unique_ptr<QMenu> trayMenu_;
     std::unique_ptr<QSystemTrayIcon> tray_;
-    QTimer unloadTimer_;
+    DeferredUiUnload deferredUnload_;
     QRect geometry_;
     QSize requestedSize_;
     bool quitting_ = false;
     bool waitingForSettings_ = false;
+    bool showing_ = false;
+    bool unloading_ = false;
+    bool restorePending_ = false;
     int generation_ = 0;
     qint64 openMilliseconds_ = 0;
     int qmlErrorCount_ = 0;

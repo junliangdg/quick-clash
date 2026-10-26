@@ -28,6 +28,157 @@ int main(int argc, char* argv[]) {
     using namespace quickclash::presentation;
     try {
         FeatureRegistry registry;
+        {
+            UiState live;
+            live.setUiVisible(true);
+            check(live.createDemandKey("rules") != live.createDemandKey("rules"),
+                  "page instances own distinct keys so old destruction cannot revoke a new page");
+            for (const auto* stream : {"traffic", "connections", "logs"})
+                live.setDemand(QLatin1String(stream), QLatin1String(stream), true);
+            int controlChanges = 0, profileChanges = 0, groupChanges = 0, samples = 0;
+            QObject::connect(&live, &UiState::runtimeChanged, [&] { ++controlChanges; });
+            QObject::connect(&live, &UiState::profilesChanged, [&] { ++profileChanges; });
+            QObject::connect(&live, &UiState::groupsChanged, [&] { ++groupChanges; });
+            QObject::connect(&live, &UiState::sampleChanged, [&] { ++samples; });
+            const QJsonObject control{
+                {"publicationGeneration", "1"}, {"epoch", "a"}, {"status", "Ready"}};
+            live.applyControl(control);
+            live.applyControl(control);
+            check(controlChanges == 1, "unchanged compact state has no notification");
+            const quickclash::application::RuntimeUpdate initial{
+                1,
+                "a",
+                {{"profiles", QJsonArray{QJsonObject{{"id", "p"}}}},
+                 {"groups", QJsonArray{QJsonObject{{"name", "g"}}}},
+                 {"traffic",
+                  QJsonObject{
+                      {"traffic", QJsonObject{{"time", "1"}, {"up", 1024}, {"down", 2048}}}}},
+                 {"connections", QJsonArray{QJsonObject{{"id", "c"}, {"epoch", "a"}}}},
+                 {"logs", QJsonArray{QJsonObject{{"localSeq", "1"}, {"message", "first"}}}}},
+                live.dataDemands().generations};
+            live.applyData(initial);
+            live.applyData(initial);
+            check(profileChanges == 1 && groupChanges == 1 && samples == 1,
+                  "identical channels do not reconvert or notify");
+            live.applyData(
+                {1,
+                 "a",
+                 {{"samples", QJsonObject{{"coreUptimeSeconds", 2}}},
+                  {"traffic", QJsonObject{{"traffic", QJsonObject{{"time", "2"}, {"up", 2048}}}}}},
+                 live.dataDemands().generations});
+            check(profileChanges == 1 && groupChanges == 1 && controlChanges == 1 && samples == 2,
+                  "telemetry does not notify unrelated control/profile/group consumers");
+            check(!live.runtime().contains("connections") && !live.runtime().contains("profiles"),
+                  "production runtime excludes full collections");
+            check(live.diagnosticSnapshot().value("profiles").toArray().size() == 1,
+                  "explicit diagnostic compatibility retains collections");
+            live.setLogsPaused(true);
+            live.applyData(
+                {1,
+                 "a",
+                 {{"logs", QJsonArray{QJsonObject{{"localSeq", "2"}, {"message", "second"}}}}},
+                 live.dataDemands().generations});
+            check(live.liveLogs()->index(0, 0).data(RuntimeRows::Message) == "first",
+                  "pause freezes GUI rows");
+            live.setLogsPaused(false);
+            check(live.liveLogs()->index(0, 0).data(RuntimeRows::Message) == "second",
+                  "resume applies latest bounded log state");
+            live.applyData(
+                {2,
+                 "b",
+                 {{"connections", QJsonArray{QJsonObject{{"id", "new"}, {"epoch", "b"}}}}},
+                 live.dataDemands().generations});
+            live.applyData(initial);
+            live.applyControl(control);
+            check(live.liveConnections()->captureIds() == QStringList{"new"},
+                  "old generation cannot revive old connections");
+            check(live.uploadHistory().isEmpty(), "epoch clears traffic history");
+            check(profileChanges == 1 && groupChanges == 1,
+                  "epoch alone does not notify unrelated profiles/groups");
+        }
+        {
+            UiState live;
+            live.setUiVisible(true);
+            live.setDemand("one", "connections", true);
+            live.setDemand("two", "connections", true);
+            const auto first = live.dataDemands().generations;
+            const quickclash::application::RuntimeUpdate old{
+                1,
+                "same",
+                {{"connections", QJsonArray{QJsonObject{{"id", "one"}, {"epoch", "same"}}}},
+                 {"connection_status", QJsonObject{{"connectionsStale", false}}}},
+                first};
+            live.applyData(old);
+            live.setDemand("one", "connections", false);
+            check(live.liveConnections()->count() == 1 && live.dataDemands().generations == first,
+                  "another consumer retains the cache and its lease");
+            live.setDemand("two", "connections", false);
+            check(live.liveConnections()->count() == 0 &&
+                      !live.diagnosticSnapshot().contains("connections") &&
+                      !live.telemetry().contains("connectionsStale"),
+                  "last release clears model, JSON baseline and associated status");
+            live.applyData(old);
+            check(live.liveConnections()->count() == 0,
+                  "late mailbox data cannot refill a released view");
+            live.setDemand("again", "connections", true);
+            live.applyData(old);
+            check(live.liveConnections()->count() == 0,
+                  "same-session reentry rejects previous lease");
+            auto fresh = old;
+            fresh.demandGenerations = live.dataDemands().generations;
+            live.applyData(fresh);
+            check(live.liveConnections()->count() == 1,
+                  "unchanged full value is accepted after reentry");
+            live.setDemand("again", "rules", true);
+            check(live.liveConnections()->count() == 0,
+                  "changing a token's stream releases its old stream");
+            for (const auto* stream : {"rules", "providers", "logs", "traffic", "resources"})
+                live.setDemand(QLatin1String(stream), QLatin1String(stream), true);
+            const auto revisions = live.dataDemands().generations;
+            const quickclash::application::RuntimeUpdate populated{
+                1,
+                "same",
+                {{"rules", QJsonArray{QJsonObject{{"type", "MATCH"}}}},
+                 {"providers", QJsonArray{QJsonObject{{"name", "p"}, {"kind", "rules"}}}},
+                 {"logs", QJsonArray{QJsonObject{{"localSeq", "1"}, {"message", "frozen"}}}},
+                 {"traffic", QJsonObject{{"traffic", QJsonObject{{"time", "1"}, {"up", 1}}}}},
+                 {"resources", QJsonObject{{"memory", QJsonObject{{"client", 1}}}}}},
+                revisions};
+            live.applyData(populated);
+            live.setLogsPaused(true);
+            live.applyData(
+                {1,
+                 "same",
+                 {{"logs", QJsonArray{QJsonObject{{"localSeq", "2"}, {"message", "pending"}}}}},
+                 revisions});
+            check(live.liveLogs()->index(0, 0).data(RuntimeRows::Message) == "frozen",
+                  "visible pause retains its bounded frozen snapshot");
+            live.setUiVisible(false);
+            const auto diagnostic = live.diagnosticSnapshot();
+            check(live.liveRules()->count() == 0 && live.liveProviders()->count() == 0 &&
+                      live.liveLogs()->count() == 0 && live.liveConnections()->count() == 0 &&
+                      live.uploadHistory().isEmpty() && !live.telemetry().contains("memory"),
+                  "hide releases all page models, paused logs, traffic history and resources");
+            const auto lifecycle = diagnostic.value("dataLifecycle").toObject();
+            check(lifecycle.value("appliedChannels").toArray().isEmpty() &&
+                      lifecycle.value("pendingLogCount").toInt() == 0,
+                  "hide clears every GUI channel baseline and pending log copy");
+            live.applyData(populated);
+            live.setLogsPaused(false);
+            check(live.liveLogs()->count() == 0,
+                  "resume after leaving cannot restore a stale snapshot");
+            live.setUiVisible(true);
+            live.setDemand("logs", "logs", true);
+            fresh = {1,
+                     "same",
+                     {{"logs", QJsonArray{QJsonObject{{"localSeq", "3"}, {"message", "fresh"}}}}},
+                     live.dataDemands().generations};
+            live.applyData(fresh);
+            live.runtimeCommand("clear_logs");
+            live.applyData(fresh);
+            check(live.liveLogs()->count() == 0,
+                  "clear fences already queued logs even while paused");
+        }
         check(registry.features().size() == 8, "eight independent modules");
         check(registry.project({"home", "settings", "home", "unknown"}).size() == 2,
               "mobile selection deduplicates and does not affect routing");

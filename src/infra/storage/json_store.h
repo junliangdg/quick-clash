@@ -4,7 +4,10 @@
 #include <QLockFile>
 #include <memory>
 
+class QSaveFile;
+class QTemporaryFile;
 namespace quickclash::infra {
+class GeoResourceWriter;
 // Owned by one worker. The lock covers settings, manifests, credentials and journals.
 class JsonStore final {
   public:
@@ -21,8 +24,13 @@ class JsonStore final {
     [[nodiscard]] domain::CommandResult write(const QString& reference, QJsonObject value);
     [[nodiscard]] domain::Result<QByteArray> readBytes(const QString& reference,
                                                        qsizetype limit = 16 * 1024 * 1024) const;
+    [[nodiscard]] domain::CommandResult verifyBytes(const QString& reference,
+                                                    const QString& sha256) const;
     [[nodiscard]] domain::CommandResult writeBytes(const QString& reference,
                                                    const QByteArray& bytes, bool immutable = false);
+    [[nodiscard]] domain::Result<std::unique_ptr<GeoResourceWriter>> beginGeoWrite();
+    // Fixed private configuration staging namespace; caller owns automatic removal.
+    [[nodiscard]] domain::Result<std::unique_ptr<QTemporaryFile>> beginConfigTemporary();
     [[nodiscard]] domain::CommandResult remove(const QString& reference);
     [[nodiscard]] domain::Result<QStringList> files(const QString& directory) const;
     void freeze() {
@@ -30,6 +38,9 @@ class JsonStore final {
     }
 
   private:
+    friend class GeoResourceWriter;
+    [[nodiscard]] domain::Result<QString> prepareWrite(const QString& reference, bool immutable);
+    [[nodiscard]] domain::CommandResult commitWrite(QSaveFile& file) const;
     QString root_;
     std::unique_ptr<QLockFile> lock_;
     bool opened_ = false;

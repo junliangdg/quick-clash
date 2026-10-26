@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include <QUrl>
 #include <chrono>
+#include <utility>
 #ifdef Q_OS_WIN
 // clang-format off
 #define WIN32_LEAN_AND_MEAN
@@ -65,21 +66,93 @@ void DesktopRuntime::loadOfflineGroups() {
     }
 }
 void DesktopRuntime::setDemands(const QStringList& streams) {
-    featureDemands_.clear();
-    const QStringList allowed{QStringLiteral("traffic"), QStringLiteral("connections"),
-                              QStringLiteral("logs"), QStringLiteral("resources"),
-                              QStringLiteral("proxies")};
-    for (const auto& stream : streams)
-        if (allowed.contains(stream))
-            featureDemands_.insert(stream);
+    auto demands = demandState_;
+    auto requested = streams;
+    if (requested.contains(QStringLiteral("logs")))
+        requested.append(QStringLiteral("log_feed"));
+    demands.setActive(requested);
+    applyDemands(demands);
+}
+void DesktopRuntime::applyDemands(const RuntimeDemands& demands) {
+    for (const auto& stream : RuntimeDemands::streams()) {
+        const auto previous = demandState_.generations.value(stream);
+        const auto next = demands.generations.value(stream);
+        if (next < previous || (next == previous && demands.active.contains(stream) !=
+                                                        featureDemands_.contains(stream)))
+            return;
+    }
+    const auto previous = demandState_;
+    demandState_ = demands;
+    featureDemands_ = demands.active;
+    for (const auto& stream : RuntimeDemands::streams()) {
+        if (previous.generations.value(stream) == demands.generations.value(stream))
+            continue;
+        releaseFeature(stream);
+        if (stream == QStringLiteral("logs") && featureDemands_.contains(stream) &&
+            !previous.active.contains(stream))
+            logs_ = appLogs_;
+    }
     if (featureDemands_.isEmpty())
         featureTimer_.stop();
-    else
+    else if (!featureTimer_.isActive())
         featureTimer_.start();
     engine_.setStream(QStringLiteral("traffic"),
                       featureDemands_.contains(QStringLiteral("traffic")));
-    engine_.setStream(QStringLiteral("logs"), featureDemands_.contains(QStringLiteral("logs")));
+    engine_.setStream(QStringLiteral("logs"),
+                      featureDemands_.contains(QStringLiteral("logs")) &&
+                          featureDemands_.contains(QStringLiteral("log_feed")));
     pollFeatures();
+}
+void DesktopRuntime::releaseFeature(const QString& stream) {
+    ++featureRequests_[stream];
+    pendingFeatureRequests_.remove(stream);
+    loadedFeatures_.remove(stream);
+    for (const auto& channel : scopedChannels()) {
+        if (channelStream(channel) != stream)
+            continue;
+        publishedData_.remove(channel);
+        invalidatedChannels_.insert(channel);
+    }
+    if (stream == QStringLiteral("connections")) {
+        connections_ = {};
+        connectionSampleMs_ = 0;
+        featureState_.remove(QStringLiteral("connectionSample"));
+        featureState_.remove(QStringLiteral("connectionsStale"));
+    } else if (stream == QStringLiteral("rules")) {
+        rules_ = {};
+    } else if (stream == QStringLiteral("providers")) {
+        providers_ = {};
+        providerDraft_ = {};
+    } else if (stream == QStringLiteral("logs")) {
+        engine_.setStream(QStringLiteral("logs"), false);
+        logs_ = {};
+        droppedLogs_ = 0;
+    } else if (stream == QStringLiteral("log_feed")) {
+        engine_.setStream(QStringLiteral("logs"), false);
+    } else if (stream == QStringLiteral("traffic")) {
+        engine_.setStream(QStringLiteral("traffic"), false);
+        featureState_.remove(QStringLiteral("traffic"));
+    } else if (stream == QStringLiteral("resources")) {
+        resourceTick_ = 0;
+        for (const auto* key : {"memory", "memorySample", "memoryComplete"})
+            featureState_.remove(QLatin1String(key));
+    }
+}
+RuntimeRequest DesktopRuntime::beginFeatureRequest(const QString& stream) {
+    pendingFeatureRequests_.insert(stream);
+    return {stream, epoch_, demandState_.generations.value(stream), operationGeneration_,
+            ++featureRequests_[stream]};
+}
+bool DesktopRuntime::acceptFeatureRequest(const RuntimeRequest& request) {
+    // An old completion must not clear a newer request's in-flight flag.
+    if (request.request != featureRequests_.value(request.stream))
+        return false;
+    pendingFeatureRequests_.remove(request.stream);
+    const bool accepted = request.matches(demandState_, epoch_, operationGeneration_,
+                                          featureRequests_.value(request.stream));
+    if (!accepted && request.stream == QStringLiteral("providers"))
+        providerDraft_ = {};
+    return accepted;
 }
 void DesktopRuntime::appendLog(const QString& source, const QString& level,
                                const QString& message) {
@@ -88,11 +161,21 @@ void DesktopRuntime::appendLog(const QString& source, const QString& level,
     safe.replace(QRegularExpression(
                      QStringLiteral("(?i)(password|secret|token|authorization|uuid)[=: ]+[^ ,;]+")),
                  QStringLiteral("[credential]"));
-    logs_.append(
-        QJsonObject{{QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
-                    {QStringLiteral("source"), source},
-                    {QStringLiteral("level"), level},
-                    {QStringLiteral("message"), safe}});
+    const QJsonObject entry{
+        {QStringLiteral("localSeq"), QString::number(++logSequence_)},
+        {QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
+        {QStringLiteral("source"), source.left(32)},
+        {QStringLiteral("level"), level.left(32)},
+        {QStringLiteral("message"), safe}};
+    // Small App diagnostics survive page release; Core history is strictly page-owned.
+    if (source == QStringLiteral("App")) {
+        appLogs_.append(entry);
+        while (appLogs_.size() > 100)
+            appLogs_.removeFirst();
+    }
+    if (!featureDemands_.contains(QStringLiteral("logs")))
+        return;
+    logs_.append(entry);
     while (logs_.size() > 1000) {
         logs_.removeFirst();
         ++droppedLogs_;
@@ -168,11 +251,11 @@ void DesktopRuntime::pollFeatures() {
         featureState_.insert(QStringLiteral("memory"), memory);
         featureState_.insert(QStringLiteral("memoryComplete"),
                              memoryComplete && !engine_.tunActive());
-        if (engine_.tunActive()) {
-            const auto epoch = epoch_;
+        if (engine_.tunActive() && !pendingFeatureRequests_.contains(QStringLiteral("resources"))) {
+            const auto ticket = beginFeatureRequest(QStringLiteral("resources"));
             engine_.serviceResources([this, memory,
-                                      epoch](domain::Result<QJsonObject> result) mutable {
-                if (epoch != epoch_ || !engine_.tunActive())
+                                      ticket](domain::Result<QJsonObject> result) mutable {
+                if (!acceptFeatureRequest(ticket) || !engine_.tunActive())
                     return;
                 const auto* value = std::get_if<QJsonObject>(&result);
                 if (value) {
@@ -207,11 +290,20 @@ void DesktopRuntime::pollFeatures() {
         engine_.refreshGroups();
     engine_.setStream(QStringLiteral("traffic"),
                       featureDemands_.contains(QStringLiteral("traffic")));
-    engine_.setStream(QStringLiteral("logs"), featureDemands_.contains(QStringLiteral("logs")));
-    if (featureDemands_.contains(QStringLiteral("connections")) && !featureRequest_ && !busy_) {
-        featureRequest_ = true;
-        engine_.api("GET", "/connections", {}, [this](domain::Result<QJsonObject> result) {
-            featureRequest_ = false;
+    engine_.setStream(QStringLiteral("logs"),
+                      featureDemands_.contains(QStringLiteral("logs")) &&
+                          featureDemands_.contains(QStringLiteral("log_feed")));
+    for (const auto* stream : {"rules", "providers"})
+        if (featureDemands_.contains(QLatin1String(stream)) &&
+            !loadedFeatures_.contains(QLatin1String(stream)) &&
+            !pendingFeatureRequests_.contains(QLatin1String(stream)) && !busy_)
+            requestPageData(QLatin1String(stream));
+    if (featureDemands_.contains(QStringLiteral("connections")) &&
+        !pendingFeatureRequests_.contains(QStringLiteral("connections")) && !busy_) {
+        const auto ticket = beginFeatureRequest(QStringLiteral("connections"));
+        engine_.api("GET", "/connections", {}, [this, ticket](domain::Result<QJsonObject> result) {
+            if (!acceptFeatureRequest(ticket))
+                return;
             if (const auto* value = std::get_if<QJsonObject>(&result)) {
                 auto next = value->value(QStringLiteral("connections")).toArray();
                 const auto now = std::chrono::steady_clock::now().time_since_epoch();
@@ -341,7 +433,8 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         QJsonArray targets;
         for (const auto& value : connections_)
             if (args.mid(2).contains(value.toObject().value(QStringLiteral("id")).toString()))
-                targets.append(value);
+                targets.append(QJsonObject{
+                    {QStringLiteral("id"), value.toObject().value(QStringLiteral("id"))}});
         featureState_.insert(QStringLiteral("closeRemaining"), targets.size());
         featureState_.insert(QStringLiteral("closeSucceeded"), 0);
         featureState_.insert(QStringLiteral("closeFailed"), 0);
@@ -386,13 +479,16 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
     }
     if (command == QStringLiteral("clear_logs")) {
         logs_ = {};
+        appLogs_ = {};
         droppedLogs_ = 0;
         publish();
         return;
     }
     if (command == QStringLiteral("diagnostics") || command == QStringLiteral("export_logs")) {
         QJsonArray safeLogs;
-        for (const auto& value : logs_) {
+        const auto& sourceLogs =
+            featureDemands_.contains(QStringLiteral("logs")) ? logs_ : appLogs_;
+        for (const auto& value : sourceLogs) {
             auto entry = value.toObject();
             if (command != QStringLiteral("export_logs"))
                 entry.remove(QStringLiteral("message"));
@@ -430,45 +526,9 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         return;
     }
     if (command == QStringLiteral("rules")) {
-        engine_.api("GET", "/rules", {}, [this](domain::Result<QJsonObject> result) {
-            if (const auto* value = std::get_if<QJsonObject>(&result))
-                rules_ = value->value(QStringLiteral("rules")).toArray();
-            else
-                error(std::get<domain::Error>(result).code);
-            publish();
-        });
+        requestPageData(QStringLiteral("rules"));
     } else if (command == QStringLiteral("providers")) {
-        engine_.api("GET", "/providers/proxies", {}, [this](domain::Result<QJsonObject> result) {
-            providers_ = profile(selectedId_).value(QStringLiteral("managedProviders")).toArray();
-            if (const auto* value = std::get_if<QJsonObject>(&result)) {
-                const auto objects = value->value(QStringLiteral("providers")).toObject();
-                for (auto it = objects.begin(); it != objects.end(); ++it) {
-                    const auto provider = it.value().toObject();
-                    providers_.append(
-                        QJsonObject{{QStringLiteral("name"), it.key()},
-                                    {QStringLiteral("kind"), QStringLiteral("proxies")},
-                                    {QStringLiteral("count"),
-                                     provider.value(QStringLiteral("proxies")).toArray().size()},
-                                    {QStringLiteral("updatedAt"),
-                                     provider.value(QStringLiteral("updatedAt"))}});
-                }
-            }
-            engine_.api("GET", "/providers/rules", {}, [this](domain::Result<QJsonObject> rules) {
-                if (const auto* value = std::get_if<QJsonObject>(&rules)) {
-                    const auto objects = value->value(QStringLiteral("providers")).toObject();
-                    for (auto it = objects.begin(); it != objects.end(); ++it) {
-                        const auto provider = it.value().toObject();
-                        providers_.append(QJsonObject{
-                            {QStringLiteral("name"), it.key()},
-                            {QStringLiteral("kind"), QStringLiteral("rules")},
-                            {QStringLiteral("count"), provider.value(QStringLiteral("ruleCount"))},
-                            {QStringLiteral("updatedAt"),
-                             provider.value(QStringLiteral("updatedAt"))}});
-                    }
-                }
-                publish();
-            });
-        });
+        requestPageData(QStringLiteral("providers"));
     } else if (command == QStringLiteral("close_connection")) {
         if (args.value(0) != epoch_)
             return;
@@ -562,6 +622,71 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         });
     }
 }
+void DesktopRuntime::requestPageData(const QString& stream) {
+    if (!engine_.ready() || busy_ || !featureDemands_.contains(stream))
+        return;
+    const auto ticket = beginFeatureRequest(stream);
+    if (stream == QStringLiteral("rules")) {
+        engine_.api("GET", "/rules", {}, [this, ticket](domain::Result<QJsonObject> result) {
+            if (!acceptFeatureRequest(ticket))
+                return;
+            loadedFeatures_.insert(ticket.stream);
+            if (const auto* value = std::get_if<QJsonObject>(&result))
+                rules_ = value->value(QStringLiteral("rules")).toArray();
+            else
+                error(std::get<domain::Error>(result).code);
+            publish();
+        });
+        return;
+    }
+    if (stream != QStringLiteral("providers"))
+        return;
+    engine_.api(
+        "GET", "/providers/proxies", {}, [this, ticket](domain::Result<QJsonObject> result) {
+            if (!ticket.matches(demandState_, epoch_, operationGeneration_,
+                                featureRequests_.value(ticket.stream))) {
+                (void)acceptFeatureRequest(ticket);
+                return;
+            }
+            providerDraft_ =
+                profile(selectedId_).value(QStringLiteral("managedProviders")).toArray();
+            if (const auto* value = std::get_if<QJsonObject>(&result)) {
+                const auto objects = value->value(QStringLiteral("providers")).toObject();
+                for (auto it = objects.begin(); it != objects.end(); ++it) {
+                    const auto provider = it.value().toObject();
+                    providerDraft_.append(
+                        QJsonObject{{QStringLiteral("name"), it.key()},
+                                    {QStringLiteral("kind"), QStringLiteral("proxies")},
+                                    {QStringLiteral("count"),
+                                     provider.value(QStringLiteral("proxies")).toArray().size()},
+                                    {QStringLiteral("updatedAt"),
+                                     provider.value(QStringLiteral("updatedAt"))}});
+                }
+            }
+            engine_.api(
+                "GET", "/providers/rules", {}, [this, ticket](domain::Result<QJsonObject> result) {
+                    if (!acceptFeatureRequest(ticket))
+                        return;
+                    loadedFeatures_.insert(ticket.stream);
+                    if (const auto* value = std::get_if<QJsonObject>(&result)) {
+                        const auto objects = value->value(QStringLiteral("providers")).toObject();
+                        for (auto it = objects.begin(); it != objects.end(); ++it) {
+                            const auto provider = it.value().toObject();
+                            providerDraft_.append(
+                                QJsonObject{{QStringLiteral("name"), it.key()},
+                                            {QStringLiteral("kind"), QStringLiteral("rules")},
+                                            {QStringLiteral("count"),
+                                             provider.value(QStringLiteral("ruleCount"))},
+                                            {QStringLiteral("updatedAt"),
+                                             provider.value(QStringLiteral("updatedAt"))}});
+                        }
+                    }
+                    providers_ = std::move(providerDraft_);
+                    providerDraft_ = {};
+                    publish();
+                });
+        });
+}
 void DesktopRuntime::startDelayTests(const QStringList& names, const QString& targetText) {
     const QUrl target(targetText);
     if (delayRunning_ || busy_ || !engine_.ready() || names.isEmpty() || names.size() > 500 ||
@@ -653,6 +778,8 @@ void DesktopRuntime::closeNextConnection(const QJsonArray& targets, qsizetype in
     const auto id = targets[index].toObject().value(QStringLiteral("id")).toString();
     engine_.api("DELETE", "/connections/" + QUrl::toPercentEncoding(id), {},
                 [this, targets, index, epoch](domain::Result<QJsonObject> result) {
+                    if (epoch != epoch_)
+                        return;
                     const auto counter = std::holds_alternative<QJsonObject>(result)
                                              ? QStringLiteral("closeSucceeded")
                                              : QStringLiteral("closeFailed");

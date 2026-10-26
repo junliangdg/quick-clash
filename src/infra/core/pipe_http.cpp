@@ -1,4 +1,5 @@
 #include "infra/core/pipe_http.h"
+#include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
 #include <QJsonDocument>
 #include <QLocalSocket>
@@ -9,6 +10,7 @@ namespace quickclash::infra {
 QObject* pipeJsonStream(QObject* context, const QString& pipe, const QByteArray& path,
                         std::function<void(const QJsonObject&)> handler) {
     auto* socket = new QLocalSocket(context);
+    socket->setReadBufferSize(kReadChunkSize);
     auto pending = std::make_shared<QByteArray>();
     auto headers = std::make_shared<bool>(false);
     QObject::connect(socket, &QLocalSocket::disconnected, socket, &QObject::deleteLater);
@@ -18,8 +20,7 @@ QObject* pipeJsonStream(QObject* context, const QString& pipe, const QByteArray&
         socket->write("GET " + path + " HTTP/1.0\r\nHost: localhost\r\nConnection: close\r\n\r\n");
     });
     QObject::connect(socket, &QIODevice::readyRead, socket, [socket, pending, headers, handler] {
-        pending->append(socket->read(1024 * 1024 + 1 - pending->size()));
-        if (pending->size() > 1024 * 1024) {
+        if (!appendAvailable(*socket, *pending, 1024 * 1024)) {
             socket->abort();
             return;
         }
@@ -60,6 +61,7 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
               const QByteArray& path, const QJsonObject& body,
               std::function<void(domain::Result<QJsonObject>)> handler) {
     auto* socket = new QLocalSocket(context);
+    socket->setReadBufferSize(kReadChunkSize);
     auto* deadline = new QTimer(socket);
     deadline->setSingleShot(true);
     deadline->start(3500);
@@ -83,8 +85,7 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
     auto parse = [socket, bytes, done, finish](bool ended) {
         if (*done)
             return;
-        bytes->append(socket->read(2 * 1024 * 1024 + 1 - bytes->size()));
-        if (bytes->size() > 2 * 1024 * 1024) {
+        if (!appendAvailable(*socket, *bytes, 2 * 1024 * 1024)) {
             finish(storageError("CoreResponseTooLarge"));
             return;
         }

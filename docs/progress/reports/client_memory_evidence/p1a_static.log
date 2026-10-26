@@ -1,0 +1,9 @@
+C++ format: 19 files, exit 0
+QML parse: qml/components/runtime_list.qml exit 0
+QML parse: qml/features/connections/connections_page.qml exit 0
+QML parse: qml/features/rules/rules_page.qml exit 0
+QML parse: qml/features/logs/logs_page.qml exit 0
+QML parse: qml/features/home/home_page.qml exit 0
+QML parse: qml/features/proxies/proxies_page.qml exit 0
+qmlformat 6.9.0
+Final C++ format recheck: 19 files, exit 0 (including GUI fixture filter isolation)

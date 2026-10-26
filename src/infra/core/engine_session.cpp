@@ -1,4 +1,5 @@
 #include "infra/core/engine_session.h"
+#include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
 #include <QCryptographicHash>
 #include <QFile>
@@ -23,6 +24,7 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
     connect(&servicePoll_, &QTimer::timeout, this, [this] {
         if (!serviceMode_ || !ready_)
             return;
+        syncServiceLogs();
         const auto generation = generation_;
         service_.command(QStringLiteral("status"), {},
                          [this, generation](domain::Result<QJsonObject> result) {
@@ -35,10 +37,15 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
                                  emit stopped(true);
                              }
                          });
-        for (const auto& name : serviceStreams_)
+        for (const auto& name : serviceStreams_) {
+            const auto streamGeneration = streamGenerations_.value(name);
+            if (name == QStringLiteral("logs") && !serviceLogDemand_.receiving(streamGeneration))
+                continue;
             service_.command(
-                name, {}, [this, name, generation](domain::Result<QJsonObject> result) {
+                name, {},
+                [this, name, generation, streamGeneration](domain::Result<QJsonObject> result) {
                     if (generation != generation_ || !serviceMode_ ||
+                        streamGeneration != streamGenerations_.value(name) ||
                         !serviceStreams_.contains(name))
                         return;
                     if (const auto* value = std::get_if<QJsonObject>(&result)) {
@@ -56,6 +63,7 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
                             emit streamData(name, *value);
                     }
                 });
+        }
     });
     connect(&service_, &ServiceClient::lost, this, [this] {
         if (!serviceMode_)
@@ -130,32 +138,37 @@ void EngineSession::start(const QString& executable, const QString& config,
             fail(QStringLiteral("ServiceConfigRejected"));
             return;
         }
+        const auto loaded = readFileBounded(source, 16 * 1024 * 1024);
+        if (!loaded.ok) {
+            fail(QStringLiteral("ServiceConfigRejected"));
+            return;
+        }
         serviceMode_ = true;
         const auto generation = generation_;
-        service_.command(
-            QStringLiteral("start"),
-            {{QStringLiteral("yaml"), QString::fromLatin1(source.readAll().toBase64())},
-             {QStringLiteral("mixedPort"), mixedPort},
-             {QStringLiteral("mode"), expectedMode},
-             {QStringLiteral("dnsMode"), QStringLiteral("profile")}},
-            [this, generation](domain::Result<QJsonObject> result) {
-                if (generation != generation_)
-                    return;
-                if (const auto* error = std::get_if<domain::Error>(&result)) {
-                    fail(error->code);
-                    return;
-                }
-                const auto value = std::get<QJsonObject>(result);
-                if (!value.value(QStringLiteral("tun")).toBool()) {
-                    fail(QStringLiteral("ServiceTunReadbackFailed"));
-                    return;
-                }
-                servicePid_ = static_cast<quint32>(value.value(QStringLiteral("pid")).toInt());
-                ready_ = true;
-                servicePoll_.start();
-                emit becameReady(QStringLiteral("v1.19.33"));
-                refreshGroups();
-            });
+        service_.command(QStringLiteral("start"),
+                         {{QStringLiteral("yaml"), QString::fromLatin1(loaded.bytes.toBase64())},
+                          {QStringLiteral("mixedPort"), mixedPort},
+                          {QStringLiteral("mode"), expectedMode},
+                          {QStringLiteral("dnsMode"), QStringLiteral("profile")}},
+                         [this, generation](domain::Result<QJsonObject> result) {
+                             if (generation != generation_)
+                                 return;
+                             if (const auto* error = std::get_if<domain::Error>(&result)) {
+                                 fail(error->code);
+                                 return;
+                             }
+                             const auto value = std::get<QJsonObject>(result);
+                             if (!value.value(QStringLiteral("tun")).toBool()) {
+                                 fail(QStringLiteral("ServiceTunReadbackFailed"));
+                                 return;
+                             }
+                             servicePid_ =
+                                 static_cast<quint32>(value.value(QStringLiteral("pid")).toInt());
+                             ready_ = true;
+                             servicePoll_.start();
+                             emit becameReady(QStringLiteral("v1.19.33"));
+                             refreshGroups();
+                         });
         return;
     }
     const auto result = process_.start(
@@ -176,6 +189,7 @@ void EngineSession::stop() {
     servicePid_ = 0;
     servicePoll_.stop();
     serviceStreams_.clear();
+    serviceLogDemand_ = {};
     afterServiceStop_ = {};
     if (stopService && !serviceStopping_) {
         serviceStopping_ = true;
@@ -225,6 +239,26 @@ void EngineSession::probeService(ApiHandler handler) {
 void EngineSession::serviceResources(ApiHandler handler) {
     service_.command(QStringLiteral("resources"), {}, std::move(handler));
 }
+void EngineSession::syncServiceLogs() {
+    if (!serviceMode_ || !ready_)
+        return;
+    const auto streamGeneration = streamGenerations_.value(QStringLiteral("logs"));
+    const auto enabled =
+        serviceLogDemand_.begin(streamGeneration, serviceStreams_.contains(QStringLiteral("logs")));
+    if (!enabled)
+        return;
+    const auto generation = generation_;
+    service_.command(QStringLiteral("log_demand"), {{QStringLiteral("enabled"), *enabled}},
+                     [this, generation, streamGeneration,
+                      enabled = *enabled](domain::Result<QJsonObject> result) {
+                         if (generation != generation_ || !serviceMode_)
+                             return;
+                         const bool success = std::holds_alternative<QJsonObject>(result);
+                         serviceLogDemand_.finish(streamGeneration, enabled, success);
+                         if (success)
+                             syncServiceLogs();
+                     });
+}
 void EngineSession::api(const QByteArray& method, const QByteArray& path, const QJsonObject& body,
                         ApiHandler handler) {
     if (!ready_) {
@@ -236,15 +270,17 @@ void EngineSession::api(const QByteArray& method, const QByteArray& path, const 
 void EngineSession::setStream(const QString& name, bool enabled) {
     if (name != QStringLiteral("traffic") && name != QStringLiteral("logs"))
         return;
+    const bool wasEnabled =
+        serviceMode_ ? serviceStreams_.contains(name) : bool(streams_.value(name));
+    if (wasEnabled != (enabled && ready_))
+        ++streamGenerations_[name];
     if (serviceMode_) {
-        if (name == QStringLiteral("logs") && serviceStreams_.contains(name) != (enabled && ready_))
-            service_.command(QStringLiteral("log_demand"),
-                             {{QStringLiteral("enabled"), enabled && ready_}},
-                             [](domain::Result<QJsonObject>) {});
         if (enabled && ready_)
             serviceStreams_.insert(name);
         else
             serviceStreams_.remove(name);
+        if (name == QStringLiteral("logs"))
+            syncServiceLogs();
         return;
     }
     if (!enabled || !ready_) {
@@ -271,8 +307,7 @@ void EngineSession::setStream(const QString& name, bool enabled) {
     connect(reply, &QIODevice::readyRead, this, [this, reply, buffer, generation, name] {
         if (generation != generation_ || streams_.value(name) != reply)
             return;
-        buffer->append(reply->read(65537 - buffer->size()));
-        if (buffer->size() > 65536) {
+        if (!appendAvailable(*reply, *buffer, 65536)) {
             reply->abort();
             return;
         }
@@ -368,13 +403,12 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
         request, method,
         method == "GET" ? QByteArray{} : QJsonDocument(body).toJson(QJsonDocument::Compact));
     replies_.append(reply);
-    reply->setReadBufferSize(2 * 1024 * 1024 + 1);
+    reply->setReadBufferSize(kReadChunkSize);
     auto bytes = std::make_shared<QByteArray>();
     auto tooLarge = std::make_shared<bool>(false);
     connect(reply, &QIODevice::readyRead, this, [reply, bytes, tooLarge] {
-        bytes->append(reply->read(2 * 1024 * 1024 + 1 - bytes->size()));
-        if (bytes->size() > 2 * 1024 * 1024) {
-            *tooLarge = true;
+        if (!appendAvailable(*reply, *bytes, 2 * 1024 * 1024)) {
+            *tooLarge = bytes->size() > 2 * 1024 * 1024;
             reply->abort();
         }
     });
@@ -389,14 +423,15 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
                 if (generation != generation_) {
                     return;
                 }
-                bytes->append(reply->read(2 * 1024 * 1024 + 1 - bytes->size()));
+                const auto readOk = appendAvailable(*reply, *bytes, 2 * 1024 * 1024);
                 const int status =
                     reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
                 if (*tooLarge || bytes->size() > 2 * 1024 * 1024) {
                     handler(coreError("CoreResponseTooLarge"));
                     return;
                 }
-                if (reply->error() != QNetworkReply::NoError || status < 200 || status >= 300) {
+                if (!readOk || reply->error() != QNetworkReply::NoError || status < 200 ||
+                    status >= 300) {
                     handler(coreError(status == 401 ? "CoreAuthenticationFailed"
                                                     : "CoreRequestFailed"));
                     return;

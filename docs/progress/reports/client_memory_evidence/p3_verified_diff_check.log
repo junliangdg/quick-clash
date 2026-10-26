@@ -1,0 +1,24 @@
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'bench/process_memory.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/baseline/windows_user_guide.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/02-总体架构与运行模型.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/03-数据模型与接口契约.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/04-界面与窗口生命周期.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/06-配置管理与事务应用.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/07-订阅与资源更新.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/08-总览与代理组.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/09-连接日志规则与提供者.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/13-性能预算与基准方案.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/QtQuick-Mihomo-完整设计文档.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/CHECKLISTS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/DEVLOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/TASKS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/reports/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/components/runtime_list.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/home/home_page.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/proxies/proxies_page.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/settings/settings_page.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'resources/i18n/quickclash_zh_cn.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'src/application/desktop_providers.cpp', LF will be replaced by CRLF the next time Git touches it
+git diff check exit=0

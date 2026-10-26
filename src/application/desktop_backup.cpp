@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "infra/io/bounded_read.h"
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>
@@ -74,8 +75,12 @@ void DesktopRuntime::restoreBackup(const QString& url) {
         error(QStringLiteral("BackupLimitExceeded"));
         return;
     }
-    const auto bytes = file.read(48 * 1024 * 1024 + 1);
-    const auto document = QJsonDocument::fromJson(bytes);
+    const auto loaded = infra::readFileBounded(file, 48 * 1024 * 1024);
+    if (!loaded.ok) {
+        error(QStringLiteral("BackupLimitExceeded"));
+        return;
+    }
+    const auto document = QJsonDocument::fromJson(loaded.bytes);
     const auto archive = document.object();
     const auto entries = archive.value(QStringLiteral("profiles")).toArray();
     if (!document.isObject() ||

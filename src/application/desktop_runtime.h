@@ -1,7 +1,9 @@
 #pragma once
+#include "application/runtime_update.h"
 #include "infra/config/config_preflight.h"
 #include "infra/core/engine_session.h"
 #include "infra/storage/config_repository.h"
+#include "infra/storage/provider_stage.h"
 #include "infra/storage/settings_repository.h"
 #include "platform/windows/credential_store.h"
 #include "platform/windows/system_proxy.h"
@@ -13,6 +15,7 @@
 #include <QTemporaryDir>
 #include <QTimer>
 #include <functional>
+#include <memory>
 
 namespace quickclash::application {
 // One instance on the storage thread; survives all QML engine rebuilds.
@@ -50,32 +53,68 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void previewConfiguration();
     void reapplySystemProxy();
     void setDemands(const QStringList& streams);
+    void applyDemands(const RuntimeDemands& demands);
     void featureCommand(const QString& command, const QStringList& arguments);
+    [[nodiscard]] domain::Generation selectionGeneration() const;
+    // Explicit diagnostic API. Production UI publications never call this method.
     [[nodiscard]] QJsonObject snapshot() const;
   signals:
+    // Reliable compact control state, not a complete diagnostic snapshot.
     void changed(const QJsonObject& state);
+    void dataPublished(const quickclash::application::RuntimeUpdate& update);
     void operationCompleted(const QUuid& id, domain::OperationState state,
                             const QString& errorCode);
 
   private:
     void publish();
+    void flushData();
+    [[nodiscard]] QJsonObject controlState() const;
     void error(const QString& code);
     void configError(const domain::Error& failure);
     void download(const QString& url, const QString& name, const QString& id = {},
                   const QJsonObject& headers = {});
-    void importBytes(const QByteArray& bytes, const QString& name, const QString& secretRef,
-                     const QString& id = {}, const QByteArray& original = {},
-                     const QJsonObject& metadata = {});
-    void resolveImport(const QByteArray& bytes, const QString& name, const QString& secretRef,
+    struct ConfigCandidates {
+        explicit ConfigCandidates(infra::JsonStore& owner) : store(owner) {}
+        ~ConfigCandidates();
+        infra::JsonStore& store;
+        QStringList references;
+    };
+    void importBytes(QByteArray bytes, const QString& name, const QString& secretRef,
+                     const QString& id = {}, const QJsonObject& storedSource = {},
+                     const QJsonObject& metadata = {},
+                     std::shared_ptr<ConfigCandidates> candidates = {});
+    void resolveImport(QByteArray bytes, const QString& name, const QString& secretRef,
                        const QString& id = {}, const QJsonObject& metadata = {});
-    void fetchProvider(const QByteArray& source, const QJsonArray& requests, qsizetype index,
-                       QHash<QString, QByteArray> payloads, const QString& name,
-                       const QString& secretRef, const QString& id, const QJsonObject& metadata,
-                       quint64 generation);
+    struct ProviderImport {
+        explicit ProviderImport(infra::JsonStore& store) : stage(store) {}
+        infra::ProviderStage stage;
+        QString sourceRef;
+        QString sourceHash;
+        std::shared_ptr<ConfigCandidates> candidates;
+        QJsonArray requests;
+        qsizetype index = 0;
+        QString name;
+        QString secretRef;
+        QString id;
+        QJsonObject metadata;
+        quint64 generation = 0;
+    };
+    void fetchProvider();
     void validate(const QByteArray& semantic, std::function<void(bool)> completion);
-    // Nonempty semantic bytes are only passed by the immediately preceding successful import
-    // validation while this worker still owns the operation; never accepted from the UI.
-    void applyProfile(const QString& id, bool startAfter, const QByteArray& validatedSemantic = {});
+    // Trust is worker-private, tied to one operation, exact persisted candidate and preferences.
+    struct ConfigTransaction {
+        quint64 generation = 0;
+        QString profileId;
+        QByteArray semantic;
+        QJsonObject preferences;
+        QJsonObject imported;
+        QString artifactRef;
+        std::shared_ptr<ConfigCandidates> candidates;
+        bool validated = false;
+    };
+    void finishImport(const std::shared_ptr<ConfigTransaction>& context);
+    void discardConfigTransaction();
+    void applyProfile(const QString& id, bool startAfter);
     void launch();
     void confirmed();
     void failedApply(const QString& code);
@@ -84,6 +123,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void restorePreferences();
     void loadOfflineGroups();
     void pollFeatures();
+    void releaseFeature(const QString& stream);
+    void requestPageData(const QString& stream);
+    [[nodiscard]] RuntimeRequest beginFeatureRequest(const QString& stream);
+    [[nodiscard]] bool acceptFeatureRequest(const RuntimeRequest& request);
     void appendLog(const QString& source, const QString& level, const QString& message);
     void backupProfiles();
     void closeNextConnection(const QJsonArray& targets, qsizetype index, const QString& epoch);
@@ -119,14 +162,33 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QTimer reconcileTimer_;
     QTimer subscriptionTimer_;
     QTimer featureTimer_;
+    QTimer publicationTimer_;
+    quint64 publicationGeneration_ = 0;
+    QString publicationEpoch_;
+    QJsonObject publishedControl_;
+    QJsonObject publishedData_;
+    QJsonArray summaryGroups_;
+    QString summaryMode_;
+    QString summaryPolicy_;
+    bool summaryReady_ = false;
+    QJsonObject outbound_;
+    QJsonArray summaryProfiles_;
+    QString summarySelectedId_;
+    QJsonValue selectedName_;
     QSet<QString> featureDemands_;
+    RuntimeDemands demandState_;
+    QHash<QString, quint64> featureRequests_;
+    QSet<QString> pendingFeatureRequests_;
+    QSet<QString> loadedFeatures_;
+    QSet<QString> invalidatedChannels_;
     QJsonObject featureState_;
     QJsonArray connections_;
     QJsonArray rules_;
     QJsonArray providers_;
+    QJsonArray providerDraft_;
     QJsonArray logs_;
+    QJsonArray appLogs_;
     QJsonObject delays_;
-    bool featureRequest_ = false;
     bool delayRunning_ = false;
     QStringList delayQueue_;
     QSet<QString> activeDelays_;
@@ -134,6 +196,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     quint64 delayGeneration_ = 0;
     bool closingConnections_ = false;
     int droppedLogs_ = 0;
+    quint64 logSequence_ = 0;
     int resourceTick_ = 0;
     int proxyTick_ = 0;
     qint64 connectionSampleMs_ = 0;
@@ -146,6 +209,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     int recoveryFailures_ = 0;
     QList<qint64> crashTimes_;
     QPointer<QNetworkReply> downloadReply_;
+    std::shared_ptr<ProviderImport> providerImport_;
+    std::shared_ptr<ConfigTransaction> configTransaction_;
     QPointer<QNetworkReply> testReply_;
     std::unique_ptr<QTemporaryDir> staging_;
     std::function<void(bool)> validationCompletion_;

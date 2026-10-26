@@ -3,17 +3,33 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
+
 Item {
     id: root
+    objectName: "logs_page"
     required property UiState ui
     required property ThemeTokens theme
+    readonly property string demandKey: ui.createDemandKey("logs")
     property bool paused: false
-    property var frozen: []
-    property bool active: visible && ui.uiVisible && !paused
-    function syncDemand(): void { ui.setDemand("logs:live", "logs", active); }
+    property bool active: visible && ui.uiVisible && !ui.replay
+    function syncDemand(): void {
+        ui.setDemand(demandKey + ":view", "logs", active);
+        ui.setDemand(demandKey + ":live", "log_feed", active && !paused);
+    }
     onActiveChanged: syncDemand()
-    Component.onCompleted: syncDemand()
-    Component.onDestruction: ui.setDemand("logs:live", "logs", false)
+    onPausedChanged: {
+        ui.setLogsPaused(paused);
+        syncDemand();
+    }
+    Component.onCompleted: {
+        ui.setLogsPaused(paused);
+        syncDemand();
+    }
+    Component.onDestruction: {
+        ui.setDemand(demandKey + ":live", "log_feed", false);
+        ui.setDemand(demandKey + ":view", "logs", false);
+        ui.setLogsPaused(false);
+    }
     ColumnLayout {
         anchors.fill: parent
         Flow {
@@ -22,15 +38,13 @@ Item {
             ActionButton {
                 theme: root.theme
                 text: root.paused ? qsTr("Resume receiving") : qsTr("Pause receiving")
-                onClicked: {
-                    if (!root.paused) root.frozen = (root.ui.runtime.logs || []).slice();
-                    root.paused = !root.paused;
-                }
+                objectName: "pause_logs"
+                onClicked: root.paused = !root.paused
             }
             ActionButton {
                 theme: root.theme
                 text: qsTr("Clear buffer")
-                onClicked: { root.frozen = []; root.ui.runtimeCommand("clear_logs"); }
+                onClicked: root.ui.runtimeCommand("clear_logs")
             }
             ActionButton {
                 theme: root.theme
@@ -46,15 +60,21 @@ Item {
             ComboBox {
                 id: source
                 model: [qsTr("All sources"), "Core", "App"]
+                onCurrentIndexChanged: root.ui.liveLogs.sourceFilter = currentIndex === 0 ? "" : currentText
             }
             ComboBox {
                 id: level
                 model: [qsTr("All levels"), "info", "warning", "error", "debug"]
+                onCurrentIndexChanged: root.ui.liveLogs.levelFilter = currentIndex === 0 ? "" : currentText
             }
-            CheckBox { id: follow; text: qsTr("Follow latest"); checked: true }
+            CheckBox {
+                id: follow
+                text: qsTr("Follow latest")
+                checked: true
+            }
         }
         Label {
-            text: qsTr("Dropped entries: %1 · Pausing creates a gap in core logs").arg(root.ui.runtime.droppedLogs || 0)
+            text: qsTr("Dropped entries: %1 · Pausing creates a gap in core logs").arg(root.ui.telemetry.droppedLogs || 0)
             color: root.theme.muted
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
@@ -65,9 +85,10 @@ Item {
             Layout.fillHeight: true
             heading: qsTr("Logs")
             followTail: follow.checked && !root.paused
-            entries: root.paused ? root.frozen : (root.ui.runtime.logs || [])
-            accept: function(entry) { return (source.currentIndex === 0 || entry.source === source.currentText) && (level.currentIndex === 0 || entry.level === level.currentText); }
-            describe: function(entry) { return entry.time + " · " + entry.source + " · " + entry.level + "\n" + entry.message; }
+            listModel: root.ui.liveLogs
+            describe: function (entry) {
+                return entry.time + " · " + entry.source + " · " + entry.level + "\n" + entry.message;
+            }
         }
     }
 }

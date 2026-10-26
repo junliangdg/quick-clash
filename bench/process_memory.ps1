@@ -22,6 +22,8 @@ namespace QuickClash.Diagnostics {
         public ulong SharedCommitUsage;
     }
     public static class ProcessMemory {
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern Microsoft.Win32.SafeHandles.SafeProcessHandle OpenProcess(uint access, bool inherit, int pid);
         [DllImport("kernel32.dll", EntryPoint = "K32GetProcessMemoryInfo", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ReadCounters(IntPtr process, ref ProcessMemoryCounters counters, uint size);
@@ -31,6 +33,13 @@ namespace QuickClash.Diagnostics {
             if (!ReadCounters(process, ref counters, counters.cb))
                 throw new Win32Exception(Marshal.GetLastWin32Error());
             return counters;
+        }
+        public static ProcessMemoryCounters ReadPid(int pid) {
+            // Query-only access: no process control, injection or working-set trimming rights.
+            using (var process = OpenProcess(0x1000, false, pid)) {
+                if (process.IsInvalid) throw new Win32Exception(Marshal.GetLastWin32Error());
+                return Read(process.DangerousGetHandle());
+            }
         }
     }
 }

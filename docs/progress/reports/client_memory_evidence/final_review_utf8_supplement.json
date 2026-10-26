@@ -1,0 +1,41 @@
+{
+  "note": "Post-review UTF-8 supplement, NOT initial SHA evidence for these 9 paths.",
+  "entries": [
+    {
+      "path": "docs/design/02-总体架构与运行模型.md",
+      "sha256": "59b97d14cb19c175ac43d3c02f448ac9635e373a7f660c85f6a25b3b5a609563"
+    },
+    {
+      "path": "docs/design/03-数据模型与接口契约.md",
+      "sha256": "90f72c456aadabcc6183c448fad132a0c2cfc5e520bf901ef9497e29709d1202"
+    },
+    {
+      "path": "docs/design/04-界面与窗口生命周期.md",
+      "sha256": "e47a85226430878b958fd52f940cb4533cc0789273ae345c7fa8448942ec5f1e"
+    },
+    {
+      "path": "docs/design/06-配置管理与事务应用.md",
+      "sha256": "b84647237d0b2efc87c95cb2a6e2b60aea7f0b899da63b6821fc17126fe7ea99"
+    },
+    {
+      "path": "docs/design/07-订阅与资源更新.md",
+      "sha256": "696fc2f1c25105a7b457a9084d1bda0f7e9fc938b7aeff6d6bb279d6b8b48bf6"
+    },
+    {
+      "path": "docs/design/08-总览与代理组.md",
+      "sha256": "bfb74a1aeba49093c28ef8d421d76698116a9d01200d3b8d3460ff35be1b3e3f"
+    },
+    {
+      "path": "docs/design/09-连接日志规则与提供者.md",
+      "sha256": "c5972391f9acd7c22113f5e830daa1e609ba5dbfb5a27a76b7de519698fbe7f7"
+    },
+    {
+      "path": "docs/design/13-性能预算与基准方案.md",
+      "sha256": "5fc42141dd25dcb26774ef0f50273318400b552523b06390962d53894a93be03"
+    },
+    {
+      "path": "docs/design/QtQuick-Mihomo-完整设计文档.md",
+      "sha256": "2da0ebd463384c566ffff5e46d0c8a8e92dd686f8052ee931aa1d38d1627f11b"
+    }
+  ]
+}

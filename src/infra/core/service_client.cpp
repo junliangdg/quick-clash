@@ -1,4 +1,5 @@
 #include "infra/core/service_client.h"
+#include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -12,6 +13,7 @@
 
 namespace quickclash::infra {
 ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
+    socket_.setReadBufferSize(kReadChunkSize);
     deadline_.setSingleShot(true);
     deadline_.setInterval(15000);
     heartbeat_.setInterval(10000);
@@ -64,8 +66,7 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
     connect(&socket_, &QLocalSocket::errorOccurred, this,
             [this](QLocalSocket::LocalSocketError) { fail("ServiceUnavailable"); });
     connect(&socket_, &QIODevice::readyRead, this, [this] {
-        input_.append(socket_.read(3 * 1024 * 1024 + 1 - input_.size()));
-        if (input_.size() > 3 * 1024 * 1024) {
+        if (!appendAvailable(socket_, input_, 3 * 1024 * 1024)) {
             fail("ServiceResponseLimit");
             return;
         }

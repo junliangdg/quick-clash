@@ -1,0 +1,11 @@
+PowerShell 7.6.6
+clang-format version 21.1.2 (git://code.qt.io/clang/llvm-project.git 887b01d8cc2147c60a8f100f02019ee3c2bcd86a)
+format files=16 exit=0
+dry-run exit=0
+qmlformat 6.9.0
+qmlformat -i qml/components/subscription_card.qml exit=0
+qmlformat -i qml/features/subscriptions/subscriptions_page.qml exit=0
+QML text parse qml/components/subscription_card.qml exit=0
+QML text parse qml/features/subscriptions/subscriptions_page.qml exit=0
+QML text parse qml/features/home/home_page.qml exit=0
+QML text parse qml/features/settings/settings_page.qml exit=0

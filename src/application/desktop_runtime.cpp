@@ -1,8 +1,10 @@
 #include "application/desktop_runtime.h"
 #include "infra/config/geo_resources.h"
+#include "infra/io/bounded_read.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -42,10 +44,17 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
       clock_(clock ? std::move(clock) : [] { return QDateTime::currentDateTimeUtc(); }),
       runtimePreferences_(infra::SettingsRepository::runtimeDefaults()) {
     directNetwork_.setProxy(QNetworkProxy::NoProxy);
+    publicationTimer_.setSingleShot(true);
+    publicationTimer_.setInterval(0);
+    connect(&publicationTimer_, &QTimer::timeout, this, &DesktopRuntime::flushData);
     featureTimer_.setInterval(1000);
     connect(&featureTimer_, &QTimer::timeout, this, &DesktopRuntime::pollFeatures);
     connect(&engine_, &infra::EngineSession::streamData, this,
             [this](const QString& stream, const QJsonObject& data) {
+                if (!featureDemands_.contains(stream) ||
+                    (stream == QStringLiteral("logs") &&
+                     !featureDemands_.contains(QStringLiteral("log_feed"))))
+                    return;
                 if (stream == QStringLiteral("logs")) {
                     appendLog(QStringLiteral("Core"), data.value(QStringLiteral("type")).toString(),
                               data.value(QStringLiteral("payload")).toString());
@@ -140,7 +149,10 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         }
     });
     connect(&engine_, &infra::EngineSession::stopped, this, [this](bool unexpected) {
-        featureRequest_ = false;
+        for (const auto& stream :
+             {QStringLiteral("connections"), QStringLiteral("rules"), QStringLiteral("providers"),
+              QStringLiteral("traffic"), QStringLiteral("resources")})
+            releaseFeature(stream);
         cancelDelayTests();
         connections_ = {};
         featureState_.remove(QStringLiteral("traffic"));
@@ -425,32 +437,34 @@ void DesktopRuntime::scheduleBackgroundStart(bool afterFailure) {
         recoveryTimer_.start(0);
     }
 }
-QJsonObject DesktopRuntime::snapshot() const {
+domain::Generation DesktopRuntime::selectionGeneration() const {
+    return repository_.manifest()
+        .value(QStringLiteral("selection"))
+        .toObject()
+        .value(QStringLiteral("generation"))
+        .toString()
+        .toULongLong();
+}
+QJsonObject DesktopRuntime::controlState() const {
     auto runtimePreferences = runtimePreferences_;
     runtimePreferences.insert(QStringLiteral("systemProxyDesired"), persistedProxyIntent_);
+    auto features = featureState_;
+    for (const auto* key : {"nodes", "traffic", "memory", "memorySample", "memoryComplete",
+                            "connectionSample", "connectionsStale"})
+        features.remove(QLatin1String(key));
     return {
-        {QStringLiteral("profiles"), profiles_},
-        {QStringLiteral("features"), featureState_},
-        {QStringLiteral("connections"), connections_},
-        {QStringLiteral("rules"), rules_},
-        {QStringLiteral("providers"), providers_},
-        {QStringLiteral("logs"), logs_},
-        {QStringLiteral("droppedLogs"), droppedLogs_},
-        {QStringLiteral("delays"), delays_},
+        {QStringLiteral("features"), features},
+        {QStringLiteral("publicationGeneration"), QString::number(publicationGeneration_)},
         {QStringLiteral("epoch"), epoch_},
         {QStringLiteral("platform"), QSysInfo::prettyProductName()},
         {QStringLiteral("architecture"), QSysInfo::currentCpuArchitecture()},
-        {QStringLiteral("groups"), groups_},
-        {QStringLiteral("outbound"),
-         infra::outboundSummary(groups_, defaultPolicy_,
-                                runtimePreferences.value(QStringLiteral("mode")).toString(),
-                                engine_.ready() && status_ == QStringLiteral("Ready"))},
+        {QStringLiteral("outbound"), outbound_},
         {QStringLiteral("selectedId"), selectedId_},
         {QStringLiteral("selectionGeneration"), repository_.manifest()
                                                     .value(QStringLiteral("selection"))
                                                     .toObject()
                                                     .value(QStringLiteral("generation"))},
-        {QStringLiteral("selectedName"), profile(selectedId_).value(QStringLiteral("name"))},
+        {QStringLiteral("selectedName"), selectedName_},
         {QStringLiteral("status"), status_},
         {QStringLiteral("busy"), busy_},
         {QStringLiteral("ready"), engine_.ready()},
@@ -460,8 +474,6 @@ QJsonObject DesktopRuntime::snapshot() const {
          QJsonObject{{QStringLiteral("requests"), QString::number(reconcileRequests_)},
                      {QStringLiteral("completed"), QString::number(reconcileCount_)}}},
         {QStringLiteral("corePid"), static_cast<int>(engine_.pid())},
-        {QStringLiteral("coreUptimeSeconds"),
-         engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0},
         {QStringLiteral("tunState"),
          engine_.tunActive() ? QStringLiteral("On")
          : runtimePreferences_.value(QStringLiteral("tunDesired")).toBool()
@@ -482,11 +494,130 @@ QJsonObject DesktopRuntime::snapshot() const {
         {QStringLiteral("dataDirectory"), store_.root()},
         {QStringLiteral("dataUrl"), QUrl::fromLocalFile(store_.root()).toString()}};
 }
+QJsonObject DesktopRuntime::snapshot() const {
+    auto result = controlState();
+    result.insert(QStringLiteral("selectedName"),
+                  profile(selectedId_).value(QStringLiteral("name")));
+    result.insert(
+        QStringLiteral("outbound"),
+        infra::outboundSummary(groups_, defaultPolicy_,
+                               runtimePreferences_.value(QStringLiteral("mode")).toString(),
+                               engine_.ready() && status_ == QStringLiteral("Ready")));
+    result.insert(QStringLiteral("profiles"), profiles_);
+    result.insert(QStringLiteral("features"), featureState_);
+    result.insert(QStringLiteral("connections"), connections_);
+    result.insert(QStringLiteral("rules"), rules_);
+    result.insert(QStringLiteral("providers"), providers_);
+    result.insert(QStringLiteral("logs"), logs_);
+    QJsonObject revisions;
+    for (auto it = demandState_.generations.constBegin(); it != demandState_.generations.constEnd();
+         ++it)
+        revisions.insert(it.key(), QString::number(it.value()));
+    result.insert(QStringLiteral("dataLifecycle"),
+                  QJsonObject{{QStringLiteral("active"),
+                               QJsonArray::fromStringList(featureDemands_.values())},
+                              {QStringLiteral("generations"), revisions},
+                              {QStringLiteral("publishedChannels"),
+                               QJsonArray::fromStringList(publishedData_.keys())},
+                              {QStringLiteral("pendingReads"),
+                               QJsonArray::fromStringList(pendingFeatureRequests_.values())},
+                              {QStringLiteral("providerDraftCount"), providerDraft_.size()},
+                              {QStringLiteral("appLogCount"), appLogs_.size()}});
+    // Sparse diagnostic counters only; never included in production control/data publications.
+    result.insert(
+        QStringLiteral("configLifecycle"),
+        QJsonObject{
+            {QStringLiteral("providerFiles"),
+             providerImport_ ? providerImport_->stage.fileCount() : 0},
+            {QStringLiteral("providerBytes"),
+             providerImport_ ? providerImport_->stage.totalBytes() : 0},
+            {QStringLiteral("semanticBytes"),
+             configTransaction_ ? configTransaction_->semantic.size() : 0},
+            {QStringLiteral("validated"), configTransaction_ && configTransaction_->validated},
+            {QStringLiteral("validationActive"), static_cast<bool>(validationCompletion_)}});
+    result.insert(QStringLiteral("droppedLogs"), droppedLogs_);
+    result.insert(QStringLiteral("delays"), delays_);
+    result.insert(QStringLiteral("groups"), groups_);
+    result.insert(QStringLiteral("coreUptimeSeconds"),
+                  engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0);
+    return result;
+}
 void DesktopRuntime::publish() {
     if (!busy_ && !updatingSubscription_.isEmpty())
         completeSubscriptionUpdate(lastError_.isEmpty() ? QStringLiteral("Updated")
                                                         : QStringLiteral("Failed"));
-    emit changed(snapshot());
+    if (publicationGeneration_ == 0 || publicationEpoch_ != epoch_) {
+        ++publicationGeneration_;
+        publicationEpoch_ = epoch_;
+        publishedData_ = {};
+    }
+    const auto mode = runtimePreferences_.value(QStringLiteral("mode")).toString();
+    const bool ready = engine_.ready() && status_ == QStringLiteral("Ready");
+    if (summaryGroups_ != groups_ || summaryMode_ != mode || summaryPolicy_ != defaultPolicy_ ||
+        summaryReady_ != ready || outbound_.isEmpty()) {
+        summaryGroups_ = groups_;
+        summaryMode_ = mode;
+        summaryPolicy_ = defaultPolicy_;
+        summaryReady_ = ready;
+        outbound_ = infra::outboundSummary(groups_, defaultPolicy_, mode, ready);
+    }
+    if (summaryProfiles_ != profiles_ || summarySelectedId_ != selectedId_) {
+        summaryProfiles_ = profiles_;
+        summarySelectedId_ = selectedId_;
+        selectedName_ = profile(selectedId_).value(QStringLiteral("name"));
+    }
+    const auto control = controlState();
+    if (publishedControl_ != control) {
+        publishedControl_ = control;
+        emit changed(control);
+    }
+    if (!publicationTimer_.isActive())
+        publicationTimer_.start();
+}
+void DesktopRuntime::flushData() {
+    QJsonObject samples;
+    samples.insert(QStringLiteral("coreUptimeSeconds"),
+                   engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0);
+    const auto fields = [this](const QStringList& keys) {
+        QJsonObject value;
+        for (const auto& key : keys)
+            if (featureState_.contains(key))
+                value.insert(key, featureState_.value(key));
+        return value;
+    };
+    const QJsonObject channels{
+        {QStringLiteral("samples"), samples},
+        {QStringLiteral("profiles"), profiles_},
+        {QStringLiteral("groups"), groups_},
+        {QStringLiteral("nodes"), featureState_.value(QStringLiteral("nodes")).toArray()},
+        {QStringLiteral("delays"), delays_},
+        {QStringLiteral("connections"), connections_},
+        {QStringLiteral("rules"), rules_},
+        {QStringLiteral("providers"), providers_},
+        {QStringLiteral("logs"), logs_},
+        {QStringLiteral("traffic"), fields({QStringLiteral("traffic")})},
+        {QStringLiteral("resources"),
+         fields({QStringLiteral("memory"), QStringLiteral("memorySample"),
+                 QStringLiteral("memoryComplete")})},
+        {QStringLiteral("connection_status"),
+         fields({QStringLiteral("connectionSample"), QStringLiteral("connectionsStale")})},
+        {QStringLiteral("log_status"), QJsonObject{{QStringLiteral("droppedLogs"), droppedLogs_}}}};
+    RuntimeUpdate update{publicationGeneration_, epoch_, {}};
+    update.demandGenerations = demandState_.generations;
+    update.invalidated = std::move(invalidatedChannels_);
+    invalidatedChannels_.clear();
+    for (auto it = channels.constBegin(); it != channels.constEnd(); ++it) {
+        const auto stream = channelStream(it.key());
+        if (!stream.isEmpty() && !featureDemands_.contains(stream))
+            continue;
+        // Unchanged implicitly shared JSON collections are compared without QVariant expansion.
+        if (!publishedData_.contains(it.key()) || publishedData_.value(it.key()) != it.value()) {
+            publishedData_.insert(it.key(), it.value());
+            update.values.insert(it.key(), it.value());
+        }
+    }
+    if (!update.values.isEmpty() || !update.invalidated.isEmpty())
+        emit dataPublished(update);
 }
 void DesktopRuntime::configureSubscription(const QString& id, int intervalMinutes, bool autoApply) {
     if (busy_ || store_.readOnly() ||
@@ -650,12 +781,13 @@ void DesktopRuntime::importFile(const QString& url, const QString& name) {
         error(QStringLiteral("ProfileReadFailed"));
         return;
     }
-    const auto bytes = file.read(file.size() + 1);
-    if (bytes.size() > kSourceLimit || file.error() != QFileDevice::NoError) {
+    auto loaded = infra::readFileBounded(file, kSourceLimit);
+    if (!loaded.ok) {
         error(QStringLiteral("ProfileReadFailed"));
         return;
     }
-    resolveImport(bytes, name.isEmpty() ? QFileInfo(file).completeBaseName() : name, {});
+    resolveImport(std::move(loaded.bytes),
+                  name.isEmpty() ? QFileInfo(file).completeBaseName() : name, {});
 }
 void DesktopRuntime::addSubscription(const QString& url, const QString& name) {
     download(url, name);
@@ -745,12 +877,10 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
     request.setTransferTimeout(15000);
     auto* reply = directNetwork_.get(request);
     downloadReply_ = reply;
-    reply->setReadBufferSize(kSourceLimit + 1);
+    reply->setReadBufferSize(infra::kReadChunkSize);
     auto bytes = std::make_shared<QByteArray>();
     connect(reply, &QIODevice::readyRead, this, [reply, bytes] {
-        bytes->append(
-            reply->read(std::min(reply->bytesAvailable(), kSourceLimit + 1 - bytes->size())));
-        if (bytes->size() > kSourceLimit) {
+        if (!infra::appendAvailable(*reply, *bytes, kSourceLimit)) {
             reply->abort();
         }
     });
@@ -765,8 +895,7 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
                     return;
                 }
                 busy_ = false;
-                bytes->append(reply->read(
-                    std::min(reply->bytesAvailable(), kSourceLimit + 1 - bytes->size())));
+                const auto readOk = infra::appendAvailable(*reply, *bytes, kSourceLimit);
                 if (bytes->size() > kSourceLimit) {
                     error(QStringLiteral("SubscriptionTooLarge"));
                     return;
@@ -777,22 +906,20 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
                     error(QStringLiteral("SubscriptionRedirectUnsupported"));
                     return;
                 }
-                if (reply->error() != QNetworkReply::NoError || status != 200) {
+                if (!readOk || reply->error() != QNetworkReply::NoError || status != 200) {
                     error(status == 401 || status == 403
                               ? QStringLiteral("SubscriptionAuthenticationFailed")
                               : QStringLiteral("SubscriptionDownloadFailed"));
                     return;
                 }
                 const auto previous = profile(id);
-                // Only reuse a validated, stored source when both hash and bytes match. Providers
+                // Only reuse a validated source after its persisted SHA-256 matches. Providers
                 // still require fetching because their snapshots may have changed independently.
                 bool unchanged = false;
                 if (!previous.isEmpty() && !previous.contains(QStringLiteral("snapshotRef")) &&
                     previous.value(QStringLiteral("sourceHash")) == hash(*bytes)) {
-                    const auto stored =
-                        store_.readBytes(previous.value(QStringLiteral("sourceRef")).toString());
-                    unchanged = std::holds_alternative<QByteArray>(stored) &&
-                                std::get<QByteArray>(stored) == *bytes;
+                    unchanged = std::holds_alternative<std::monostate>(store_.verifyBytes(
+                        previous.value(QStringLiteral("sourceRef")).toString(), hash(*bytes)));
                 }
                 // Some endpoints serve YAML with text/html. Inspect new bounded bodies, not MIME.
                 if (!unchanged) {
@@ -830,6 +957,7 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
                 }
                 metadata.insert(QStringLiteral("usage"), usage);
                 if (unchanged) {
+                    *bytes = {}; // No raw body survives into a possible queued application.
                     auto catalog = profiles_;
                     for (qsizetype i = 0; i < catalog.size(); ++i) {
                         auto item = catalog[i].toObject();
@@ -853,7 +981,7 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
                     }
                     return;
                 }
-                resolveImport(*bytes, name, secretRef, id, metadata);
+                resolveImport(std::exchange(*bytes, {}), name, secretRef, id, metadata);
             });
 }
 void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(bool)> completion) {
@@ -881,16 +1009,20 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         completion(false);
         return;
     }
-    const auto materialized = infra::materializeSession({semantic, {}}, newSecret());
     QFile config(staging_->filePath(QStringLiteral("config.yaml")));
     const auto copied = staging_->filePath(QStringLiteral("mihomo.exe"));
-    if (!std::holds_alternative<QByteArray>(materialized) || !config.open(QIODevice::WriteOnly) ||
-        config.write(std::get<QByteArray>(materialized)) !=
-            std::get<QByteArray>(materialized).size() ||
-        !QFile::copy(coreExecutable(), copied)) {
-        staging_.reset();
-        completion(false);
-        return;
+    {
+        const auto materialized = infra::materializeSession({semantic, {}}, newSecret());
+        if (!std::holds_alternative<QByteArray>(materialized) ||
+            !config.open(QIODevice::WriteOnly) ||
+            config.write(std::get<QByteArray>(materialized)) !=
+                std::get<QByteArray>(materialized).size() ||
+            !QFile::copy(coreExecutable(), copied)) {
+            config.close();
+            staging_.reset();
+            completion(false);
+            return;
+        }
     }
     config.close();
     const auto resources = infra::prepareGeoResources(
@@ -917,121 +1049,167 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
     }
     validationDeadline_.start();
 }
-void DesktopRuntime::importBytes(const QByteArray& bytes, const QString& name,
-                                 const QString& secretRef, const QString& existingId,
-                                 const QByteArray& original, const QJsonObject& metadata) {
+DesktopRuntime::ConfigCandidates::~ConfigCandidates() {
+    for (const auto& reference : references) {
+        const auto removed = store.remove(reference);
+        if (std::holds_alternative<domain::Error>(removed))
+            qWarning("Configuration candidate cleanup failed");
+    }
+}
+void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QString& secretRef,
+                                 const QString& existingId, const QJsonObject& storedSource,
+                                 const QJsonObject& metadata,
+                                 std::shared_ptr<ConfigCandidates> candidates) {
     if (profiles_.size() >= 100 && existingId.isEmpty()) {
         error(QStringLiteral("ProfileLimitExceeded"));
         return;
     }
-    const auto preflight = infra::preflightConfig(bytes, preferences());
-    if (const auto* failure = std::get_if<domain::Error>(&preflight)) {
-        configError(*failure);
-        return;
-    }
-    busy_ = true;
-    const auto generation = ++operationGeneration_;
-    publish();
-    const auto validatedSemantic = std::get<infra::PreflightConfig>(preflight).semanticYaml;
-    validate(validatedSemantic, [this, generation, bytes, validatedSemantic, name, secretRef,
-                                 existingId, original, metadata](bool valid) {
-        if (generation != operationGeneration_) {
-            return;
-        }
-        busy_ = false;
-        if (!valid) {
-            error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
-            return;
-        }
-        const auto id =
-            existingId.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : existingId;
-        const auto sourceRef = QStringLiteral("data/profiles/%1/%2.yaml")
-                                   .arg(id, QUuid::createUuid().toString(QUuid::WithoutBraces));
-        const auto source = original.isEmpty() ? bytes : original;
-        const auto saved = store_.writeBytes(sourceRef, source, true);
+    auto context = std::make_shared<ConfigTransaction>();
+    context->candidates =
+        candidates ? std::move(candidates) : std::make_shared<ConfigCandidates>(store_);
+    context->profileId =
+        existingId.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : existingId;
+    context->preferences = runtimePreferences_;
+    const auto sourceRef =
+        storedSource.isEmpty()
+            ? QStringLiteral("data/profiles/%1/%2.yaml")
+                  .arg(context->profileId, QUuid::createUuid().toString(QUuid::WithoutBraces))
+            : storedSource.value(QStringLiteral("sourceRef")).toString();
+    auto imported = storedSource;
+    if (storedSource.isEmpty()) {
+        const auto saved = store_.writeBytes(sourceRef, bytes, true);
         if (const auto* failure = std::get_if<domain::Error>(&saved)) {
             error(failure->code);
             return;
         }
-        const auto previous = profile(existingId);
-        QJsonObject item = previous;
-        const QJsonObject imported{
-            {QStringLiteral("id"), id},
-            {QStringLiteral("name"),
-             name.trimmed().left(80).isEmpty() ? tr("New profile") : name.trimmed().left(80)},
-            {QStringLiteral("sourceRef"), sourceRef},
-            {QStringLiteral("sourceHash"), hash(source)},
-            {QStringLiteral("secretRef"), secretRef},
-            {QStringLiteral("updatedAt"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}};
-        for (auto it = imported.begin(); it != imported.end(); ++it)
-            item.insert(it.key(), it.value());
-        for (auto it = metadata.begin(); it != metadata.end(); ++it)
-            item.insert(it.key(), it.value());
-        if (!original.isEmpty()) {
-            const auto snapshotRef = sourceRef + QStringLiteral(".snapshot.yaml");
-            const auto result = store_.writeBytes(snapshotRef, bytes, true);
-            if (const auto* failure = std::get_if<domain::Error>(&result)) {
-                error(failure->code);
-                return;
-            }
-            item.insert(QStringLiteral("snapshotRef"), snapshotRef);
-            item.insert(QStringLiteral("snapshotHash"), hash(bytes));
-        } else {
-            item.remove(QStringLiteral("snapshotRef"));
-            item.remove(QStringLiteral("snapshotHash"));
+        context->candidates->references.append(sourceRef);
+        imported.insert(QStringLiteral("sourceHash"), hash(bytes));
+    } else {
+        const auto snapshotRef = sourceRef + QStringLiteral(".snapshot.yaml");
+        const auto saved = store_.writeBytes(snapshotRef, bytes, true);
+        if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+            error(failure->code);
+            return;
         }
-        if (!previous.isEmpty() && (previous.value(QStringLiteral("sourceHash")) !=
-                                        item.value(QStringLiteral("sourceHash")) ||
-                                    previous.value(QStringLiteral("snapshotHash")) !=
-                                        item.value(QStringLiteral("snapshotHash")))) {
-            auto history = previous.value(QStringLiteral("history")).toArray();
-            auto version = previous;
-            version.remove(QStringLiteral("history"));
-            history.prepend(version);
-            while (history.size() > 5)
-                history.removeLast();
-            item.insert(QStringLiteral("history"), history);
+        context->candidates->references.append(snapshotRef);
+        imported.insert(QStringLiteral("snapshotRef"), snapshotRef);
+        imported.insert(QStringLiteral("snapshotHash"), hash(bytes));
+    }
+    imported.insert(QStringLiteral("sourceRef"), sourceRef);
+    imported.insert(QStringLiteral("id"), context->profileId);
+    imported.insert(QStringLiteral("name"), name.trimmed().left(80).isEmpty()
+                                                ? tr("New profile")
+                                                : name.trimmed().left(80));
+    imported.insert(QStringLiteral("secretRef"), secretRef);
+    imported.insert(QStringLiteral("updatedAt"),
+                    QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    for (auto it = metadata.begin(); it != metadata.end(); ++it)
+        imported.insert(it.key(), it.value());
+    context->imported = imported;
+    auto preflight = infra::preflightConfig(bytes, preferences());
+    bytes = {}; // Persisted raw/snapshot input does not cross the asynchronous validation boundary.
+    if (const auto* failure = std::get_if<domain::Error>(&preflight)) {
+        configError(*failure);
+        return;
+    }
+    context->semantic = std::move(std::get<infra::PreflightConfig>(preflight).semanticYaml);
+    busy_ = true;
+    context->generation = ++operationGeneration_;
+    configTransaction_ = context;
+    publish();
+    const auto weak = std::weak_ptr<ConfigTransaction>(context);
+    validate(context->semantic, [this, weak](bool valid) {
+        const auto context = weak.lock();
+        if (!context || context != configTransaction_ ||
+            context->generation != operationGeneration_) {
+            return;
         }
-        if (previous.isEmpty() && !secretRef.isEmpty()) {
-            item.insert(QStringLiteral("updateIntervalMinutes"), 360);
-            item.insert(QStringLiteral("autoApply"), true);
-            item.insert(QStringLiteral("nextUpdateAt"),
-                        clock_().addSecs(360 * 60).toString(Qt::ISODate));
-            item.insert(QStringLiteral("lastUpdateResult"), QStringLiteral("Updated"));
+        if (!valid) {
+            configTransaction_.reset();
+            context->semantic = {};
+            busy_ = false;
+            error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
+            return;
         }
-        const bool changed = previous.value(QStringLiteral("sourceHash")) != hash(source) ||
-                             previous.value(QStringLiteral("snapshotHash")) !=
-                                 item.value(QStringLiteral("snapshotHash"));
-        const bool activate =
-            selectedId_.isEmpty() ||
-            (id == selectedId_ && item.value(QStringLiteral("autoApply")).toBool() &&
-             (changed || item.value(QStringLiteral("pendingApply")).toBool()));
-        item.insert(QStringLiteral("pendingApply"),
-                    changed || item.value(QStringLiteral("pendingApply")).toBool());
-        auto catalog = profiles_;
-        bool replaced = false;
-        for (qsizetype i = 0; i < catalog.size(); ++i) {
-            if (catalog[i].toObject().value(QStringLiteral("id")) == id) {
-                catalog[i] = item;
-                replaced = true;
-                break;
-            }
-        }
-        if (!replaced) {
-            catalog.append(item);
-        }
-        if (saveCatalog(catalog)) {
-            collectGarbage();
-            lastError_.clear();
-            configIssues_ = {};
-            scheduleSubscriptions();
-            if (activate) {
-                applyProfile(id, engine_.ready(), validatedSemantic);
-                return;
-            }
-            publish();
-        }
+        context->validated = true;
+        QTimer::singleShot(0, this, [this, weak] {
+            const auto context = weak.lock();
+            if (context && context == configTransaction_ &&
+                context->generation == operationGeneration_)
+                finishImport(context);
+        });
     });
+}
+void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& context) {
+    const auto id = context->profileId;
+    const auto previous = profile(id);
+    QJsonObject item = previous;
+    const auto& imported = context->imported;
+    item.remove(QStringLiteral("snapshotRef"));
+    item.remove(QStringLiteral("snapshotHash"));
+    for (auto it = imported.begin(); it != imported.end(); ++it)
+        item.insert(it.key(), it.value());
+    if (!previous.isEmpty() &&
+        (previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
+         previous.value(QStringLiteral("snapshotHash")) !=
+             item.value(QStringLiteral("snapshotHash")))) {
+        auto history = previous.value(QStringLiteral("history")).toArray();
+        auto version = previous;
+        version.remove(QStringLiteral("history"));
+        history.prepend(version);
+        while (history.size() > 5)
+            history.removeLast();
+        item.insert(QStringLiteral("history"), history);
+    }
+    if (previous.isEmpty() && !imported.value(QStringLiteral("secretRef")).toString().isEmpty()) {
+        item.insert(QStringLiteral("updateIntervalMinutes"), 360);
+        item.insert(QStringLiteral("autoApply"), true);
+        item.insert(QStringLiteral("nextUpdateAt"),
+                    clock_().addSecs(360 * 60).toString(Qt::ISODate));
+        item.insert(QStringLiteral("lastUpdateResult"), QStringLiteral("Updated"));
+    }
+    const bool changed =
+        previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
+        previous.value(QStringLiteral("snapshotHash")) !=
+            item.value(QStringLiteral("snapshotHash"));
+    const bool activate = selectedId_.isEmpty() ||
+                          (id == selectedId_ && item.value(QStringLiteral("autoApply")).toBool() &&
+                           (changed || item.value(QStringLiteral("pendingApply")).toBool()));
+    item.insert(QStringLiteral("pendingApply"),
+                changed || item.value(QStringLiteral("pendingApply")).toBool());
+    auto catalog = profiles_;
+    bool replaced = false;
+    for (qsizetype i = 0; i < catalog.size(); ++i) {
+        if (catalog[i].toObject().value(QStringLiteral("id")) == id) {
+            catalog[i] = item;
+            replaced = true;
+            break;
+        }
+    }
+    if (!replaced) {
+        catalog.append(item);
+    }
+    if (saveCatalog(catalog)) {
+        // Catalog now owns the immutable source/snapshot, even if later application fails.
+        context->candidates->references.clear();
+        collectGarbage();
+        lastError_.clear();
+        configIssues_ = {};
+        scheduleSubscriptions();
+        if (activate) {
+            applyProfile(id, engine_.ready());
+            return;
+        }
+        configTransaction_.reset();
+        context->semantic = {};
+        busy_ = false;
+        publish();
+    } else {
+        configTransaction_.reset();
+        context->semantic = {};
+        busy_ = false;
+        publish();
+    }
 }
 void DesktopRuntime::selectProfile(const QString& id) {
     if (busy_ || store_.readOnly()) {
@@ -1095,63 +1273,121 @@ void DesktopRuntime::deleteProfile(const QString& id) {
         publish();
     }
 }
-void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
-                                  const QByteArray& validatedSemantic) {
+void DesktopRuntime::discardConfigTransaction() {
+    if (configTransaction_)
+        configTransaction_->semantic = {};
+    configTransaction_.reset();
+}
+void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     backgroundSuppressed_ = false;
     effectivePreview_.clear();
     const auto item = profile(id);
     if (item.isEmpty()) {
+        discardConfigTransaction();
+        busy_ = false;
         error(QStringLiteral("ProfileNotFound"));
         return;
     }
     const auto selected = repository_.manifest().value(QStringLiteral("selection")).toObject();
     const bool adjustSelected = id == selectedId_ && !previousPreferences_.isEmpty();
-    const auto source =
-        store_.readBytes(adjustSelected ? selected.value(QStringLiteral("artifactRef")).toString()
-                                        : item.value(item.contains(QStringLiteral("snapshotRef"))
-                                                         ? QStringLiteral("snapshotRef")
-                                                         : QStringLiteral("sourceRef"))
-                                              .toString());
-    if (const auto* failure = std::get_if<domain::Error>(&source)) {
-        restorePreferences();
-        error(failure->code);
-        return;
-    }
-    if (hash(std::get<QByteArray>(source)) !=
-        (adjustSelected ? selected.value(QStringLiteral("effectiveHash"))
-                        : item.value(item.contains(QStringLiteral("snapshotRef"))
-                                         ? QStringLiteral("snapshotHash")
-                                         : QStringLiteral("sourceHash")))
-            .toString()) {
-        restorePreferences();
-        error(QStringLiteral("SourceIntegrityFailed"));
-        return;
-    }
-    auto semantic = validatedSemantic;
-    if (semantic.isEmpty()) {
-        const auto composed = infra::preflightConfig(std::get<QByteArray>(source), preferences());
+    auto context = configTransaction_;
+    const bool trusted = context && context->validated &&
+                         context->generation == operationGeneration_ && context->profileId == id &&
+                         context->preferences == runtimePreferences_ && !adjustSelected &&
+                         context->imported.value(QStringLiteral("sourceRef")) ==
+                             item.value(QStringLiteral("sourceRef")) &&
+                         context->imported.value(QStringLiteral("sourceHash")) ==
+                             item.value(QStringLiteral("sourceHash")) &&
+                         context->imported.value(QStringLiteral("snapshotRef")) ==
+                             item.value(QStringLiteral("snapshotRef")) &&
+                         context->imported.value(QStringLiteral("snapshotHash")) ==
+                             item.value(QStringLiteral("snapshotHash"));
+    if (trusted) {
+        const auto reference = item.contains(QStringLiteral("snapshotRef"))
+                                   ? QStringLiteral("snapshotRef")
+                                   : QStringLiteral("sourceRef");
+        const auto digest = item.contains(QStringLiteral("snapshotRef"))
+                                ? QStringLiteral("snapshotHash")
+                                : QStringLiteral("sourceHash");
+        const auto checked =
+            store_.verifyBytes(item.value(reference).toString(), item.value(digest).toString());
+        if (const auto* failure = std::get_if<domain::Error>(&checked)) {
+            discardConfigTransaction();
+            busy_ = false;
+            error(failure->code);
+            return;
+        }
+        if (item.contains(QStringLiteral("snapshotRef"))) {
+            const auto sourceChecked =
+                store_.verifyBytes(item.value(QStringLiteral("sourceRef")).toString(),
+                                   item.value(QStringLiteral("sourceHash")).toString());
+            if (const auto* failure = std::get_if<domain::Error>(&sourceChecked)) {
+                discardConfigTransaction();
+                busy_ = false;
+                error(failure->code);
+                return;
+            }
+        }
+    } else {
+        discardConfigTransaction();
+        context = std::make_shared<ConfigTransaction>();
+        context->profileId = id;
+        context->preferences = runtimePreferences_;
+        // This read and its preflight temporaries end before validation is started.
+        const auto source = store_.readBytes(
+            adjustSelected ? selected.value(QStringLiteral("artifactRef")).toString()
+                           : item.value(item.contains(QStringLiteral("snapshotRef"))
+                                            ? QStringLiteral("snapshotRef")
+                                            : QStringLiteral("sourceRef"))
+                                 .toString());
+        if (const auto* failure = std::get_if<domain::Error>(&source)) {
+            busy_ = false;
+            restorePreferences();
+            error(failure->code);
+            return;
+        }
+        if (hash(std::get<QByteArray>(source)) !=
+            (adjustSelected ? selected.value(QStringLiteral("effectiveHash"))
+                            : item.value(item.contains(QStringLiteral("snapshotRef"))
+                                             ? QStringLiteral("snapshotHash")
+                                             : QStringLiteral("sourceHash")))
+                .toString()) {
+            busy_ = false;
+            restorePreferences();
+            error(QStringLiteral("SourceIntegrityFailed"));
+            return;
+        }
+        auto composed = infra::preflightConfig(std::get<QByteArray>(source), preferences());
         if (const auto* failure = std::get_if<domain::Error>(&composed)) {
+            busy_ = false;
             restorePreferences();
             configError(*failure);
             return;
         }
-        semantic = std::get<infra::PreflightConfig>(composed).semanticYaml;
+        context->semantic = std::move(std::get<infra::PreflightConfig>(composed).semanticYaml);
     }
     busy_ = true;
     status_ = QStringLiteral("Validating");
     const auto generation = ++operationGeneration_;
+    context->generation = generation;
+    configTransaction_ = context;
     publish();
-    auto commit = [this, generation, semantic, id, startAfter](bool valid) {
-        if (generation != operationGeneration_) {
+    const auto weak = std::weak_ptr<ConfigTransaction>(context);
+    auto commit = [this, generation, weak, id, startAfter](bool valid) {
+        const auto context = weak.lock();
+        if (!context || context != configTransaction_ || generation != operationGeneration_) {
             return;
         }
         if (!valid) {
+            discardConfigTransaction();
             restorePreferences();
             busy_ = false;
             status_ = engine_.ready() ? QStringLiteral("Ready") : QStringLiteral("Stopped");
             error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
             return;
         }
+        context->validated = true;
+        const auto& semantic = context->semantic;
         const auto revision = QString::number(std::max(
             QDateTime::currentMSecsSinceEpoch(), repository_.manifest()
                                                          .value(QStringLiteral("selection"))
@@ -1174,11 +1410,13 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
                     semantic, runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject()));
         }
         if (const auto* failure = std::get_if<domain::Error>(&result)) {
+            discardConfigTransaction();
             restorePreferences();
             busy_ = false;
             error(failure->code);
             return;
         }
+        context->artifactRef = artifact;
         candidate_ = repository_.manifest();
         const QJsonObject selection{
             {QStringLiteral("profileId"), id},
@@ -1204,6 +1442,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
             candidate_, startAfter ? QStringLiteral("Apply") : QStringLiteral("Select"),
             engine_.ready());
         if (const auto* failure = std::get_if<domain::Error>(&prepared)) {
+            discardConfigTransaction();
             restorePreferences();
             busy_ = false;
             error(failure->code);
@@ -1214,6 +1453,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
         applying_ = true;
         startAfter_ = startAfter;
         if (!startAfter) {
+            discardConfigTransaction();
             confirmed();
             return;
         }
@@ -1236,6 +1476,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
                 const auto rolledBack = repository_.rollback();
                 Q_UNUSED(rolledBack)
                 restorePreferences();
+                discardConfigTransaction();
                 applying_ = false;
                 busy_ = false;
                 status_ = QStringLiteral("Ready");
@@ -1250,34 +1491,67 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter,
         }
         engine_.stop();
         cleanupSession();
-        launch();
+        QTimer::singleShot(0, this, [this, generation] {
+            if (generation == operationGeneration_ && applying_)
+                launch();
+        });
     };
-    if (validatedSemantic.isEmpty())
-        validate(semantic, std::move(commit));
+    if (!trusted)
+        validate(context->semantic,
+                 [this, generation, commit = std::move(commit)](bool valid) mutable {
+                     QTimer::singleShot(
+                         0, this, [this, generation, valid, commit = std::move(commit)]() mutable {
+                             if (generation == operationGeneration_)
+                                 commit(valid);
+                         });
+                 });
     else
-        commit(true);
+        QTimer::singleShot(0, this, [commit = std::move(commit)]() mutable { commit(true); });
 }
 void DesktopRuntime::launch() {
-    featureRequest_ = false;
+    loadedFeatures_.clear();
+    pendingFeatureRequests_.clear();
     cancelDelayTests();
     closingConnections_ = false;
     connections_ = {};
     rules_ = {};
     providers_ = {};
+    providerDraft_ = {};
     delays_ = {};
     featureState_.remove(QStringLiteral("traffic"));
     connectionSampleMs_ = 0;
     const auto selection = candidate_.value(QStringLiteral("selection")).toObject();
-    const auto semantic =
-        store_.readBytes(selection.value(QStringLiteral("artifactRef")).toString());
-    if (const auto* failure = std::get_if<domain::Error>(&semantic)) {
-        failedApply(failure->code);
-        return;
-    }
-    if (hash(std::get<QByteArray>(semantic)) !=
-        selection.value(QStringLiteral("effectiveHash")).toString()) {
-        failedApply(QStringLiteral("ArtifactIntegrityFailed"));
-        return;
+    QByteArray semantic;
+    if (configTransaction_ && configTransaction_->validated &&
+        configTransaction_->generation == operationGeneration_ &&
+        configTransaction_->preferences == runtimePreferences_ &&
+        configTransaction_->artifactRef ==
+            selection.value(QStringLiteral("artifactRef")).toString() &&
+        hash(configTransaction_->semantic) ==
+            selection.value(QStringLiteral("effectiveHash")).toString()) {
+        const auto checked =
+            store_.verifyBytes(configTransaction_->artifactRef,
+                               selection.value(QStringLiteral("effectiveHash")).toString());
+        if (const auto* failure = std::get_if<domain::Error>(&checked)) {
+            discardConfigTransaction();
+            failedApply(failure->code);
+            return;
+        }
+        semantic = std::move(configTransaction_->semantic);
+        configTransaction_.reset();
+    } else {
+        discardConfigTransaction();
+        auto loaded = store_.readBytes(selection.value(QStringLiteral("artifactRef")).toString());
+        if (const auto* failure = std::get_if<domain::Error>(&loaded)) {
+            failedApply(failure->code);
+            return;
+        }
+        semantic = std::move(std::get<QByteArray>(loaded));
+        if (hash(semantic) != selection.value(QStringLiteral("effectiveHash")).toString()) {
+            semantic = {};
+            failedApply(QStringLiteral("ArtifactIntegrityFailed"));
+            return;
+        }
     }
     auto key = credentials_.read(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"));
     const auto keyPath =
@@ -1294,8 +1568,8 @@ void DesktopRuntime::launch() {
         failedApply(failure->code);
         return;
     }
-    identities_ = infra::nodeIdentities(std::get<QByteArray>(semantic), std::get<QByteArray>(key));
-    const auto summary = infra::configurationSummary(std::get<QByteArray>(semantic));
+    identities_ = infra::nodeIdentities(semantic, std::get<QByteArray>(key));
+    const auto summary = infra::configurationSummary(semantic);
     configuredGroups_ = summary.value(QStringLiteral("groups")).toArray();
     defaultPolicy_ = summary.value(QStringLiteral("defaultPolicy")).toString();
     featureState_.insert(QStringLiteral("nodes"), summary.value(QStringLiteral("nodes")));
@@ -1303,17 +1577,20 @@ void DesktopRuntime::launch() {
     restoredGroups_.clear();
     epoch_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
     secret_ = newSecret();
-    const auto materialized =
-        infra::materializeSession({std::get<QByteArray>(semantic), {}}, secret_);
-    if (const auto* failure = std::get_if<domain::Error>(&materialized)) {
-        failedApply(failure->code);
-        return;
-    }
     const auto reference = QStringLiteral("data/sessions/%1/config.yaml").arg(epoch_);
-    const auto result = store_.writeBytes(reference, std::get<QByteArray>(materialized), true);
-    if (const auto* failure = std::get_if<domain::Error>(&result)) {
-        failedApply(failure->code);
-        return;
+    {
+        const auto materialized = infra::materializeSession({semantic, {}}, secret_);
+        if (const auto* failure = std::get_if<domain::Error>(&materialized)) {
+            semantic = {};
+            failedApply(failure->code);
+            return;
+        }
+        const auto result = store_.writeBytes(reference, std::get<QByteArray>(materialized), true);
+        if (const auto* failure = std::get_if<domain::Error>(&result)) {
+            semantic = {};
+            failedApply(failure->code);
+            return;
+        }
     }
     const auto config = store_.path(reference);
     const auto coreDirectory = store_.path(QStringLiteral("data/core_state"));
@@ -1330,18 +1607,19 @@ void DesktopRuntime::launch() {
         !std::get<std::optional<QJsonObject>>(manifest) ||
         *std::get<std::optional<QJsonObject>>(manifest) !=
             infra::geoResourceManifest(
-                std::get<QByteArray>(semantic),
-                runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject())) {
+                semantic, runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject())) {
         failedApply(QStringLiteral("GeoResourceIntegrityFailed"));
         return;
     }
     const auto resources = infra::prepareGeoResources(
-        std::get<QByteArray>(semantic), std::get<QString>(coreDirectory),
+        semantic, std::get<QString>(coreDirectory),
         runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root());
     if (const auto* failure = std::get_if<domain::Error>(&resources)) {
+        semantic = {};
         failedApply(failure->code);
         return;
     }
+    semantic = {}; // Engine/service startup must not nest underneath retained YAML buffers.
     status_ = QStringLiteral("Starting");
     publish();
     engine_.start(coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory),
@@ -1487,6 +1765,7 @@ void DesktopRuntime::confirmed() {
     publish();
 }
 void DesktopRuntime::failedApply(const QString& code) {
+    discardConfigTransaction();
     engine_.stop();
     cleanupSession();
     restorePreferences();
@@ -1504,7 +1783,11 @@ void DesktopRuntime::failedApply(const QString& code) {
         candidate_ = previous_;
         const auto phase = repository_.phase(QStringLiteral("Compensating"));
         if (std::holds_alternative<std::monostate>(phase)) {
-            launch();
+            const auto generation = operationGeneration_;
+            QTimer::singleShot(0, this, [this, generation] {
+                if (generation == operationGeneration_ && recovering_)
+                    launch();
+            });
             return;
         }
     }
@@ -1577,7 +1860,6 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
     return result;
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
-    featureRequest_ = false;
     cancelDelayTests();
     closingConnections_ = false;
     connections_ = {};
@@ -1593,6 +1875,8 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     stopFailure_.clear();
     finishOperation(domain::OperationState::Cancelled, QStringLiteral("UserStopped"));
     ++operationGeneration_;
+    providerImport_.reset();
+    discardConfigTransaction();
     recoveryTimer_.stop();
     reconcileTimer_.stop();
     proxyDesired_ = false;
@@ -1679,6 +1963,12 @@ void DesktopRuntime::setTun(bool desired) {
     applyProfile(selectedId_, backgroundManaged_ || engine_.ready());
 }
 void DesktopRuntime::cleanupSession() {
+    for (const auto& stream :
+         {QStringLiteral("connections"), QStringLiteral("rules"), QStringLiteral("providers"),
+          QStringLiteral("traffic"), QStringLiteral("resources")})
+        releaseFeature(stream);
+    loadedFeatures_.clear();
+    pendingFeatureRequests_.clear();
     if (!epoch_.isEmpty()) {
         const auto removed =
             store_.remove(QStringLiteral("data/sessions/%1/config.yaml").arg(epoch_));
@@ -2030,6 +2320,7 @@ void DesktopRuntime::finishOperation(domain::OperationState state, const QString
     operationSnapshot_.insert(QStringLiteral("error"), code);
     operation_.reset();
     emit operationCompleted(id, state, code);
+    publish();
 }
 QUuid DesktopRuntime::startCore(domain::Generation generation) {
     if (generation != repository_.manifest()
@@ -2131,8 +2422,9 @@ void DesktopRuntime::testWebsite(const QString& target, const QString& path) {
     reply->setReadBufferSize(65537);
     auto received = std::make_shared<qint64>(0);
     connect(reply, &QIODevice::readyRead, this, [reply, received] {
-        *received += reply->read(65537 - *received).size();
-        if (*received > 65536)
+        if (infra::consumeAvailable(*reply, *received, 65536, [](QByteArrayView) {
+                return true;
+            }) != infra::ReadStatus::Complete)
             reply->abort();
     });
     testReply_ = reply;
@@ -2161,14 +2453,17 @@ void DesktopRuntime::testWebsite(const QString& target, const QString& path) {
                 return;
             }
             testReply_.clear();
-            *received += reply->read(65537 - *received).size();
+            const auto readOk = infra::consumeAvailable(*reply, *received, 65536,
+                                                        [](QByteArrayView) { return true; }) ==
+                                infra::ReadStatus::Complete;
             const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
             QString outcome = QStringLiteral("NetworkError");
             if (*received > 65536)
                 outcome = QStringLiteral("ResponseLimit");
             else if (status >= 300 && status < 400)
                 outcome = QStringLiteral("Redirect");
-            else if (reply->error() == QNetworkReply::NoError && status >= 200 && status < 300)
+            else if (readOk && reply->error() == QNetworkReply::NoError && status >= 200 &&
+                     status < 300)
                 outcome = QStringLiteral("Reachable");
             else if (status > 0)
                 outcome = QStringLiteral("HttpError");

@@ -1,7 +1,9 @@
 #pragma once
 #include "infra/storage/settings_service.h"
 #include "presentation/feature_registry.h"
+#include "presentation/profile_model.h"
 #include "presentation/replay_model.h"
+#include "presentation/runtime_list_model.h"
 #include <QHash>
 #include <QObject>
 #include <QTimer>
@@ -34,7 +36,19 @@ class UiState : public QObject {
     Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
+    Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
+    Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
+    Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
+    Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
+    Q_PROPERTY(QVariantList nodes READ nodes NOTIFY nodesChanged)
+    Q_PROPERTY(QVariantMap delays READ delays NOTIFY delaysChanged)
+    Q_PROPERTY(
+        quickclash::presentation::RuntimeListModel* liveConnections READ liveConnections CONSTANT)
+    Q_PROPERTY(quickclash::presentation::RuntimeListModel* liveRules READ liveRules CONSTANT)
+    Q_PROPERTY(
+        quickclash::presentation::RuntimeListModel* liveProviders READ liveProviders CONSTANT)
+    Q_PROPERTY(quickclash::presentation::RuntimeListModel* liveLogs READ liveLogs CONSTANT)
     Q_PROPERTY(QString upload READ upload NOTIFY sampleChanged)
     Q_PROPERTY(QString download READ download NOTIFY sampleChanged)
     Q_PROPERTY(QVariantList uploadHistory READ uploadHistory NOTIFY sampleChanged)
@@ -52,8 +66,46 @@ class UiState : public QObject {
         return runtime_;
     }
     [[nodiscard]] QVariantList profiles() const {
-        return profiles_;
+        return appliedData_.value(QStringLiteral("profiles")).toArray().toVariantList();
     }
+    [[nodiscard]] ProfileModel* profileModel() {
+        return &profileModel_;
+    }
+    [[nodiscard]] ProfileRowModel* profileRows() {
+        return &profileRows_;
+    }
+    [[nodiscard]] QVariantMap telemetry() const {
+        return telemetry_;
+    }
+    [[nodiscard]] QVariantList groups() const {
+        return groups_;
+    }
+    [[nodiscard]] QVariantList nodes() const {
+        return nodes_;
+    }
+    [[nodiscard]] QVariantMap delays() const {
+        return delays_;
+    }
+    [[nodiscard]] RuntimeListModel* liveConnections() {
+        return &liveConnections_;
+    }
+    [[nodiscard]] RuntimeListModel* liveRules() {
+        return &liveRules_;
+    }
+    [[nodiscard]] RuntimeListModel* liveProviders() {
+        return &liveProviders_;
+    }
+    [[nodiscard]] RuntimeListModel* liveLogs() {
+        return &liveLogs_;
+    }
+    void applyControl(const QJsonObject& control);
+    void applyData(const application::RuntimeUpdate& update);
+    [[nodiscard]] const application::RuntimeDemands& dataDemands() const {
+        return dataDemands_;
+    }
+    // Explicit diagnostic/test compatibility only; never bound to a production QML property.
+    [[nodiscard]] QJsonObject diagnosticSnapshot() const;
+    Q_INVOKABLE void setLogsPaused(bool paused);
     Q_INVOKABLE void runtimeCommand(const QString& command, const QStringList& arguments = {});
     [[nodiscard]] QString storageError() const {
         return storageError_;
@@ -129,6 +181,7 @@ class UiState : public QObject {
     Q_INVOKABLE QUrl embeddedSource(const QString& contentId,
                                     const QVariantMap& context = {}) const;
     Q_INVOKABLE void setDemand(const QString& instanceKey, const QString& stream, bool active);
+    Q_INVOKABLE QString createDemandKey(const QString& scope) const;
     Q_INVOKABLE QVariantMap readState(const QString& instanceKey) const;
     Q_INVOKABLE void saveState(const QString& instanceKey, const QVariantMap& state);
     Q_INVOKABLE void setFilter(const QString& pageId, const QString& text);
@@ -149,12 +202,19 @@ class UiState : public QObject {
     void storageChanged();
     void runtimeChanged();
     void profilesChanged();
+    void telemetryChanged();
+    void groupsChanged();
+    void nodesChanged();
+    void delaysChanged();
+    void operationCompleted(const QUuid& id, domain::OperationState state,
+                            const QString& errorCode);
     void filterChanged(const QString& pageId, const QString& text);
     void routeErrorChanged();
     void themeChanged();
     void uiVisibleChanged();
     void replayChanged();
     void demandsChanged();
+    void channelInvalidated(const QString& channel);
     void sampleChanged();
     void hostChanged();
     void closeRequested(bool confirmed);
@@ -164,7 +224,10 @@ class UiState : public QObject {
     void closeConfirmationRequired();
 
   private:
+    [[nodiscard]] bool acceptGeneration(quint64 generation, const QString& epoch);
     void updateTimer();
+    void clearChannel(const QString& channel);
+    void refreshTelemetry();
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
     void applyPreferences(const QString& theme, bool unload, bool acknowledged);
@@ -181,6 +244,7 @@ class UiState : public QObject {
     bool closeAcknowledged_ = false;
     QString hostState_ = QStringLiteral("Unloaded");
     QHash<QString, QString> demands_;
+    application::RuntimeDemands dataDemands_;
     QHash<QString, QVariantMap> states_;
     QTimer replayTimer_;
     int sample_ = 0;
@@ -189,7 +253,24 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
-    QVariantList profiles_;
+    ProfileModel profileModel_{this};
+    ProfileRowModel profileRows_{&profileModel_, this};
+    QVariantList groups_;
+    QVariantList nodes_;
+    QVariantMap delays_;
+    QVariantMap telemetry_;
+    QJsonObject appliedData_;
+    quint64 publicationGeneration_ = 0;
+    bool logsPaused_ = false;
+    QJsonArray pendingLogs_;
+    RuntimeRows connectionRows_{RuntimeRows::Kind::Connections, this};
+    RuntimeRows ruleRows_{RuntimeRows::Kind::Rules, this};
+    RuntimeRows providerRows_{RuntimeRows::Kind::Providers, this};
+    RuntimeRows logRows_{RuntimeRows::Kind::Logs, this};
+    RuntimeListModel liveConnections_{&connectionRows_, true, this};
+    RuntimeListModel liveRules_{&ruleRows_, false, this};
+    RuntimeListModel liveProviders_{&providerRows_, false, this};
+    RuntimeListModel liveLogs_{&logRows_, false, this};
     QVariantList liveUpload_;
     QVariantList liveDownload_;
     QString trafficSample_;

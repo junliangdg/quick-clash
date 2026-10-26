@@ -6,6 +6,7 @@
 #include <QPixmap>
 #include <QQmlEngine>
 #include <QQmlError>
+#include <QScopedValueRollback>
 #include <QStyleHints>
 #include <utility>
 
@@ -24,14 +25,26 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
     connect(&systemEvents_, &SystemEvents::reconcileRequested, this,
             [this] { state_.runtimeCommand(QStringLiteral("reconcile")); });
     connect(&state_, &presentation::UiState::storageChanged, this, [this] {
+        updateDeferredUnload();
         if (waitingForSettings_ && (state_.settingsReady() || !state_.storageError().isEmpty())) {
             waitingForSettings_ = false;
             (void)showWindow();
         }
     });
-    unloadTimer_.setSingleShot(true);
-    unloadTimer_.setInterval(5000);
-    connect(&unloadTimer_, &QTimer::timeout, this, &ApplicationHost::unloadWindow);
+    connect(&deferredUnload_, &DeferredUiUnload::due, this, [this](quint64 generation) {
+        if (generation != static_cast<quint64>(generation_) || !window_ || !backgroundWindow() ||
+            !state_.unloadWhenHidden() || !state_.settingsReady() || quitting_ || unloading_ ||
+            showing_)
+            return;
+        // Capability may disappear during the delay. Never destroy the only recovery surface.
+        if (!recoverableFromTray()) {
+            state_.setTrayAvailable(false);
+            if (window_->visibility() == QWindow::Hidden)
+                (void)showWindow();
+            return;
+        }
+        unloadWindow();
+    });
     connect(&state_, &presentation::UiState::closeRequested, this, &ApplicationHost::hideWindow);
     connect(&state_, &presentation::UiState::quitRequested, this, &ApplicationHost::quit,
             Qt::QueuedConnection);
@@ -43,20 +56,17 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
     connect(
         &state_, &presentation::UiState::unloadRequested, this,
         [this] {
-            if (state_.trayAvailable()) {
+            if (recoverableFromTray()) {
                 unloadWindow();
             }
         },
         Qt::QueuedConnection);
-    connect(&state_, &presentation::UiState::hostChanged, this, [this] {
-        if (!state_.unloadWhenHidden() || state_.hostState() != QStringLiteral("Hidden")) {
-            unloadTimer_.stop();
-        } else if (!unloadTimer_.isActive()) {
-            unloadTimer_.start();
-        }
-    });
+    connect(&state_, &presentation::UiState::hostChanged, this,
+            &ApplicationHost::updateDeferredUnload);
 }
 ApplicationHost::~ApplicationHost() {
+    quitting_ = true;
+    deferredUnload_.cancel();
     state_.setUiVisible(false);
     engine_.reset();
 }
@@ -136,14 +146,20 @@ void ApplicationHost::setupTray(bool noTray) {
     state_.setTrayAvailable(true);
 }
 bool ApplicationHost::showWindow() {
+    deferredUnload_.cancel();
+    if (quitting_)
+        return false;
+    if (unloading_) {
+        restorePending_ = true;
+        return true;
+    }
+    if (showing_)
+        return true;
+    QScopedValueRollback<bool> showing(showing_, true);
     if (!state_.settingsReady() && state_.storageError().isEmpty()) {
         waitingForSettings_ = true;
         return true;
     }
-    if (quitting_) {
-        return false;
-    }
-    unloadTimer_.stop();
     if (window_ && window_->isVisible() && window_->visibility() != QWindow::Minimized) {
         window_->raise();
         window_->requestActivate();
@@ -182,7 +198,7 @@ bool ApplicationHost::showWindow() {
         connect(window_, &QWindow::visibilityChanged, this, [this](QWindow::Visibility visibility) {
             const bool visible = visibility != QWindow::Hidden && visibility != QWindow::Minimized;
             state_.setUiVisible(visible);
-            if (state_.hostState() != QStringLiteral("Unloading")) {
+            if (!unloading_ && !quitting_) {
                 state_.setHostState(
                     visibility == QWindow::Minimized
                         ? QStringLiteral("Minimized")
@@ -215,7 +231,7 @@ void ApplicationHost::hideWindow(bool confirmed) {
     if (!window_ || quitting_) {
         return;
     }
-    const bool available = tray_ && QSystemTrayIcon::isSystemTrayAvailable();
+    const bool available = recoverableFromTray();
     state_.setTrayAvailable(available);
     if (!available || (!confirmed && !state_.closeAcknowledged())) {
         emit state_.closeConfirmationRequired();
@@ -228,15 +244,29 @@ void ApplicationHost::hideWindow(bool confirmed) {
     state_.setUiVisible(false);
     window_->hide();
     state_.setHostState(QStringLiteral("Hidden"));
-    if (state_.unloadWhenHidden()) {
-        unloadTimer_.start();
-    }
+    updateDeferredUnload();
+}
+bool ApplicationHost::recoverableFromTray() const {
+    return tray_ && tray_->isVisible() && QSystemTrayIcon::isSystemTrayAvailable();
+}
+bool ApplicationHost::backgroundWindow() const {
+    return window_ && (window_->visibility() == QWindow::Hidden ||
+                       window_->visibility() == QWindow::Minimized);
+}
+void ApplicationHost::updateDeferredUnload() {
+    const bool hostBackground = state_.hostState() == QStringLiteral("Hidden") ||
+                                state_.hostState() == QStringLiteral("Minimized");
+    deferredUnload_.update(!quitting_ && !showing_ && !unloading_ && engine_ &&
+                               state_.settingsReady() && state_.unloadWhenHidden() &&
+                               hostBackground && backgroundWindow() && recoverableFromTray(),
+                           static_cast<quint64>(generation_));
 }
 void ApplicationHost::unloadWindow() {
-    unloadTimer_.stop();
-    if (!engine_) {
+    deferredUnload_.cancel();
+    if (!engine_ || unloading_) {
         return;
     }
+    unloading_ = true;
     state_.setHostState(QStringLiteral("Unloading"));
     state_.setUiVisible(false);
     if (window_) {
@@ -246,13 +276,18 @@ void ApplicationHost::unloadWindow() {
     }
     window_.clear();
     engine_.reset();
+    unloading_ = false;
     state_.setHostState(QStringLiteral("Unloaded"));
+    if (std::exchange(restorePending_, false) && !quitting_)
+        QTimer::singleShot(0, this, [this] { (void)showWindow(); });
 }
 void ApplicationHost::quit() {
     if (quitting_) {
         return;
     }
     quitting_ = true;
+    restorePending_ = false;
+    deferredUnload_.cancel();
     unloadWindow();
     QCoreApplication::quit();
 }

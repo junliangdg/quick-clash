@@ -1,6 +1,7 @@
 #include "platform/windows/service_host.h"
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
+#include "infra/io/bounded_read.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -205,8 +206,7 @@ void ServiceHost::receive(QLocalSocket* socket) {
         return;
     }
     auto& buffer = buffers_[socket];
-    buffer.append(socket->read(24 * 1024 * 1024 + 1 - buffer.size()));
-    if (buffer.size() > 24 * 1024 * 1024) {
+    if (!infra::appendAvailable(*socket, buffer, 24 * 1024 * 1024)) {
         socket->abort();
         return;
     }
@@ -359,22 +359,24 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
                            {QStringLiteral("clean"), !core_.running() && !busy_ && tunClean()}});
         return;
     }
-    if (!ready_ || busy_) {
-        answer(socket, id, failure("ServiceCoreNotReady"));
-        return;
-    }
-    if (!logStream_ && !logBuffer_.isEmpty()) {
-        logBuffer_.append(QJsonObject{
-            {QStringLiteral("type"), QStringLiteral("warning")},
-            {QStringLiteral("payload"), QStringLiteral("Service log stream disconnected")}});
-    }
     if (action == QStringLiteral("log_demand") &&
         fixedFields(payload, {QStringLiteral("enabled")})) {
         if (!payload.value(QStringLiteral("enabled")).isBool()) {
             answer(socket, id, failure("ServiceFieldsRejected"));
             return;
         }
-        if (payload.value(QStringLiteral("enabled")).toBool() && !logStream_) {
+        if (!payload.value(QStringLiteral("enabled")).toBool()) {
+            delete logStream_.data();
+            logBuffer_ = {};
+            droppedLogs_ = 0;
+            answer(socket, id, QJsonObject{});
+            return;
+        }
+        if (!ready_ || busy_) {
+            answer(socket, id, failure("ServiceCoreNotReady"));
+            return;
+        }
+        if (!logStream_) {
             logStream_ = infra::pipeJsonStream(this, pipe_, "/logs?level=info",
                                                [this](const QJsonObject& entry) {
                                                    logBuffer_.append(entry);
@@ -383,14 +385,20 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
                                                        ++droppedLogs_;
                                                    }
                                                });
-        } else if (!payload.value(QStringLiteral("enabled")).toBool()) {
-            delete logStream_.data();
-            logBuffer_ = {};
         }
         answer(socket, id, QJsonObject{});
         return;
     }
+    if (!ready_ || busy_) {
+        answer(socket, id, failure("ServiceCoreNotReady"));
+        return;
+    }
     if (action == QStringLiteral("logs") && payload.isEmpty()) {
+        if (!logStream_ && !logBuffer_.isEmpty()) {
+            logBuffer_.append(QJsonObject{
+                {QStringLiteral("type"), QStringLiteral("warning")},
+                {QStringLiteral("payload"), QStringLiteral("Service log stream disconnected")}});
+        }
         answer(socket, id,
                QJsonObject{{QStringLiteral("entries"), logBuffer_},
                            {QStringLiteral("dropped"), droppedLogs_}});

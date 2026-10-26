@@ -1,4 +1,6 @@
 #pragma once
+#include "domain/operation.h"
+#include "infra/storage/latest_mailbox.h"
 #include "infra/storage/settings_repository.h"
 #include <QObject>
 #include <QThread>
@@ -12,17 +14,22 @@ class SettingsService final : public QObject {
     explicit SettingsService(QString root, QObject* parent = nullptr);
     ~SettingsService() override;
     void save(UiPreferences preferences);
+    void setDemands(const application::RuntimeDemands& demands);
     void command(const QString& name, const QStringList& arguments = {});
   signals:
     void loaded(const QString& theme, bool unload, bool acknowledged);
     void saved(const QString& theme, bool unload, bool acknowledged);
     void failed(const QString& code);
     void runtimeChanged(const QJsonObject& state);
+    void dataChanged(const quickclash::application::RuntimeUpdate& update);
+    void operationCompleted(const QUuid& id, domain::OperationState state,
+                            const QString& errorCode);
 
   private:
     struct State;
     QThread thread_;
     QObject* worker_ = nullptr;
     std::shared_ptr<State> state_;
+    LatestMailbox mailbox_;
 };
 } // namespace quickclash::infra

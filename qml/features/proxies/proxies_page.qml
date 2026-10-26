@@ -10,7 +10,7 @@ Item {
     required property ThemeTokens theme
     property string groupName: ""
     readonly property string stateKey: "proxies:" + (ui.runtime.selectedId || "")
-    readonly property var groups: (ui.runtime.groups || []).filter(group => group.name !== "GLOBAL" || (ui.runtime.preferences || {}).mode === "global" || (ui.runtime.groups || []).length === 1)
+    readonly property var groups: ui.groups.filter(group => group.name !== "GLOBAL" || (ui.runtime.preferences || {}).mode === "global" || ui.groups.length === 1)
     readonly property var group: groups.find(group => group.name === groupName) || groups.find(group => group.name === (ui.runtime.outbound || {}).policy) || groups[0] || ({})
     Component.onCompleted: {
         groupName = ui.readState(stateKey).group || "";
@@ -23,7 +23,7 @@ Item {
     onActiveChanged: ui.setDemand("proxies:page", "proxies", active)
     Component.onDestruction: ui.setDemand("proxies:page", "proxies", false)
     function delayText(name): string {
-        const result = (ui.runtime.delays || {})[name];
+        const result = ui.delays[name];
         return result === "Testing" ? qsTr("Testing…") : result === "Failed" ? qsTr("Unavailable") : result === "Cancelled" ? qsTr("Cancelled") : result || "—";
     }
     ReplayList {

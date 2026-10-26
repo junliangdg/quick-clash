@@ -1,6 +1,8 @@
 #include "presentation/ui_state.h"
 #include <QFileInfo>
 #include <QSet>
+#include <QThread>
+#include <QUuid>
 #include <cmath>
 
 namespace quickclash::presentation {
@@ -18,38 +20,10 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         connect(settings_.get(), &infra::SettingsService::loaded, this, &UiState::applyPreferences);
         connect(settings_.get(), &infra::SettingsService::saved, this, &UiState::applyPreferences);
         connect(settings_.get(), &infra::SettingsService::runtimeChanged, this,
-                [this](const QJsonObject& state) {
-                    runtime_ = state.toVariantMap();
-                    const auto profiles = runtime_.value(QStringLiteral("profiles")).toList();
-                    if (profiles_ != profiles) {
-                        profiles_ = profiles;
-                        emit profilesChanged();
-                    }
-                    const auto epoch = runtime_.value(QStringLiteral("epoch")).toString();
-                    if (epoch != liveEpoch_) {
-                        liveEpoch_ = epoch;
-                        liveUpload_.clear();
-                        liveDownload_.clear();
-                        trafficSample_.clear();
-                    }
-                    const auto sample = runtime_.value(QStringLiteral("features"))
-                                            .toMap()
-                                            .value(QStringLiteral("traffic"))
-                                            .toMap();
-                    const auto timestamp = sample.value(QStringLiteral("time")).toString();
-                    if (!timestamp.isEmpty() && timestamp != trafficSample_) {
-                        trafficSample_ = timestamp;
-                        liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
-                        liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() /
-                                             1024.0);
-                        while (liveUpload_.size() > 120)
-                            liveUpload_.removeFirst();
-                        while (liveDownload_.size() > 120)
-                            liveDownload_.removeFirst();
-                    }
-                    emit runtimeChanged();
-                    emit sampleChanged();
-                });
+                &UiState::applyControl);
+        connect(settings_.get(), &infra::SettingsService::dataChanged, this, &UiState::applyData);
+        connect(settings_.get(), &infra::SettingsService::operationCompleted, this,
+                &UiState::operationCompleted);
         connect(settings_.get(), &infra::SettingsService::failed, this,
                 [this](const QString& code) {
                     storageError_ = code;
@@ -67,6 +41,163 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         }
         emit sampleChanged();
     });
+}
+bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
+    Q_ASSERT(QThread::currentThread() == thread());
+    if (generation == 0 || generation < publicationGeneration_)
+        return false;
+    if (generation == publicationGeneration_)
+        return epoch == liveEpoch_;
+    publicationGeneration_ = generation;
+    liveEpoch_ = epoch;
+    for (const auto& channel : application::scopedChannels())
+        clearChannel(channel);
+    appliedData_.remove(QStringLiteral("samples"));
+    refreshTelemetry();
+    return true;
+}
+void UiState::applyControl(const QJsonObject& control) {
+    if (!acceptGeneration(
+            control.value(QStringLiteral("publicationGeneration")).toString().toULongLong(),
+            control.value(QStringLiteral("epoch")).toString()))
+        return;
+    const auto value = control.toVariantMap();
+    if (runtime_ == value)
+        return;
+    runtime_ = value;
+    emit runtimeChanged();
+}
+void UiState::applyData(const application::RuntimeUpdate& update) {
+    if (!acceptGeneration(update.generation, update.epoch))
+        return;
+    for (const auto& channel : update.invalidated) {
+        const auto stream = application::channelStream(channel);
+        if (!stream.isEmpty() && update.demandGenerations.value(stream) != 0 &&
+            update.demandGenerations.value(stream) == dataDemands_.generations.value(stream))
+            clearChannel(channel);
+    }
+    bool telemetryChanged = false;
+    for (auto it = update.values.constBegin(); it != update.values.constEnd(); ++it) {
+        const auto stream = application::channelStream(it.key());
+        if (!stream.isEmpty() &&
+            !dataDemands_.accepts(stream, update.demandGenerations.value(stream)))
+            continue;
+        if (appliedData_.contains(it.key()) && appliedData_.value(it.key()) == it.value())
+            continue;
+        if (it.key() == QStringLiteral("profiles") && !profileModel_.apply(it.value().toArray()))
+            continue;
+        appliedData_.insert(it.key(), it.value());
+        if (it.key() == QStringLiteral("samples") || it.key() == QStringLiteral("traffic") ||
+            it.key() == QStringLiteral("resources") ||
+            it.key() == QStringLiteral("connection_status") ||
+            it.key() == QStringLiteral("log_status")) {
+            telemetryChanged = true;
+        } else if (it.key() == QStringLiteral("profiles")) {
+            emit profilesChanged();
+        } else if (it.key() == QStringLiteral("groups")) {
+            groups_ = it.value().toArray().toVariantList();
+            emit groupsChanged();
+        } else if (it.key() == QStringLiteral("nodes")) {
+            nodes_ = it.value().toArray().toVariantList();
+            emit nodesChanged();
+        } else if (it.key() == QStringLiteral("delays")) {
+            delays_ = it.value().toObject().toVariantMap();
+            emit delaysChanged();
+        } else if (it.key() == QStringLiteral("connections")) {
+            connectionRows_.apply(it.value().toArray());
+        } else if (it.key() == QStringLiteral("rules")) {
+            ruleRows_.apply(it.value().toArray());
+        } else if (it.key() == QStringLiteral("providers")) {
+            providerRows_.apply(it.value().toArray());
+        } else if (it.key() == QStringLiteral("logs")) {
+            pendingLogs_ = it.value().toArray();
+            if (!logsPaused_)
+                logRows_.apply(pendingLogs_);
+        }
+    }
+    if (telemetryChanged)
+        refreshTelemetry();
+}
+void UiState::clearChannel(const QString& channel) {
+    appliedData_.remove(channel);
+    if (channel == QStringLiteral("connections"))
+        liveConnections_.release();
+    else if (channel == QStringLiteral("rules"))
+        liveRules_.release();
+    else if (channel == QStringLiteral("providers"))
+        liveProviders_.release();
+    else if (channel == QStringLiteral("logs")) {
+        pendingLogs_ = {};
+        liveLogs_.release();
+    } else if (channel == QStringLiteral("traffic")) {
+        const bool hadHistory = !liveUpload_.isEmpty() || !liveDownload_.isEmpty();
+        liveUpload_ = {};
+        liveDownload_ = {};
+        trafficSample_.clear();
+        if (hadHistory)
+            emit sampleChanged();
+    }
+    refreshTelemetry();
+    emit channelInvalidated(channel);
+}
+void UiState::refreshTelemetry() {
+    QJsonObject combined = appliedData_.value(QStringLiteral("samples")).toObject();
+    for (const auto* key : {"traffic", "resources", "connection_status", "log_status"}) {
+        const auto fields = appliedData_.value(QLatin1String(key)).toObject();
+        for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
+            combined.insert(it.key(), it.value());
+    }
+    const auto next = combined.toVariantMap();
+    if (next == telemetry_)
+        return;
+    const auto previous = telemetry_.value(QStringLiteral("traffic"));
+    telemetry_ = next;
+    const auto sample = telemetry_.value(QStringLiteral("traffic")).toMap();
+    const auto timestamp = sample.value(QStringLiteral("time")).toString();
+    if (!timestamp.isEmpty() && timestamp != trafficSample_) {
+        trafficSample_ = timestamp;
+        liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
+        liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() / 1024.0);
+        while (liveUpload_.size() > 120)
+            liveUpload_.removeFirst();
+        while (liveDownload_.size() > 120)
+            liveDownload_.removeFirst();
+    }
+    emit telemetryChanged();
+    if (previous != telemetry_.value(QStringLiteral("traffic")))
+        emit sampleChanged();
+}
+void UiState::setLogsPaused(bool paused) {
+    if (logsPaused_ == paused)
+        return;
+    logsPaused_ = paused;
+    if (!paused && dataDemands_.active.contains(QStringLiteral("logs")))
+        logRows_.apply(pendingLogs_);
+}
+QJsonObject UiState::diagnosticSnapshot() const {
+    auto result = QJsonObject::fromVariantMap(runtime_);
+    auto features = result.value(QStringLiteral("features")).toObject();
+    auto samples = QJsonObject::fromVariantMap(telemetry_);
+    result.insert(QStringLiteral("coreUptimeSeconds"),
+                  samples.take(QStringLiteral("coreUptimeSeconds")));
+    result.insert(QStringLiteral("droppedLogs"), samples.take(QStringLiteral("droppedLogs")));
+    for (auto it = samples.constBegin(); it != samples.constEnd(); ++it)
+        features.insert(it.key(), it.value());
+    features.insert(QStringLiteral("nodes"), appliedData_.value(QStringLiteral("nodes")));
+    result.insert(QStringLiteral("features"), features);
+    for (auto it = appliedData_.constBegin(); it != appliedData_.constEnd(); ++it)
+        if (it.key() != QStringLiteral("samples") && it.key() != QStringLiteral("nodes") &&
+            it.key() != QStringLiteral("traffic") && it.key() != QStringLiteral("resources") &&
+            it.key() != QStringLiteral("connection_status") &&
+            it.key() != QStringLiteral("log_status"))
+            result.insert(it.key(), it.value());
+    result.insert(
+        QStringLiteral("dataLifecycle"),
+        QJsonObject{
+            {QStringLiteral("active"), QJsonArray::fromStringList(dataDemands_.active.values())},
+            {QStringLiteral("appliedChannels"), QJsonArray::fromStringList(appliedData_.keys())},
+            {QStringLiteral("pendingLogCount"), pendingLogs_.size()}});
+    return result;
 }
 QVariantList UiState::navigation() const {
     QVariantList items;
@@ -268,10 +399,11 @@ int UiState::activeStreamCount() const {
     const auto values = demands_.values();
     return static_cast<int>(QSet<QString>(values.cbegin(), values.cend()).size());
 }
+QString UiState::createDemandKey(const QString& scope) const {
+    return scope.left(64) + QLatin1Char(':') + QUuid::createUuid().toString(QUuid::WithoutBraces);
+}
 void UiState::setDemand(const QString& instanceKey, const QString& stream, bool active) {
-    const QStringList streams{QStringLiteral("traffic"), QStringLiteral("proxies"),
-                              QStringLiteral("connections"), QStringLiteral("logs"),
-                              QStringLiteral("resources")};
+    const auto streams = application::RuntimeDemands::streams();
     if (instanceKey.isEmpty() || instanceKey.size() > 128 || !streams.contains(stream)) {
         return;
     }
@@ -285,9 +417,15 @@ void UiState::setDemand(const QString& instanceKey, const QString& stream, bool 
 }
 void UiState::updateTimer() {
     const auto streams = demands_.values();
+    const auto previous = dataDemands_;
+    dataDemands_.setActive(replay_ || !uiVisible_ ? QStringList{} : streams);
     if (settings_)
-        settings_->command(QStringLiteral("demands"),
-                           replay_ || !uiVisible_ ? QStringList{} : streams);
+        settings_->setDemands(dataDemands_);
+    for (const auto& channel : application::scopedChannels()) {
+        const auto stream = application::channelStream(channel);
+        if (previous.generations.value(stream) != dataDemands_.generations.value(stream))
+            clearChannel(channel);
+    }
     const bool timed = streams.contains(QStringLiteral("traffic")) ||
                        streams.contains(QStringLiteral("connections"));
     if (replay_ && uiVisible_ && timed) {
@@ -299,40 +437,20 @@ void UiState::updateTimer() {
     }
 }
 QString UiState::upload() const {
-    if (!replay_ && runtime_.value(QStringLiteral("features"))
-                        .toMap()
-                        .value(QStringLiteral("traffic"))
-                        .toMap()
-                        .isEmpty())
+    const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
+    if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
     return replay_ ? QStringLiteral("%1 KiB/s").arg(replayRate(sample_, true), 0, 'f', 1)
                    : QStringLiteral("%1 KiB/s")
-                         .arg(runtime_.value(QStringLiteral("features"))
-                                      .toMap()
-                                      .value(QStringLiteral("traffic"))
-                                      .toMap()
-                                      .value(QStringLiteral("up"))
-                                      .toDouble() /
-                                  1024.0,
-                              0, 'f', 1);
+                         .arg(traffic.value(QStringLiteral("up")).toDouble() / 1024.0, 0, 'f', 1);
 }
 QString UiState::download() const {
-    if (!replay_ && runtime_.value(QStringLiteral("features"))
-                        .toMap()
-                        .value(QStringLiteral("traffic"))
-                        .toMap()
-                        .isEmpty())
+    const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
+    if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
     return replay_ ? QStringLiteral("%1 MiB/s").arg(replayRate(sample_, false), 0, 'f', 1)
                    : QStringLiteral("%1 KiB/s")
-                         .arg(runtime_.value(QStringLiteral("features"))
-                                      .toMap()
-                                      .value(QStringLiteral("traffic"))
-                                      .toMap()
-                                      .value(QStringLiteral("down"))
-                                      .toDouble() /
-                                  1024.0,
-                              0, 'f', 1);
+                         .arg(traffic.value(QStringLiteral("down")).toDouble() / 1024.0, 0, 'f', 1);
 }
 QVariantList UiState::uploadHistory() const {
     return history(true);
@@ -438,6 +556,14 @@ void UiState::applyPreferences(const QString& theme, bool unload, bool acknowled
     emit storageChanged();
 }
 void UiState::runtimeCommand(const QString& command, const QStringList& arguments) {
+    if (command == QStringLiteral("clear_logs")) {
+        // Fence an already queued log delivery before clearing both GUI and worker buffers.
+        ++dataDemands_.generations[QStringLiteral("logs")];
+        clearChannel(QStringLiteral("logs"));
+        clearChannel(QStringLiteral("log_status"));
+        if (settings_)
+            settings_->setDemands(dataDemands_);
+    }
     if (settings_) {
         settings_->command(command, arguments);
     }

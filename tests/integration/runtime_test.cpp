@@ -784,10 +784,31 @@ int main(int argc, char** argv) {
                  }),
                  "advanced Ready", reopened))
         return 112;
+    reopened.setDemands({QStringLiteral("rules")});
     reopened.featureCommand(QStringLiteral("rules"), {});
     if (!require(waitFor([&] { return !reopened.snapshot().value("rules").toArray().isEmpty(); }),
                  "rules API", reopened))
         return 113;
+    const auto originalRules = reopened.snapshot().value("rules");
+    reopened.setDemands({});
+    if (!require(reopened.snapshot().value("rules").toArray().isEmpty() &&
+                     !reopened.snapshot()
+                          .value("dataLifecycle")
+                          .toObject()
+                          .value("publishedChannels")
+                          .toArray()
+                          .contains("rules"),
+                 "last rules consumer releases worker cache and publication baseline", reopened))
+        return 126;
+    reopened.featureCommand(QStringLiteral("rules"), {});
+    QCoreApplication::processEvents();
+    if (!require(reopened.snapshot().value("rules").toArray().isEmpty(),
+                 "diagnostic command does not bypass rules demand", reopened))
+        return 127;
+    reopened.setDemands({QStringLiteral("rules")});
+    if (!require(waitFor([&] { return reopened.snapshot().value("rules") == originalRules; }),
+                 "same-session rules reacquisition refetches unchanged complete data", reopened))
+        return 128;
     reopened.featureCommand(QStringLiteral("flush_dns"), {});
     if (!require(waitFor([&] {
                      return !reopened.snapshot()
@@ -885,12 +906,54 @@ int main(int argc, char** argv) {
                  }),
                  "managed provider Ready", reopened))
         return 124;
+    reopened.setDemands({QStringLiteral("rules")});
     reopened.featureCommand(QStringLiteral("rules"), {});
     if (!require(waitFor([&] { return reopened.snapshot().value("rules").toArray().size() >= 3; }),
                  "expanded RULE-SET installed", reopened))
         return 125;
     const auto providerHash =
         reopened.snapshot().value("profiles").toArray().last().toObject().value("snapshotHash");
+    const auto providerPid = reopened.snapshot().value("corePid");
+    const auto configIdle = [&] {
+        const auto counters = reopened.snapshot().value("configLifecycle").toObject();
+        return counters.value("providerFiles").toInteger() == 0 &&
+               counters.value("providerBytes").toInteger() == 0 &&
+               counters.value("semanticBytes").toInteger() == 0 &&
+               !counters.value("validationActive").toBool();
+    };
+    const auto stagingEmpty = [&] {
+        return QDir(store.root() + "/cache/config_stage")
+            .entryList(QDir::Files | QDir::Hidden)
+            .isEmpty();
+    };
+    reopened.updateProfile(providerId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("corePid") == providerPid && configIdle() &&
+                     stagingEmpty(),
+                 "unchanged provider snapshot does not restart and releases transaction buffers",
+                 reopened))
+        return 142;
+    origin.payloads.insert("/provider_rules",
+                           "payload: ['DOMAIN,changed.invalid', 'DOMAIN-SUFFIX,example.com']\n");
+    reopened.updateProfile(providerId);
+    if (!require(waitFor([&] {
+                     return !reopened.snapshot().value("busy").toBool() &&
+                            reopened.snapshot().value("ready").toBool();
+                 }) &&
+                     reopened.snapshot().value("corePid") != providerPid && configIdle() &&
+                     stagingEmpty() &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()
+                             .last()
+                             .toObject()
+                             .value("snapshotHash") != providerHash,
+                 "changed provider uses existing apply transaction and releases launch semantic",
+                 reopened))
+        return 143;
+    const auto changedHash =
+        reopened.snapshot().value("profiles").toArray().last().toObject().value("snapshotHash");
+    const auto changedPid = reopened.snapshot().value("corePid");
     origin.payloads.insert("/provider_nodes", "invalid");
     reopened.updateProfile(providerId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
@@ -900,13 +963,52 @@ int main(int argc, char** argv) {
                              .toArray()
                              .last()
                              .toObject()
-                             .value("snapshotHash") == providerHash,
+                             .value("snapshotHash") == changedHash &&
+                     reopened.snapshot().value("corePid") == changedPid && configIdle() &&
+                     stagingEmpty(),
                  "bad provider preserves running snapshot", reopened))
         return 126;
+    origin.payloads.insert(
+        "/provider_nodes",
+        "proxies: [{name: managed_fixture, type: http, server: 127.0.0.1, port: 9}]\n");
+    bool cancellationQueued = false;
+    const auto cancelConnection =
+        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &reopened,
+                         [&](const QJsonObject&) {
+                             if (!cancellationQueued && reopened.snapshot()
+                                                                .value("configLifecycle")
+                                                                .toObject()
+                                                                .value("semanticBytes")
+                                                                .toInteger() > 0) {
+                                 cancellationQueued = true;
+                                 QTimer::singleShot(0, &reopened, [&] { reopened.stop(); });
+                             }
+                         });
+    reopened.updateProfile(providerId);
+    if (!require(waitFor([&] {
+                     return cancellationQueued && !reopened.snapshot().value("busy").toBool();
+                 }) &&
+                     configIdle() && stagingEmpty() &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()
+                             .last()
+                             .toObject()
+                             .value("snapshotHash") == changedHash,
+                 "stop during provider validation clears private transaction and preserves catalog",
+                 reopened))
+        return 144;
+    QObject::disconnect(cancelConnection);
+    QCoreApplication::processEvents();
+    if (!require(configIdle() && !reopened.snapshot().value("ready").toBool() && stagingEmpty(),
+                 "late validation callbacks cannot revive stopped transaction", reopened))
+        return 145;
     reopened.stop();
     evidence.insert(QStringLiteral("managedProviderChecks"),
                     QJsonArray{"https_snapshots", "offline_nodes", "official_validation_ready",
-                               "ruleset_expansion", "bad_update_retains_session"});
+                               "ruleset_expansion", "bad_update_retains_session",
+                               "unchanged_no_restart", "changed_transaction_apply",
+                               "stage_buffers_released", "stop_rejects_late_validation"});
     if (!require(!reopened.snapshot().value("groups").toArray().isEmpty(),
                  "offline nodes remain after stop", reopened))
         return 127;

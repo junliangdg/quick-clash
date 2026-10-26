@@ -1,10 +1,21 @@
 #include "application/desktop_runtime.h"
-#include <QCryptographicHash>
+#include "infra/io/bounded_read.h"
+#include "infra/storage/geo_resource_writer.h"
+#include <QDebug>
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <memory>
+#include <utility>
 
 namespace quickclash::application {
+namespace {
+void discardGeo(infra::GeoResourceWriter& writer) {
+    const auto cleaned = writer.cancel();
+    if (const auto* failure = std::get_if<domain::Error>(&cleaned))
+        qWarning("Geo staging cleanup failed: %s", qPrintable(failure->code));
+}
+} // namespace
 void DesktopRuntime::updateGeo() {
     if (busy_ || store_.readOnly() || selectedId_.isEmpty() ||
         runtimePreferences_.value(QStringLiteral("tunDesired")).toBool()) {
@@ -50,6 +61,15 @@ void DesktopRuntime::fetchGeo(int index, QJsonObject snapshot, quint64 generatio
         return;
     }
     const auto file = index == 0 ? QStringLiteral("geoip.dat") : QStringLiteral("geosite.dat");
+    auto pending = store_.beginGeoWrite();
+    if (const auto* failure = std::get_if<domain::Error>(&pending)) {
+        busy_ = false;
+        featureState_.insert(QStringLiteral("geoResult"), QStringLiteral("Failed"));
+        error(failure->code);
+        return;
+    }
+    auto writer = std::shared_ptr<infra::GeoResourceWriter>(
+        std::move(std::get<std::unique_ptr<infra::GeoResourceWriter>>(pending)));
     QNetworkRequest request(QUrl(
         QStringLiteral("https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/") +
         file));
@@ -59,11 +79,14 @@ void DesktopRuntime::fetchGeo(int index, QJsonObject snapshot, quint64 generatio
     request.setTransferTimeout(15000);
     auto* reply = directNetwork_.get(request);
     downloadReply_ = reply;
-    reply->setReadBufferSize(32 * 1024 * 1024 + 1);
-    auto bytes = std::make_shared<QByteArray>();
-    connect(reply, &QIODevice::readyRead, this, [reply, bytes] {
-        bytes->append(reply->read(32 * 1024 * 1024 + 1 - bytes->size()));
-        if (bytes->size() > 32 * 1024 * 1024)
+    reply->setReadBufferSize(infra::kReadChunkSize);
+    connect(reply, &QIODevice::readyRead, this, [this, reply, writer, generation] {
+        if (generation != operationGeneration_) {
+            discardGeo(*writer);
+            reply->abort();
+            return;
+        }
+        if (std::holds_alternative<domain::Error>(writer->consume(*reply)))
             reply->abort();
     });
     auto* deadline = new QTimer(reply);
@@ -71,31 +94,35 @@ void DesktopRuntime::fetchGeo(int index, QJsonObject snapshot, quint64 generatio
     deadline->start(30000);
     connect(deadline, &QTimer::timeout, reply, &QNetworkReply::abort);
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, bytes, file, index, snapshot, generation]() mutable {
+            [this, reply, writer, file, index, snapshot, generation]() mutable {
                 reply->deleteLater();
-                if (generation != operationGeneration_)
+                if (downloadReply_ == reply)
+                    downloadReply_.clear();
+                if (generation != operationGeneration_) {
+                    discardGeo(*writer);
                     return;
-                bytes->append(reply->read(32 * 1024 * 1024 + 1 - bytes->size()));
+                }
+                const auto consumed = writer->consume(*reply);
                 if (reply->error() != QNetworkReply::NoError ||
                     reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200 ||
-                    bytes->isEmpty() || bytes->size() > 32 * 1024 * 1024) {
+                    std::holds_alternative<domain::Error>(consumed)) {
+                    discardGeo(*writer);
                     busy_ = false;
                     featureState_.insert(QStringLiteral("geoResult"), QStringLiteral("Failed"));
                     error(QStringLiteral("GeoResourceDownloadFailed"));
                     return;
                 }
-                const auto digest = QString::fromLatin1(
-                    QCryptographicHash::hash(*bytes, QCryptographicHash::Sha256).toHex());
-                const auto reference = QStringLiteral("data/geo/%1/%2").arg(digest, file);
-                const auto saved = store_.writeBytes(reference, *bytes, true);
+                const auto saved = writer->finish(file);
                 if (const auto* failure = std::get_if<domain::Error>(&saved)) {
                     busy_ = false;
+                    featureState_.insert(QStringLiteral("geoResult"), QStringLiteral("Failed"));
                     error(failure->code);
                     return;
                 }
+                const auto& resource = std::get<infra::StoredGeoResource>(saved);
                 snapshot.insert(
-                    file, QJsonObject{{QStringLiteral("sha256"), digest},
-                                      {QStringLiteral("sourceRef"), reference},
+                    file, QJsonObject{{QStringLiteral("sha256"), resource.sha256},
+                                      {QStringLiteral("sourceRef"), resource.reference},
                                       {QStringLiteral("updatedAt"),
                                        QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}});
                 fetchGeo(index + 1, snapshot, generation);

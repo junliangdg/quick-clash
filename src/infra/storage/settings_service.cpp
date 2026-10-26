@@ -14,6 +14,9 @@ struct SettingsService::State {
 SettingsService::SettingsService(QString root, QObject* parent)
     : QObject(parent), worker_(new QObject), state_(std::make_shared<State>()) {
     worker_->moveToThread(&thread_);
+    qRegisterMetaType<application::RuntimeUpdate>();
+    qRegisterMetaType<domain::OperationState>();
+    connect(&mailbox_, &LatestMailbox::delivered, this, &SettingsService::dataChanged);
     connect(&thread_, &QThread::finished, worker_, &QObject::deleteLater);
     const auto state = state_;
     connect(&thread_, &QThread::started, worker_, [this, state, root] {
@@ -26,6 +29,11 @@ SettingsService::SettingsService(QString root, QObject* parent)
         state->runtime = std::make_unique<application::DesktopRuntime>(*state->store);
         connect(state->runtime.get(), &application::DesktopRuntime::changed, this,
                 &SettingsService::runtimeChanged);
+        // The direct producer only touches the mailbox's locked value state, never GUI models.
+        connect(state->runtime.get(), &application::DesktopRuntime::dataPublished, worker_,
+                mailbox_.publisher(), Qt::DirectConnection);
+        connect(state->runtime.get(), &application::DesktopRuntime::operationCompleted, this,
+                &SettingsService::operationCompleted);
         state->runtime->initialize();
         SettingsRepository settings(*state->store);
         auto preferences = settings.load();
@@ -65,6 +73,7 @@ SettingsService::SettingsService(QString root, QObject* parent)
     QTimer::singleShot(0, this, [this] { thread_.start(); });
 }
 SettingsService::~SettingsService() {
+    mailbox_.close();
     // A barrier drains already queued saves before the event loop is stopped.
     if (!thread_.isRunning()) {
         thread_.start();
@@ -88,6 +97,15 @@ void SettingsService::save(UiPreferences preferences) {
             emit saved(preferences.theme, preferences.unloadWhenHidden,
                        preferences.closeAcknowledged);
         }
+    });
+}
+void SettingsService::setDemands(const application::RuntimeDemands& demands) {
+    // Revoke queued values synchronously, before the worker can observe the new leases.
+    mailbox_.setDemands(demands);
+    const auto state = state_;
+    QMetaObject::invokeMethod(worker_, [state, demands] {
+        if (state->runtime)
+            state->runtime->applyDemands(demands);
     });
 }
 void SettingsService::command(const QString& name, const QStringList& arguments) {
@@ -117,15 +135,9 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
         } else if (name == QStringLiteral("delete")) {
             runtime.deleteProfile(argument(0));
         } else if (name == QStringLiteral("start")) {
-            (void)runtime.startCore(runtime.snapshot()
-                                        .value(QStringLiteral("selectionGeneration"))
-                                        .toString()
-                                        .toULongLong());
+            (void)runtime.startCore(runtime.selectionGeneration());
         } else if (name == QStringLiteral("start_proxy")) {
-            (void)runtime.startProxy(runtime.snapshot()
-                                         .value(QStringLiteral("selectionGeneration"))
-                                         .toString()
-                                         .toULongLong());
+            (void)runtime.startProxy(runtime.selectionGeneration());
         } else if (name == QStringLiteral("stop")) {
             (void)runtime.stopProxy(domain::StopReason::UserStop);
         } else if (name == QStringLiteral("mode")) {
@@ -147,8 +159,6 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
             runtime.previewConfiguration();
         } else if (name == QStringLiteral("reapply_system_proxy")) {
             runtime.reapplySystemProxy();
-        } else if (name == QStringLiteral("demands")) {
-            runtime.setDemands(arguments);
         } else {
             runtime.featureCommand(name, arguments);
         }

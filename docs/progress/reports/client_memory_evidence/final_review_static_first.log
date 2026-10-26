@@ -1,0 +1,71 @@
+TEXT ONLY: formatting, QML parsing, script parsing, registration and retention.
+NOT C++ compilation/type checking, MOC/QML registration execution or product acceptance.
+RETENTION: 149 prior paths present; initial SHA coverage=140; byte-identical=140; documented continuations=[]; 9 non-ASCII design paths only have post-review SHA; deleted=0; HEAD unchanged.
+TEXT: 58 C++ delimiters/local includes/registration; JSON/XML parsed; no production ui.profiles consumer. These checks cannot prove types or linking.
+format: exit=0; command=['C:/Qt/Tools/QtCreator/bin/clang/bin/clang-format.exe', '--dry-run', '--Werror', 'app/application_host.cpp', 'app/application_host.h', 'app/deferred_ui_unload.cpp', 'app/deferred_ui_unload.h', 'app/host_probe.cpp', 'app/main.cpp', 'src/application/desktop_backup.cpp', 'src/application/desktop_features.cpp', 'src/application/desktop_providers.cpp', 'src/application/desktop_resources.cpp', 'src/application/desktop_runtime.cpp', 'src/application/desktop_runtime.h', 'src/application/runtime_update.h', 'src/infra/config/config_metadata.cpp', 'src/infra/config/config_metadata.h', 'src/infra/config/config_preflight.cpp', 'src/infra/config/config_preflight.h', 'src/infra/config/config_provider_stream.cpp', 'src/infra/config/geo_resources.cpp', 'src/infra/core/engine_session.cpp', 'src/infra/core/engine_session.h', 'src/infra/core/pipe_http.cpp', 'src/infra/core/service_client.cpp', 'src/infra/io/bounded_read.h', 'src/infra/io/device_stream.h', 'src/infra/storage/geo_resource_writer.cpp', 'src/infra/storage/geo_resource_writer.h', 'src/infra/storage/json_store.cpp', 'src/infra/storage/json_store.h', 'src/infra/storage/latest_mailbox.cpp', 'src/infra/storage/latest_mailbox.h', 'src/infra/storage/provider_stage.cpp', 'src/infra/storage/provider_stage.h', 'src/infra/storage/settings_service.cpp', 'src/infra/storage/settings_service.h', 'src/platform/windows/service_host.cpp', 'src/presentation/profile_model.cpp', 'src/presentation/profile_model.h', 'src/presentation/runtime_list_model.cpp', 'src/presentation/runtime_list_model.h', 'src/presentation/ui_state.cpp', 'src/presentation/ui_state.h', 'tests/integration/runtime_test.cpp', 'tests/integration/runtime_ui_probe.cpp', 'tests/integration/runtime_ui_probe.h', 'tests/integration/subscription_ui_probe.cpp', 'tests/integration/subscription_ui_probe.h', 'tests/unit/bounded_read_test.cpp', 'tests/unit/deferred_ui_unload_test.cpp', 'tests/unit/geo_resource_writer_test.cpp', 'tests/unit/latest_mailbox_test.cpp', 'tests/unit/localization_test.cpp', 'tests/unit/profile_model_test.cpp', 'tests/unit/provider_stream_test.cpp', 'tests/unit/runtime_list_model_test.cpp', 'tests/unit/runtime_publication_test.cpp', 'tests/unit/storage_test.cpp', 'tests/unit/ui_state_test.cpp']
+qml_0: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/components/runtime_list.qml']
+qml_1: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/components/subscription_card.qml']
+qml_2: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/connections/connections_page.qml']
+qml_3: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/home/home_page.qml']
+qml_4: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/logs/logs_page.qml']
+qml_5: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/proxies/proxies_page.qml']
+qml_6: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/rules/rules_page.qml']
+qml_7: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/settings/settings_page.qml']
+qml_8: exit=0; command=['C:/Qt/6.9.0/msvc2022_64/bin/qmlformat.exe', 'qml/features/subscriptions/subscriptions_page.qml']
+script_parse: exit=0; command=['pwsh', '-NoProfile', '-Command', "$ErrorActionPreference='Stop'; $files='bench/attach_memory_windows.ps1','bench/process_memory.ps1','tests/scripts/attach_memory_test.ps1'; foreach($file in $files) { $tokens=$null; $errors=$null; [void][System.Management.Automation.Language.Parser]::ParseFile((Join-Path (Get-Location) $file),[ref]$tokens,[ref]$errors); if($errors.Count) { $errors | Out-String | Write-Output; exit 1 }; Write-Output ('PARSED '+$file) }; exit 0"]
+design_check: exit=0; command=['pwsh', '-NoProfile', '-File', 'scripts/build_design_docs.ps1', '-Check']
+layout: exit=0; command=['pwsh', '-NoProfile', '-File', 'scripts/check_source_layout.ps1']
+progress: exit=1; command=['pwsh', '-NoProfile', '-File', 'scripts/check_progress.ps1']
+Progress snapshot (task counts are not product completion percentages):
+
+P0 (9): Todo=0, Doing=0, Review=0, Done=9, Blocked=0
+
+P1 (6): Todo=0, Doing=0, Review=0, Done=6, Blocked=0
+
+P2 (24): Todo=1, Doing=0, Review=2, Done=21, Blocked=0
+
+P3 (14): Todo=10, Doing=1, Review=0, Done=3, Blocked=0
+
+P4 (6): Todo=6, Doing=0, Review=0, Done=0, Blocked=0
+
+P5 (2): Todo=2, Doing=0, Review=0, Done=0, Blocked=0
+
+Gates: G0=Pass, G1=Pass, G2=NotRun, G3=NotRun, G4=NotRun, G5=NotRun
+
+MVP Pass=0/16
+
+ERROR: Broken link in 20261025_proxy_memory_fixes.md: ../../../dist/proxy_memory_fixes/bin/quickclash.exe
+
+
+[31;1mException: [0mD:\repos\quick-clash\scripts\check_progress.ps1:198[0m
+
+[31;1m[0m[36;1mLine |[0m
+
+[31;1m[0m[36;1m[36;1m 198 | [0m     [36;1mthrow "Progress validation failed with $($issues.Count) issue(s).[0m 锟斤拷[0m
+
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m     | [31;1m     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[31;1m[0m[36;1m[36;1m[0m[36;1m[0m[36;1m[31;1m[31;1m[36;1m     | [31;1mProgress validation failed with 1 issue(s).[0m
+
+
+diff: exit=0; command=['git', 'diff', '--check']
+CHECK_COUNTS: C++=58 QML=9 PowerShell=3
+RESULT_CODES={"design_check": 0, "diff": 0, "format": 0, "layout": 0, "progress": 1, "qml_0": 0, "qml_1": 0, "qml_2": 0, "qml_3": 0, "qml_4": 0, "qml_5": 0, "qml_6": 0, "qml_7": 0, "qml_8": 0, "script_parse": 0}
+Traceback (most recent call last):
+  File "D:\repos\quick-clash\docs\progress\reports\client_memory_evidence\final_review_static.py", line 159, in <module>
+    main()
+    ~~~~^^
+  File "D:\repos\quick-clash\docs\progress\reports\client_memory_evidence\final_review_static.py", line 152, in main
+    progress = text(EVIDENCE.relative_to(ROOT) / "final_review_progress.log")
+  File "D:\repos\quick-clash\docs\progress\reports\client_memory_evidence\final_review_static.py", line 27, in text
+    return (ROOT / path).read_text(encoding="utf-8-sig")
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Program Files\Python314\Lib\pathlib\__init__.py", line 788, in read_text
+    return f.read()
+           ~~~~~~^^
+  File "<frozen codecs>", line 325, in decode
+  File "C:\Program Files\Python314\Lib\encodings\utf_8_sig.py", line 69, in _buffer_decode
+    return codecs.utf_8_decode(input, errors, final)
+           ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^
+UnicodeDecodeError: 'utf-8' codec can't decode byte 0xa1 in position 819: invalid start byte
+EXIT_CODE=1

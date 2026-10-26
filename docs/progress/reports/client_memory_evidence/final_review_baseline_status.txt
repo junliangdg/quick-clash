@@ -1,0 +1,149 @@
+﻿ M CMakeLists.txt
+ M app/application_host.cpp
+ M app/application_host.h
+ M app/host_probe.cpp
+ M app/main.cpp
+ M bench/process_memory.ps1
+ M docs/baseline/windows_user_guide.md
+ M docs/design/02-鎬讳綋鏋舵瀯涓庤繍琛屾ā鍨?md
+ M docs/design/03-鏁版嵁妯″瀷涓庢帴鍙ｅ绾?md
+ M docs/design/04-鐣岄潰涓庣獥鍙ｇ敓鍛藉懆鏈?md
+ M docs/design/06-閰嶇疆绠＄悊涓庝簨鍔″簲鐢?md
+ M docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md
+ M docs/design/08-鎬昏涓庝唬鐞嗙粍.md
+ M docs/design/09-杩炴帴鏃ュ織瑙勫垯涓庢彁渚涜€?md
+ M docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md
+ M docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md
+ M docs/progress/CHECKLISTS.md
+ M docs/progress/DEVLOG.md
+ M docs/progress/README.md
+ M docs/progress/TASKS.md
+ M docs/progress/reports/README.md
+ M qml/components/runtime_list.qml
+ M qml/features/connections/connections_page.qml
+ M qml/features/home/home_page.qml
+ M qml/features/logs/logs_page.qml
+ M qml/features/proxies/proxies_page.qml
+ M qml/features/rules/rules_page.qml
+ M qml/features/settings/settings_page.qml
+ M qml/features/subscriptions/subscriptions_page.qml
+ M resources/i18n/quickclash_zh_cn.ts
+ M src/application/desktop_backup.cpp
+ M src/application/desktop_features.cpp
+ M src/application/desktop_providers.cpp
+ M src/application/desktop_resources.cpp
+ M src/application/desktop_runtime.cpp
+ M src/application/desktop_runtime.h
+ M src/infra/config/config_metadata.cpp
+ M src/infra/config/config_metadata.h
+ M src/infra/config/config_preflight.cpp
+ M src/infra/config/config_preflight.h
+ M src/infra/config/geo_resources.cpp
+ M src/infra/core/engine_session.cpp
+ M src/infra/core/engine_session.h
+ M src/infra/core/pipe_http.cpp
+ M src/infra/core/service_client.cpp
+ M src/infra/storage/json_store.cpp
+ M src/infra/storage/json_store.h
+ M src/infra/storage/settings_service.cpp
+ M src/infra/storage/settings_service.h
+ M src/platform/windows/service_host.cpp
+ M src/presentation/ui_state.cpp
+ M src/presentation/ui_state.h
+ M tests/integration/runtime_test.cpp
+ M tests/unit/localization_test.cpp
+ M tests/unit/storage_test.cpp
+ M tests/unit/ui_state_test.cpp
+?? app/deferred_ui_unload.cpp
+?? app/deferred_ui_unload.h
+?? bench/attach_memory_windows.ps1
+?? docs/progress/reports/20261026_client_memory_optimization.md
+?? docs/progress/reports/client_memory_evidence/attach_memory_test.log
+?? docs/progress/reports/client_memory_evidence/design_check.log
+?? docs/progress/reports/client_memory_evidence/design_generate.log
+?? docs/progress/reports/client_memory_evidence/diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1a_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_progress.log
+?? docs/progress/reports/client_memory_evidence/p1a_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1a_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_check_results.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p1b_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_static.log
+?? docs/progress/reports/client_memory_evidence/p2_final_design_check.log
+?? docs/progress/reports/client_memory_evidence/p2_final_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p2_final_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p2_final_format.log
+?? docs/progress/reports/client_memory_evidence/p2_final_progress.log
+?? docs/progress/reports/client_memory_evidence/p2_final_results.log
+?? docs/progress/reports/client_memory_evidence/p2_final_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p2_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p2_static_review.py
+?? docs/progress/reports/client_memory_evidence/p2a_design_check.log
+?? docs/progress/reports/client_memory_evidence/p2a_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p2a_format.log
+?? docs/progress/reports/client_memory_evidence/p2a_results.log
+?? docs/progress/reports/client_memory_evidence/p3_baseline.json
+?? docs/progress/reports/client_memory_evidence/p3_delivery_checks.log
+?? docs/progress/reports/client_memory_evidence/p3_design.log
+?? docs/progress/reports/client_memory_evidence/p3_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p3_final_static.log
+?? docs/progress/reports/client_memory_evidence/p3_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p3_progress.log
+?? docs/progress/reports/client_memory_evidence/p3_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p3_static.log
+?? docs/progress/reports/client_memory_evidence/p3_static_review.py
+?? docs/progress/reports/client_memory_evidence/p3_text_review.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_design.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_progress.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_static.log
+?? docs/progress/reports/client_memory_evidence/p3_verified_text_review.log
+?? docs/progress/reports/client_memory_evidence/progress.log
+?? docs/progress/reports/client_memory_evidence/source_layout.log
+?? docs/progress/reports/client_memory_evidence/static_checks.log
+?? qml/components/subscription_card.qml
+?? src/application/runtime_update.h
+?? src/infra/config/config_provider_stream.cpp
+?? src/infra/io/bounded_read.h
+?? src/infra/io/device_stream.h
+?? src/infra/storage/geo_resource_writer.cpp
+?? src/infra/storage/geo_resource_writer.h
+?? src/infra/storage/latest_mailbox.cpp
+?? src/infra/storage/latest_mailbox.h
+?? src/infra/storage/provider_stage.cpp
+?? src/infra/storage/provider_stage.h
+?? src/presentation/profile_model.cpp
+?? src/presentation/profile_model.h
+?? src/presentation/runtime_list_model.cpp
+?? src/presentation/runtime_list_model.h
+?? tests/integration/runtime_ui_probe.cpp
+?? tests/integration/runtime_ui_probe.h
+?? tests/integration/subscription_ui_probe.cpp
+?? tests/integration/subscription_ui_probe.h
+?? tests/scripts/attach_memory_test.ps1
+?? tests/unit/bounded_read_test.cpp
+?? tests/unit/deferred_ui_unload_test.cpp
+?? tests/unit/geo_resource_writer_test.cpp
+?? tests/unit/latest_mailbox_test.cpp
+?? tests/unit/profile_model_test.cpp
+?? tests/unit/provider_stream_test.cpp
+?? tests/unit/runtime_list_model_test.cpp
+?? tests/unit/runtime_publication_test.cpp

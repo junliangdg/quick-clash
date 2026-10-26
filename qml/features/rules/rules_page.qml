@@ -6,27 +6,24 @@ import QuickClash.Ui
 
 Item {
     id: root
+    objectName: "rules_page"
     required property UiState ui
     required property ThemeTokens theme
-    property string generation: ""
-    function refresh(): void { if (ui.runtime.ready) ui.runtimeCommand("rules"); }
-    Component.onCompleted: refresh()
-    Connections {
-        target: root.ui
-        function onRuntimeChanged(): void {
-            const generation = (root.ui.runtime.epoch || "") + ":" + (root.ui.runtime.selectionGeneration || "");
-            if (root.ui.runtime.ready && root.generation !== generation) {
-                root.generation = generation;
-                root.refresh();
-            }
-        }
+    readonly property string demandKey: ui.createDemandKey("rules")
+    property bool active: visible && ui.uiVisible && !ui.replay
+    function syncDemand(): void {
+        ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : "providers", active);
     }
+    onActiveChanged: syncDemand()
+    Component.onCompleted: syncDemand()
+    Component.onDestruction: ui.setDemand(demandKey, "rules", false)
     ColumnLayout {
         anchors.fill: parent
         ComboBox {
             id: section
+            objectName: "rules_section"
             model: [qsTr("Rules"), qsTr("Providers")]
-            onActivated: root.ui.runtimeCommand(currentIndex === 0 ? "rules" : "providers")
+            onCurrentIndexChanged: root.syncDemand()
         }
         ActionButton {
             theme: root.theme
@@ -45,12 +42,14 @@ Item {
             Layout.fillHeight: true
             theme: root.theme
             heading: section.currentText
-            entries: section.currentIndex === 0 ? (root.ui.runtime.rules || []) : (root.ui.runtime.providers || [])
+            listModel: section.currentIndex === 0 ? root.ui.liveRules : root.ui.liveProviders
             actionText: section.currentIndex === 1 ? qsTr("Update provider") : ""
-            describe: function(entry) {
+            describe: function (entry) {
                 return section.currentIndex === 0 ? (entry.type || "") + " · " + (entry.payload || "") + " → " + (entry.proxy || "") : entry.name + " · " + entry.kind + " · " + (entry.count || 0) + " · " + (entry.updatedAt || qsTr("Unknown"));
             }
-            onInvoked: function(entry) { root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]); }
+            onInvoked: function (entry) {
+                root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);
+            }
         }
     }
 }

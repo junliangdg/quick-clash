@@ -40,5 +40,11 @@ int main(int argc, char* argv[]) {
         QCoreApplication::translate("quickclash::ApplicationHost", "System proxy") ==
             "System proxy")
         return 7;
+    if (QCoreApplication::translate("subscription_card", "Manage") == "Manage" ||
+        QCoreApplication::translate(
+            "settings_page",
+            "Low memory: unload after 5 seconds hidden or minimized (experimental)") ==
+            "Low memory: unload after 5 seconds hidden or minimized (experimental)")
+        return 8;
     std::cout << "Locale preference, Chinese catalog, English and unsupported fallback passed\n";
 }

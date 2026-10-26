@@ -1,0 +1,6 @@
+Exception: D:\repos\quick-clash\scripts\build_design_docs.ps1:113
+Line |
+ 113 |              throw "Broken local link '$target' in $path."
+     |              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Broken local link '../../src/application/runtime_update.h:11' in
+     | D:\repos\quick-clash\docs\design\03-数据模型与接口契约.md.

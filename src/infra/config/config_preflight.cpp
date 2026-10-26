@@ -398,17 +398,6 @@ QString redactedConfig(const QByteArray& semantic) {
     }
 }
 
-namespace {
-YAML::Node boundedYaml(const QByteArray& input) {
-    require(input.size() <= 16 * 1024 * 1024, "ConfigLimitExceeded");
-    checkParseBudget(input);
-    const auto documents = YAML::LoadAll(input.toStdString());
-    require(documents.size() == 1, "InvalidYaml");
-    std::size_t count = 100000;
-    inspectTree(documents.front(), 0, count);
-    return documents.front();
-}
-} // namespace
 domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
     try {
         const auto metadata = configMetadata(input);
@@ -462,113 +451,6 @@ domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
         return inputError("InvalidProviderConfig");
     }
 }
-domain::Result<QByteArray> expandProviders(const QByteArray& input,
-                                           const QHash<QString, QByteArray>& payloads) {
-    try {
-        auto root = boundedYaml(input);
-        std::map<std::string, std::vector<std::string>> proxyNames, ruleValues;
-        if (!root["proxies"])
-            root["proxies"] = YAML::Node(YAML::NodeType::Sequence);
-        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
-            for (const auto& entry : root[kind]) {
-                const auto name = entry.first.as<std::string>();
-                const auto key = QString::fromLatin1(kind) + ':' + QString::fromStdString(name);
-                require(payloads.contains(key), "ProviderSnapshotMissing");
-                const auto bytes = payloads.value(key);
-                require(bytes.size() <= 4 * 1024 * 1024, "ProviderLimitExceeded");
-                YAML::Node values;
-                const auto format =
-                    entry.second["format"] ? entry.second["format"].as<std::string>() : "yaml";
-                if (format == "text") {
-                    values = YAML::Node(YAML::NodeType::Sequence);
-                    for (const auto& line : QString::fromUtf8(bytes).split('\n')) {
-                        const auto value = line.trimmed();
-                        if (!value.isEmpty() && !value.startsWith('#'))
-                            values.push_back(value.toStdString());
-                    }
-                } else {
-                    const auto document = boundedYaml(bytes);
-                    values =
-                        document[std::string(kind) == "proxy-providers" ? "proxies" : "payload"];
-                }
-                require(values.IsSequence() && values.size() <= 20000, "InvalidProviderPayload");
-                if (std::string(kind) == "proxy-providers") {
-                    proxyNames[name] = {};
-                    for (const auto& proxy : values) {
-                        proxyNames[name].push_back(proxy["name"].as<std::string>());
-                        root["proxies"].push_back(YAML::Clone(proxy));
-                    }
-                } else {
-                    ruleValues[name] = {};
-                    const auto behavior = entry.second["behavior"]
-                                              ? entry.second["behavior"].as<std::string>()
-                                              : "classical";
-                    for (const auto& item : values) {
-                        auto value = item.as<std::string>();
-                        require(value.size() <= 8192, "ProviderLimitExceeded");
-                        if (behavior == "domain") {
-                            if (value.starts_with("+."))
-                                value = "DOMAIN-SUFFIX," + value.substr(2);
-                            else if (value.starts_with("*."))
-                                value = "DOMAIN-SUFFIX," + value.substr(2);
-                            else
-                                value = "DOMAIN," + value;
-                        } else if (behavior == "ipcidr")
-                            value =
-                                (value.find(':') == std::string::npos ? "IP-CIDR," : "IP-CIDR6,") +
-                                value;
-                        ruleValues[name].push_back(value);
-                    }
-                }
-            }
-            root.remove(kind);
-        }
-        for (auto group : root["proxy-groups"]) {
-            if (!group["use"])
-                continue;
-            require(group["use"].IsSequence() && group["use"].size() <= 32,
-                    "InvalidProviderConfig");
-            if (!group["proxies"])
-                group["proxies"] = YAML::Node(YAML::NodeType::Sequence);
-            for (const auto& reference : group["use"]) {
-                const auto name = reference.as<std::string>();
-                require(proxyNames.contains(name), "ProviderSnapshotMissing");
-                for (const auto& member : proxyNames[name])
-                    group["proxies"].push_back(member);
-            }
-            group.remove("use");
-        }
-        YAML::Node rules(YAML::NodeType::Sequence);
-        for (const auto& rule : root["rules"]) {
-            const auto parts = QString::fromStdString(rule.as<std::string>()).split(',');
-            if (parts.first() != "RULE-SET") {
-                rules.push_back(YAML::Clone(rule));
-                continue;
-            }
-            require(parts.size() == 3 || (parts.size() == 4 && parts[3] == "no-resolve"),
-                    "InvalidProviderConfig");
-            const auto name = parts[1].toStdString();
-            require(ruleValues.contains(name), "ProviderSnapshotMissing");
-            for (auto value : ruleValues[name]) {
-                const bool noResolve = value.ends_with(",no-resolve") || parts.size() == 4;
-                if (value.ends_with(",no-resolve"))
-                    value.resize(value.size() - 11);
-                value += ',' + parts[2].toStdString();
-                if (noResolve)
-                    value += ",no-resolve";
-                rules.push_back(value);
-                require(rules.size() <= 20000, "ProviderLimitExceeded");
-            }
-        }
-        root["rules"] = rules;
-        return serializeYaml(root);
-    } catch (const InvalidConfig& failure) {
-        return inputError(failure.code);
-    } catch (const YAML::Exception&) {
-        return inputError("InvalidProviderPayload");
-    }
-}
-
 domain::Result<QByteArray> materializeSession(const PreflightConfig& config,
                                               const QByteArray& secret) {
     if (secret.size() < 32 || secret.size() > 256) {

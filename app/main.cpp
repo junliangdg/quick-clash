@@ -3,7 +3,9 @@
 #include "presentation/localization.h"
 #include "single_instance.h"
 #ifdef QUICKCLASH_TEST_PROBES
+#include "runtime_ui_probe.h"
 #include "subscription_memory_probe.h"
+#include "subscription_ui_probe.h"
 #endif
 #include <QApplication>
 #include <QDir>
@@ -75,8 +77,11 @@ int main(int argc, char* argv[]) {
     const bool trayTest = arguments.contains(QStringLiteral("--tray-test"));
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
     const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
+    const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
+    const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
-                          responsiveTest || arguments.contains(QStringLiteral("--isolated")) ||
+                          responsiveTest || runtimeListTest || subscriptionUiTest ||
+                          arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
     const auto option = [&arguments](const QString& key) {
         const auto prefix = key + QLatin1Char('=');
@@ -197,7 +202,7 @@ int main(int argc, char* argv[]) {
             }
             ui.navigate(QStringLiteral("subscriptions"));
             const quickclash::test::SubscriptionProbeRuntime client{
-                [&] { return QJsonObject::fromVariantMap(ui.runtime()); },
+                [&] { return ui.diagnosticSnapshot(); },
                 [&](int mixed, int controller) {
                     ui.runtimeCommand(QStringLiteral("ports"),
                                       {QString::number(mixed), QString::number(controller)});
@@ -228,6 +233,12 @@ int main(int argc, char* argv[]) {
         return quickclash::runTrayProbe(host);
     }
 #ifdef QUICKCLASH_TEST_PROBES
+    if (subscriptionUiTest) {
+        return quickclash::runSubscriptionUiProbe(host);
+    }
+    if (runtimeListTest) {
+        return quickclash::runRuntimeListProbe(host);
+    }
     if (responsiveTest) {
         return quickclash::runResponsiveProbe(host);
     }

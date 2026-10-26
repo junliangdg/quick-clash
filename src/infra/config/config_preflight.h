@@ -1,6 +1,7 @@
 #pragma once
 #include "domain/contracts.h"
 #include <QHash>
+#include <QIODevice>
 #include <QJsonArray>
 #include <QJsonObject>
 
@@ -25,6 +26,10 @@ preflightConfig(const QByteArray& input, const domain::RuntimePreferences& prefe
 [[nodiscard]] domain::Result<QJsonArray> providerRequests(const QByteArray& input);
 [[nodiscard]] domain::Result<QByteArray>
 expandProviders(const QByteArray& input, const QHash<QString, QByteArray>& payloads);
+// Production path: borrowed rewindable owned files, bounded output, no rule Node graph.
+[[nodiscard]] domain::CommandResult expandProviderFiles(QIODevice& input,
+                                                        const QHash<QString, QIODevice*>& payloads,
+                                                        QIODevice& output);
 // UI only receives a masked semantic template, never a materialized controller secret.
 [[nodiscard]] QString redactedConfig(const QByteArray& semantic);
 // Only canonical preflight output (or its hash-verified stored artifact), never raw input.

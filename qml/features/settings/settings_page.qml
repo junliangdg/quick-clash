@@ -392,7 +392,7 @@ ScrollView {
                 CheckBox {
                     id: unloadOption
                     font.family: root.theme.fontFamily
-                    text: qsTr("Unload the interface after 5 seconds hidden (experimental)")
+                    text: qsTr("Low memory: unload after 5 seconds hidden or minimized (experimental)")
                     Layout.fillWidth: true
                     contentItem: Text {
                         text: unloadOption.text
@@ -403,8 +403,14 @@ ScrollView {
                         wrapMode: Text.WordWrap
                     }
                     checked: root.ui.unloadWhenHidden
-                    enabled: root.ui.trayAvailable && root.ui.settingsReady
+                    enabled: root.ui.settingsReady && (root.ui.trayAvailable || checked)
                     onToggled: root.ui.unloadWhenHidden = checked
+                }
+                Label {
+                    text: qsTr("Off by default. Reuses your saved unload preference. Requires a working tray; without one, the minimized taskbar window is kept. The engine and subscription updates keep running; opening the tray rebuilds the interface.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                 }
                 Label {
                     font.family: root.theme.fontFamily

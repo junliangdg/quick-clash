@@ -1,5 +1,6 @@
 #include "infra/config/geo_resources.h"
 #include "infra/config/config_metadata.h"
+#include "infra/io/bounded_read.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -98,22 +99,26 @@ domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QStr
             }
         }
         QFile input(path);
-        if (!input.open(QIODevice::ReadOnly) || input.size() > 32 * 1024 * 1024)
+        if (!input.open(QIODevice::ReadOnly) || input.size() < 0 || input.size() > 32 * 1024 * 1024)
             return failure();
+        const auto expectedSize = input.size();
         QSaveFile output(QDir(directory).filePath(QString::fromLatin1(asset.target)));
+        output.setDirectWriteFallback(false);
         if (!output.open(QIODevice::WriteOnly))
             return failure();
         // Hash and copy the same bounded chunks; never retain entire Geo assets in the client.
         QCryptographicHash checksum(QCryptographicHash::Sha256);
         qint64 copied = 0;
-        while (!input.atEnd()) {
-            const auto chunk = input.read(64 * 1024);
-            if (chunk.isEmpty() || output.write(chunk) != chunk.size())
-                return failure();
-            checksum.addData(chunk);
-            copied += chunk.size();
-        }
-        if (input.error() != QFileDevice::NoError || copied != input.size() ||
+        const auto status =
+            consumeAvailable(input, copied, 32 * 1024 * 1024, [&](QByteArrayView chunk) {
+                if (copied > 32 * 1024 * 1024 ||
+                    output.write(chunk.data(), chunk.size()) != chunk.size())
+                    return false;
+                checksum.addData(chunk);
+                return true;
+            });
+        if (status != ReadStatus::Complete || input.error() != QFileDevice::NoError ||
+            copied != expectedSize || input.size() != expectedSize ||
             checksum.result().toHex() != expected || !output.commit())
             return failure();
     }

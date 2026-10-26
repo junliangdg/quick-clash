@@ -1,4 +1,7 @@
 #include "infra/storage/json_store.h"
+#include "infra/io/bounded_read.h"
+#include "infra/storage/geo_resource_writer.h"
+#include <QCryptographicHash>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -6,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonParseError>
 #include <QSaveFile>
+#include <QTemporaryFile>
 #include <utility>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -153,14 +157,32 @@ domain::Result<QByteArray> JsonStore::readBytes(const QString& reference, qsizet
     if (!file.open(QIODevice::ReadOnly) || file.size() > limit || file.size() < 0) {
         return storageError("DataReadFailed");
     }
-    // QIODevice::read(maxSize) can retain maxSize capacity after a short read. Reading a
-    // 500 KiB profile with the 16 MiB policy limit must not retain a 16 MiB buffer.
-    const auto expected = file.size();
-    const auto bytes = file.read(expected + 1);
-    if (bytes.size() > limit || file.error() != QFileDevice::NoError) {
+    auto loaded = readFileBounded(file, limit);
+    if (!loaded.ok) {
         return storageError("DataReadFailed");
     }
-    return bytes;
+    return std::move(loaded.bytes);
+}
+domain::CommandResult JsonStore::verifyBytes(const QString& reference,
+                                             const QString& sha256) const {
+    const auto resolved = path(reference);
+    if (const auto* failure = std::get_if<domain::Error>(&resolved))
+        return *failure;
+    QFile input(std::get<QString>(resolved));
+    if (!input.open(QIODevice::ReadOnly) || input.size() < 0 || input.size() > 16 * 1024 * 1024)
+        return storageError("DataReadFailed");
+    const auto expected = input.size();
+    qint64 total = 0;
+    QCryptographicHash checksum(QCryptographicHash::Sha256);
+    const auto status = consumeAvailable(input, total, 16 * 1024 * 1024, [&](QByteArrayView chunk) {
+        checksum.addData(chunk);
+        return true;
+    });
+    if (status != ReadStatus::Complete || total != expected || input.size() != expected ||
+        input.error() != QFileDevice::NoError ||
+        QString::fromLatin1(checksum.result().toHex()) != sha256)
+        return storageError("SourceIntegrityFailed");
+    return std::monostate{};
 }
 domain::Result<std::optional<QJsonObject>> JsonStore::read(const QString& reference) {
     const auto resolved = path(reference);
@@ -191,6 +213,16 @@ domain::CommandResult JsonStore::writeBytes(const QString& reference, const QByt
                                             bool immutable) {
     if (bytes.size() > 16 * 1024 * 1024)
         return storageError("DataLimitExceeded");
+    const auto resolved = prepareWrite(reference, immutable);
+    if (const auto* error = std::get_if<domain::Error>(&resolved))
+        return *error;
+    QSaveFile file(std::get<QString>(resolved));
+    file.setDirectWriteFallback(false);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size())
+        return storageError("DataWriteFailed");
+    return commitWrite(file);
+}
+domain::Result<QString> JsonStore::prepareWrite(const QString& reference, bool immutable) {
     if (!opened_ || readOnly_) {
         return storageError("RepositoryReadOnly");
     }
@@ -210,9 +242,13 @@ domain::CommandResult JsonStore::writeBytes(const QString& reference, const QByt
     if (const auto* error = std::get_if<domain::Error>(&secured)) {
         return *error;
     }
-    QSaveFile file(target);
-    file.setDirectWriteFallback(false);
-    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.flush()) {
+    // Recheck after directory creation; all writers share this path/ACL boundary.
+    return path(reference);
+}
+domain::CommandResult JsonStore::commitWrite(QSaveFile& file) const {
+    if (!opened_ || readOnly_)
+        return storageError("RepositoryReadOnly");
+    if (!file.flush()) {
         return storageError("DataWriteFailed");
     }
 #ifdef Q_OS_WIN
@@ -224,6 +260,31 @@ domain::CommandResult JsonStore::writeBytes(const QString& reference, const QByt
         return storageError("DataCommitFailed");
     }
     return std::monostate{};
+}
+domain::Result<std::unique_ptr<GeoResourceWriter>> JsonStore::beginGeoWrite() {
+    const auto resolved = prepareWrite(QStringLiteral("cache/geo/download"), false);
+    if (const auto* error = std::get_if<domain::Error>(&resolved))
+        return *error;
+    // The private constructor prevents bypassing the store's path and ACL checks.
+    auto writer = std::unique_ptr<GeoResourceWriter>(
+        new GeoResourceWriter(*this, std::get<QString>(resolved) + QStringLiteral(".XXXXXX")));
+    const auto opened = writer->open();
+    if (const auto* error = std::get_if<domain::Error>(&opened))
+        return *error;
+    return writer;
+}
+domain::Result<std::unique_ptr<QTemporaryFile>> JsonStore::beginConfigTemporary() {
+    const auto resolved = prepareWrite(QStringLiteral("cache/config_stage/item"), false);
+    if (const auto* failure = std::get_if<domain::Error>(&resolved))
+        return *failure;
+    auto file =
+        std::make_unique<QTemporaryFile>(std::get<QString>(resolved) + QStringLiteral(".XXXXXX"));
+    if (!file->open())
+        return storageError("DataWriteFailed");
+    const auto secured = restrictToCurrentUser(file->fileName(), false);
+    if (const auto* failure = std::get_if<domain::Error>(&secured))
+        return *failure;
+    return file;
 }
 domain::CommandResult JsonStore::write(const QString& reference, QJsonObject value) {
     // Never replace unknown or corrupt metadata with defaults.

@@ -63,6 +63,42 @@ int runTrayProbe(ApplicationHost& host) {
             if (!require(host.contentReady() && host.state().activeDemandCount() > 0,
                          "rebuilt content and consumers"))
                 return;
+            host.state().requestMinimize();
+            timer.setInterval(5500);
+            break;
+        case 4:
+            if (!require(!host.window() && host.state().activeDemandCount() == 0,
+                         "minimized tray host unloads after delay"))
+                return;
+            if (!require(host.showWindow() && host.showWindow() && host.engineGeneration() == 3,
+                         "repeated restore creates one engine"))
+                return;
+            timer.setInterval(200);
+            break;
+        case 5:
+            if (!require(host.contentReady() && host.state().activeDemandCount() > 0,
+                         "minimized restore reacquires consumers once"))
+                return;
+            host.state().requestClose();
+            host.state().requestClose();
+            host.state().setUnloadWhenHidden(false);
+            timer.setInterval(5500);
+            break;
+        case 6:
+            if (!require(host.window() && !host.window()->isVisible() &&
+                             host.engineGeneration() == 3,
+                         "disable cancels repeated hidden lease"))
+                return;
+            host.state().setUnloadWhenHidden(true);
+            if (!require(host.showWindow(), "show cancels a newly armed hidden lease"))
+                return;
+            timer.setInterval(5500);
+            break;
+        case 7:
+            if (!require(host.window() && host.window()->isVisible() &&
+                             host.engineGeneration() == 3 && host.state().activeDemandCount() > 0,
+                         "old timeout cannot unload restored window"))
+                return;
             timer.stop();
             std::puts("Native tray host probe passed");
             QCoreApplication::quit();
@@ -78,6 +114,13 @@ int runHostProbe(ApplicationHost& host) {
     int step = 0;
     int confirmations = 0;
     QPointer<QQuickWindow> previousWindow;
+    const auto restoreConnection =
+        QObject::connect(&host.state(), &presentation::UiState::hostChanged, &host, [&host] {
+            if (host.state().hostState() == QStringLiteral("Unloading")) {
+                (void)host.showWindow();
+                (void)host.showWindow();
+            }
+        });
     const auto confirmationConnection =
         QObject::connect(&host.state(), &presentation::UiState::closeConfirmationRequired, &host,
                          [&confirmations] { ++confirmations; });
@@ -109,15 +152,19 @@ int runHostProbe(ApplicationHost& host) {
         case 1:
             if (!require(host.window()->property("compact").toBool(), "compact desktop layout"))
                 return;
+            host.state().setUnloadWhenHidden(true);
             host.state().requestMinimize();
+            timer.setInterval(5500);
             break;
         case 2:
-            if (!require(host.state().hostState() == QStringLiteral("Minimized") &&
+            if (!require(host.window() && host.engineGeneration() == 1 &&
+                             host.state().hostState() == QStringLiteral("Minimized") &&
                              host.state().activeDemandCount() == 0 && !host.state().replayRunning(),
-                         "minimize releases demand"))
+                         "no tray retains minimized taskbar recovery even with unload enabled"))
                 return;
             if (!require(host.showWindow(), "restore minimized window"))
                 return;
+            timer.setInterval(100);
             break;
         case 3:
             if (!require(host.state().uiVisible() && host.state().activeDemandCount() > 0 &&
@@ -133,11 +180,11 @@ int runHostProbe(ApplicationHost& host) {
                              host.state().activeDemandCount() == 0 && !host.state().replayRunning(),
                          "engine and window destroyed synchronously"))
                 return;
-            if (!require(host.showWindow(), "rebuild window"))
-                return;
+            // Reentrant show requests above must coalesce into the queued single rebuild.
             break;
         case 4:
-            if (!require(host.contentReady() && host.window()->width() == 720 &&
+            if (!require(host.contentReady() && host.engineGeneration() == 2 &&
+                             host.window()->width() == 720 &&
                              host.state().currentPage() == QStringLiteral("connections") &&
                              host.state()
                                      .readState(QStringLiteral("connections"))
@@ -163,6 +210,7 @@ int runHostProbe(ApplicationHost& host) {
     });
     timer.start();
     const int result = QCoreApplication::exec();
+    QObject::disconnect(restoreConnection);
     QObject::disconnect(confirmationConnection);
     return result;
 }

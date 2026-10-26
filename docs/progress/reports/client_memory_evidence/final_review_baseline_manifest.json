@@ -1,0 +1,842 @@
+﻿[
+    {
+        "path":  "CMakeLists.txt",
+        "status":  " M",
+        "sha256":  "93446568863DAFDA3DBA5F2BA538D55B4566FC5A793BBED0AFF1546B29377F75",
+        "bytes":  22578
+    },
+    {
+        "path":  "app/application_host.cpp",
+        "status":  " M",
+        "sha256":  "221963F3470798C08D51EA198F62D0E3E5A6299FE23AF13D8249C96B94AC38DC",
+        "bytes":  12362
+    },
+    {
+        "path":  "app/application_host.h",
+        "status":  " M",
+        "sha256":  "C1E3E2E5FF3543408879AFE97D212589B259156679385A37CE707F325F687357",
+        "bytes":  2005
+    },
+    {
+        "path":  "app/host_probe.cpp",
+        "status":  " M",
+        "sha256":  "229157241BD682CCF607A69FD3B556723572BC541FE7FB992CA4C227E8E6EB15",
+        "bytes":  9852
+    },
+    {
+        "path":  "app/main.cpp",
+        "status":  " M",
+        "sha256":  "0F023C11916863BEB31B8571389D9EAB33774DAFF86040701A89B91A9E559C84",
+        "bytes":  19948
+    },
+    {
+        "path":  "bench/process_memory.ps1",
+        "status":  " M",
+        "sha256":  "1EDDB8E70CADC1F3557C237F9A8E8DAE7C169D40F92F2FC3F3601843A1552F41",
+        "bytes":  2163
+    },
+    {
+        "path":  "docs/baseline/windows_user_guide.md",
+        "status":  " M",
+        "sha256":  "4065DA68FF4DA3CB0AF38F46DEDAC54EC34725A258C85896850B1240007BA88B",
+        "bytes":  12954
+    },
+    {
+        "path":  "docs/progress/CHECKLISTS.md",
+        "status":  " M",
+        "sha256":  "554BE30E435E2B5E4D691913329A82FC7973BD859728894012D681D231CC8408",
+        "bytes":  28103
+    },
+    {
+        "path":  "docs/progress/DEVLOG.md",
+        "status":  " M",
+        "sha256":  "3B7E21564570A32A1F07872AABBC8A9AE719CE37C3F742CA813BF16A6BCEA052",
+        "bytes":  61095
+    },
+    {
+        "path":  "docs/progress/README.md",
+        "status":  " M",
+        "sha256":  "C81DB4260CE969862941FFBE3A0B0A6F437F1119FF0F638CBACE0E0A9B6DB707",
+        "bytes":  16513
+    },
+    {
+        "path":  "docs/progress/TASKS.md",
+        "status":  " M",
+        "sha256":  "F91468A9F0D7033879D9E4ACA01DBD46D124270FEF86F45347B498025A619FB9",
+        "bytes":  26642
+    },
+    {
+        "path":  "docs/progress/reports/README.md",
+        "status":  " M",
+        "sha256":  "C8307562EEA8A62B43194C38F6AEE07BD0A25928AC0345766654D58DC72219BC",
+        "bytes":  8455
+    },
+    {
+        "path":  "qml/components/runtime_list.qml",
+        "status":  " M",
+        "sha256":  "E3FD68BFEC4325C475965B03080795981D5DD5672029CF22F2E21ACF71D485C5",
+        "bytes":  3453
+    },
+    {
+        "path":  "qml/features/connections/connections_page.qml",
+        "status":  " M",
+        "sha256":  "71246E73A75BAFE2FBB31EEDCEC9A4BD28A17CE80699CC65F6D8AD308D5B6111",
+        "bytes":  4483
+    },
+    {
+        "path":  "qml/features/home/home_page.qml",
+        "status":  " M",
+        "sha256":  "628A0D8838BCDC4F1DBC5828EAD184BAF85256E8E0B974918C07B103FC9768BF",
+        "bytes":  15976
+    },
+    {
+        "path":  "qml/features/logs/logs_page.qml",
+        "status":  " M",
+        "sha256":  "6B0C8A70BBF73BAB38D169CB47A9596EB71C5FAE475C6E45CA551F8DC15CB202",
+        "bytes":  3414
+    },
+    {
+        "path":  "qml/features/proxies/proxies_page.qml",
+        "status":  " M",
+        "sha256":  "BFB6A0ED089E1C985B111E269BEB229DEB9449549222CA11045EB19D1DAE374E",
+        "bytes":  8509
+    },
+    {
+        "path":  "qml/features/rules/rules_page.qml",
+        "status":  " M",
+        "sha256":  "3701ED2CFF7D3FBAEA9A9DECEA35C37C9A97F793884534984951C3927A162371",
+        "bytes":  2291
+    },
+    {
+        "path":  "qml/features/settings/settings_page.qml",
+        "status":  " M",
+        "sha256":  "16C91FB2974E85A7AC905C58D162B371DE8C5DAABD27C0BFD64685C5DC9F401E",
+        "bytes":  21584
+    },
+    {
+        "path":  "qml/features/subscriptions/subscriptions_page.qml",
+        "status":  " M",
+        "sha256":  "DD86DCC723FFE999CE55A11D19EB6BB0355BF615C974E0A3BDEF545B662DDA94",
+        "bytes":  13418
+    },
+    {
+        "path":  "resources/i18n/quickclash_zh_cn.ts",
+        "status":  " M",
+        "sha256":  "93B86F64962E87D64647F1C2FEE5327043387B218813351BDA91BCE98F91A5F3",
+        "bytes":  91450
+    },
+    {
+        "path":  "src/application/desktop_backup.cpp",
+        "status":  " M",
+        "sha256":  "C12FDD220CA8407EEC50ADDEC6790BB3D68E6C4C68F1410CBDE0A0692E0BF8C5",
+        "bytes":  7367
+    },
+    {
+        "path":  "src/application/desktop_features.cpp",
+        "status":  " M",
+        "sha256":  "2C5706FFDD7BB2ACF65071AF307DDF59764B5D4123B9930EF28067BF24C31A49",
+        "bytes":  39891
+    },
+    {
+        "path":  "src/application/desktop_providers.cpp",
+        "status":  " M",
+        "sha256":  "18BC210CFCB43479A182EA31596531EA39C01FBD304282C7E21A2324DACB9655",
+        "bytes":  7398
+    },
+    {
+        "path":  "src/application/desktop_resources.cpp",
+        "status":  " M",
+        "sha256":  "89C3E5ED4DF0E8D77BE331DBF20A5A98491D8073CB6A0A28DA554CCF6082FB9F",
+        "bytes":  6146
+    },
+    {
+        "path":  "src/application/desktop_runtime.cpp",
+        "status":  " M",
+        "sha256":  "E09C0D8108BC29CFA94C48ED0FCA49247BEA671A8E8D2B6C44706F71ED65A26A",
+        "bytes":  117040
+    },
+    {
+        "path":  "src/application/desktop_runtime.h",
+        "status":  " M",
+        "sha256":  "D1976B27D8D6CF65269EEEF4D953E4CCA6BE1DBD968860661CD6016854B6E5A3",
+        "bytes":  10881
+    },
+    {
+        "path":  "src/infra/config/config_metadata.cpp",
+        "status":  " M",
+        "sha256":  "F79103E75A6A4CC07D51CB3254255EE6C975F80F295B4865A18D790465B66273",
+        "bytes":  9196
+    },
+    {
+        "path":  "src/infra/config/config_metadata.h",
+        "status":  " M",
+        "sha256":  "F92C8D62ABE61D097CF023E5A6C279302F2D9EC98CCEB3229F9465DF48F87E92",
+        "bytes":  1209
+    },
+    {
+        "path":  "src/infra/config/config_preflight.cpp",
+        "status":  " M",
+        "sha256":  "12ADB0D4C27CC7F42649B3FEED1B146513EE025D8522591CC59114E5A5D75098",
+        "bytes":  22874
+    },
+    {
+        "path":  "src/infra/config/config_preflight.h",
+        "status":  " M",
+        "sha256":  "FC287F9CEF125A3ADA446D35E45F56B9D66FE35B92BACE62885727BD4374DCFE",
+        "bytes":  2377
+    },
+    {
+        "path":  "src/infra/config/geo_resources.cpp",
+        "status":  " M",
+        "sha256":  "9A63468F8B18497995F253433B9C65DA67C27F1CBF3E1DFBBEE78EFC0899F7CF",
+        "bytes":  5838
+    },
+    {
+        "path":  "src/infra/core/engine_session.cpp",
+        "status":  " M",
+        "sha256":  "CF18B17755FD2D6D88ABC84EAE392BA557F960998642170A094FA18FC72DCBE6",
+        "bytes":  24628
+    },
+    {
+        "path":  "src/infra/core/engine_session.h",
+        "status":  " M",
+        "sha256":  "496EE30DAF88B1E16F5D9820B298EC7744A8F52625A1FC9D2DF247990E51F13F",
+        "bytes":  4179
+    },
+    {
+        "path":  "src/infra/core/pipe_http.cpp",
+        "status":  " M",
+        "sha256":  "42A1E89F0B7993AD868AB552C3DF0A9E1C733022456CE9AF60A8B593FD5A34A9",
+        "bytes":  5618
+    },
+    {
+        "path":  "src/infra/core/service_client.cpp",
+        "status":  " M",
+        "sha256":  "27E48471364B01832DD24A14BBB143D1A20029F5BCFD98BF0B37139F6F6A858A",
+        "bytes":  6139
+    },
+    {
+        "path":  "src/infra/storage/json_store.cpp",
+        "status":  " M",
+        "sha256":  "31C9C7AE81352EE81540EE17694A1E97716F34C30BD61E330F0D16D67D047B88",
+        "bytes":  14349
+    },
+    {
+        "path":  "src/infra/storage/json_store.h",
+        "status":  " M",
+        "sha256":  "41B94018537A6526C8FBFE1FAF72841A13DC38DDD3BEA30963253D2190C96815",
+        "bytes":  2474
+    },
+    {
+        "path":  "src/infra/storage/settings_service.cpp",
+        "status":  " M",
+        "sha256":  "8B346DFE4901FBCAABE35338628A5953E1F212530227330C88A0B58C969CD585",
+        "bytes":  8139
+    },
+    {
+        "path":  "src/infra/storage/settings_service.h",
+        "status":  " M",
+        "sha256":  "1A70DEDD9FD744CF4FCC82168FE324F8F6E9977EC3CD76629D4827783EABF33C",
+        "bytes":  1317
+    },
+    {
+        "path":  "src/platform/windows/service_host.cpp",
+        "status":  " M",
+        "sha256":  "C4C90F406B797AA4E27B07A7CED99A51D39FA47ABD9F1082C64A42D61144B20A",
+        "bytes":  32709
+    },
+    {
+        "path":  "src/presentation/ui_state.cpp",
+        "status":  " M",
+        "sha256":  "FE34EC13EC8E004F72619028A3068FC5AD9A6E84A990476482E5A0B16DC135B6",
+        "bytes":  24996
+    },
+    {
+        "path":  "src/presentation/ui_state.h",
+        "status":  " M",
+        "sha256":  "E81C90015FC31345545FA937BC62361C741C13D1E4145074A040C1F21E45169E",
+        "bytes":  12184
+    },
+    {
+        "path":  "tests/integration/runtime_test.cpp",
+        "status":  " M",
+        "sha256":  "A7DA4D17FFF9A869677FC71574C2A59E02C53FFA032749A888C8016174A7A988",
+        "bytes":  63817
+    },
+    {
+        "path":  "tests/unit/localization_test.cpp",
+        "status":  " M",
+        "sha256":  "FB62A18BB5B46F8C9616E913DC98631127057FDB272EA80DC7DC8B69774F0B78",
+        "bytes":  2622
+    },
+    {
+        "path":  "tests/unit/storage_test.cpp",
+        "status":  " M",
+        "sha256":  "0ECF8F4469A2881F7EEF05CEE59297151671005E6A2B9BBFD62B125D9AA0A935",
+        "bytes":  9574
+    },
+    {
+        "path":  "tests/unit/ui_state_test.cpp",
+        "status":  " M",
+        "sha256":  "B504F8AB9952C94D9258D09789C873AB8C50B5CB2E254A318CACE24485B90DE3",
+        "bytes":  15372
+    },
+    {
+        "path":  "app/deferred_ui_unload.cpp",
+        "status":  "??",
+        "sha256":  "B12A5BFA31DE6048BE46398A64922CFAB500EC753192170B8AA0968758D8336E",
+        "bytes":  1008
+    },
+    {
+        "path":  "app/deferred_ui_unload.h",
+        "status":  "??",
+        "sha256":  "20E5D6B6D10C6B3B7AFA380BF2437440D63DE50AB100CB297642B25EF8D6EEDF",
+        "bytes":  731
+    },
+    {
+        "path":  "bench/attach_memory_windows.ps1",
+        "status":  "??",
+        "sha256":  "5F00D14FCCCA73E900F4F158A3E5C2931C841A335DB52867DCDAC729486FCDDD",
+        "bytes":  3282
+    },
+    {
+        "path":  "docs/progress/reports/20261026_client_memory_optimization.md",
+        "status":  "??",
+        "sha256":  "843B00DCA72361EA226F7C158BCEA92BDE763F88594460DF1434953813887C47",
+        "bytes":  72214
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/attach_memory_test.log",
+        "status":  "??",
+        "sha256":  "EFF587E66B1F04E715D4ED2EF8EE0545B27664CE28A6F7D1053EB183D144CDA9",
+        "bytes":  110
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/design_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/diff_check.log",
+        "status":  "??",
+        "sha256":  "8B47E2F76EDBFD43AA9BB67C3A1238D27F9BFF7B281FF57FB8DA531B592B81E1",
+        "bytes":  1269
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_design_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_diff_check.log",
+        "status":  "??",
+        "sha256":  "FC2F8B859A7424570DE4ADBF9287D2ADA54CF3EB716A91FEE462011FBDA9893B",
+        "bytes":  2651
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_progress.log",
+        "status":  "??",
+        "sha256":  "EB29B1F77305102A368469C407B69C52E72D1983335070B1BD7DAA4D74E67C4B",
+        "bytes":  891
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_source_layout.log",
+        "status":  "??",
+        "sha256":  "37E4EE70583C4C70849E880448AE7D2F9348CDF38BC1EB61876BE4B05CC09234",
+        "bytes":  183
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1a_static.log",
+        "status":  "??",
+        "sha256":  "51D13501B207820ECAAA680289DC3DCE7D9C23143F51B9978A18859425966DAA",
+        "bytes":  460
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_design_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_diff_check.log",
+        "status":  "??",
+        "sha256":  "EF749BF42E8FA01679AC1C72B0CE48DF3321FCC7D5781B3D2465AE35F31ED19E",
+        "bytes":  2247
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_check_results.log",
+        "status":  "??",
+        "sha256":  "1B6CB2C0E0D718853481319CB82CB02234DA2FD13D9468EBEE812B05FF8A76FC",
+        "bytes":  165
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_design_check.log",
+        "status":  "??",
+        "sha256":  "73E69A0A801B77329324D705588B87F4CD29CB2B5A1A62372C8CE0554A32C2D3",
+        "bytes":  186
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_diff_check.log",
+        "status":  "??",
+        "sha256":  "A9933ADA96D05694E3CD0EFDB533041B3609D4491F57B6C6C5EEA2479BFCF059",
+        "bytes":  4494
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_progress.log",
+        "status":  "??",
+        "sha256":  "650630DF7ECCADD0D1C6AB5CA45C0F53A3C1D5106A20AB5E1015439534EBB683",
+        "bytes":  1756
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_source_layout.log",
+        "status":  "??",
+        "sha256":  "C6554BC5649A6EBB010E69EA20BCE56518F7A619F45C1B38843EF65A37A3CE0A",
+        "bytes":  366
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_static.log",
+        "status":  "??",
+        "sha256":  "9E13E1AE0DA240262AAED2224306866D81429A48A08BC7A5F7834624EA3788C6",
+        "bytes":  173
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_final_worktree.log",
+        "status":  "??",
+        "sha256":  "48321AE31F1561F721D21689337AC8ADE26D0DC4DE35DC3B349D7751208D154A",
+        "bytes":  22916
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_progress.log",
+        "status":  "??",
+        "sha256":  "75BC6F9B2E7360205559FE6C12224B3B63C80A9505FE1A73F020F4C28F7C344F",
+        "bytes":  878
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_protocol_design_check.log",
+        "status":  "??",
+        "sha256":  "C8ADB520F66E2071834C9C47F5E18F84307D0DED4C4E5C772C6378BEFFCACEE7",
+        "bytes":  361
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_protocol_design_generate.log",
+        "status":  "??",
+        "sha256":  "D783231F00746DCA172AEA108BAA4E724E32D0C4D09352BB043F56194F49F5FB",
+        "bytes":  358
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_source_layout.log",
+        "status":  "??",
+        "sha256":  "37E4EE70583C4C70849E880448AE7D2F9348CDF38BC1EB61876BE4B05CC09234",
+        "bytes":  183
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p1b_static.log",
+        "status":  "??",
+        "sha256":  "0048E9371466DAD3E14F3E46DA23566EC774442EEF93D62931A9ED3BBA131086",
+        "bytes":  765
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_design_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_diff_check.log",
+        "status":  "??",
+        "sha256":  "14D87781B39A10EC915D079F3B397BC2071F861BC9DF2E63CDDD093D48474E1C",
+        "bytes":  2654
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_format.log",
+        "status":  "??",
+        "sha256":  "B7BA5509F7E3FE6BC5412A22805BD7897BD3325A98306A232A3317458CC5CC25",
+        "bytes":  56
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_progress.log",
+        "status":  "??",
+        "sha256":  "D47F4C62CCF7F71154798E3B2CFCD212A0B06DD072E430828299C3FA5B479070",
+        "bytes":  1096
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_results.log",
+        "status":  "??",
+        "sha256":  "9A3350D776331C51C7C1EBA3B0E424066CDE60CB5A07250A20EF8C9F1EF2E24D",
+        "bytes":  183
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_source_layout.log",
+        "status":  "??",
+        "sha256":  "B2B49C442095FA7D5ACD4D513B521C6181826076FFDDA1F7BF985DD3AFD0B25E",
+        "bytes":  183
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_final_worktree.log",
+        "status":  "??",
+        "sha256":  "C68C2EB92D2D12F203C874BA60600ED5DFA87AA7F61D9531E133B5FE9A507ED7",
+        "bytes":  8145
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2_static_review.py",
+        "status":  "??",
+        "sha256":  "22061DAA3C38C8C0EF3D63FF6FE63F779E923094B4EE8D5C4D7D3403E6A86729",
+        "bytes":  4720
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2a_design_check.log",
+        "status":  "??",
+        "sha256":  "AA1CA0DC5A814724D6CDE4A6B52BC3B8AB858712E395291AF256D75FF56C4768",
+        "bytes":  93
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2a_design_generate.log",
+        "status":  "??",
+        "sha256":  "7C8DE7B092406BFFA078D3CB2BC8AD34799CB3CFD52CCF1A6CB31C0FD8D88E8F",
+        "bytes":  151
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2a_format.log",
+        "status":  "??",
+        "sha256":  "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+        "bytes":  0
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p2a_results.log",
+        "status":  "??",
+        "sha256":  "1BEAA9753ACA0649F5BAD7329A63467F5BD561504E80E53AECE75EA7734DBFF1",
+        "bytes":  58
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_baseline.json",
+        "status":  "??",
+        "sha256":  "218D94DC0E2D4E3C4402D244DE2CD40F4BBB2990587639A79379EFA6CE2FCB73",
+        "bytes":  21499
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_delivery_checks.log",
+        "status":  "??",
+        "sha256":  "76C913C2878B3BA2A0D6DBD63ABF647EC5E101E865A37F5A33E6F3B921B0B7F0",
+        "bytes":  5667
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_design.log",
+        "status":  "??",
+        "sha256":  "E54E030CD8A1AD8A69CDE3F78AE9DBD539C6424CA9B6BDF3097B40D6A2010D7A",
+        "bytes":  289
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_diff_check.log",
+        "status":  "??",
+        "sha256":  "94B0116823694C928E429ACBC77E28BECB606F079D4F12373AC2E2422D50E4BD",
+        "bytes":  3089
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_final_static.log",
+        "status":  "??",
+        "sha256":  "C0067E423F8BA6CBCAD15DBD9DFB9CB631B2CB4E11F71EF3FE327BE5D8A65E43",
+        "bytes":  567
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_final_worktree.log",
+        "status":  "??",
+        "sha256":  "073ABF4B9159DFC71E30F974C5C7431F431F77E643D3609AF74752C41347154F",
+        "bytes":  17479
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_progress.log",
+        "status":  "??",
+        "sha256":  "87C3A5C87B4320AA4B29A95124314925B7C64E2E32A4B829639D43F3B8693086",
+        "bytes":  895
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_source_layout.log",
+        "status":  "??",
+        "sha256":  "257690B1B43FBE895B5E9BC53218A275D138579D7F6EF0FD6B6D3269C8D23AEC",
+        "bytes":  205
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_static.log",
+        "status":  "??",
+        "sha256":  "C101A0C9A51CEA224A03B5C3BE0164EA53509643C7EDA921A04C5DA397A767C5",
+        "bytes":  567
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_static_review.py",
+        "status":  "??",
+        "sha256":  "E6E4BC4BA16AC8BC0486196EDA71D6470318E9026A1EBA0BC38C7A3FCFA55AF7",
+        "bytes":  6448
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_text_review.log",
+        "status":  "??",
+        "sha256":  "ABBE7F06E930C1938BFEECF9AFE3D8A361AC5337067B4EA690974EEF94C5EFA5",
+        "bytes":  10436
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_design.log",
+        "status":  "??",
+        "sha256":  "E54E030CD8A1AD8A69CDE3F78AE9DBD539C6424CA9B6BDF3097B40D6A2010D7A",
+        "bytes":  289
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_diff_check.log",
+        "status":  "??",
+        "sha256":  "9C09A51C002E2A8CFF3246A6B0812DBCBAB92B85970F0086329E4D5A855823C6",
+        "bytes":  2989
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_progress.log",
+        "status":  "??",
+        "sha256":  "87C3A5C87B4320AA4B29A95124314925B7C64E2E32A4B829639D43F3B8693086",
+        "bytes":  895
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_source_layout.log",
+        "status":  "??",
+        "sha256":  "257690B1B43FBE895B5E9BC53218A275D138579D7F6EF0FD6B6D3269C8D23AEC",
+        "bytes":  205
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_static.log",
+        "status":  "??",
+        "sha256":  "7FC796DF350F3FFF375A237238116B0C59C0E96AC083DC3CDC40E9F645A0C5B9",
+        "bytes":  438
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/p3_verified_text_review.log",
+        "status":  "??",
+        "sha256":  "0A1AAFB25003716DB5613A87C6E712D3E4A8333B8B323E0D53CF9F0B87625EAE",
+        "bytes":  10968
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/progress.log",
+        "status":  "??",
+        "sha256":  "75BC6F9B2E7360205559FE6C12224B3B63C80A9505FE1A73F020F4C28F7C344F",
+        "bytes":  878
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/source_layout.log",
+        "status":  "??",
+        "sha256":  "3F57CBB48C3A8A8ED731BCB525F2916097573A32BCF77B35FA328B7540BE1722",
+        "bytes":  183
+    },
+    {
+        "path":  "docs/progress/reports/client_memory_evidence/static_checks.log",
+        "status":  "??",
+        "sha256":  "E4FB2B3F5332E31444369F6C8F3BFE24C1D3B8FEA8B4D7CA93E8721DBFB37B2D",
+        "bytes":  228
+    },
+    {
+        "path":  "qml/components/subscription_card.qml",
+        "status":  "??",
+        "sha256":  "E092A6D7CC1F993A22A13649F8F004A8FBAD4A600FD9671854223C7688598AAA",
+        "bytes":  4380
+    },
+    {
+        "path":  "src/application/runtime_update.h",
+        "status":  "??",
+        "sha256":  "F38AAD332A2B556EEB5205F772D6E41EC467A64F236575DB13842815FB8F3CE8",
+        "bytes":  3159
+    },
+    {
+        "path":  "src/infra/config/config_provider_stream.cpp",
+        "status":  "??",
+        "sha256":  "2C4AF77CB2E43129A69346B1AE53E0ED3FDE3783406FFD49E377046B0759140C",
+        "bytes":  13601
+    },
+    {
+        "path":  "src/infra/io/bounded_read.h",
+        "status":  "??",
+        "sha256":  "F0C644092C9E49823F775F30E818FABFAAE1AADE8E07B8207DC07BA2EA65454F",
+        "bytes":  2529
+    },
+    {
+        "path":  "src/infra/io/device_stream.h",
+        "status":  "??",
+        "sha256":  "FAECC11027B8475D5E415A7B54A980364CBF0D1238C557BF0F17E69F9C9E0D8F",
+        "bytes":  2861
+    },
+    {
+        "path":  "src/infra/storage/geo_resource_writer.cpp",
+        "status":  "??",
+        "sha256":  "7E5B06BEEA3D689FE732D719A38253370E8E6B8FAED8BF358D75BDD613E172CD",
+        "bytes":  4095
+    },
+    {
+        "path":  "src/infra/storage/geo_resource_writer.h",
+        "status":  "??",
+        "sha256":  "019D7043155428E2B07B165EC00F50C2CA7C0E39EA5DBFC5FCA21E460DE06D55",
+        "bytes":  1061
+    },
+    {
+        "path":  "src/infra/storage/latest_mailbox.cpp",
+        "status":  "??",
+        "sha256":  "6820596FA2B41BA32F0CAC27727DC51BB1DE25BEE0D724211586B86CF5BDCDB8",
+        "bytes":  4299
+    },
+    {
+        "path":  "src/infra/storage/latest_mailbox.h",
+        "status":  "??",
+        "sha256":  "235192F918D67B214CA3D78558E2F440981049220C5A70F18909A73E739DD9C1",
+        "bytes":  795
+    },
+    {
+        "path":  "src/infra/storage/provider_stage.cpp",
+        "status":  "??",
+        "sha256":  "81E367CB4A97EAC292816CBD730772C7027661B135152B74335D21890FE1C037",
+        "bytes":  2439
+    },
+    {
+        "path":  "src/infra/storage/provider_stage.h",
+        "status":  "??",
+        "sha256":  "8C7601880FBAF3DC560E66E421F351AC17BCAE31D38CCD651046CA9A71E1D68A",
+        "bytes":  1056
+    },
+    {
+        "path":  "src/presentation/profile_model.cpp",
+        "status":  "??",
+        "sha256":  "B296940ED5A04FE5142D7A3D67F94BE2B176E55ED0D00490537DB2A883C2C499",
+        "bytes":  7276
+    },
+    {
+        "path":  "src/presentation/profile_model.h",
+        "status":  "??",
+        "sha256":  "36139F17C69ECDEADD1ED917F8C98FE0B2D190FB94B37A8BEBD75214DC1E80E9",
+        "bytes":  2456
+    },
+    {
+        "path":  "src/presentation/runtime_list_model.cpp",
+        "status":  "??",
+        "sha256":  "952497FB495DE3AFB0B676074D9A7BF1B39931678EDB485530BDDF24434EC377",
+        "bytes":  14555
+    },
+    {
+        "path":  "src/presentation/runtime_list_model.h",
+        "status":  "??",
+        "sha256":  "D5D4A7B51AD05AC692D8C681BB19AC585779BC31CB01FC7321D8AED13C3DEEBB",
+        "bytes":  3765
+    },
+    {
+        "path":  "tests/integration/runtime_ui_probe.cpp",
+        "status":  "??",
+        "sha256":  "AD8E9152EB8F807027B056A4F0E669EC77283BC290EBC4FEE97634EFBEE4AD10",
+        "bytes":  7856
+    },
+    {
+        "path":  "tests/integration/runtime_ui_probe.h",
+        "status":  "??",
+        "sha256":  "8917668E15D778BDC47249EA2C604346D67299017B7523C5A2E269B09004AF76",
+        "bytes":  133
+    },
+    {
+        "path":  "tests/integration/subscription_ui_probe.cpp",
+        "status":  "??",
+        "sha256":  "27AB58CCC46131767AC56E22B6B5C71A98DA83F7EE11D8050CFCFF588AAE79EA",
+        "bytes":  7016
+    },
+    {
+        "path":  "tests/integration/subscription_ui_probe.h",
+        "status":  "??",
+        "sha256":  "94A41A2EA3BECB996EE37A431EF04B60B2FF24EC24F3EBC171BDCBF0F6008DEC",
+        "bytes":  136
+    },
+    {
+        "path":  "tests/scripts/attach_memory_test.ps1",
+        "status":  "??",
+        "sha256":  "C8809AA5EB4C83F427D6D31AB84B350D31832A969040DA8746BD57BF63C95BE3",
+        "bytes":  1817
+    },
+    {
+        "path":  "tests/unit/bounded_read_test.cpp",
+        "status":  "??",
+        "sha256":  "DC0BC2CC18A09B4AD379B3DB11B0A685A4816691E1AF8BB9B478884DF5F92552",
+        "bytes":  5026
+    },
+    {
+        "path":  "tests/unit/deferred_ui_unload_test.cpp",
+        "status":  "??",
+        "sha256":  "FB5294DA6F1E91D8D8FC6BD0F70A282AC089114CE95F4994FDF651D167566C49",
+        "bytes":  2050
+    },
+    {
+        "path":  "tests/unit/geo_resource_writer_test.cpp",
+        "status":  "??",
+        "sha256":  "307AE74C54C030F0361703440C5AA7BF0FC73ED89BC60A9DB847F92E4D2CFC0D",
+        "bytes":  6130
+    },
+    {
+        "path":  "tests/unit/latest_mailbox_test.cpp",
+        "status":  "??",
+        "sha256":  "6FD13B4C7571B53098A9133859D14155474382126B1E46FEB388AE921E24E551",
+        "bytes":  6071
+    },
+    {
+        "path":  "tests/unit/profile_model_test.cpp",
+        "status":  "??",
+        "sha256":  "86019C7C2ADD92715D3EC7F38371682A3573155FFC863C6DF98AF88AB7C83959",
+        "bytes":  3602
+    },
+    {
+        "path":  "tests/unit/provider_stream_test.cpp",
+        "status":  "??",
+        "sha256":  "57F1CD650D10AD57CF279EF38E2EABB7E60A22AAB7B00C5C868EA529CE8FF34D",
+        "bytes":  12452
+    },
+    {
+        "path":  "tests/unit/runtime_list_model_test.cpp",
+        "status":  "??",
+        "sha256":  "9A0474391EE67DBA2D13111F7F7BE27038A55C9F3E5390C5494E00B8F8B03576",
+        "bytes":  8563
+    },
+    {
+        "path":  "tests/unit/runtime_publication_test.cpp",
+        "status":  "??",
+        "sha256":  "0B42258F2A91376F9CD39CDA4C740F0F2138E8C1A5FB6BA31D92BA2B32715D3D",
+        "bytes":  7470
+    }
+]

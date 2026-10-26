@@ -9,8 +9,32 @@
 #include <QSet>
 #include <QTimer>
 #include <functional>
+#include <optional>
 
 namespace quickclash::infra {
+struct ServiceLogDemand {
+    [[nodiscard]] std::optional<bool> begin(quint64 generation, bool enabled) {
+        if (pending || (generation == acknowledgedGeneration && enabled == acknowledgedEnabled))
+            return std::nullopt;
+        pending = true;
+        // A reused lease must clear the old service buffer before enabling reception again.
+        return acknowledgedEnabled && generation != acknowledgedGeneration ? false : enabled;
+    }
+    void finish(quint64 generation, bool enabled, bool success) {
+        pending = false;
+        if (success) {
+            acknowledgedGeneration = generation;
+            acknowledgedEnabled = enabled;
+        }
+    }
+    [[nodiscard]] bool receiving(quint64 generation) const {
+        return !pending && acknowledgedEnabled && acknowledgedGeneration == generation;
+    }
+    quint64 acknowledgedGeneration = 0;
+    bool acknowledgedEnabled = false;
+    bool pending = false;
+};
+
 class EngineSession final : public QObject {
     Q_OBJECT
   public:
@@ -57,10 +81,13 @@ class EngineSession final : public QObject {
                  ReplyHandler handler);
     void probe();
     void fail(const QString& code);
+    void syncServiceLogs();
     platform::OwnedProcess process_;
     ServiceClient service_;
     QTimer servicePoll_;
     QSet<QString> serviceStreams_;
+    QHash<QString, quint64> streamGenerations_;
+    ServiceLogDemand serviceLogDemand_;
     bool serviceMode_ = false;
     quint32 servicePid_ = 0;
     bool serviceStopping_ = false;

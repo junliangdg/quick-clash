@@ -1,0 +1,86 @@
+Delivery UTC: 2026-10-26T04:00:34.2824186Z
+PASS: 19 chapters, merged content, chapter anchors and local Markdown links are consistent.
+delivery design check exit=0
+PASS: 36 source directories and 165 files follow QuickClash naming rules.
+Product source files inspected: 128. Formatting, compilation and runtime behavior require separate checks.
+delivery source layout exit=0
+Progress snapshot (task counts are not product completion percentages):
+P0 (9): Todo=0, Doing=0, Review=0, Done=9, Blocked=0
+P1 (6): Todo=0, Doing=0, Review=0, Done=6, Blocked=0
+P2 (24): Todo=1, Doing=0, Review=2, Done=21, Blocked=0
+P3 (14): Todo=10, Doing=1, Review=0, Done=3, Blocked=0
+P4 (6): Todo=6, Doing=0, Review=0, Done=0, Blocked=0
+P5 (2): Todo=2, Doing=0, Review=0, Done=0, Blocked=0
+Gates: G0=Pass, G1=Pass, G2=NotRun, G3=NotRun, G4=NotRun, G5=NotRun
+MVP Pass=0/16
+ERROR: Broken link in 20261025_proxy_memory_fixes.md: ../../../dist/proxy_memory_fixes/bin/quickclash.exe
+Exception: D:\repos\quick-clash\scripts\check_progress.ps1:198
+Line |
+ 198 |      throw "Progress validation failed with $($issues.Count) issue(s). …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Progress validation failed with 1 issue(s).
+delivery progress exit=1
+delivery git diff check exit=0
+  File "<string>", line 1
+    import hashlib,pathlib,re; p=pathlib.Path(docs/progress/reports/client_memory_evidence/p3_verified_text_review.log); rows=re.findall(rBALANCED (.+) sha256=([0-9a-f]{64})$,p.read_text(encoding=utf-8-sig),re.M); assert len(rows)==16; assert all(hashlib.sha256(pathlib.Path(n).read_bytes()).hexdigest()==h for n,h in rows); print(SOURCE DIGESTS: all 16 files match the verified format/text revision)
+                                                                                                                                                                   ^
+SyntaxError: invalid decimal literal
+delivery verified source digests exit=1
+RETRY UTC: 2026-10-26T04:01:25.4282576Z
+PASS: 19 chapters, merged content, chapter anchors and local Markdown links are consistent.
+delivery design check exit=0
+PASS: 36 source directories and 165 files follow QuickClash naming rules.
+Product source files inspected: 128. Formatting, compilation and runtime behavior require separate checks.
+delivery source layout exit=0
+Progress snapshot (task counts are not product completion percentages):
+P0 (9): Todo=0, Doing=0, Review=0, Done=9, Blocked=0
+P1 (6): Todo=0, Doing=0, Review=0, Done=6, Blocked=0
+P2 (24): Todo=1, Doing=0, Review=2, Done=21, Blocked=0
+P3 (14): Todo=10, Doing=1, Review=0, Done=3, Blocked=0
+P4 (6): Todo=6, Doing=0, Review=0, Done=0, Blocked=0
+P5 (2): Todo=2, Doing=0, Review=0, Done=0, Blocked=0
+Gates: G0=Pass, G1=Pass, G2=NotRun, G3=NotRun, G4=NotRun, G5=NotRun
+MVP Pass=0/16
+ERROR: Broken link in 20261025_proxy_memory_fixes.md: ../../../dist/proxy_memory_fixes/bin/quickclash.exe
+Exception: D:\repos\quick-clash\scripts\check_progress.ps1:198
+Line |
+ 198 |      throw "Progress validation failed with $($issues.Count) issue(s). …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Progress validation failed with 1 issue(s).
+delivery progress exit=1
+delivery git diff check exit=0
+SOURCE DIGESTS: all 16 files match the verified format/text revision
+delivery verified source digests exit=0
+delivery text/retention review exit=0
+XML: well-formed; 63 card/settings source entries translated; placeholders match.
+RETAINED: all 114 prior paths present/changed; byte-identical=99; authorized continuations=15; deleted=0; HEAD=45229be; no commit.
+SNAPSHOT: tracked=56 untracked=93 total=149
+DELIVERY STATIC: all expected checks satisfied; progress remains the single known historical missing-package failure. Product/C++/GUI/tray/memory tests NotRun; no CMake/build/product invocation.
+FINAL DOCUMENT CHECK UTC: 2026-10-26T04:02:19.7039411Z
+PASS: 19 chapters, merged content, chapter anchors and local Markdown links are consistent.
+final document design exit=0
+PASS: 36 source directories and 165 files follow QuickClash naming rules.
+Product source files inspected: 128. Formatting, compilation and runtime behavior require separate checks.
+final document layout exit=0
+Progress snapshot (task counts are not product completion percentages):
+P0 (9): Todo=0, Doing=0, Review=0, Done=9, Blocked=0
+P1 (6): Todo=0, Doing=0, Review=0, Done=6, Blocked=0
+P2 (24): Todo=1, Doing=0, Review=2, Done=21, Blocked=0
+P3 (14): Todo=10, Doing=1, Review=0, Done=3, Blocked=0
+P4 (6): Todo=6, Doing=0, Review=0, Done=0, Blocked=0
+P5 (2): Todo=2, Doing=0, Review=0, Done=0, Blocked=0
+Gates: G0=Pass, G1=Pass, G2=NotRun, G3=NotRun, G4=NotRun, G5=NotRun
+MVP Pass=0/16
+ERROR: Broken link in 20261025_proxy_memory_fixes.md: ../../../dist/proxy_memory_fixes/bin/quickclash.exe
+Exception: D:\repos\quick-clash\scripts\check_progress.ps1:198
+Line |
+ 198 |      throw "Progress validation failed with $($issues.Count) issue(s). …
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | Progress validation failed with 1 issue(s).
+final document progress exit=1
+final document diff exit=0
+final document text/retention exit=0
+XML: well-formed; 63 card/settings source entries translated; placeholders match.
+RETAINED: all 114 prior paths present/changed; byte-identical=99; authorized continuations=15; deleted=0; HEAD=45229be; no commit.
+SNAPSHOT: tracked=56 untracked=93 total=149
+FINAL: documentation and retention checks complete; known historical progress failure retained; no product build or tests run.

@@ -1,0 +1,179 @@
+TEXT ONLY: delimiters, XML/translation coverage, registration, retention and digests.
+Not C++ syntax/type checking, Qt 6.8 compatibility, GUI or memory evidence.
+BALANCED app/application_host.cpp sha256=221963f3470798c08d51ea198f62d0e3e5a6299fe23af13d8249c96b94ac38dc
+BALANCED app/application_host.h sha256=c1e3e2e5ff3543408879afe97d212589b259156679385a37ce707f325f687357
+BALANCED app/deferred_ui_unload.cpp sha256=e569f743619add911a8a60514dbb9f7960731c06792a8f6e30c7c6bf8b79fea1
+BALANCED app/deferred_ui_unload.h sha256=20e5d6b6d10c6b3b7afa380bf2437440d63de50ab100cb297642b25ef8d6eedf
+BALANCED app/host_probe.cpp sha256=229157241bd682ccf607a69fd3b556723572bc541fe7fb992ca4c227e8e6eb15
+BALANCED app/main.cpp sha256=0f023c11916863beb31b8571389d9eab33774daff86040701a89b91a9e559c84
+BALANCED src/presentation/profile_model.cpp sha256=b296940ed5a04fe5142d7a3d67f94be2b176e55ed0d00490537db2a883c2c499
+BALANCED src/presentation/profile_model.h sha256=36139f17c69ecdeadd1ed917f8c98fe0b2d190fb94b37a8bebd75214dc1e80e9
+BALANCED src/presentation/ui_state.cpp sha256=fe34ec13ec8e004f72619028a3068fc5ad9a6e84a990476482e5a0b16dc135b6
+BALANCED src/presentation/ui_state.h sha256=e81c90015fc31345545fa937bc62361c741c13d1e4145074a040c1f21e45169e
+BALANCED tests/unit/profile_model_test.cpp sha256=20cf57b18c28a68cb31eb41cd0de33a339abc58f5cc4fe598fbcffa86993373a
+BALANCED tests/unit/deferred_ui_unload_test.cpp sha256=fb5294da6f1e91d8d8fc6bd0f70a282ac089114ce95f4994fdf651d167566c49
+BALANCED tests/unit/storage_test.cpp sha256=0ecf8f4469a2881f7eef05cee59297151671005e6a2b9bbfd62b125d9aa0a935
+BALANCED tests/unit/localization_test.cpp sha256=fb62a18bb5b46f8c9616e913dc98631127057fdb272ea80dc7dc8b69774f0b78
+BALANCED tests/integration/subscription_ui_probe.cpp sha256=4ec335789852c5b309996328f2cb3caa6fd6010ae70223b1cbf37636510f3ea9
+BALANCED tests/integration/subscription_ui_probe.h sha256=94a41a2ea3becb996ee37a431ef04b60b2ff24ec24f3ebc171bdcbf0f6008dec
+TEXT CONTRACTS: registration, no production ui.profiles, no normal reset, virtual rows/overlay.
+XML: well-formed; 63 card/settings source entries translated; placeholders match.
+AUTHORIZED PRIOR EDIT CMakeLists.txt
+AUTHORIZED PRIOR EDIT app/main.cpp
+AUTHORIZED PRIOR EDIT docs/baseline/windows_user_guide.md
+AUTHORIZED PRIOR EDIT docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md
+AUTHORIZED PRIOR EDIT docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md
+AUTHORIZED PRIOR EDIT docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md
+AUTHORIZED PRIOR EDIT docs/progress/CHECKLISTS.md
+AUTHORIZED PRIOR EDIT docs/progress/DEVLOG.md
+AUTHORIZED PRIOR EDIT docs/progress/README.md
+AUTHORIZED PRIOR EDIT docs/progress/TASKS.md
+AUTHORIZED PRIOR EDIT docs/progress/reports/README.md
+AUTHORIZED PRIOR EDIT qml/features/home/home_page.qml
+AUTHORIZED PRIOR EDIT src/presentation/ui_state.cpp
+AUTHORIZED PRIOR EDIT src/presentation/ui_state.h
+AUTHORIZED PRIOR EDIT docs/progress/reports/20261026_client_memory_optimization.md
+RETAINED: all 114 prior paths present/changed; byte-identical=99; authorized continuations=15; deleted=0; HEAD=45229be; no commit.
+SNAPSHOT: tracked=56 untracked=84 total=140
+CURRENT STATUS:
+ M CMakeLists.txt
+ M app/application_host.cpp
+ M app/application_host.h
+ M app/host_probe.cpp
+ M app/main.cpp
+ M bench/process_memory.ps1
+ M docs/baseline/windows_user_guide.md
+ M docs/design/02-鎬讳綋鏋舵瀯涓庤繍琛屾ā鍨?md
+ M docs/design/03-鏁版嵁妯″瀷涓庢帴鍙ｅ绾?md
+ M docs/design/04-鐣岄潰涓庣獥鍙ｇ敓鍛藉懆鏈?md
+ M docs/design/06-閰嶇疆绠＄悊涓庝簨鍔″簲鐢?md
+ M docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md
+ M docs/design/08-鎬昏涓庝唬鐞嗙粍.md
+ M docs/design/09-杩炴帴鏃ュ織瑙勫垯涓庢彁渚涜€?md
+ M docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md
+ M docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md
+ M docs/progress/CHECKLISTS.md
+ M docs/progress/DEVLOG.md
+ M docs/progress/README.md
+ M docs/progress/TASKS.md
+ M docs/progress/reports/README.md
+ M qml/components/runtime_list.qml
+ M qml/features/connections/connections_page.qml
+ M qml/features/home/home_page.qml
+ M qml/features/logs/logs_page.qml
+ M qml/features/proxies/proxies_page.qml
+ M qml/features/rules/rules_page.qml
+ M qml/features/settings/settings_page.qml
+ M qml/features/subscriptions/subscriptions_page.qml
+ M resources/i18n/quickclash_zh_cn.ts
+ M src/application/desktop_backup.cpp
+ M src/application/desktop_features.cpp
+ M src/application/desktop_providers.cpp
+ M src/application/desktop_resources.cpp
+ M src/application/desktop_runtime.cpp
+ M src/application/desktop_runtime.h
+ M src/infra/config/config_metadata.cpp
+ M src/infra/config/config_metadata.h
+ M src/infra/config/config_preflight.cpp
+ M src/infra/config/config_preflight.h
+ M src/infra/config/geo_resources.cpp
+ M src/infra/core/engine_session.cpp
+ M src/infra/core/engine_session.h
+ M src/infra/core/pipe_http.cpp
+ M src/infra/core/service_client.cpp
+ M src/infra/storage/json_store.cpp
+ M src/infra/storage/json_store.h
+ M src/infra/storage/settings_service.cpp
+ M src/infra/storage/settings_service.h
+ M src/platform/windows/service_host.cpp
+ M src/presentation/ui_state.cpp
+ M src/presentation/ui_state.h
+ M tests/integration/runtime_test.cpp
+ M tests/unit/localization_test.cpp
+ M tests/unit/storage_test.cpp
+ M tests/unit/ui_state_test.cpp
+?? app/deferred_ui_unload.cpp
+?? app/deferred_ui_unload.h
+?? bench/attach_memory_windows.ps1
+?? docs/progress/reports/20261026_client_memory_optimization.md
+?? docs/progress/reports/client_memory_evidence/attach_memory_test.log
+?? docs/progress/reports/client_memory_evidence/design_check.log
+?? docs/progress/reports/client_memory_evidence/design_generate.log
+?? docs/progress/reports/client_memory_evidence/diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1a_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_progress.log
+?? docs/progress/reports/client_memory_evidence/p1a_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1a_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_check_results.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p1b_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_static.log
+?? docs/progress/reports/client_memory_evidence/p2_final_design_check.log
+?? docs/progress/reports/client_memory_evidence/p2_final_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p2_final_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p2_final_format.log
+?? docs/progress/reports/client_memory_evidence/p2_final_progress.log
+?? docs/progress/reports/client_memory_evidence/p2_final_results.log
+?? docs/progress/reports/client_memory_evidence/p2_final_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p2_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p2_static_review.py
+?? docs/progress/reports/client_memory_evidence/p2a_design_check.log
+?? docs/progress/reports/client_memory_evidence/p2a_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p2a_format.log
+?? docs/progress/reports/client_memory_evidence/p2a_results.log
+?? docs/progress/reports/client_memory_evidence/p3_baseline.json
+?? docs/progress/reports/client_memory_evidence/p3_design.log
+?? docs/progress/reports/client_memory_evidence/p3_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p3_final_static.log
+?? docs/progress/reports/client_memory_evidence/p3_progress.log
+?? docs/progress/reports/client_memory_evidence/p3_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p3_static.log
+?? docs/progress/reports/client_memory_evidence/p3_static_review.py
+?? docs/progress/reports/client_memory_evidence/progress.log
+?? docs/progress/reports/client_memory_evidence/source_layout.log
+?? docs/progress/reports/client_memory_evidence/static_checks.log
+?? qml/components/subscription_card.qml
+?? src/application/runtime_update.h
+?? src/infra/config/config_provider_stream.cpp
+?? src/infra/io/bounded_read.h
+?? src/infra/io/device_stream.h
+?? src/infra/storage/geo_resource_writer.cpp
+?? src/infra/storage/geo_resource_writer.h
+?? src/infra/storage/latest_mailbox.cpp
+?? src/infra/storage/latest_mailbox.h
+?? src/infra/storage/provider_stage.cpp
+?? src/infra/storage/provider_stage.h
+?? src/presentation/profile_model.cpp
+?? src/presentation/profile_model.h
+?? src/presentation/runtime_list_model.cpp
+?? src/presentation/runtime_list_model.h
+?? tests/integration/runtime_ui_probe.cpp
+?? tests/integration/runtime_ui_probe.h
+?? tests/integration/subscription_ui_probe.cpp
+?? tests/integration/subscription_ui_probe.h
+?? tests/scripts/attach_memory_test.ps1
+?? tests/unit/bounded_read_test.cpp
+?? tests/unit/deferred_ui_unload_test.cpp
+?? tests/unit/geo_resource_writer_test.cpp
+?? tests/unit/latest_mailbox_test.cpp
+?? tests/unit/profile_model_test.cpp
+?? tests/unit/provider_stream_test.cpp
+?? tests/unit/runtime_list_model_test.cpp
+?? tests/unit/runtime_publication_test.cpp
+text review exit=0

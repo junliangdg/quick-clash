@@ -1275,9 +1275,10 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="395" />
-      <source>Unload the interface after 5 seconds hidden (experimental)</source>
-      <translation>隐藏 5 秒后卸载界面（实验选项）</translation>
+      <source>Low memory: unload after 5 seconds hidden or minimized (experimental)</source>
+      <translation>低内存：隐藏或最小化 5 秒后卸载界面（实验性）</translation>
     </message>
+    <message><source>Off by default. Reuses your saved unload preference. Requires a working tray; without one, the minimized taskbar window is kept. The engine and subscription updates keep running; opening the tray rebuilds the interface.</source><translation>默认关闭，沿用已保存的卸载偏好。需要可用托盘；无托盘时保留最小化的任务栏窗口。内核与订阅更新继续运行；从托盘打开将重建界面。</translation></message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="411" />
       <source>State %1 · Active views %2 · Streams %3</source>
@@ -1952,5 +1953,18 @@
       <source>Load balancing · node varies by connection</source>
       <translation>负载均衡 · 节点随连接变化</translation>
     </message>
+  </context>
+  <context>
+    <name>subscription_card</name>
+    <message><source>Selected</source><translation>已选中</translation></message>
+    <message><source>Click to select</source><translation>点击选择</translation></message>
+    <message><source>HTTPS subscription</source><translation>HTTPS 订阅</translation></message>
+    <message><source>Local profile</source><translation>本地配置</translation></message>
+    <message><source>Update failed; the working configuration is kept</source><translation>更新失败；保留当前可用配置</translation></message>
+    <message><source>Changes waiting to be applied</source><translation>更改等待应用</translation></message>
+    <message><source>Downloaded and validated</source><translation>已下载并校验</translation></message>
+    <message><source>Next update: %1</source><translation>下次更新：%1</translation></message>
+    <message><source>Update</source><translation>更新</translation></message>
+    <message><source>Manage</source><translation>管理</translation></message>
   </context>
 </TS>

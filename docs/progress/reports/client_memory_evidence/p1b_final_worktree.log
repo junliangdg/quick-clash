@@ -1,0 +1,346 @@
+45229be
+ M CMakeLists.txt
+ M app/main.cpp
+ M bench/process_memory.ps1
+ M docs/baseline/windows_user_guide.md
+ M "docs/design/02-\346\200\273\344\275\223\346\236\266\346\236\204\344\270\216\350\277\220\350\241\214\346\250\241\345\236\213.md"
+ M "docs/design/03-\346\225\260\346\215\256\346\250\241\345\236\213\344\270\216\346\216\245\345\217\243\345\245\221\347\272\246.md"
+ M "docs/design/07-\350\256\242\351\230\205\344\270\216\350\265\204\346\272\220\346\233\264\346\226\260.md"
+ M "docs/design/08-\346\200\273\350\247\210\344\270\216\344\273\243\347\220\206\347\273\204.md"
+ M "docs/design/09-\350\277\236\346\216\245\346\227\245\345\277\227\350\247\204\345\210\231\344\270\216\346\217\220\344\276\233\350\200\205.md"
+ M "docs/design/13-\346\200\247\350\203\275\351\242\204\347\256\227\344\270\216\345\237\272\345\207\206\346\226\271\346\241\210.md"
+ M "docs/design/QtQuick-Mihomo-\345\256\214\346\225\264\350\256\276\350\256\241\346\226\207\346\241\243.md"
+ M docs/progress/CHECKLISTS.md
+ M docs/progress/DEVLOG.md
+ M docs/progress/README.md
+ M docs/progress/TASKS.md
+ M qml/components/runtime_list.qml
+ M qml/features/connections/connections_page.qml
+ M qml/features/home/home_page.qml
+ M qml/features/logs/logs_page.qml
+ M qml/features/proxies/proxies_page.qml
+ M qml/features/rules/rules_page.qml
+ M src/application/desktop_backup.cpp
+ M src/application/desktop_features.cpp
+ M src/application/desktop_providers.cpp
+ M src/application/desktop_resources.cpp
+ M src/application/desktop_runtime.cpp
+ M src/application/desktop_runtime.h
+ M src/infra/config/geo_resources.cpp
+ M src/infra/core/engine_session.cpp
+ M src/infra/core/engine_session.h
+ M src/infra/core/pipe_http.cpp
+ M src/infra/core/service_client.cpp
+ M src/infra/storage/json_store.cpp
+ M src/infra/storage/json_store.h
+ M src/infra/storage/settings_service.cpp
+ M src/infra/storage/settings_service.h
+ M src/platform/windows/service_host.cpp
+ M src/presentation/ui_state.cpp
+ M src/presentation/ui_state.h
+ M tests/integration/runtime_test.cpp
+ M tests/unit/ui_state_test.cpp
+?? bench/attach_memory_windows.ps1
+?? docs/progress/reports/20261026_client_memory_optimization.md
+?? docs/progress/reports/client_memory_evidence/
+?? src/application/runtime_update.h
+?? src/infra/io/
+?? src/infra/storage/geo_resource_writer.cpp
+?? src/infra/storage/geo_resource_writer.h
+?? src/infra/storage/latest_mailbox.cpp
+?? src/infra/storage/latest_mailbox.h
+?? src/presentation/runtime_list_model.cpp
+?? src/presentation/runtime_list_model.h
+?? tests/integration/runtime_ui_probe.cpp
+?? tests/integration/runtime_ui_probe.h
+?? tests/scripts/attach_memory_test.ps1
+?? tests/unit/bounded_read_test.cpp
+?? tests/unit/geo_resource_writer_test.cpp
+?? tests/unit/latest_mailbox_test.cpp
+?? tests/unit/runtime_list_model_test.cpp
+?? tests/unit/runtime_publication_test.cpp
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'bench/process_memory.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/baseline/windows_user_guide.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/02-鎬讳綋鏋舵瀯涓庤繍琛屾ā鍨?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/03-鏁版嵁妯″瀷涓庢帴鍙ｅ绾?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/08-鎬昏涓庝唬鐞嗙粍.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/09-杩炴帴鏃ュ織瑙勫垯涓庢彁渚涜€?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/CHECKLISTS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/DEVLOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/TASKS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/components/runtime_list.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/home/home_page.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/proxies/proxies_page.qml', LF will be replaced by CRLF the next time Git touches it
+ CMakeLists.txt                                     |  39 +++-
+ app/main.cpp                                       |  10 +-
+ bench/process_memory.ps1                           |   9 +
+ docs/baseline/windows_user_guide.md                |  14 ++
+ ...277\220\350\241\214\346\250\241\345\236\213.md" |   2 +
+ ...216\245\345\217\243\345\245\221\347\272\246.md" |   6 +
+ ...265\204\346\272\220\346\233\264\346\226\260.md" |   2 +
+ ...270\216\344\273\243\347\220\206\347\273\204.md" |   2 +
+ ...270\216\346\217\220\344\276\233\350\200\205.md" |  22 +-
+ ...237\272\345\207\206\346\226\271\346\241\210.md" |   3 +
+ ...256\276\350\256\241\346\226\207\346\241\243.md" |  37 ++-
+ docs/progress/CHECKLISTS.md                        |  14 +-
+ docs/progress/DEVLOG.md                            |  38 ++++
+ docs/progress/README.md                            |   6 +
+ docs/progress/TASKS.md                             |   8 +
+ qml/components/runtime_list.qml                    |  38 ++--
+ qml/features/connections/connections_page.qml      |  48 ++--
+ qml/features/home/home_page.qml                    |  10 +-
+ qml/features/logs/logs_page.qml                    |  51 +++--
+ qml/features/proxies/proxies_page.qml              |   4 +-
+ qml/features/rules/rules_page.qml                  |  31 ++-
+ src/application/desktop_backup.cpp                 |   9 +-
+ src/application/desktop_features.cpp               | 253 ++++++++++++++++-----
+ src/application/desktop_providers.cpp              |  13 +-
+ src/application/desktop_resources.cpp              |  59 +++--
+ src/application/desktop_runtime.cpp                | 197 +++++++++++++---
+ src/application/desktop_runtime.h                  |  34 ++-
+ src/infra/config/geo_resources.cpp                 |  23 +-
+ src/infra/core/engine_session.cpp                  | 111 +++++----
+ src/infra/core/engine_session.h                    |  27 +++
+ src/infra/core/pipe_http.cpp                       |   9 +-
+ src/infra/core/service_client.cpp                  |   5 +-
+ src/infra/storage/json_store.cpp                   |  43 +++-
+ src/infra/storage/json_store.h                     |   6 +
+ src/infra/storage/settings_service.cpp             |  30 ++-
+ src/infra/storage/settings_service.h               |   7 +
+ src/platform/windows/service_host.cpp              |  38 ++--
+ src/presentation/ui_state.cpp                      | 251 +++++++++++++++-----
+ src/presentation/ui_state.h                        |  71 ++++++
+ tests/integration/runtime_test.cpp                 |  22 ++
+ tests/unit/ui_state_test.cpp                       | 151 ++++++++++++
+ 41 files changed, 1402 insertions(+), 351 deletions(-)
+warning: in the working copy of 'CMakeLists.txt', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'bench/process_memory.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/baseline/windows_user_guide.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/02-鎬讳綋鏋舵瀯涓庤繍琛屾ā鍨?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/03-鏁版嵁妯″瀷涓庢帴鍙ｅ绾?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/08-鎬昏涓庝唬鐞嗙粍.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/09-杩炴帴鏃ュ織瑙勫垯涓庢彁渚涜€?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/CHECKLISTS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/DEVLOG.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/progress/TASKS.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/components/runtime_list.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/home/home_page.qml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'qml/features/proxies/proxies_page.qml', LF will be replaced by CRLF the next time Git touches it
+38	1	CMakeLists.txt
+8	2	app/main.cpp
+9	0	bench/process_memory.ps1
+14	0	docs/baseline/windows_user_guide.md
+2	0	"docs/design/02-\346\200\273\344\275\223\346\236\266\346\236\204\344\270\216\350\277\220\350\241\214\346\250\241\345\236\213.md"
+6	0	"docs/design/03-\346\225\260\346\215\256\346\250\241\345\236\213\344\270\216\346\216\245\345\217\243\345\245\221\347\272\246.md"
+2	0	"docs/design/07-\350\256\242\351\230\205\344\270\216\350\265\204\346\272\220\346\233\264\346\226\260.md"
+2	0	"docs/design/08-\346\200\273\350\247\210\344\270\216\344\273\243\347\220\206\347\273\204.md"
+21	1	"docs/design/09-\350\277\236\346\216\245\346\227\245\345\277\227\350\247\204\345\210\231\344\270\216\346\217\220\344\276\233\350\200\205.md"
+3	0	"docs/design/13-\346\200\247\350\203\275\351\242\204\347\256\227\344\270\216\345\237\272\345\207\206\346\226\271\346\241\210.md"
+36	1	"docs/design/QtQuick-Mihomo-\345\256\214\346\225\264\350\256\276\350\256\241\346\226\207\346\241\243.md"
+11	3	docs/progress/CHECKLISTS.md
+38	0	docs/progress/DEVLOG.md
+6	0	docs/progress/README.md
+8	0	docs/progress/TASKS.md
+23	15	qml/components/runtime_list.qml
+32	16	qml/features/connections/connections_page.qml
+5	5	qml/features/home/home_page.qml
+36	15	qml/features/logs/logs_page.qml
+2	2	qml/features/proxies/proxies_page.qml
+15	16	qml/features/rules/rules_page.qml
+7	2	src/application/desktop_backup.cpp
+190	63	src/application/desktop_features.cpp
+6	7	src/application/desktop_providers.cpp
+43	16	src/application/desktop_resources.cpp
+162	35	src/application/desktop_runtime.cpp
+33	1	src/application/desktop_runtime.h
+14	9	src/infra/config/geo_resources.cpp
+73	38	src/infra/core/engine_session.cpp
+27	0	src/infra/core/engine_session.h
+5	4	src/infra/core/pipe_http.cpp
+3	2	src/infra/core/service_client.cpp
+34	9	src/infra/storage/json_store.cpp
+6	0	src/infra/storage/json_store.h
+20	10	src/infra/storage/settings_service.cpp
+7	0	src/infra/storage/settings_service.h
+23	15	src/platform/windows/service_host.cpp
+188	63	src/presentation/ui_state.cpp
+71	0	src/presentation/ui_state.h
+22	0	tests/integration/runtime_test.cpp
+151	0	tests/unit/ui_state_test.cpp
+Tracked=41
+Untracked=49
+Total=90
+
+P1-B key locations (text lookup, not compilation):
+src/application/runtime_update.h:12 struct RuntimeDemands {
+src/application/runtime_update.h:55 struct RuntimeRequest {
+src/application/runtime_update.h:68 struct RuntimeUpdate {
+src/application/desktop_features.cpp:68 void DesktopRuntime::setDemands(const QStringList& streams) {
+src/application/desktop_features.cpp:76 void DesktopRuntime::applyDemands(const RuntimeDemands& demands) {
+src/application/desktop_features.cpp:106 void DesktopRuntime::releaseFeature(const QString& stream) {
+src/application/desktop_features.cpp:141 RuntimeRequest DesktopRuntime::beginFeatureRequest(const QString& stream) {
+src/application/desktop_features.cpp:146 bool DesktopRuntime::acceptFeatureRequest(const RuntimeRequest& request) {
+src/application/desktop_features.cpp:625 void DesktopRuntime::requestPageData(const QString& stream) {
+src/application/desktop_features.cpp:767 void DesktopRuntime::closeNextConnection(const QJsonArray& targets, qsizetype index,
+src/application/desktop_runtime.cpp:515 result.insert(QStringLiteral("dataLifecycle"),
+src/application/desktop_runtime.cpp:564 void DesktopRuntime::flushData() {
+src/application/desktop_runtime.cpp:1797 void DesktopRuntime::cleanupSession() {
+src/infra/storage/settings_service.cpp:102 void SettingsService::setDemands(const application::RuntimeDemands& demands) {
+src/infra/storage/latest_mailbox.cpp:21 LatestMailbox::Publisher LatestMailbox::publisher() const {
+src/infra/storage/latest_mailbox.cpp:64 void LatestMailbox::setDemands(const application::RuntimeDemands& demands) {
+src/infra/core/engine_session.h:15 struct ServiceLogDemand {
+src/infra/core/engine_session.cpp:242 void EngineSession::syncServiceLogs() {
+src/infra/core/engine_session.cpp:270 void EngineSession::setStream(const QString& name, bool enabled) {
+src/platform/windows/service_host.cpp:362 if (action == QStringLiteral("log_demand") &&
+src/presentation/ui_state.cpp:70 void UiState::applyData(const application::RuntimeUpdate& update) {
+src/presentation/ui_state.cpp:120 void UiState::clearChannel(const QString& channel) {
+src/presentation/ui_state.cpp:360 void UiState::setUiVisible(bool visible) {
+src/presentation/ui_state.cpp:401 QString UiState::createDemandKey(const QString& scope) const {
+src/presentation/ui_state.cpp:404 void UiState::setDemand(const QString& instanceKey, const QString& stream, bool active) {
+src/presentation/ui_state.cpp:417 void UiState::updateTimer() {
+src/presentation/ui_state.cpp:558 if (command == QStringLiteral("clear_logs")) {
+src/presentation/runtime_list_model.cpp:107 void RuntimeRows::clear() {
+src/presentation/runtime_list_model.cpp:250 void RuntimeListModel::release() {
+qml/features/connections/connections_page.qml:12 readonly property string demandKey: ui.createDemandKey("connections")
+qml/features/connections/connections_page.qml:17 ui.setDemand(demandKey, "connections", active);
+qml/features/connections/connections_page.qml:21 Component.onDestruction: ui.setDemand(demandKey, "connections", false)
+qml/features/rules/rules_page.qml:12 readonly property string demandKey: ui.createDemandKey("rules")
+qml/features/rules/rules_page.qml:15 ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : "providers", active);
+qml/features/rules/rules_page.qml:19 Component.onDestruction: ui.setDemand(demandKey, "rules", false)
+qml/features/rules/rules_page.qml:26 onCurrentIndexChanged: root.syncDemand()
+qml/features/logs/logs_page.qml:12 readonly property string demandKey: ui.createDemandKey("logs")
+qml/features/logs/logs_page.qml:16 ui.setDemand(demandKey + ":view", "logs", active);
+qml/features/logs/logs_page.qml:17 ui.setDemand(demandKey + ":live", "log_feed", active && !paused);
+qml/features/logs/logs_page.qml:28 Component.onDestruction: {
+qml/features/logs/logs_page.qml:29 ui.setDemand(demandKey + ":live", "log_feed", false);
+qml/features/logs/logs_page.qml:30 ui.setDemand(demandKey + ":view", "logs", false);
+tests/unit/runtime_publication_test.cpp:23 void serviceLogDemandRetriesAndClearsReusedLease() {
+tests/unit/runtime_publication_test.cpp:55 void readTicketsRejectSameSessionReuse() {
+tests/unit/runtime_publication_test.cpp:76 void workerReleaseAndCompleteResend() {
+tests/unit/latest_mailbox_test.cpp:80 void perStreamRevocationAndLatePublisher() {
+tests/unit/runtime_list_model_test.cpp:26 void releaseInvalidatesRowsAndDeferredSort() {
+tests/unit/ui_state_test.cpp:119 "last release clears model, JSON baseline and associated status");
+tests/unit/ui_state_test.cpp:126 "same-session reentry rejects previous lease");
+tests/unit/ui_state_test.cpp:162 const auto lifecycle = diagnostic.value("dataLifecycle").toObject();
+tests/unit/ui_state_test.cpp:163 check(lifecycle.value("appliedChannels").toArray().isEmpty() &&
+tests/unit/ui_state_test.cpp:164 lifecycle.value("pendingLogCount").toInt() == 0,
+tests/unit/ui_state_test.cpp:262 "repeated lifecycle leaves no demand");
+tests/integration/runtime_test.cpp:787 reopened.setDemands({QStringLiteral("rules")});
+tests/integration/runtime_test.cpp:793 reopened.setDemands({});
+tests/integration/runtime_test.cpp:808 reopened.setDemands({QStringLiteral("rules")});
+tests/integration/runtime_test.cpp:825 reopened.setDemands(
+tests/integration/runtime_test.cpp:834 reopened.setDemands({});
+tests/integration/runtime_test.cpp:909 reopened.setDemands({QStringLiteral("rules")});
+tests/integration/runtime_ui_probe.cpp:24 int runRuntimeListProbe(ApplicationHost& host) {
+
+Expanded final status:
+ M CMakeLists.txt
+ M app/main.cpp
+ M bench/process_memory.ps1
+ M docs/baseline/windows_user_guide.md
+ M docs/design/02-鎬讳綋鏋舵瀯涓庤繍琛屾ā鍨?md
+ M docs/design/03-鏁版嵁妯″瀷涓庢帴鍙ｅ绾?md
+ M docs/design/07-璁㈤槄涓庤祫婧愭洿鏂?md
+ M docs/design/08-鎬昏涓庝唬鐞嗙粍.md
+ M docs/design/09-杩炴帴鏃ュ織瑙勫垯涓庢彁渚涜€?md
+ M docs/design/13-鎬ц兘棰勭畻涓庡熀鍑嗘柟妗?md
+ M docs/design/QtQuick-Mihomo-瀹屾暣璁捐鏂囨。.md
+ M docs/progress/CHECKLISTS.md
+ M docs/progress/DEVLOG.md
+ M docs/progress/README.md
+ M docs/progress/TASKS.md
+ M qml/components/runtime_list.qml
+ M qml/features/connections/connections_page.qml
+ M qml/features/home/home_page.qml
+ M qml/features/logs/logs_page.qml
+ M qml/features/proxies/proxies_page.qml
+ M qml/features/rules/rules_page.qml
+ M src/application/desktop_backup.cpp
+ M src/application/desktop_features.cpp
+ M src/application/desktop_providers.cpp
+ M src/application/desktop_resources.cpp
+ M src/application/desktop_runtime.cpp
+ M src/application/desktop_runtime.h
+ M src/infra/config/geo_resources.cpp
+ M src/infra/core/engine_session.cpp
+ M src/infra/core/engine_session.h
+ M src/infra/core/pipe_http.cpp
+ M src/infra/core/service_client.cpp
+ M src/infra/storage/json_store.cpp
+ M src/infra/storage/json_store.h
+ M src/infra/storage/settings_service.cpp
+ M src/infra/storage/settings_service.h
+ M src/platform/windows/service_host.cpp
+ M src/presentation/ui_state.cpp
+ M src/presentation/ui_state.h
+ M tests/integration/runtime_test.cpp
+ M tests/unit/ui_state_test.cpp
+?? bench/attach_memory_windows.ps1
+?? docs/progress/reports/20261026_client_memory_optimization.md
+?? docs/progress/reports/client_memory_evidence/attach_memory_test.log
+?? docs/progress/reports/client_memory_evidence/design_check.log
+?? docs/progress/reports/client_memory_evidence/design_generate.log
+?? docs/progress/reports/client_memory_evidence/diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1a_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1a_progress.log
+?? docs/progress/reports/client_memory_evidence/p1a_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1a_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_check_results.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_diff_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_static.log
+?? docs/progress/reports/client_memory_evidence/p1b_final_worktree.log
+?? docs/progress/reports/client_memory_evidence/p1b_progress.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_check.log
+?? docs/progress/reports/client_memory_evidence/p1b_protocol_design_retry_generate.log
+?? docs/progress/reports/client_memory_evidence/p1b_source_layout.log
+?? docs/progress/reports/client_memory_evidence/p1b_static.log
+?? docs/progress/reports/client_memory_evidence/progress.log
+?? docs/progress/reports/client_memory_evidence/source_layout.log
+?? docs/progress/reports/client_memory_evidence/static_checks.log
+?? src/application/runtime_update.h
+?? src/infra/io/bounded_read.h
+?? src/infra/storage/geo_resource_writer.cpp
+?? src/infra/storage/geo_resource_writer.h
+?? src/infra/storage/latest_mailbox.cpp
+?? src/infra/storage/latest_mailbox.h
+?? src/presentation/runtime_list_model.cpp
+?? src/presentation/runtime_list_model.h
+?? tests/integration/runtime_ui_probe.cpp
+?? tests/integration/runtime_ui_probe.h
+?? tests/scripts/attach_memory_test.ps1
+?? tests/unit/bounded_read_test.cpp
+?? tests/unit/geo_resource_writer_test.cpp
+?? tests/unit/latest_mailbox_test.cpp
+?? tests/unit/runtime_list_model_test.cpp
+?? tests/unit/runtime_publication_test.cpp
+Tracked=41 Untracked=49 Total=90 Deleted=0
+45229be
+Tracked=41
+Untracked=49
+Total=90
+Deleted=0
+ReportLine=161 ## 13. P1-B协议与逐流释放（实现/Review，验证NotRun）
+ReportLine=171 ## 14. P1-B页面/源测试切片（实现/Review，运行NotRun）
+ReportLine=179 ## 15. P1-B静态复核：服务日志撤销（实现/Review，运行NotRun）
+ReportLine=187 ## 16. P1-B真实检查与未运行项
+ReportLine=205 ## 17. P1-B交付接口、工作区及接续边界
