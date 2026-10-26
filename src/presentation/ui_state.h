@@ -227,6 +227,7 @@ class UiState : public QObject {
     [[nodiscard]] bool acceptGeneration(quint64 generation, const QString& epoch);
     void updateTimer();
     void clearChannel(const QString& channel);
+    void clearTrafficHistory();
     void refreshTelemetry();
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);

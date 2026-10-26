@@ -20,7 +20,7 @@ ScrollView {
         Label {
             width: Math.min(360, root.availableWidth - 40)
             wrapMode: Text.WordWrap
-            text: qsTr("Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Mihomo, and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.")
+            text: qsTr("Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.")
         }
         onAccepted: root.ui.runtimeCommand("update_geo")
     }
@@ -95,6 +95,42 @@ ScrollView {
                             onClicked: root.ui.navigate(modelData.pageId)
                         }
                     }
+                }
+            }
+        }
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            implicitHeight: delaySettings.implicitHeight + 40
+            ColumnLayout {
+                id: delaySettings
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 12
+                Label {
+                    text: qsTr("Node delay testing")
+                    font.pixelSize: 20
+                    font.bold: true
+                    color: root.theme.text
+                }
+                Label {
+                    text: qsTr("This HTTPS target is used by individual and group node delay tests. Tests run only when requested.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                TextField {
+                    id: delayTarget
+                    Layout.fillWidth: true
+                    text: root.ui.runtime.delayTarget || "https://www.gstatic.com/generate_204"
+                    placeholderText: qsTr("HTTPS target for node delay")
+                    maximumLength: 8192
+                }
+                ActionButton {
+                    theme: root.theme
+                    text: qsTr("Save delay test target")
+                    enabled: root.ui.settingsReady && ((root.ui.runtime.features || {}).delayTest || {}).state !== "Running"
+                    onClicked: root.ui.runtimeCommand("delay_target", [delayTarget.text.trim()])
                 }
             }
         }
@@ -208,7 +244,7 @@ ScrollView {
                     wrapMode: Text.WordWrap
                 }
                 Label {
-                    text: qsTr("QuickClash manages loopback listeners and session secrets. DNS runs inside Mihomo. Providers are validated snapshots; Geo uses verified bundled resources.")
+                    text: qsTr("QuickClash manages loopback listeners and session secrets. DNS runs inside Clash Meta (mihomo). Providers are validated snapshots; Geo uses verified bundled resources.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -241,7 +277,11 @@ ScrollView {
                 anchors.fill: parent
                 anchors.margins: 20
                 spacing: 12
-                Label { text: qsTr("DNS and diagnostics"); color: root.theme.text; font.bold: true }
+                Label {
+                    text: qsTr("DNS and diagnostics")
+                    color: root.theme.text
+                    font.bold: true
+                }
                 Label {
                     text: qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
                     color: root.theme.muted
@@ -251,7 +291,20 @@ ScrollView {
                 ComboBox {
                     id: dnsMode
                     Layout.fillWidth: true
-                    model: [{key: "profile", label: qsTr("Use profile DNS")}, {key: "fake-ip", label: "fake-ip"}, {key: "redir-host", label: "redir-host"}]
+                    model: [
+                        {
+                            key: "profile",
+                            label: qsTr("Use profile DNS")
+                        },
+                        {
+                            key: "fake-ip",
+                            label: "fake-ip"
+                        },
+                        {
+                            key: "redir-host",
+                            label: "redir-host"
+                        }
+                    ]
                     textRole: "label"
                     currentIndex: Math.max(0, model.findIndex(entry => entry.key === ((root.ui.runtime.preferences || {}).dnsMode || "profile")))
                 }
@@ -282,15 +335,29 @@ ScrollView {
                         enabled: !!(root.ui.runtime.preferences || {}).geoSnapshot && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
                         onClicked: geoRollback.open()
                     }
-                    ActionButton { theme: root.theme; text: qsTr("Export safe diagnostics"); onClicked: root.ui.runtimeCommand("diagnostics") }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Export safe diagnostics")
+                        onClicked: root.ui.runtimeCommand("diagnostics")
+                    }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Open diagnostics")
                         visible: !!(root.ui.runtime.features || {}).exportUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.features.exportUrl)
                     }
-                    ActionButton { theme: root.theme; text: qsTr("Back up profiles…"); enabled: !root.ui.runtime.busy; onClicked: backupConfirmation.open() }
-                    ActionButton { theme: root.theme; text: qsTr("Restore profiles…"); enabled: !root.ui.runtime.busy; onClicked: restoreFile.open() }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Back up profiles…")
+                        enabled: !root.ui.runtime.busy
+                        onClicked: backupConfirmation.open()
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Restore profiles…")
+                        enabled: !root.ui.runtime.busy
+                        onClicked: restoreFile.open()
+                    }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Open backup folder")

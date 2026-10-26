@@ -9,6 +9,7 @@
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#28-最终实现验证矩阵)；另获构建授权后补新源码定向验证 |
+| 系统代理冲突显式开启重建基线 | Done | Zoo | Review | [修复报告](reports/20261026_system_proxy_conflict_fix.md)；增量构建/proxy_lease/recovery 退出0；全量 CTest 受既有 provider_stream_test 编译错误影响，GUI/原生转发验收 NotRun |
 
 ## 阶段任务
 
@@ -55,7 +56,7 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P2-22 | P2 | W09, W10 | url-test/fallback组与能力化展示 | Done | Codex | P2-21 | [协议交付](reports/20261024_p2_protocols.md) | Selector/URLTest/Fallback能力映射、健康检查跳过REJECT、嵌套/引用保护与界面通过 |
 | P2-23 | P2 | W09, W12 | 协议/组/规则/DNS具体不兼容原因与中英文提示 | Done | Codex | P2-22, P2-19 | [协议交付](reports/20261024_p2_protocols.md) | 最多32项安全结构诊断、七类不兼容与字段错误、中英文词表187条完成 |
 | P2-24 | P2 | W05 | 缩放跨导航断点时消除D3D11秒级等待并稳定壳布局 | Done | Codex | P2-18 | [缩放修复](reports/20261024_resize_layout.md) | 默认basic/D3D11关闭帧延迟等待对象；4/4检查与真实窗口160步通过，页面/需求保留，最终包Ready首页专用工作集60.75MB；完整帧/转发组合未测 |
-| P3-01 | P3 | W10 | 筛选/单独与批量节点延迟/动态身份恢复 | Doing | Codex | P2-06, P2-21, P2-22, P3-10 | [出口与内存修复](reports/20261025_proxy_memory_fixes.md) | 分组原顺序、查看/出口区分及首页摘要修复，7/7回归通过；继续完整节点选择与单独/批量测速的页面交付核对 |
+| P3-01 | P3 | W10 | 代理组折叠卡片/多列节点/延迟测试目标迁移 | Doing | Zoo | P2-06, P2-21, P2-22, P3-10 | [界面精简与代理组布局](reports/20261026_proxy_group_layout.md) | 首页订阅卡精简、上下行合并、代理页单滚动条与测速图标、节点卡点击选择、窗口图标与导航字体已实现；第三轮移除首页管理按钮/重复等待提示、Cancel 高度对齐文本、组列表改 Flickable 消除滚动条跳变；第四轮默认窗口改 1000×640 并在首次显示时于鼠标所在屏幕居中，已保存几何优先；第五轮测速进度行展开期间常驻（未测速占位）消除高度跳变、代理组改各组独立展开/收起并按订阅持久化展开集合；第六轮代理/日志页内存优化：通道值页面级缓存、节点查找 O(1) 索引、日志正则 static 单次编译；第七轮流量卡改 Catmull-Rom 平滑曲线、300 点（约 5 分钟）有界环形历史且页面切换保留（仅 epoch/隐藏清空），增量构建与 ui_state/qml_smoke/ui_responsive/ui_runtime_lists/localization 5/5 通过，ui_keyboard 既有失败经 stash 基线复测非本轮引入；第八轮流量卡与订阅概览卡同行等高、上传/下载标签上下排列与速率并排、节点卡紧凑单行、连接页按钮同行与排序下拉框同标题行（按钮风格 hover）、底部导航纯图标并在代理与设置间新增订阅入口，增量构建与 ui_state/qml_smoke/ui_responsive/ui_runtime_lists 4/4 通过；满环曲线与真实 1 Hz 连续性属人工验收范围，验证中 |
 | P3-02 | P3 | W11 | 计划订阅/用量、受管provider及GEOIP/GEOSITE/RULE-SET资源 | Todo | 未分配 | P2-07, P2-21, P2-23, P3-10, P3-11 | [固定Geo切片](reports/20261024_p3_subscription.md)、[更新内存切片](reports/20261025_proxy_memory_fixes.md) | Codex已修更新缓冲/重复解析与未变内容复用，最终包有变GUI峰76.45MB；完整订阅用量、动态资源/回退和provider/RULE-SET仍待交付，状态不提前Done |
 | P3-03 | P3 | W12 | 连接/日志/规则/提供者完整页面 | Todo | 未分配 | P2-03, P2-06, P2-10 | — | 核对当前工作区按需数据流、虚拟化、关闭及脱敏导出，保存Windows功能证据 |
 | P3-04 | P3 | W14 | Windows 权限服务/隔离控制器/TUN | Todo | 未分配 | P2-03, P2-05, P2-08, P2-09 | — | 核对现有服务实现；完成固定IPC/权限与TUN真实转发、迁移和退出清理，代码存在不等于验收通过 |

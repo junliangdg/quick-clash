@@ -404,6 +404,10 @@ void DesktopRuntime::initialize() {
     const auto target = credentials_.read(QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891"));
     if (const auto* value = std::get_if<QByteArray>(&target))
         testTarget_ = QString::fromUtf8(*value);
+    const auto savedDelayTarget =
+        credentials_.read(QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"));
+    if (const auto* value = std::get_if<QByteArray>(&savedDelayTarget))
+        delayTarget_ = QString::fromUtf8(*value);
     const auto storedErrors = store_.read(QStringLiteral("logs/errors.json"));
     if (const auto* value = std::get_if<std::optional<QJsonObject>>(&storedErrors);
         value && *value) {
@@ -487,6 +491,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("errors"), errors_},
         {QStringLiteral("testResult"), testResult_},
         {QStringLiteral("testTarget"), testTarget_},
+        {QStringLiteral("delayTarget"), delayTarget_},
         {QStringLiteral("operation"), operationSnapshot_},
         {QStringLiteral("effectivePreview"), effectivePreview_},
         {QStringLiteral("preferences"), runtimePreferences},
@@ -2277,6 +2282,14 @@ QUuid DesktopRuntime::setSystemProxy(bool desired) {
                                            : QStringLiteral("system_proxy_off"));
     auto result =
         desired ? proxyLease_.acquire(preferences().mixedPort, epoch_) : proxyLease_.release();
+    if (desired && std::holds_alternative<domain::Error>(result) && proxyLease_.conflict() &&
+        !proxyLease_.active()) {
+        // An explicit switch-on authorizes abandoning a conflicted lease: the
+        // current external value becomes the new restore baseline instead of
+        // failing closed behind a hidden recovery entry. Corrupted lease files
+        // still require manual repair and are not auto-baselined.
+        result = proxyLease_.reapply(preferences().mixedPort, epoch_);
+    }
     if (std::holds_alternative<std::monostate>(result))
         result = saveProxyIntent(desired);
     if (const auto* failure = std::get_if<domain::Error>(&result)) {

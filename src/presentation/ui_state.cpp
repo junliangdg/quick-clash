@@ -7,6 +7,9 @@
 
 namespace quickclash::presentation {
 namespace {
+// 300 samples at ~1 Hz cover 5 minutes of traffic history. The ring keeps a
+// fixed footprint; page switches retain it, epoch changes and hide reset it.
+constexpr int kTrafficHistoryLimit = 300;
 double replayRate(int sample, bool upload) {
     const double phase = static_cast<double>(sample);
     return upload ? 48.0 + 8.0 * std::sin(phase * 0.37) + 4.0 * std::sin(phase * 0.13)
@@ -14,6 +17,10 @@ double replayRate(int sample, bool upload) {
 }
 } // namespace
 UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
+    // Start with a full zero ring so the sparkline scale is stable from the
+    // first sample; real samples overwrite the oldest zeros as they arrive.
+    liveUpload_.fill(0.0, kTrafficHistoryLimit);
+    liveDownload_.fill(0.0, kTrafficHistoryLimit);
     if (!settingsFile.isEmpty()) {
         settings_ =
             std::make_unique<infra::SettingsService>(QFileInfo(settingsFile).absolutePath());
@@ -52,6 +59,9 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
     liveEpoch_ = epoch;
     for (const auto& channel : application::scopedChannels())
         clearChannel(channel);
+    // A new session epoch invalidates the accumulated traffic curve; demand
+    // generation changes alone must not clear it (page switches keep it).
+    clearTrafficHistory();
     appliedData_.remove(QStringLiteral("samples"));
     refreshTelemetry();
     return true;
@@ -130,15 +140,25 @@ void UiState::clearChannel(const QString& channel) {
         pendingLogs_ = {};
         liveLogs_.release();
     } else if (channel == QStringLiteral("traffic")) {
-        const bool hadHistory = !liveUpload_.isEmpty() || !liveDownload_.isEmpty();
-        liveUpload_ = {};
-        liveDownload_ = {};
-        trafficSample_.clear();
-        if (hadHistory)
-            emit sampleChanged();
+        // Demand generation changes only drop the lease; the bounded history
+        // and the last-sample dedup marker survive so a page switch resumes
+        // the curve and a re-sent identical sample is not appended twice.
+        // Epoch changes and hide reset both via clearTrafficHistory().
     }
     refreshTelemetry();
     emit channelInvalidated(channel);
+}
+void UiState::clearTrafficHistory() {
+    // Only a ring with real samples counts as history; the pre-filled zero
+    // ring is the initial state and must not notify on its own reset.
+    const bool hadHistory = !trafficSample_.isEmpty();
+    // Pre-fill the ring with zero samples so the plot starts at a fixed
+    // width/scale instead of re-layouting as real samples trickle in.
+    liveUpload_.fill(0.0, kTrafficHistoryLimit);
+    liveDownload_.fill(0.0, kTrafficHistoryLimit);
+    trafficSample_.clear();
+    if (hadHistory)
+        emit sampleChanged();
 }
 void UiState::refreshTelemetry() {
     QJsonObject combined = appliedData_.value(QStringLiteral("samples")).toObject();
@@ -156,11 +176,13 @@ void UiState::refreshTelemetry() {
     const auto timestamp = sample.value(QStringLiteral("time")).toString();
     if (!timestamp.isEmpty() && timestamp != trafficSample_) {
         trafficSample_ = timestamp;
+        // Bounded ring: 300 samples at ~1 Hz cover 5 minutes; the list stays
+        // at a fixed size so the history never grows with uptime.
         liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
         liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() / 1024.0);
-        while (liveUpload_.size() > 120)
+        while (liveUpload_.size() > kTrafficHistoryLimit)
             liveUpload_.removeFirst();
-        while (liveDownload_.size() > 120)
+        while (liveDownload_.size() > kTrafficHistoryLimit)
             liveDownload_.removeFirst();
     }
     emit telemetryChanged();
@@ -228,7 +250,8 @@ QString UiState::hostStatus() const {
 }
 QVariantList UiState::compactNavigation() const {
     QVariantList items;
-    for (const auto& feature : registry_.project({"home", "proxies", "settings"})) {
+    for (const auto& feature :
+         registry_.project({"home", "proxies", "subscriptions", "settings"})) {
         items.append(QVariantMap{{QStringLiteral("pageId"), feature.id},
                                  {QStringLiteral("title"), feature.title},
                                  {QStringLiteral("glyph"), feature.glyph}});
@@ -283,7 +306,7 @@ QString UiState::runtimeError() const {
     if (code == QStringLiteral("EmptySubscription"))
         return tr("The subscription returned no content. Check the URL or account status.");
     if (code == QStringLiteral("UnsupportedSubscriptionFormat"))
-        return tr("The server did not return a Clash/Mihomo YAML profile. Use a standard "
+        return tr("The server did not return a Clash Meta (mihomo) YAML profile. Use a standard "
                   "subscription URL; Base64 and share links are not supported yet.");
     if (code == QStringLiteral("UnsupportedConfigFeature"))
         return tr("This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
@@ -293,7 +316,7 @@ QString UiState::runtimeError() const {
         return tr("The bundled Geo data is missing or damaged. Restore the complete application "
                   "package.");
     if (code == QStringLiteral("ProxyGroupAutomatic"))
-        return tr("Mihomo manages this group's current node automatically.");
+        return tr("Clash Meta (mihomo) manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))
         return tr("The subscription exceeds the 16 MiB limit.");
     if (code == QStringLiteral("InvalidSubscriptionSchedule"))
@@ -311,6 +334,8 @@ QString UiState::runtimeError() const {
     if (code == QStringLiteral("HttpsSubscriptionRequired"))
         return tr(
             "Enter a valid HTTPS subscription URL without embedded login details or a fragment.");
+    if (code == QStringLiteral("InvalidDelayTarget"))
+        return tr("Enter a valid HTTPS node delay target without login details or a fragment.");
     return code;
 }
 QUrl UiState::pageSource() const {
@@ -365,6 +390,7 @@ void UiState::setUiVisible(bool visible) {
     uiVisible_ = visible;
     if (!visible) {
         demands_.clear();
+        clearTrafficHistory();
     }
     emit uiVisibleChanged();
     updateTimer();
@@ -463,8 +489,8 @@ QVariantList UiState::history(bool upload) const {
         return upload ? liveUpload_ : liveDownload_;
     QVariantList result;
     if (replay_) {
-        result.reserve(120);
-        for (int offset = 119; offset >= 0; --offset) {
+        result.reserve(kTrafficHistoryLimit);
+        for (int offset = kTrafficHistoryLimit - 1; offset >= 0; --offset) {
             result.append(replayRate(sample_ - offset, upload));
         }
     }
@@ -484,6 +510,19 @@ void UiState::saveState(const QString& instanceKey, const QVariantMap& state) {
             bounded.insert(it.key(), it.value().toString().left(128));
         } else if (it.key() == QStringLiteral("position")) {
             bounded.insert(it.key(), qBound(0.0, it.value().toDouble(), 10000000.0));
+        } else if (it.key() == QStringLiteral("groups")) {
+            // Expanded proxy group names; bounded and deduplicated.
+            QStringList accepted;
+            const auto names = it.value().toStringList();
+            for (const auto& name : names) {
+                if (name.size() <= 128 && !name.contains(QChar::Null) && !accepted.contains(name)) {
+                    accepted.append(name);
+                }
+                if (accepted.size() >= 32) {
+                    break;
+                }
+            }
+            bounded.insert(it.key(), accepted);
         }
     }
     states_.insert(instanceKey, bounded);

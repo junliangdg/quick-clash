@@ -35,14 +35,15 @@ ScrollView {
         width: root.availableWidth
         spacing: 14
         GridLayout {
-            columns: root.availableWidth >= 760 ? 4 : 2
+            columns: root.availableWidth >= 600 ? 2 : 1
             columnSpacing: 14
             rowSpacing: 14
             Layout.fillWidth: true
             FlatTile {
                 theme: root.theme
-                Layout.columnSpan: 2
                 Layout.fillWidth: true
+                // Fill the grid row so both overview cards share one height.
+                Layout.fillHeight: true
                 implicitHeight: statusContent.implicitHeight + 40
                 ColumnLayout {
                     id: statusContent
@@ -51,13 +52,13 @@ ScrollView {
                     spacing: 10
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("Replay mode · Proxy stopped") : root.ui.runtimeStatus
-                        color: root.theme.success
+                        text: qsTr("Subscription overview")
+                        color: root.theme.muted
                         font.bold: true
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("Example subscription / Sample node") : (root.ui.runtime.selectedName || qsTr("Start with a subscription"))
+                        text: root.ui.runtime.selectedName || qsTr("Start with a subscription")
                         color: root.theme.text
                         font.pixelSize: 23
                         font.bold: true
@@ -66,84 +67,115 @@ ScrollView {
                     }
                     Label {
                         font.family: root.theme.fontFamily
-                        text: root.ui.runtimeError || (root.ui.runtime.ready ? qsTr("Official Mihomo %1 · Local proxy ready").arg(root.ui.runtime.coreVersion) : qsTr("The network engine runs automatically after a valid profile is selected."))
+                        text: qsTr("%1 profiles · %2 proxy groups · %3 nodes").arg(root.ui.profileModel.count).arg(root.ui.groups.length).arg(root.ui.nodes.length)
                         color: root.theme.muted
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        ActionButton {
-                            theme: root.theme
-                            text: qsTr("Manage subscriptions")
-                            prominent: true
-                            onClicked: root.ui.navigate("subscriptions")
-                        }
-                        ActionButton {
-                            theme: root.theme
-                            text: root.ui.replay ? qsTr("End replay") : qsTr("Preview replay")
-                            onClicked: root.ui.replay = !root.ui.replay
-                        }
-                    }
                     SubscriptionDetails {
-                        visible: !!root.ui.runtime.selectedId && !root.ui.replay
+                        visible: !!root.ui.runtime.selectedId
                         Layout.fillWidth: true
                         theme: root.theme
                         profile: root.selectedProfile
                     }
                 }
             }
-            Repeater {
-                model: [
-                    {
-                        "label": qsTr("Upload"),
-                        "up": true
-                    },
-                    {
-                        "label": qsTr("Download"),
-                        "up": false
-                    }
-                ]
-                delegate: FlatTile {
-                    id: rateTile
-                    required property var modelData
-                    theme: root.theme
-                    Layout.fillWidth: true
-                    implicitHeight: 182
-                    ColumnLayout {
-                        anchors.fill: parent
-                        anchors.margins: 18
+            FlatTile {
+                theme: root.theme
+                Layout.fillWidth: true
+                // Match the subscription overview card height in the same row.
+                Layout.fillHeight: true
+                implicitHeight: trafficContent.implicitHeight + 40
+                ColumnLayout {
+                    id: trafficContent
+                    anchors.fill: parent
+                    anchors.margins: 20
+                    spacing: 12
+                    RowLayout {
+                        Layout.fillWidth: true
                         Label {
                             font.family: root.theme.fontFamily
-                            text: rateTile.modelData.label
-                            color: root.theme.muted
-                        }
-                        Label {
-                            font.family: root.theme.fontFamily
-                            text: rateTile.modelData.up ? root.ui.upload : root.ui.download
-                            color: root.theme.accent
-                            font.pixelSize: 23
+                            text: qsTr("Network traffic")
+                            color: root.theme.text
                             font.bold: true
                             Layout.fillWidth: true
-                            elide: Text.ElideRight
                         }
                         Label {
                             font.family: root.theme.fontFamily
-                            text: root.ui.replay ? qsTr("Synthetic data · 1 Hz") : (root.ui.telemetry.traffic ? qsTr("Live core traffic · 1 Hz") : qsTr("Waiting for core data"))
+                            text: root.ui.telemetry.traffic ? qsTr("Live core traffic · 1 Hz") : qsTr("Waiting for core data")
                             color: root.theme.muted
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
+                            elide: Text.ElideRight
+                        }
+                    }
+                    TrafficSparkline {
+                        // One shared coordinate system: upload (orange) and download (blue).
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 72
+                        uploadSamples: root.ui.uploadHistory
+                        downloadSamples: root.ui.downloadHistory
+                        uploadColor: root.theme.upload
+                        downloadColor: root.theme.download
+                        uploadFillOpacity: 0.25
+                        downloadFillOpacity: 0.25
+                    }
+                    // Color tags stack vertically on the left while both rate
+                    // values sit side by side on the right; the card's minimum
+                    // width shrinks to one tag column plus two values.
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 18
+                        ColumnLayout {
+                            spacing: 4
+                            Repeater {
+                                model: [
+                                    {
+                                        "label": qsTr("Upload"),
+                                        "up": true
+                                    },
+                                    {
+                                        "label": qsTr("Download"),
+                                        "up": false
+                                    }
+                                ]
+                                delegate: RowLayout {
+                                    id: rateRow
+                                    required property var modelData
+                                    spacing: 8
+                                    Rectangle {
+                                        width: 10
+                                        height: 10
+                                        radius: 3
+                                        color: rateRow.modelData.up ? root.theme.upload : root.theme.download
+                                    }
+                                    Label {
+                                        font.family: root.theme.fontFamily
+                                        text: rateRow.modelData.label
+                                        color: root.theme.muted
+                                    }
+                                }
+                            }
+                        }
+                        RowLayout {
+                            spacing: 18
+                            Label {
+                                font.family: root.theme.fontFamily
+                                text: root.ui.upload
+                                color: root.theme.upload
+                                font.pixelSize: 20
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                font.family: root.theme.fontFamily
+                                text: root.ui.download
+                                color: root.theme.download
+                                font.pixelSize: 20
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
                         }
                         Item {
-                            Layout.fillHeight: true
-                        }
-                        TrafficSparkline {
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 36
-                            samples: rateTile.modelData.up ? root.ui.uploadHistory : root.ui.downloadHistory
-                            lineColor: root.theme.accent
-                            fillColor: root.theme.accentSurface
                         }
                     }
                 }
@@ -201,7 +233,7 @@ ScrollView {
                     font.family: root.theme.fontFamily
                     text: qsTr("Virtual network adapter (TUN)") + " · " + (root.ui.runtime.tunState === "On" ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : qsTr("Off"))
                     checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
-                    enabled: !root.ui.replay && !root.ui.runtime.busy && !!root.ui.runtime.selectedId
+                    enabled: !root.ui.runtime.busy && !!root.ui.runtime.selectedId
                     onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
                     palette.windowText: root.theme.muted
                 }
@@ -223,16 +255,9 @@ ScrollView {
                     spacing: 10
                     Label {
                         font.family: root.theme.fontFamily
-                        text: qsTr("Subscription and network")
+                        text: qsTr("Network tools")
                         font.bold: true
                         color: root.theme.text
-                    }
-                    Label {
-                        font.family: root.theme.fontFamily
-                        text: root.ui.replay ? qsTr("Example subscription · Usage and expiry unknown") : qsTr("%1 profiles · %2").arg(root.ui.profileModel.count).arg(root.ui.runtime.ready ? qsTr("Core ready") : qsTr("Core stopped"))
-                        color: root.theme.muted
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
                     }
                     Label {
                         font.family: root.theme.fontFamily
@@ -281,6 +306,26 @@ ScrollView {
                         onClicked: root.ui.navigate("connections")
                     }
                 }
+                Label {
+                    text: root.ui.runtimeStatus
+                    color: root.theme.success
+                    font.bold: true
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: root.ui.runtime.ready ? qsTr("Official Clash Meta (mihomo) %1 · Local proxy ready").arg(root.ui.runtime.coreVersion) : qsTr("The network engine runs automatically after a valid profile is selected.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: root.ui.runtimeError
+                    visible: text.length > 0
+                    color: root.theme.warning
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
                 GridLayout {
                     Layout.fillWidth: true
                     columns: width >= 600 ? 2 : 1
@@ -292,10 +337,12 @@ ScrollView {
                             id: memoryColumn
                             required property string modelData
                             readonly property var counters: (root.ui.telemetry.memory || {})[modelData] || ({})
-                            function megabytes(value): string { return value !== undefined ? (Number(value) / 1000000).toFixed(1) : "—"; }
+                            function megabytes(value): string {
+                                return value !== undefined ? (Number(value) / 1000000).toFixed(1) : "—";
+                            }
                             Layout.fillWidth: true
                             Label {
-                                text: memoryColumn.modelData === "client" ? qsTr("QuickClash · Client") : qsTr("Mihomo · Core")
+                                text: memoryColumn.modelData === "client" ? qsTr("QuickClash · Client") : qsTr("Clash Meta (mihomo) · Core")
                                 color: root.theme.text
                                 font.bold: true
                             }
@@ -315,7 +362,7 @@ ScrollView {
                     }
                 }
                 Label {
-                    text: qsTr("Client includes the helper service when running; core memory is counted separately.") + "\n" + (root.ui.telemetry.memorySample || "") + "\n" + (root.ui.runtime.platform || "") + " · " + (root.ui.runtime.architecture || "") + " · Mihomo " + (root.ui.runtime.coreVersion || "—")
+                    text: qsTr("Client includes the helper service when running; core memory is counted separately.") + "\n" + (root.ui.telemetry.memorySample || "") + "\n" + (root.ui.runtime.platform || "") + " · " + (root.ui.runtime.architecture || "") + " · Clash Meta (mihomo) " + (root.ui.runtime.coreVersion || "—")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -328,8 +375,7 @@ ScrollView {
                     wrapMode: Text.WordWrap
                 }
                 Label {
-                    text: qsTr("Core uptime: %1 s").arg(root.ui.telemetry.coreUptimeSeconds || 0) +
-                          (root.ui.telemetry.memoryComplete === false ? " · " + qsTr("Resource sample is incomplete") : "")
+                    text: qsTr("Core uptime: %1 s").arg(root.ui.telemetry.coreUptimeSeconds || 0) + (root.ui.telemetry.memoryComplete === false ? " · " + qsTr("Resource sample is incomplete") : "")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

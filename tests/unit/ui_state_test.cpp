@@ -92,7 +92,9 @@ int main(int argc, char* argv[]) {
             live.applyControl(control);
             check(live.liveConnections()->captureIds() == QStringList{"new"},
                   "old generation cannot revive old connections");
-            check(live.uploadHistory().isEmpty(), "epoch clears traffic history");
+            check(live.uploadHistory().size() == 300 &&
+                      live.uploadHistory().constFirst().toDouble() == 0.0,
+                  "epoch resets traffic history to a full zero ring");
             check(profileChanges == 1 && groupChanges == 1,
                   "epoch alone does not notify unrelated profiles/groups");
         }
@@ -157,8 +159,9 @@ int main(int argc, char* argv[]) {
             const auto diagnostic = live.diagnosticSnapshot();
             check(live.liveRules()->count() == 0 && live.liveProviders()->count() == 0 &&
                       live.liveLogs()->count() == 0 && live.liveConnections()->count() == 0 &&
-                      live.uploadHistory().isEmpty() && !live.telemetry().contains("memory"),
-                  "hide releases all page models, paused logs, traffic history and resources");
+                      live.uploadHistory().size() == 300 && !live.telemetry().contains("memory"),
+                  "hide releases all page models, paused logs and resources; traffic ring resets "
+                  "to zeros");
             const auto lifecycle = diagnostic.value("dataLifecycle").toObject();
             check(lifecycle.value("appliedChannels").toArray().isEmpty() &&
                       lifecycle.value("pendingLogCount").toInt() == 0,
@@ -200,11 +203,12 @@ int main(int argc, char* argv[]) {
             UiState state(settings);
             ready(state);
             const auto compact = state.compactNavigation();
-            check(compact.size() == 3 && compact[0].toMap().value("pageId") == "home" &&
+            check(compact.size() == 4 && compact[0].toMap().value("pageId") == "home" &&
                       compact[1].toMap().value("pageId") == "proxies" &&
-                      compact[2].toMap().value("pageId") == "settings",
-                  "three compact destinations");
-            check(state.navigate("subscriptions") && state.navigation().size() == 8,
+                      compact[2].toMap().value("pageId") == "subscriptions" &&
+                      compact[3].toMap().value("pageId") == "settings",
+                  "four compact destinations");
+            check(state.navigate("connections") && state.navigation().size() == 8,
                   "compact projection keeps secondary routes available");
             check(state.navigate("home"), "return to dashboard");
             check(!state.replay() && !state.uiVisible(), "safe initial state");
@@ -227,7 +231,7 @@ int main(int argc, char* argv[]) {
             check(state.connectionModel()->count() == 0, "disabled replay releases rows");
             check(state.setReplayConnections(1000), "restore representative scale");
             state.setReplay(true);
-            check(state.uploadHistory().size() == 120 && state.downloadHistory().size() == 120,
+            check(state.uploadHistory().size() == 300 && state.downloadHistory().size() == 300,
                   "bounded representative traffic curves");
             state.setDemand("hidden", "traffic", true);
             check(state.activeDemandCount() == 0, "hidden cannot register demand");

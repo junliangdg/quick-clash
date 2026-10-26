@@ -15,8 +15,8 @@ ApplicationWindow {
     readonly property int navigationWidth: narrow ? 0 : (wideNavigation ? (width >= 1200 ? 208 : 192) : 64)
     readonly property int pageMargin: narrow ? 12 : (compact ? 16 : 24)
     readonly property bool pageReady: pageHost.status === Loader.Ready
-    width: 1160
-    height: 780
+    width: 1000
+    height: 640
     minimumWidth: 360
     minimumHeight: 480
     visible: false
@@ -147,6 +147,8 @@ ApplicationWindow {
                                 visible: window.wideNavigation
                                 text: entry.modelData.title
                                 color: entry.highlighted ? tokens.accent : tokens.text
+                                font.pixelSize: 15
+                                font.bold: true
                                 elide: Text.ElideRight
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -225,7 +227,9 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             visible: window.narrow
-            height: visible ? 68 : 0
+            // Icon-only entries keep the narrow bottom bar compact; titles stay
+            // available through tooltips and accessible names.
+            height: visible ? 56 : 0
             color: tokens.sidebar
             Row {
                 id: bottomRow
@@ -233,17 +237,20 @@ ApplicationWindow {
                 anchors.margins: 6
                 spacing: 6
                 Repeater {
+                    id: bottomEntries
                     model: window.ui.compactNavigation
                     delegate: ItemDelegate {
                         id: bottomEntry
                         required property var modelData
                         objectName: "bottom_navigation_" + modelData.pageId
-                        width: (bottomRow.width - bottomRow.spacing * 2) / 3
+                        width: (bottomRow.width - bottomRow.spacing * (bottomEntries.count - 1)) / Math.max(1, bottomEntries.count)
                         height: bottomRow.height
                         implicitWidth: 0
                         highlighted: window.ui.currentPage === modelData.pageId
                         activeFocusOnTab: true
                         Accessible.name: modelData.title
+                        ToolTip.visible: hovered
+                        ToolTip.text: modelData.title
                         onClicked: window.ui.navigate(modelData.pageId)
                         background: Rectangle {
                             radius: 12
@@ -251,27 +258,12 @@ ApplicationWindow {
                             border.width: bottomEntry.activeFocus ? 1 : 0
                             border.color: tokens.accent
                         }
-                        contentItem: Item {
-                            Label {
-                                anchors.top: parent.top
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                height: 26
-                                text: bottomEntry.modelData.glyph
-                                color: bottomEntry.highlighted ? tokens.accent : tokens.muted
-                                font.pixelSize: 20
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            Label {
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.bottom: parent.bottom
-                                height: 18
-                                text: bottomEntry.modelData.title
-                                color: bottomEntry.highlighted ? tokens.accent : tokens.text
-                                font.pixelSize: 12
-                                horizontalAlignment: Text.AlignHCenter
-                                elide: Text.ElideRight
-                            }
+                        contentItem: Label {
+                            text: bottomEntry.modelData.glyph
+                            color: bottomEntry.highlighted ? tokens.accent : tokens.muted
+                            font.pixelSize: 20
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
                 }

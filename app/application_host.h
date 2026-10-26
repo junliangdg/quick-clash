@@ -46,6 +46,7 @@ class ApplicationHost final : public QObject {
     [[nodiscard]] bool recoverableFromTray() const;
     [[nodiscard]] bool backgroundWindow() const;
     void updateDeferredUnload();
+    void centerInitialWindow();
     presentation::UiState state_;
     SystemEvents systemEvents_;
     std::unique_ptr<QQmlApplicationEngine> engine_;

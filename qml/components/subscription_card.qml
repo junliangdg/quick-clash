@@ -52,13 +52,27 @@ FlatTile {
             }
             contentItem: ColumnLayout {
                 id: titleContent
-                Label {
-                    text: root.profile.name || ""
-                    color: root.theme.text
-                    font.bold: true
+                spacing: 2
+                RowLayout {
                     Layout.fillWidth: true
-                    wrapMode: Text.WrapAnywhere
-                    textFormat: Text.PlainText
+                    spacing: 8
+                    Label {
+                        text: root.profile.name || ""
+                        color: root.theme.text
+                        font.bold: true
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAnywhere
+                        textFormat: Text.PlainText
+                    }
+                    // Management entry lives on the title row, top-right of the card.
+                    ActionButton {
+                        objectName: "manage_subscription"
+                        theme: root.theme
+                        text: qsTr("Manage")
+                        Layout.alignment: Qt.AlignTop
+                        enabled: !root.ui.runtime.busy
+                        onClicked: root.manageRequested(root.profileId)
+                    }
                 }
                 Label {
                     text: root.selected ? qsTr("Selected") : qsTr("Click to select")
@@ -103,13 +117,6 @@ FlatTile {
                 visible: !!root.profile.secretRef
                 enabled: !root.ui.runtime.busy
                 onClicked: root.actionRequested("update", root.profileId)
-            }
-            ActionButton {
-                objectName: "manage_subscription"
-                theme: root.theme
-                text: qsTr("Manage")
-                enabled: !root.ui.runtime.busy
-                onClicked: root.manageRequested(root.profileId)
             }
         }
     }

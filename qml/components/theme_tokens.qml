@@ -11,6 +11,8 @@ QtObject {
     readonly property color muted: dark ? "#aab2c3" : "#687184"
     readonly property color accent: dark ? "#76aaff" : "#1767d8"
     readonly property color accentSurface: dark ? "#263b58" : "#e5efff"
+    readonly property color upload: dark ? "#f5a353" : "#e07b1f"
+    readonly property color download: dark ? "#5b9bf5" : "#1767d8"
     readonly property color border: dark ? "#3b414e" : "#e1e5ed"
     readonly property color success: dark ? "#9edcb2" : "#246d42"
     readonly property color warning: dark ? "#f4c783" : "#82561a"

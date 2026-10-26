@@ -74,9 +74,12 @@ int main(int argc, char* argv[]) {
               "first run has no confirmed history");
         const RuntimePreferences preferences;
         const auto routingConfig = quickclash::infra::configurationSummary(
-            "proxies: [{name: node, type: http}]\nproxy-groups:\n"
+            "proxies: [{name: node, type: ss, udp: true}]\nproxy-groups:\n"
             "- {name: Z-primary, type: select, proxies: [A-auto]}\n"
             "- {name: A-auto, type: fallback, proxies: [node]}\nrules: [\"MATCH,Z-primary\"]\n");
+        check(routingConfig.value("nodes").toArray().first().toObject().value("type") == "ss" &&
+                  routingConfig.value("nodes").toArray().first().toObject().value("udp").toBool(),
+              "node cards receive protocol and explicit UDP capability");
         QJsonObject live;
         for (const auto& value : routingConfig.value("groups").toArray()) {
             const auto group = value.toObject();

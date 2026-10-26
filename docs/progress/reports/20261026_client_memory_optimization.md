@@ -411,3 +411,10 @@ QML只用6.9工具进行文本解析，不是qmllint/Qt类型检查，不能证�
 2. **时序与安全运行风险未关闭**：worker屏障/邮箱关闭与迟到回调、日志开关服务确认、需求重进完整重发、校验/提交/启动/补偿取消需真实定向回归；暂存ACL、junction竞态、短读和OS拒删/强杀残留未实测。未请求真实订阅/Geo，不操作QuickClash/Mihomo、服务、代理、TUN或用户实例，不能据此关闭服务/网络/ACL验收。
 3. **GUI/资源风险未关闭**：可变行高滚动估算、真实delegate/焦点回收、复用后按钮ID、管理弹层、旧偏好持久化、显示/禁用/退出旧租约、无托盘最小化和原生托盘恢复均未运行；已卸载后托盘丢失仍需真实OS恢复验证。完整JSON发布/轻量业务元数据及分配器常驻仍存在；释放引用不等于OS返还物理内存。
 4. 本轮没有另一个“已确认却绕过保护”的产品缺陷；以上是未关闭验证风险而非已复现根因。后续仅在另获构建授权后，以新源码Windows增量构建和表中受影响定向测试补证，再按需做一次只读资源短测；长期/压力/帧/GPU专项仍按原计划后置。静态总汇不是产品验收通行证。
+
+## 32. 代理/日志页切换内存优化（2026-10-26，Zoo）
+
+- 关联P3-01第六轮；用户反馈切换到代理和日志页内存上升明显。根因：QML delegate 绑定每次求值都直接访问 `ui.runtime/ui.nodes/ui.groups/ui.delays/ui.telemetry`，每次访问把整通道 QVariantMap/List 重新物化为 JS 对象树；代理页每个节点卡 4 处绑定 × 每秒通知，日志页每秒 traffic 样本触发 dropped 计数与导出按钮绑定重复展开整表；worker `appendLog` 每条日志构造两个临时 `QRegularExpression` 重复编译。
+- 修复：[代理页](../../../qml/features/proxies/proxies_page.qml)第12—34行通道值改页面级只读属性（每次通知只物化一次），`nodeByName/groupNames` O(1) 索引替代 `nodes.find/groups.some` 线性扫描；[日志页](../../../qml/features/logs/logs_page.qml)第17—18行 `telemetry/runtime` 同样缓存；[worker](../../../src/application/desktop_features.cpp)第157—170行正则改 `static const` 单次编译。未改通道协议、需求代次或模型行为。
+- 真实验证：`cmake --build build/dev --target quickclash` 退出0（QML 缓存重新生成编译）；`ctest -R qml_smoke|ui_responsive|ui_runtime_lists` 3/3 通过；clang-format dry-run 与 qmlformat 格式一致。内存收益未实测：需附着真实实例用 [attach_memory_windows.ps1](../../../bench/attach_memory_windows.ps1) 做切换页面前后 10—30 秒专用工作集短测，本轮 NotRun，不宣称具体 MB 节省或 100MB 达标。
+- 未提交；保留全部既有工作区改动。

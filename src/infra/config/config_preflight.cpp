@@ -285,7 +285,8 @@ QJsonObject configurationSummary(const QByteArray& semantic) {
             all.append(name);
             nodes.append(QJsonObject{
                 {QStringLiteral("name"), name},
-                {QStringLiteral("type"), QString::fromStdString(node["type"].as<std::string>())}});
+                {QStringLiteral("type"), QString::fromStdString(node["type"].as<std::string>())},
+                {QStringLiteral("udp"), node["udp"] && node["udp"].as<bool>()}});
         }
         for (const auto& group : root["proxy-groups"]) {
             QJsonArray members;

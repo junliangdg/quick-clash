@@ -310,6 +310,13 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 同步进度入口、任务/清单、报告索引和[持续报告](reports/20261026_client_memory_optimization.md)第27—31节的矩阵、真实退出码、辅助失败与残余风险；文档写回后再次复核。MVP-05/06 Stale、MVP Pass=0/16、G2/G3 NotRun及仓库任务数不变，无新产品Pass、MB节省、100MB达标或泄漏解决结论。
 - 下一步仅另获授权后新源码Windows增量构建及受影响模型/邮箱/读取/provider/事务/英中GUI/宿主定向回归，再按需一次资源短测。本轮到静态证据交付为止，不构建、不运行旧产品/真实订阅/Geo、不操作用户实例、服务、系统代理或TUN。
 
+## 2026-10-26 / 系统代理冲突显式开启自动重建基线
+
+- 关联P2-08/P2-14；负责人Zoo；用户反馈开启系统代理时报 SystemProxyConflict、开关打不开。根因：外部程序修改系统代理后，setSystemProxy(true) 走 acquire 直接失败关闭，唯一恢复入口藏在设置页 reapply_system_proxy 按钮。
+- 修复：setSystemProxy(true) 在 acquire 失败且 conflict() && !active() 时自动转 reapply()，以当前外部值为新 before 重建租约基线；损坏租约文件仍报 ProxyLeaseRecoveryRequired 不自动基线化。recovery_test 的显式重开断言改为直接开关验证 re-baseline 后 release 恢复新外部快照。
+- 验证：Windows 增量构建退出0；proxy_lease_test 退出0（0.42秒）、recovery_test 退出0（22.73秒）。全量 CTest 29%：provider_stream_test 既有编译错误（QHash::first，DEVLOG 2026-10-26 已记录为既有、非本轮引入）导致16项 Not Run；ui_keyboard/ui_subscriptions 失败为字体目录/raise 平台问题，本轮未触碰 QML/UI，与代理改动无关。
+- 设计10第3节已同步稳定方案；MVP-05/07/14 相关旧证据对当前补丁仍 Stale，不新增 Pass。未提交。
+
 ## 2026-10-26 / 进度文档职责整理
 
 - 按用户要求，移除任务台账、验收清单、进度入口和报告索引中累计的逐次开发/修改日志；过程记录只保留在本日志，命令、失败与历史证据仍在原报告，不删除历史报告。
@@ -323,3 +330,87 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 仅运行文档检查：设计生成及一致性、源码布局、差异检查退出0；初次差异检查发现性能分册末尾多余空行，修正后通过。进度检查退出1，唯一错误为[历史代理内存报告](reports/20261025_proxy_memory_fixes.md)引用的旧产品包缺失；不构建或生成占位产物消除断链。
 - 本轮保存的1209文件基线无缺失，除设计/规范文档与此日志外未改动；61条任务及64条阶段门/MVP/勾选记录逐条一致，产品源码、测试及历史证据保留。未运行构建或产品/资源测试，MVP-05/06 Stale、MVP Pass=0/16、G2/G3 NotRun不变；不新增产品通过或内存达标结论。
 - 下一步：后续设计变更直接更新稳定方案，开发经过继续集中于本日志；产品验证仍按既有任务与授权推进，本次整理不改变开发优先级或验收状态。
+
+## 2026-10-26 / 界面反馈四项微调与滚动条跳变修复
+
+- 关联P3-01；负责人Zoo；按用户反馈完成四项界面调整，保留其他工作区成果，未提交。实现与验证边界见[报告](reports/20261026_proxy_group_layout.md)第 2 节第三轮与第 4 节。
+- 首页订阅概览卡移除 `Manage subscriptions` 按钮（订阅管理经导航进入）；流量卡移除底部重复的 `Waiting for core data` 提示，等待状态仅标题行右侧表达。
+- 代理页测速进度行 `Cancel` 按钮 `implicitHeight` 绑定同行文本，显示/隐藏不再改变行高；组列表由 `ListView` 改为 `Flickable`+`ColumnLayout` 直接布局，消除可变高度 delegate 回收导致的滚动条长度跳变，节点 `Repeater` 仅展开组实例化、折叠即释放。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0；`quickclash_qmllint` 退出 0（本轮两份 QML 无警告，输出仅 `subscriptions_page.qml` 既有警告）；`ctest -R 'qml_smoke|ui_responsive|ui_runtime_lists'` 3/3 通过。`ui_keyboard`/`ui_subscriptions` 失败为既有字体目录/raise 平台问题，非本轮引入。
+- 设计08/17、任务、报告已同步；P3-01 保持 Doing/验证中，G2/G3/MVP 及内存专项结论不变。下一步：复测托盘探针时序、修复既有 provider_stream_test 编译错误后跑受影响 CTest，再按需一次资源短测。
+
+## 2026-10-26 / 界面反馈五项调整与真实构建验证
+
+- 关联P3-01；负责人Zoo；按用户反馈完成五项界面调整，保留其他工作区成果，未提交。实现与验证边界见[报告](reports/20261026_proxy_group_layout.md)第 2 节第二轮与第 4 节。
+- 订阅卡片管理按钮移到标题行右上角；流量卡上传/下载合并单坐标系（橙/蓝），波形整行、文本另起一行，`traffic_sparkline.qml` 改双序列并修复不重绘；代理页仅页面级滚动条，组卡与节点测速改网络测速图标，节点卡紧凑、点击即选择、信息/延迟/测速同行；窗口与托盘共用品牌图标；导航标题加大加粗。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0；`--smoke-test`、`--subscription-ui-test` 均退出 0；`--tray-test` 在 5.5 秒最小化卸载时序断言失败，属既有长时探针，标 Stale 待复测。全量构建因工作区既有 `provider_stream_test.cpp`（`QHash::first()`）编译错误失败，非本轮引入，保留原改动。
+- 设计17/任务/报告已同步；P3-01 保持 Doing/验证中，G2/G3/MVP 及内存专项结论不变。下一步：复测托盘探针时序、修复既有 provider_stream_test 编译错误后跑受影响 CTest，再按需一次资源短测。
+
+## 2026-10-26 / 首页精简与代理组折叠布局
+
+- 关联P3-01；负责人Zoo；按用户要求调整首页、流量卡、代理页、测速设置和内核显示名，保留其他工作区成果，未提交。实现与验证边界见[报告](reports/20261026_proxy_group_layout.md)。
+- 首页订阅卡移除回放入口和内核状态，上下行合并为单卡；内核状态、错误、版本和运行时间集中到“连接与系统”。显示名统一为Clash Meta (mihomo)。
+- 代理页改为单展开虚拟组卡和有界多列节点网格，节点显示协议/显式UDP、绿黄红延迟及选择/测速；测速HTTPS目标迁移到设置并用独立凭据引用持久化，与网站目标分离。
+- 增加协议/UDP摘要、目标去空白/发布及新中文词表断言，均尚未编译运行。首轮格式化组合命令退出1且无诊断，分开执行4份QML和7份C++格式检查均退出0；首轮diff检查退出0。上述仅为静态检查。
+- 设计03/08/12/17、任务、G3-A及报告索引已同步；P3-01保持Doing/验证中，产品构建、QML lint、CTest、GUI和资源验收NotRun，G2/G3/MVP及内存专项结论不变。
+- 下一步：完成设计合并、翻译XML/文案覆盖、进度/命名及最终diff检查；不运行产品构建，后续另获授权再验证Qt 6.8类型、行为测试和真实宽窄窗口。
+
+## 2026-10-26 / 默认窗口尺寸与启动居中
+
+- 关联P3-01；负责人Zoo；按用户要求修改默认窗口尺寸为1200×800并在打开时居中，保留其他工作区成果，未提交。实现与验证见[报告](reports/20261026_proxy_group_layout.md)第四轮。
+- 实现：`qml/main.qml` 默认尺寸1160×780改1000×640逻辑像素，宽度1000为左侧图标＋名称侧栏完整显示的最小断点（侧栏192）；`app/application_host.cpp` 新增 `centerInitialWindow()`，首次显示在鼠标所在屏幕可用区域居中、回退主屏，隐藏/卸载保存的几何仍优先恢复；`--window-size` 改为引擎创建后立即应用。
+- 用户实测反馈125% DPI下1200×800逻辑像素被放大为1500×1000物理像素，先按DPR换算后按用户决定改固定逻辑尺寸，再按用户要求将宽度对齐侧栏完整断点1000；设计04第3节、17第3节、任务台账与报告已同步；探针均自行resize不依赖默认位置。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0（首次裸终端缺 MSVC INCLUDE 失败，vcvars64 初始化后经产物时间戳确认包含本轮修改；两次 LNK1104 因运行中的 quickclash.exe 占用输出文件，结束进程后重试通过）；`ctest -R 'qml_smoke|ui_responsive|ui_runtime_lists'` 3/3 通过；设计生成/-Check、源码布局退出 0；`check_progress.ps1` 退出 1 仅既有历史 dist 断链。默认1000×640逻辑尺寸与居中效果属真实 GUI 人工验收范围，探针未断言窗口位置。
+- 下一步：P3-01 继续验证中；托盘长时探针复测与既有 `provider_stream_test` 编译错误修复另行安排。
+
+## 2026-10-26 / 测速行常驻与多组独立展开
+
+- 关联P3-01；负责人Zoo；按用户反馈完成代理页两项交互修复，保留其他工作区成果，未提交。实现与验证边界见[报告](reports/20261026_proxy_group_layout.md)第五轮。
+- 测速进度行改为展开期间常驻：未测速显示“未测速”占位，开始/完成/取消只切换文本，组卡高度不再跳变；新增 `Not tested` 中文词条。
+- 组展开由单选改为各组独立展开/收起：`expandedGroups` 列表按订阅持久化（`saveState` 新增 `groups` 键，有界去重 32 项/128 字符），恢复优先已保存集合、回退出口策略组；设计08/17 同步。
+- 真实验证：增量构建、qmllint、qml_smoke/ui_responsive/ui_runtime_lists、localization、qmlformat/clang-format、设计生成/-Check、源码布局均通过；`check_progress.ps1` 退出 1 仍为既有 dist 断链。多组展开与跨会话恢复属人工 GUI 验收范围。
+- 下一步：P3-01 保持 Doing/验证中；托盘探针复测与 `provider_stream_test` 既有编译错误修复另行安排。
+
+## 2026-10-26 / 代理与日志页内存占用优化
+
+- 关联P3-01；负责人Zoo；按用户反馈“切换到代理和日志页内存上升”完成三项优化，保留其他工作区成果，未提交。
+- 代理页：`runtime/nodes/delays` 通道值改为页面级只读属性，每次通知只物化一次；delegate 内 `delayText/delayColor/nodeDetails` 不再每次绑定求值都触发整通道 QVariant→JS 转换；`testable` 的 `groups.some` 线性扫描与 `nodeDetails` 的 `nodes.find` 改为 O(1) `nodeByName/groupNames` 索引。
+- 日志页：`telemetry/runtime` 同样页面级缓存，每秒 traffic 样本不再在 dropped 计数与导出按钮绑定中重复展开整表。
+- worker：`appendLog` 的两个 `QRegularExpression` 从每条日志临时构造改为 `static const` 单次编译，消除热路径重复编译与临时分配。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0（QML 缓存重新生成并编译）；`ctest -R qml_smoke|ui_responsive|ui_runtime_lists` 3/3 通过；clang-format dry-run 与 qmlformat 格式一致。内存收益需真实场景短测，本轮未运行资源采集。
+- 下一步：P3-01 保持 Doing/验证中；按需用 `bench/attach_memory_windows.ps1` 附着真实实例做一次 10—30 秒短测对比切换页面前后专用工作集。
+
+## 2026-10-26 / 流量卡平滑曲线与 300 点跨页保留
+
+- 关联P3-01；负责人Zoo；按用户要求“波形图改平滑、后台保存最多300点（约5分钟）、切页返回继续显示、高性能低占用”完成，保留其他工作区成果，未提交。
+- 数据层：`src/presentation/ui_state.cpp` 新增 `kTrafficHistoryLimit=300` 有界环形历史（约 14 KB 固定占用，不随运行时长增长）；`clearChannel("traffic")` 不再清空历史与去重标记，页面切换只释放 demand 租约；epoch 变化（`acceptGeneration`）与窗口隐藏（`setUiVisible(false)`）经新增 `clearTrafficHistory()` 显式清空并通知；回放曲线同步 300 点。
+- 绘制层：`qml/components/traffic_sparkline.qml` 由折线 `lineTo` 改为 Catmull-Rom 样条转 cubic Bezier 平滑曲线；y 坐标每样本预计算复用，保留固定 480×72 纹理 + 场景图缩放策略，resize 不重建 Canvas 纹理，无常驻动画。
+- 真实验证：`cmake --build build/dev --target quickclash` 与 `ui_state_test` 增量构建退出 0（两次 LNK1104 因运行中 quickclash.exe 占用输出文件，结束进程后重试通过）；`ctest -R 'ui_state|qml_smoke|ui_responsive|ui_runtime_lists|localization'` 5/5 通过；`ui_keyboard` 失败经 stash 基线复测确认为既有问题（代理页筛选框焦点），非本轮引入；clang-format dry-run、`check_source_layout.ps1`、设计生成/-Check 均通过。5 分钟满环与真实内核 1 Hz 数据下的曲线连续性属人工 GUI 验收范围，未运行资源采集。
+- 文档：设计 08（流量卡 300 点、2 节切页保留语义）、设计 13（限额表/支持负载/PERF-S2）已同步并重新生成合并版；TASKS P3-01 备注追加本轮。
+- 下一步：P3-01 保持 Doing/验证中；`ui_keyboard` 既有失败与 `provider_stream_test` 既有编译错误另行安排。
+
+## 2026-10-26 / 流量卡曲线回退折线与画布自适应
+
+- 关联P3-01；负责人Zoo；按用户实测反馈“波形上下被截断”完成三项修正，保留其他工作区成果，未提交。
+- 根因：Catmull-Rom 样条在相邻采样间过冲，超出 72px 小纹理的采样值范围，上下边缘被裁剪。
+- 修正：`qml/components/traffic_sparkline.qml` 改回折线采样点（`lineTo`），最新数据从右侧推入（索引 0 为最旧样本、`count-1` 为最新，贴右边缘）；画布 `canvasSize/canvasWindow` 改为跟随贴片实际 `width/height`，宽高变化时按新尺寸重绘一次纹理，窗口缩放图形自动适配；上下各留 2 px 余量避免峰值截断。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0；`ctest -R 'qml_smoke|ui_responsive|ui_runtime_lists'` 3/3 通过。设计 17 第 3.4 节绘制缓冲描述已同步并重新生成合并版。
+- 下一步：P3-01 保持 Doing/验证中；曲线视觉效果与窗口缩放适配属人工 GUI 验收范围。
+
+## 2026-10-26 / 流量卡零值预填稳定尺度
+
+- 关联P3-01；负责人Zoo；按用户反馈“一开始没数据时应填充环形区全部为 0，避免数据更新时波形图不停调整尺度”完成，保留其他工作区成果，未提交。
+- 实现：`src/presentation/ui_state.cpp` 构造函数与 `clearTrafficHistory()` 均预填 300 个 0.0 样本（`QVariantList::fill`），曲线从首个真实样本起即以满环固定宽度/步长绘制，`maximum` 只随真实样本出现而变化，不再因点数从 2→300 增长而反复重排尺度；`hadHistory` 改按 `trafficSample_`（真实样本时间戳）判定，预填零环复位不额外通知。
+- 测试：`tests/unit/ui_state_test.cpp` 两处断言由 `uploadHistory().isEmpty()` 改为满环 300 且首元素 0.0（epoch 重置/隐藏释放语义不变，环复位为全零而非空）。
+- 真实验证：`cmake --build build/dev --target quickclash` 与 `ui_state_test` 增量构建退出 0；`ctest -R 'ui_state|qml_smoke|ui_responsive|ui_runtime_lists|localization'` 5/5 通过（首次复跑曾因预填触发额外 `sampleChanged` 失败，修正 `hadHistory` 判定后通过）。
+- 下一步：P3-01 保持 Doing/验证中；零值基线下的真实数据过渡效果属人工 GUI 验收范围。
+
+## 2026-10-26 / 界面反馈五项布局调整（第八轮）
+
+- 关联P3-01；负责人Zoo；按用户反馈完成五项界面调整，保留其他工作区成果，未提交。实现与验证边界见[报告](reports/20261026_proxy_group_layout.md)第八轮。
+- 首页流量卡与订阅概览卡同行等高（`Layout.fillHeight`）；卡内上传/下载颜色标签上下单列排列，两个速率数值并排显示在标签列右侧，缩小卡片最小宽度。
+- 代理页节点卡紧凑单行：名称单行省略、内边距 10→8、行距 4→2、测速按钮 30×24。
+- 连接页两个关闭按钮同一行；“连接”标题与排序下拉框同一行，下拉框采用按钮一致的圆角/inset/hover 高亮风格；`RuntimeList` 空标题隐藏内置标题行。
+- 底部导航改纯图标（高 56，无文字，工具提示与可访问名称保留标题）；`compactNavigation` 在代理与设置之间新增订阅入口，`ui_state_test` 断言同步四项。
+- 真实验证：`cmake --build build/dev --target quickclash` 增量构建退出 0（首次裸终端缺 MSVC INCLUDE 失败，vcvars64 初始化后通过）；`ctest -R 'ui_state|qml_smoke|ui_responsive|ui_runtime_lists'` 4/4 通过。设计 08/09/17 已同步稳定方案。
+- 下一步：P3-01 保持 Doing/验证中；托盘探针复测与 `provider_stream_test` 既有编译错误修复另行安排。

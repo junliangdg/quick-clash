@@ -12,6 +12,10 @@ Item {
     readonly property string demandKey: ui.createDemandKey("logs")
     property bool paused: false
     property bool active: visible && ui.uiVisible && !ui.replay
+    // Read once per change notification so the per-second traffic sample does
+    // not re-materialize the whole telemetry/runtime maps in every binding.
+    readonly property var telemetry: ui.telemetry
+    readonly property var runtime: ui.runtime
     function syncDemand(): void {
         ui.setDemand(demandKey + ":view", "logs", active);
         ui.setDemand(demandKey + ":live", "log_feed", active && !paused);
@@ -54,8 +58,8 @@ Item {
             ActionButton {
                 theme: root.theme
                 text: qsTr("Open diagnostics")
-                visible: !!(root.ui.runtime.features || {}).exportUrl
-                onClicked: Qt.openUrlExternally(root.ui.runtime.features.exportUrl)
+                visible: !!(root.runtime.features || {}).exportUrl
+                onClicked: Qt.openUrlExternally(root.runtime.features.exportUrl)
             }
             ComboBox {
                 id: source
@@ -74,7 +78,7 @@ Item {
             }
         }
         Label {
-            text: qsTr("Dropped entries: %1 · Pausing creates a gap in core logs").arg(root.ui.telemetry.droppedLogs || 0)
+            text: qsTr("Dropped entries: %1 · Pausing creates a gap in core logs").arg(root.telemetry.droppedLogs || 0)
             color: root.theme.muted
             Layout.fillWidth: true
             wrapMode: Text.WordWrap

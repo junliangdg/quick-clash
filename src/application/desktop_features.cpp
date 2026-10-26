@@ -154,13 +154,24 @@ bool DesktopRuntime::acceptFeatureRequest(const RuntimeRequest& request) {
         providerDraft_ = {};
     return accepted;
 }
+namespace {
+// Compiled once; per-entry construction would recompile the patterns for
+// every log line and allocate temporaries on the hot path.
+const QRegularExpression& urlPattern() {
+    static const QRegularExpression pattern(QStringLiteral("https?://[^\\s]+"));
+    return pattern;
+}
+const QRegularExpression& credentialPattern() {
+    static const QRegularExpression pattern(
+        QStringLiteral("(?i)(password|secret|token|authorization|uuid)[=: ]+[^ ,;]+"));
+    return pattern;
+}
+} // namespace
 void DesktopRuntime::appendLog(const QString& source, const QString& level,
                                const QString& message) {
     auto safe = message.left(2048);
-    safe.replace(QRegularExpression(QStringLiteral("https?://[^\\s]+")), QStringLiteral("[url]"));
-    safe.replace(QRegularExpression(
-                     QStringLiteral("(?i)(password|secret|token|authorization|uuid)[=: ]+[^ ,;]+")),
-                 QStringLiteral("[credential]"));
+    safe.replace(urlPattern(), QStringLiteral("[url]"));
+    safe.replace(credentialPattern(), QStringLiteral("[credential]"));
     const QJsonObject entry{
         {QStringLiteral("localSeq"), QString::number(++logSequence_)},
         {QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
@@ -462,6 +473,25 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         featureState_.insert(QStringLiteral("websiteTest"),
                              QJsonObject{{QStringLiteral("state"), QStringLiteral("Cancelled")}});
         testResult_ = tr("Test cancelled");
+        publish();
+        return;
+    }
+    if (command == QStringLiteral("delay_target")) {
+        const auto targetText = args.value(0).trimmed();
+        const QUrl target(targetText);
+        if (delayRunning_ || !target.isValid() || target.scheme() != QStringLiteral("https") ||
+            target.host().isEmpty() || !target.userInfo().isEmpty() || target.hasFragment() ||
+            targetText.size() > 8192) {
+            error(QStringLiteral("InvalidDelayTarget"));
+            return;
+        }
+        const auto saved = credentials_.write(
+            QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"), targetText.toUtf8());
+        if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+            error(failure->code);
+            return;
+        }
+        delayTarget_ = targetText;
         publish();
         return;
     }

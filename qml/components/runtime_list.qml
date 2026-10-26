@@ -28,6 +28,9 @@ Item {
         anchors.fill: parent
         spacing: 12
         Label {
+            // Pages can host the heading row themselves (for example to place a
+            // sorting selector next to it); an empty heading hides this label.
+            visible: root.heading.length > 0
             text: root.heading + " · " + root.listModel.count
             color: root.theme.text
             font.pixelSize: 20

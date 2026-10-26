@@ -326,12 +326,14 @@ bool networkAndConflict() {
                    runtime.snapshot().value("proxyConflict").toBool() && settings.value == external,
                "network burst coalesces, invalidates results and preserves external proxy"))
         return false;
-    runtime.reapplySystemProxy();
-    if (!check(runtime.snapshot().value("systemProxy").toBool(), "explicit reapply"))
+    (void)runtime.setSystemProxy(true);
+    if (!check(runtime.snapshot().value("systemProxy").toBool() &&
+                   !runtime.snapshot().value("proxyConflict").toBool(),
+               "explicit switch-on re-baselines the conflicted lease"))
         return false;
     (void)runtime.setSystemProxy(false);
     if (!check(settings.value == external && ready(runtime),
-               "release restores new external snapshot"))
+               "release restores the re-baselined external snapshot"))
         return false;
 #ifdef Q_OS_WIN
     const auto core = OpenProcess(PROCESS_TERMINATE, FALSE,

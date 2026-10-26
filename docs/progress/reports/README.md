@@ -7,6 +7,8 @@
 | 主题 | 报告 |
 |---|---|
 | 客户端内存优化及最终跨批次审查 | [持续报告与验证矩阵](20261026_client_memory_optimization.md) |
+| 系统代理冲突显式开启重建基线 | [修复报告](20261026_system_proxy_conflict_fix.md) |
+| 首页精简与代理组布局 | [界面调整报告](20261026_proxy_group_layout.md) |
 | 依赖获取与Geo固定来源 | [工具维护报告](20261026_dependency_fetch_fix.md) |
 | 代理出口与订阅更新内存 | [功能修复报告](20261025_proxy_memory_fixes.md) |
 | Windows MVP范围与日常交付路线 | [G2范围复核](20261025_g2_scope_review.md)、[G3方案](20261025_g3_windows_plan.md) |

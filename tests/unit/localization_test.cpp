@@ -28,15 +28,15 @@ int main(int argc, char* argv[]) {
         return 5;
     if (QCoreApplication::translate("subscriptions_page", "Apply updates when selected") ==
             "Apply updates when selected" ||
-        QCoreApplication::translate("proxies_page", "Filter nodes by name") ==
-            "Filter nodes by name")
+        QCoreApplication::translate("proxies_page", "%1 members") == "%1 members")
         return 6;
     if (!localization.load({"ja-JP"}) || localization.language() != "en" ||
         QCoreApplication::translate("main", "Quit") != "Quit")
         return 4;
     if (!localization.load({"zh-CN"}) ||
         QCoreApplication::translate("subscription_details", "Used %1 / %2") == "Used %1 / %2" ||
-        QCoreApplication::translate("proxies_page", "Test all nodes") == "Test all nodes" ||
+        QCoreApplication::translate("settings_page", "Save delay test target") ==
+            "Save delay test target" ||
         QCoreApplication::translate("quickclash::ApplicationHost", "System proxy") ==
             "System proxy")
         return 7;

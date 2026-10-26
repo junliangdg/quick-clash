@@ -250,9 +250,8 @@
       <translation>订阅返回内容为空，请检查地址或账户状态。</translation>
     </message>
     <message>
-      <location filename="../../src/presentation/ui_state.cpp" line="150" />
-      <source>The server did not return a Clash/Mihomo YAML profile. Use a standard subscription URL; Base64 and share links are not supported yet.</source>
-      <translation>服务器未返回 Clash/Mihomo YAML 配置。请使用标准订阅地址；暂不支持 Base64 和节点分享链接。</translation>
+      <source>The server did not return a Clash Meta (mihomo) YAML profile. Use a standard subscription URL; Base64 and share links are not supported yet.</source>
+      <translation>服务器未返回 Clash Meta (mihomo) YAML 配置。请使用标准订阅地址；暂不支持 Base64 和节点分享链接。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="153" />
@@ -269,9 +268,8 @@
       <translation>随包 Geo 数据缺失或损坏，请恢复完整的应用程序包。</translation>
     </message>
     <message>
-      <location filename="../../src/presentation/ui_state.cpp" line="160" />
-      <source>Mihomo manages this group's current node automatically.</source>
-      <translation>此代理组的当前节点由 Mihomo 自动管理。</translation>
+      <source>Clash Meta (mihomo) manages this group's current node automatically.</source>
+      <translation>此代理组的当前节点由 Clash Meta (mihomo) 自动管理。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="162" />
@@ -302,6 +300,10 @@
       <location filename="../../src/presentation/ui_state.cpp" line="176" />
       <source>Enter a valid HTTPS subscription URL without embedded login details or a fragment.</source>
       <translation>请输入有效的 HTTPS 订阅地址，地址中不能包含登录信息或片段标识。</translation>
+    </message>
+    <message>
+      <source>Enter a valid HTTPS node delay target without login details or a fragment.</source>
+      <translation>请输入有效的节点延迟测试 HTTPS 地址，地址中不能包含登录信息或片段标识。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="185" />
@@ -375,14 +377,8 @@
   <context>
     <name>home_page</name>
     <message>
-      <location filename="../../qml/features/home/home_page.qml" line="45" />
-      <source>Replay mode · Proxy stopped</source>
-      <translation>回放模式 · 未运行代理</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="51" />
-      <source>Example subscription / Sample node</source>
-      <translation>演示订阅 / 示例节点</translation>
+      <source>Subscription overview</source>
+      <translation>订阅概览</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="51" />
@@ -390,9 +386,12 @@
       <translation>从一个订阅开始</translation>
     </message>
     <message>
-      <location filename="../../qml/features/home/home_page.qml" line="60" />
-      <source>Official Mihomo %1 · Local proxy ready</source>
-      <translation>官方 Mihomo %1 · 本地代理就绪</translation>
+      <source>%1 profiles · %2 proxy groups · %3 nodes</source>
+      <translation>%1 个订阅 · %2 个代理组 · %3 个节点</translation>
+    </message>
+    <message>
+      <source>Official Clash Meta (mihomo) %1 · Local proxy ready</source>
+      <translation>官方 Clash Meta (mihomo) %1 · 本地代理就绪</translation>
     </message>
     <message>
       <source>Import and select a profile, then start Mihomo.</source>
@@ -412,14 +411,8 @@
       <translation type="vanished">启动代理</translation>
     </message>
     <message>
-      <location filename="../../qml/features/home/home_page.qml" line="76" />
-      <source>End replay</source>
-      <translation>结束回放</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="76" />
-      <source>Preview replay</source>
-      <translation>预览回放</translation>
+      <source>Network traffic</source>
+      <translation>网络流量</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="91" />
@@ -430,11 +423,6 @@
       <location filename="../../qml/features/home/home_page.qml" line="95" />
       <source>Download</source>
       <translation>下载</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="124" />
-      <source>Synthetic data · 1 Hz</source>
-      <translation>1 Hz 合成数据</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="124" />
@@ -512,8 +500,8 @@
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="217" />
-      <source>Subscription and network</source>
-      <translation>订阅与网络</translation>
+      <source>Network tools</source>
+      <translation>网络工具</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="60" />
@@ -524,26 +512,6 @@
       <location filename="../../qml/features/home/home_page.qml" line="193" />
       <source>Virtual network adapter (TUN)</source>
       <translation>虚拟网卡模式（TUN）</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="223" />
-      <source>Example subscription · Usage and expiry unknown</source>
-      <translation>演示订阅 · 用量和到期时间未知</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="223" />
-      <source>%1 profiles · %2</source>
-      <translation>%1 个配置 · %2</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="223" />
-      <source>Core ready</source>
-      <translation>内核就绪</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/home/home_page.qml" line="223" />
-      <source>Core stopped</source>
-      <translation>内核未运行</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="230" />
@@ -591,8 +559,8 @@
       <translation>私有提交：%1 MB</translation>
     </message>
     <message>
-      <source>Mihomo · Core</source>
-      <translation>Mihomo · 内核</translation>
+      <source>Clash Meta (mihomo) · Core</source>
+      <translation>Clash Meta (mihomo) · 内核</translation>
     </message>
   </context>
   <context>
@@ -838,8 +806,16 @@
       <translation>负载均衡 · load-balance</translation>
     </message>
     <message>
-      <source>Members: %1</source>
-      <translation type="vanished">成员：%1</translation>
+      <source>%1 members</source>
+      <translation>%1 个成员</translation>
+    </message>
+    <message>
+      <source>Select</source>
+      <translation>选择</translation>
+    </message>
+    <message>
+      <source>Not tested</source>
+      <translation>未测速</translation>
     </message>
     <message>
       <source>Rules can use different groups. Viewing a group does not change routing.</source>
@@ -1096,8 +1072,8 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="23" />
-      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Mihomo, and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.</source>
-      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Mihomo 校验后一起应用。现有连接会重新建立，并保留上一份快照。TUN 目前使用随包 Geo 数据库。</translation>
+      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.</source>
+      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Clash Meta (mihomo) 校验后一起应用。现有连接会重新建立，并保留上一份快照。TUN 目前使用随包 Geo 数据库。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="29" />
@@ -1156,8 +1132,8 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="211" />
-      <source>QuickClash manages loopback listeners and session secrets. DNS runs inside Mihomo. Providers are validated snapshots; Geo uses verified bundled resources.</source>
-      <translation>QuickClash 管理本地监听和会话密钥。DNS 由 Mihomo 处理，提供者使用已校验快照，Geo 使用随包校验资源。</translation>
+      <source>QuickClash manages loopback listeners and session secrets. DNS runs inside Clash Meta (mihomo). Providers are validated snapshots; Geo uses verified bundled resources.</source>
+      <translation>QuickClash 管理本地监听和会话密钥。DNS 由 Clash Meta (mihomo) 处理，提供者使用已校验快照，Geo 使用随包校验资源。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="230" />
@@ -1283,6 +1259,22 @@
       <location filename="../../qml/features/settings/settings_page.qml" line="411" />
       <source>State %1 · Active views %2 · Streams %3</source>
       <translation>状态 %1 · 展示需求 %2 · 数据流 %3</translation>
+    </message>
+    <message>
+      <source>Node delay testing</source>
+      <translation>节点延迟测试</translation>
+    </message>
+    <message>
+      <source>This HTTPS target is used by individual and group node delay tests. Tests run only when requested.</source>
+      <translation>此 HTTPS 地址用于单节点和分组延迟测试，仅在手动发起时执行。</translation>
+    </message>
+    <message>
+      <source>HTTPS target for node delay</source>
+      <translation>节点延迟测试的 HTTPS 地址</translation>
+    </message>
+    <message>
+      <source>Save delay test target</source>
+      <translation>保存延迟测试地址</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="429" />
@@ -1434,8 +1426,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="149" />
-      <source>Standard HTTPS subscriptions request Clash/Mihomo YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.</source>
-      <translation>标准 HTTPS 订阅直接请求 Clash/Mihomo YAML。首次有效导入会自动选中；点击订阅卡片即可切换其代理分组和运行配置。</translation>
+      <source>Standard HTTPS subscriptions request Clash Meta (mihomo) YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.</source>
+      <translation>标准 HTTPS 订阅直接请求 Clash Meta (mihomo) YAML。首次有效导入会自动选中；点击订阅卡片即可切换其代理分组和运行配置。</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="163" />
@@ -1469,8 +1461,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="18" />
-      <source>Import Mihomo profile</source>
-      <translation>导入 Mihomo 配置</translation>
+      <source>Import Clash Meta (mihomo) profile</source>
+      <translation>导入 Clash Meta (mihomo) 配置</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="24" />

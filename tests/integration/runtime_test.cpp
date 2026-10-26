@@ -1087,9 +1087,15 @@ int main(int argc, char** argv) {
                          settings.value == original,
                      "system proxy off preserves core and restores platform settings", managed))
             return 135;
+        managed.featureCommand(QStringLiteral("delay_target"),
+                               {QStringLiteral(" https://example.invalid/delay ")});
+        if (!require(managed.snapshot().value("delayTarget") == "https://example.invalid/delay",
+                     "node delay target is validated, trimmed and published from settings",
+                     managed))
+            return 141;
         managed.featureCommand(
             QStringLiteral("delay_batch"),
-            {QStringLiteral("managed_group"), QStringLiteral("https://example.invalid/")});
+            {QStringLiteral("managed_group"), managed.snapshot().value("delayTarget").toString()});
         if (!require(waitFor([&] {
                          return managed.snapshot()
                                     .value("features")

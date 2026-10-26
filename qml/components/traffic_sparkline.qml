@@ -1,52 +1,71 @@
 import QtQuick
 
+// Dual-series traffic chart: upload (orange) and download (blue) share one
+// coordinate system with a common maximum so both waves stay comparable.
+// Samples advance left-to-right: the newest point enters from the right edge.
+// The canvas follows the item size so the plot adapts to window resizing.
 Canvas {
     id: root
-    required property var samples
-    required property color lineColor
-    required property color fillColor
-    // Keep the small texture stable during live resizing; the scene graph scales
-    // it to the item. Only data/theme changes need a new CPU paint/upload.
-    canvasSize: Qt.size(240, 36)
-    canvasWindow: Qt.rect(0, 0, 240, 36)
-    onSamplesChanged: if (visible)
+    required property var uploadSamples
+    required property var downloadSamples
+    required property color uploadColor
+    required property color downloadColor
+    required property real uploadFillOpacity
+    required property real downloadFillOpacity
+    canvasSize: Qt.size(root.width, root.height)
+    canvasWindow: Qt.rect(0, 0, root.width, root.height)
+    onUploadSamplesChanged: if (visible)
+        requestPaint()
+    onDownloadSamplesChanged: if (visible)
         requestPaint()
     onVisibleChanged: if (visible)
         requestPaint()
-    onLineColorChanged: requestPaint()
-    onFillColorChanged: requestPaint()
+    onUploadColorChanged: requestPaint()
+    onDownloadColorChanged: requestPaint()
+    onWidthChanged: requestPaint()
+    onHeightChanged: requestPaint()
     onPaint: {
         const painter = getContext("2d");
-        const plotWidth = canvasSize.width;
-        const plotHeight = canvasSize.height;
+        const plotWidth = root.width;
+        const plotHeight = root.height;
         painter.clearRect(0, 0, plotWidth, plotHeight);
-        const count = Math.min(120, samples.length);
+        if (plotWidth < 2 || plotHeight < 4)
+            return;
+        const up = uploadSamples;
+        const down = downloadSamples;
+        const count = Math.min(up.length, down.length, 300);
         if (count < 2)
             return;
         let maximum = 1;
         for (let i = 0; i < count; ++i)
-            maximum = Math.max(maximum, Number(samples[i]));
-        function trace() {
-            for (let i = 0; i < count; ++i) {
-                const x = i * plotWidth / (count - 1);
-                const y = plotHeight - 2 - Number(samples[i]) / maximum * (plotHeight - 4);
-                if (i === 0)
-                    painter.moveTo(x, y);
-                else
-                    painter.lineTo(x, y);
+            maximum = Math.max(maximum, Number(up[i]) || 0, Number(down[i]) || 0);
+        const step = plotWidth / (count - 1);
+        // Keep 2 px head/tail room so the polyline never clips at the edges.
+        const amplitude = plotHeight - 4;
+        function trace(series) {
+            painter.moveTo(0, plotHeight - 2 - (Number(series[0]) || 0) / maximum * amplitude);
+            for (let i = 1; i < count; ++i) {
+                painter.lineTo(i * step,
+                              plotHeight - 2 - (Number(series[i]) || 0) / maximum * amplitude);
             }
         }
-        painter.beginPath();
-        trace();
-        painter.lineTo(plotWidth, plotHeight);
-        painter.lineTo(0, plotHeight);
-        painter.closePath();
-        painter.fillStyle = fillColor;
-        painter.fill();
-        painter.beginPath();
-        trace();
-        painter.strokeStyle = lineColor;
-        painter.lineWidth = 1.5;
-        painter.stroke();
+        function draw(series, color, fillOpacity) {
+            painter.beginPath();
+            trace(series);
+            painter.lineTo(plotWidth, plotHeight);
+            painter.lineTo(0, plotHeight);
+            painter.closePath();
+            painter.globalAlpha = fillOpacity;
+            painter.fillStyle = color;
+            painter.fill();
+            painter.globalAlpha = 1;
+            painter.beginPath();
+            trace(series);
+            painter.strokeStyle = color;
+            painter.lineWidth = 1.5;
+            painter.stroke();
+        }
+        draw(down, downloadColor, downloadFillOpacity);
+        draw(up, uploadColor, uploadFillOpacity);
     }
 }

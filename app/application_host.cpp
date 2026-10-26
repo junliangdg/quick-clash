@@ -1,16 +1,38 @@
 #include "application_host.h"
 #include <QAction>
 #include <QApplication>
+#include <QCursor>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QScopedValueRollback>
+#include <QScreen>
 #include <QStyleHints>
 #include <utility>
 
 namespace quickclash {
+namespace {
+// Shared brand mark for the tray and the top-level window icon.
+QIcon buildApplicationIcon() {
+    QPixmap pixmap(32, 32);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(QStringLiteral("#1877f2")));
+    painter.drawRoundedRect(1, 1, 30, 30, 10, 10);
+    painter.setPen(Qt::white);
+    auto font = painter.font();
+    font.setPixelSize(21);
+    font.setBold(true);
+    painter.setFont(font);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("Q"));
+    painter.end();
+    return QIcon(pixmap);
+}
+} // namespace
 ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* parent)
     : QObject(parent), state_(std::move(settingsFile)) {
     QQmlEngine::setObjectOwnership(&state_, QQmlEngine::CppOwnership);
@@ -74,20 +96,6 @@ void ApplicationHost::setupTray(bool noTray) {
     if (noTray || !QSystemTrayIcon::isSystemTrayAvailable()) {
         return;
     }
-    QPixmap pixmap(32, 32);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(QStringLiteral("#1877f2")));
-    painter.drawRoundedRect(1, 1, 30, 30, 10, 10);
-    painter.setPen(Qt::white);
-    auto font = painter.font();
-    font.setPixelSize(21);
-    font.setBold(true);
-    painter.setFont(font);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("Q"));
-    painter.end();
     trayMenu_ = std::make_unique<QMenu>();
     trayMenu_->addAction(tr("Open QuickClash"), this, [this] { (void)showWindow(); });
     auto* status = trayMenu_->addAction(tr("Waiting for a valid profile"));
@@ -133,7 +141,7 @@ void ApplicationHost::setupTray(bool noTray) {
         (void)showWindow();
     });
     trayMenu_->addAction(tr("Quit"), this, &ApplicationHost::quit);
-    tray_ = std::make_unique<QSystemTrayIcon>(QIcon(pixmap));
+    tray_ = std::make_unique<QSystemTrayIcon>(buildApplicationIcon());
     tray_->setToolTip(QStringLiteral("QuickClash"));
     tray_->setContextMenu(trayMenu_.get());
     connect(tray_.get(), &QSystemTrayIcon::activated, this,
@@ -190,10 +198,16 @@ bool ApplicationHost::showWindow() {
             return false;
         }
         ++generation_;
+        window_->setIcon(buildApplicationIcon());
         window_->setPersistentGraphics(false);
         window_->setPersistentSceneGraph(false);
         if (geometry_.isValid()) {
             window_->setGeometry(geometry_);
+        } else if (requestedSize_.isValid()) {
+            window_->resize(requestedSize_);
+            requestedSize_ = {};
+        } else {
+            centerInitialWindow();
         }
         connect(window_, &QWindow::visibilityChanged, this, [this](QWindow::Visibility visibility) {
             const bool visible = visibility != QWindow::Hidden && visibility != QWindow::Minimized;
@@ -217,6 +231,22 @@ bool ApplicationHost::showWindow() {
     window_->requestActivate();
     openMilliseconds_ = elapsed.elapsed();
     return true;
+}
+void ApplicationHost::centerInitialWindow() {
+    // First display centers the default 960x640 logical window in the
+    // available area of the screen under the cursor; a geometry saved by
+    // hide/unload restores instead and takes precedence over this default.
+    const QScreen* screen = QGuiApplication::screenAt(QCursor::pos());
+    if (!screen)
+        screen = window_->screen();
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    if (!screen)
+        return;
+    const QRect available = screen->availableGeometry();
+    const int x = available.x() + qMax(0, (available.width() - window_->width()) / 2);
+    const int y = available.y() + qMax(0, (available.height() - window_->height()) / 2);
+    window_->setPosition(x, y);
 }
 void ApplicationHost::resizeWindow(const QSize& size) {
     if (window_)

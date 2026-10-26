@@ -68,7 +68,7 @@ ListView {
     clip: true
     FileDialog {
         id: fileDialog
-        title: qsTr("Import Mihomo profile")
+        title: qsTr("Import Clash Meta (mihomo) profile")
         nameFilters: [qsTr("YAML profiles (*.yaml *.yml)"), qsTr("All files (*)")]
         onAccepted: root.ui.runtimeCommand("import", [selectedFile.toString(), root.importName])
     }
@@ -246,7 +246,7 @@ ListView {
                     }
                 }
                 Label {
-                    text: qsTr("Standard HTTPS subscriptions request Clash/Mihomo YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.")
+                    text: qsTr("Standard HTTPS subscriptions request Clash Meta (mihomo) YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.")
                     color: root.theme.muted
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true

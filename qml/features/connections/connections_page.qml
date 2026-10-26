@@ -37,30 +37,74 @@ Item {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
-        ActionButton {
-            theme: root.theme
-            text: qsTr("Close all connections…")
-            enabled: !!root.ui.runtime.ready
-            onClicked: {
-                root.closeEpoch = root.ui.runtime.epoch;
-                confirmation.open();
+        // Both close actions share one row.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Close all connections…")
+                enabled: !!root.ui.runtime.ready
+                onClicked: {
+                    root.closeEpoch = root.ui.runtime.epoch;
+                    confirmation.open();
+                }
+            }
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Close filtered connections…")
+                objectName: "close_filtered_connections"
+                enabled: !!root.ui.runtime.ready && root.ui.liveConnections.count > 0 && root.ui.liveConnections.count <= 500
+                onClicked: {
+                    root.closeEpoch = root.ui.runtime.epoch;
+                    root.closeIds = root.ui.liveConnections.captureIds();
+                    filteredConfirmation.open();
+                }
             }
         }
-        ComboBox {
-            id: sorting
-            model: [qsTr("Newest first"), qsTr("Download speed"), qsTr("Upload speed")]
-            currentIndex: root.ui.liveConnections.sortMode
-            onActivated: root.ui.liveConnections.sortMode = currentIndex
-        }
-        ActionButton {
-            theme: root.theme
-            text: qsTr("Close filtered connections…")
-            objectName: "close_filtered_connections"
-            enabled: !!root.ui.runtime.ready && root.ui.liveConnections.count > 0 && root.ui.liveConnections.count <= 500
-            onClicked: {
-                root.closeEpoch = root.ui.runtime.epoch;
-                root.closeIds = root.ui.liveConnections.captureIds();
-                filteredConfirmation.open();
+        // Heading and the sorting selector share one row; the combo box uses
+        // the same hover highlight style as the buttons.
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+            Label {
+                text: qsTr("Connections") + " · " + root.ui.liveConnections.count
+                color: root.theme.text
+                font.pixelSize: 20
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
+            ComboBox {
+                id: sorting
+                objectName: "connections_sorting"
+                font.family: root.theme.fontFamily
+                implicitHeight: 36
+                // Padding lives on the control; the content Text has none.
+                leftPadding: 12
+                rightPadding: 30
+                model: [qsTr("Newest first"), qsTr("Download speed"), qsTr("Upload speed")]
+                currentIndex: root.ui.liveConnections.sortMode
+                onActivated: root.ui.liveConnections.sortMode = currentIndex
+                background: Rectangle {
+                    radius: 10
+                    color: sorting.hovered ? root.theme.accentSurface : root.theme.inset
+                    border.width: sorting.activeFocus ? 2 : 0
+                    border.color: root.theme.accent
+                }
+                contentItem: Text {
+                    text: sorting.displayText
+                    font: sorting.font
+                    color: root.theme.text
+                    verticalAlignment: Text.AlignVCenter
+                    elide: Text.ElideRight
+                }
+                indicator: Text {
+                    x: sorting.width - width - 10
+                    y: (sorting.height - height) / 2
+                    text: "▾"
+                    color: root.theme.muted
+                    font.pixelSize: 14
+                }
             }
         }
         RuntimeList {
@@ -68,7 +112,9 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
-            heading: qsTr("Connections")
+            // The heading row lives in the page so the sorting selector can
+            // share it; an empty heading hides the built-in label.
+            heading: ""
             listModel: root.ui.liveConnections
             actionText: qsTr("Close connection")
             describe: function (entry) {
