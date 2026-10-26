@@ -244,7 +244,7 @@ void RuntimeListModel::setQuery(const QString& query) {
     if (query_ == bounded)
         return;
     query_ = bounded;
-    invalidateFilter();
+    refilter();
     emit queryChanged();
 }
 void RuntimeListModel::release() {
@@ -264,14 +264,14 @@ void RuntimeListModel::setSourceFilter(const QString& source) {
     if (sourceFilter_ == source)
         return;
     sourceFilter_ = source;
-    invalidateFilter();
+    refilter();
     emit filtersChanged();
 }
 void RuntimeListModel::setLevelFilter(const QString& level) {
     if (levelFilter_ == level)
         return;
     levelFilter_ = level;
-    invalidateFilter();
+    refilter();
     emit filtersChanged();
 }
 bool RuntimeListModel::filterAcceptsRow(int row, const QModelIndex& parent) const {
@@ -315,7 +315,7 @@ bool RuntimeListModel::lessThan(const QModelIndex& left, const QModelIndex& righ
 }
 void RuntimeListModel::finishBatch(bool filtering, bool ordering, bool speed) {
     if (filtering && (!query_.isEmpty() || !sourceFilter_.isEmpty() || !levelFilter_.isEmpty()))
-        invalidateFilter();
+        refilter();
     if (ordering)
         sort(0);
     else if (connections_ && sortMode_ != 0 && speed && !speedSort_.isActive())

@@ -109,6 +109,17 @@ class RuntimeListModel : public QSortFilterProxyModel {
 
   private:
     void finishBatch(bool filterChanged, bool orderChanged, bool speedChanged);
+    // Qt 6.10 deprecates invalidateFilter() in favor of begin/endFilterChange().
+#if QT_VERSION >= QT_VERSION_CHECK(6, 10, 0)
+    void refilter() {
+        beginFilterChange();
+        endFilterChange();
+    }
+#else
+    void refilter() {
+        invalidateFilter();
+    }
+#endif
     QString query_;
     QString sourceFilter_;
     QString levelFilter_;

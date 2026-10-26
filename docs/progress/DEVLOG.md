@@ -466,3 +466,10 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 用户真实PID17520后续10秒92条EX2读数稳定为专用175.68MB、工作集768.73MB、提交243.60MB，逐页Shared位统计与EX2口径不可直接混用。下一步用用户实际订阅的软件模式作只读采样，区分渲染开销缓解与字体驻留是否仍存在；未提交。
 - 真实软件复测完成：用户PID8740启动参数存在，10秒92条EX2专用129.34—131.44MB、工作集690.97—693.07MB、提交137.63—139.70MB；字体映射驻留490.90MB/163份仍存在。软件缓解约44—46MB专用，但仍超过100MB，不能称异常修复；不同PID/时点对照限制及参数首次正则检测失误见报告。
 - 最终设计生成/-Check、进度、命名、C++格式及diff检查退出0；真实结果仅追加文档、不重建。专项Review/异常修复未关闭，下一步定位真实文字渲染/字体回退及私有分配，比较同机Qt版本；未强制改默认、未裁剪工作集、未提交。
+
+## 2026-10-26 / invalidateFilter 弃用修复
+
+- 关联任务 ID：P0-06；证据见 [修复报告](reports/20261026_invalidate_filter_deprecation_fix.md)，保留此前工作区改动，未提交。
+- 实现：Qt 6.12.0 头文件将 `QSortFilterProxyModel::invalidateFilter()` 标记弃用，MSVC /W4 /WX 将 C4996 升级为错误导致构建退出 2。因 `beginFilterChange()/endFilterChange()` 为 Qt 6.10 新增、6.8 不存在，按用户要求在 [runtime_list_model.h](../../src/presentation/runtime_list_model.h) 新增私有 `refilter()` 辅助，`QT_VERSION >= 6.10` 走新 API、否则走 `invalidateFilter()`；[runtime_list_model.cpp](../../src/presentation/runtime_list_model.cpp) 中 setQuery/setSourceFilter/setLevelFilter/finishBatch 共 4 处统一调用 `refilter()`，过滤/排序逻辑与角色不变。
+- 验证：通过 VsDevCmd x64 环境增量构建 `--target quickclash`（Qt 6.12.0），`runtime_list_model.cpp.obj` 编译并链接 `quickclash.exe` 成功，退出 0。Qt 6.8 分支本机无环境未实测（NotRun），仅经头文件核对 API 存在性；运行时过滤行为、QML 渲染与内存预算未测，保持 NotRun。
+- 下一步：运行时过滤/排序行为验证归入后续功能测试；Qt 6.8 分支待有环境时补编译验证；若 Qt 后续调整 `beginFilterChange` 签名需复核 `refilter()`。
