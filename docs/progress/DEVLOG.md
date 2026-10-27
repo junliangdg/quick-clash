@@ -465,3 +465,20 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - check_progress 保留阶段通过条件约束，新增 DEVLOG 锚点/Actions 运行支持及图片断链检查。执行 tests/scripts/check_progress_test.ps1：12项正反例通过，涵盖缺证据、缺文件、无效锚点、模板、未完成任务及阶段报告限制。
 - reports 从1286文件/32份Markdown/10.68MiB精简为31文件/6份Markdown/0.74MiB（约减少93%）：5份关键摘要、1份索引、25份精选证据及来源清单。重复历史报告合并，批量日志/截图/临时夹具移除；清理前副本临时保存在忽略的 build/report_archive。
 - 内核探针默认输出改为 build/core_probe，Actions 上传相应目录并保留日志14天；使用说明同步，不影响 Release 发行资产。进度/源码命名/19章设计一致性、actionlint、PowerShell语法与diff检查通过；236处报告/日志链接及锚点、24项证据摘要/来源、JSON/XML和忽略规则通过。任务状态/负责人/依赖与阶段/MVP结论保持不变，已有进程编码修复保留；未重跑产品或真实内核。下一步仍为推送后核对远端Actions/发行结果，本轮未提交或推送。
+
+## 2026-10-27 / Actions Qt6.8 UI回归调查
+
+- Codex；用户提供ui_runtime_lists主题空引用及host_lifecycle恢复断言Fail，询问CI是否只保留客户端/发行包。本机现有Qt6.12构建两项Pass；新建build/ci_qt680，用Qt6.8.0增量工具链构建客户端后两项均复现，同远端输出；日志/JUnit只写build。沙箱内编译器探测超时，获准沙箱外构建后退出0。
+- RuntimeList改为显式声明ThemeTokens、内部组合FlatTile，避开Qt6.8跨QML继承属性绑定；初轮曾临时给宿主探针补具体恢复值以定位第二项失败。实现时先记验证中/NotRun与G1-C恢复Stale，未删除测试或放宽错误正则。
+- 同一绑定修复使两项定向回归2/2通过；移除临时诊断后最终Qt6.8.0 Windows增量构建/quickclash_qmllint退出0，9/9现有UI测试22.61秒全Pass，含原型、smoke、键盘、视觉、响应式、运行列表、中英文订阅和宿主生命周期。原字体目录/raise提示仍出现但不阻止通过；Qt6.8 lint现有Overlay/类型解析等警告保留，不宣称零警告。最终日志/JUnit：build/ci_qt680/logs/final_build.log、final_tests.log及build/ci_qt680/final_ui.xml。
+- G1-C本机恢复回归已关闭，阶段G1仍Stale、G2/G3仍NotRun；CI专项Review，远端旧Fail待修复版重跑。用户日志25项共160.74秒、其中九项UI约24.94秒；本轮保留工作流，建议后续按Windows核心回归/发行包核验与独立跨平台完整验证分层，发行preset已BUILD_TESTING=OFF，不把删测试当修复。下一步推送后核对Actions；本轮未提交/推送。
+- 交付检查：check_progress、check_source_layout（185文件）、设计19章一致性与git diff --check退出0。首次G1-C引用DEVLOG被阶段清单的报告证据规则拒绝，改为已有发行报告的结论后通过；未新增报告或测试、未扩大到全量内核/资源验收。
+
+## 2026-10-27 / Windows优先快速迭代CI
+
+- Codex；按用户当前仅Windows MVP、快速迭代的范围优化CI，保留已修Qt6.8 RuntimeList与原工作区改动。main/PR仅Windows日常22项快速回归（含9项UI），版本标签/手动full_validation执行完整25项、headless与官方内核探针；慢程序/独立探针不在快速target依赖中，本地默认仍全量。
+- 仓库检查只跑一份，纯文档提交跳过Qt/产品（依赖/策略/随包许可除外）；Qt和摘要锁定资产缓存、命中再校验；同分支新提交取消旧验证，发布不主动取消。Windows同runner做独立无测试Release构建/包启动，发布job下载同次artifact核验后发布，不再装Qt/构建。Linux/macOS保留独立手动完整验证，不阻塞Windows。
+- 本机Qt6.8.0执行`build_windows.ps1 -Fast -QtRoot C:/Qt/6.8.0/msvc2022_64 -BuildDirectory build/ci_qt680`：配置/增量构建/QML lint退出0，22/22测试31.01秒全Pass，含9项UI；lint保留既有Overlay/类型解析等警告。日志位于`build/ci_qt680/logs/20261027T114508481Z_ffe921e4e97a4a2fb1b8aaeb75f772f8/`；CTest清单确认完整25项、快速22项，ci_slow仅runtime/recovery/runtime_publication。快速target依赖不含慢测试或独立探针，未声称全新CI构建只需31秒。
+- 旧headless缓存指向已移除MSVC14.50.35717，未修改产品绕过；改用新目录`build/ci_headless`后真实headless构建及5/5测试4.65秒全Pass，日志`build/ci_headless/logs/20261027T114717505Z_6bf727e0a75947f8a2b5dfbc1f8d284d/`。独立release preset配置到`build/ci_release_config`退出0，BUILD_TESTING=OFF/CTest零项，构建图无QtTest、测试/探针/快速target；本轮未重建发行包，既有干净包核验仅代表其原版本。
+- 两份工作流通过actionlint1.7.12；提取实际范围分类脚本的13项本地模拟通过，覆盖纯文档/运行策略/依赖清单/随包许可/源码/工作流/未知路径、手动/完整覆盖及diff失败。进度检查12项正反例、进程执行器、11项依赖回归、发布编排模拟、PowerShell语法和全自有C++格式检查通过，无远端发布写入。设计19章生成及-Check、最终进度/源码命名（185文件）/git diff --check均退出0。
+- 专项Review，远端Actions/发行和非Windows原生仍NotRun，本轮未运行慢测试及真实内核探针；阶段/MVP不因CI分层转Pass，未提交/推送。下一步推送后核对Windows日常验证和同次包发布，版本发行或内核/恢复等关键改动用完整模式，Linux/macOS按需手动验证。

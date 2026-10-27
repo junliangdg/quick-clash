@@ -1,10 +1,12 @@
 # Windows持续交付与CI核验
 
-2026-10-27 / Codex；状态Review。Windows发行构建/干净包及本地回归通过；用户报告的远端Windows进程测试Fail已复现修复，修复版远端重跑与实际Release发布NotRun。未提交/推送，不将本地结果称GitHub通过。
+2026-10-27 / Codex；状态Review。Windows发行构建/干净包及本地回归通过；远端Windows进程测试Fail与Qt6.8两项UI Fail已本机复现修复，修复版远端重跑与实际Release发布NotRun。未提交/推送，不将本地结果称GitHub通过。
 
 ## 交付行为
 
-[工作流](../../../.github/workflows/build.yml)在Windows/Linux/macOS验证全部成功后发布Windows包，PR只验证。默认分支（含其手动运行）更新continuous预发行，v标签生成对应版本，连字符版本为预发行。仅发行job有contents写权限；continuous替换同名资产，发布前跳过落后分支HEAD的commit。Linux/macOS保留构建验证，受管内核启动未实现，不发布用户包。
+[日常工作流](../../../.github/workflows/build.yml)以Windows为发布门，main推送/PR自动运行，其他分支经PR或手动验证。普通运行22项快速测试（含9项UI），v标签/手动full_validation运行完整25项、headless及官方内核探针；纯文档只做仓库检查，依赖/策略/随包许可变化例外。Linux/macOS移至[独立手动平台验证](../../../.github/workflows/platform_validation.yml)，不阻塞Windows发布、不分发其用户包。本机Qt6.8快速构建/22项测试、headless构建/5项测试、无测试Release配置及工作流/脚本检查通过；本轮未重建发行包，远端执行NotRun，见[DEVLOG](../DEVLOG.md#2026-10-27--windows优先快速迭代ci)。
+
+默认分支（含手动运行）更新continuous预发行，v标签生成对应版本，连字符版本为预发行。Windows验证runner复用工具/资产后独立无测试Release构建、包启动检查并上传ZIP/摘要；发布job只下载同次artifact并核验发布，仅它有contents写权限。continuous替换同名资产前核对分支HEAD；过期验证可取消，标签/发布不主动取消。资产缓存命中仍核验摘要；不使用跨机器CMake缓存。
 
 release preset独立Release/BUILD_TESTING=OFF。[打包脚本](../../../scripts/package_release_windows.ps1)安装Qt/QML/app-local CRT、锁定官方Mihomo/Geo、许可/元数据/用户说明，拒绝测试构建及非运行内容，生成ZIP/SHA256；[发布脚本](../../../scripts/publish_release.ps1)校验后上传。诊断只写build，Actions日志保留14天，不影响Release资产。当前未签名，干净普通用户/TUN/应用内更新签名链未验收。
 
@@ -15,6 +17,7 @@ release preset独立Release/BUILD_TESTING=OFF。[打包脚本](../../../scripts/
 - QHash无first，provider_stream_test改按键借用设备并断言非空；失败后全目标重建通过。publication/runtime调整合理预算，取消断言改在validationActive观察semanticBytes，保留清理语义，产品取消行为未改。初轮超时/不完整CTest未计全套Pass。
 - Windows native_process_test中文损坏，本机复现双管道各100000字符完整、CP936字节误按UTF-8解码，见[原字节诊断](evidence/native_encoding_diagnostic.json)。执行器/子夹具显式UTF-8并记录可选TextEncoding；参数/输出独立断言，保留退出7/3秒超时及子孙回收。
 - [父代码页CP437/936/UTF-8](evidence/native_encoding_matrix.json)回归均Pass。远端旧测试无原字节，不能断言其具体代码页。未来日志统一build/script_tests并always上传。
+- Qt6.8的ui_runtime_lists主题空引用、host_lifecycle重建恢复Fail已本机同版本复现；RuntimeList显式声明主题并组合FlatTile后两项恢复，最终9/9现有UI回归22.61秒全Pass、构建/lint退出0。修复前Qt6.12两项Pass不能证明Qt6.8兼容；字体目录/raise提示在成功测试中仍存在，不能据此归因。具体命令、日志位置和限制见[DEVLOG](../DEVLOG.md#2026-10-27--actions-qt68-ui回归调查)；该修复未删除测试或放宽错误门槛，远端待重跑。
 
 aqt实际查询三平台Qt6.8架构、pip三平台wheel dry-run均通过，只证明信息可解析。仓库Actions未认证API返回404，未取得修复版远端构建/发布结果。
 
@@ -37,4 +40,4 @@ Geo原latest/master变化与冻结摘要不符，拒绝正确。2026-10-26核对
 | 发布编排 | mock gh覆盖首次/重复continuous、过期commit、正式/RC、上传失败与坏摘要，无外部写入 |
 | 工程检查 | 11项依赖回归、进程执行器、发布模拟、完整Repository checks、actionlint1.7.12及PowerShell/格式/文档检查通过，不等于远端产品通过 |
 
-本地ZIP77,197,685B，SHA256=58fe68e4166a5499bfd6c4ff0e6cf9db3a9b765f3adee175e7405f6d6baa0ac2；Version=local-validation/Commit为空，不冒充已提交版本。下一步推送后核对三平台Actions/Release资产，专项仍Review。日常改动不追加本报告流水，不为重试新建report。
+本地ZIP77,197,685B，SHA256=58fe68e4166a5499bfd6c4ff0e6cf9db3a9b765f3adee175e7405f6d6baa0ac2；Version=local-validation/Commit为空，不冒充已提交版本。下一步推送后核对Windows Actions/Release资产，Linux/macOS按需手动核对；专项仍Review。日常改动不追加本报告流水，不为重试新建report。

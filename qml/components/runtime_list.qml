@@ -4,8 +4,11 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
 
-FlatTile {
+// Declare the theme on this type: Qt 6.8's compiled child bindings can fail
+// when it is inherited from the composite FlatTile type.
+Item {
     id: root
+    required property ThemeTokens theme
     required property RuntimeListModel listModel
     property string heading: ""
     property string actionText: ""
@@ -22,6 +25,10 @@ FlatTile {
     Connections {
         target: root.listModel
         function onCountChanged(): void { if (root.followTail && root.userFollowing) tail.restart(); }
+    }
+    FlatTile {
+        anchors.fill: parent
+        theme: root.theme
     }
     ColumnLayout {
         anchors.fill: parent

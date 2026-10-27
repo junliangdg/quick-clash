@@ -29,7 +29,7 @@ Windows x64 portable Release build from commit $Commit. Download the ZIP, extrac
 
 Includes the pinned official Mihomo core, Geo resources, Qt/MSVC runtime dependencies and licenses. Tests, test probes, build tools, logs and source files are excluded. The package is currently unsigned.
 
-Linux/macOS are checked by the CI build jobs and are not included in this release.
+Linux/macOS validation is available in a separate manual workflow. They are not included in this release.
 "@ | Set-Content -LiteralPath $taskNotes -Encoding utf8NoBOM
 if ($taskContinuous) {
     # Concurrency groups do not guarantee arrival order. An older run must not

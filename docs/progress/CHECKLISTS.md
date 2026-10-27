@@ -29,7 +29,7 @@
 
 - [x] G1-A：桌面左侧八模块入口/路由/嵌入复用独立，导航常驻不创建全部页面，移动只验边界。[当前验证](reports/windows_validation.md#工程与内核)
 - [ ] G1-B：方案C共享控件/八页面、Light/Dark、键盘/草稿/菜单/确认/错误态及本机125%DPI原生截图已通过；完整状态组合、字体缩放/多屏迁移未运行，G1汇总未完成，旧视觉证据Stale。[产品迁移与边界](reports/20261027_unified_visual_implementation.md)
-- [x] G1-C：单实例/托盘/无托盘退路与显示/隐藏/卸载/重建通过，隐藏释放需求且无重复命令，100 次默认路径句柄稳定。[当前验证](reports/windows_validation.md#工程与内核)
+- [x] G1-C：单实例/托盘/无托盘退路及100次句柄历史证据保留；Qt6.8 Actions的共享列表绑定/重建回归已本机复现修复，当前host_lifecycle和其余8项UI测试通过；远端修复版重跑NotRun。[当前验证](reports/windows_validation.md#工程与内核)、[Qt6.8回归](reports/20261027_github_release.md#ci故障与修复)
 - [x] G1-D：Release环境、三项内存原始数据具备，六场景双主题单轮短测12/12通过，专用工作集49.7—54.9 MB；按1.6无需长时/帧/GPU矩阵。[范围重评](reports/windows_validation.md#原型生命周期与资源)
 - [x] G1-E：已记录原型实测及未来解析、仓库日志、服务更新的资源风险；固定MB分项预留不再作为当前要求，真实组件随交付测量，不将估算称为实测。[原型历史](reports/windows_validation.md#原型生命周期与资源)、[当前资源策略](reports/20261027_unified_visual_implementation.md)
 

@@ -38,17 +38,21 @@
 
 默认UI开发构建目录为`build/dev`，headless为`build/headless`，发行使用独立`build/release`。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
-Linux/macOS 候选环境由 [CI](../../.github/workflows/build.yml) 固定：ubuntu-22.04使用Qt6.8.0的`linux_gcc_64`，macos-14使用`clang_64`；Windows为windows-2022/`win64_msvc2022_64`。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2、clang-format21.1.2二进制包；Qt Action关闭内部Python设置，并固定aqtinstall3.3.0/py7zr1.1.0。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+快速迭代阶段，[日常CI](../../.github/workflows/build.yml)只将Windows设为发布门：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
+
+Windows使用windows-2022/Qt6.8.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞Windows发布。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
 Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev --exclude-regex '^runtime$'`；runtime集成测试依赖Windows官方内核和AppContainer，不能将非Windows占位适配当作已支持。其余单元/UI测试继续执行，headless构建及其全部测试另行执行。headless preset只要求Qt Core，不显式查找Network/Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
-Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo，然后使用同一本机构建脚本运行UI/headless构建、QML lint、全部测试及官方内核API/监听归属/Job探针。工作流始终上传可用的构建/测试日志及aqt安装日志。用户已报告三平台初始化失败；配置修复及本地验证见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)，远端修复版重跑及Linux/macOS实际构建仍为NotRun，不宣称三平台通过。
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行22项现有测试，包括全部9项UI；`ci_slow`标签仅标记runtime、runtime_publication、recovery三项，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
+
+`v*`标签或手动勾选`full_validation`时，同次Windows运行改为完整25项CTest、独立headless构建/5项测试和官方内核API/监听归属/Job/AppContainer探针；不先重复运行22项快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
 
 ### GitHub持续交付与干净发行包
 
-PR仅验证。默认分支（当前main）全部native矩阵通过后更新GitHub Releases的`continuous`预发行版；`v*`标签运行成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则。Windows x64先发行，Linux/macOS继续构建验证。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。
+PR仅验证。默认分支（当前main）Windows快速验证通过后更新GitHub Releases的`continuous`预发行版；`v*`标签完整Windows验证成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则，可用`full_validation`追加完整门槛。Linux/macOS独立手动验证，不是Windows发布依赖。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous仅代表快速验证的开发快照，版本发布还须结合已声明支持范围的验收证据。
 
-发行任务重新使用独立`release` preset，`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`，编译期移除宿主/键盘/原型/界面测试探针，不使用dev exe打包。`scripts/package_release_windows.ps1`拒绝测试构建，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
+Windows验证runner复用已装工具/依赖，再使用独立`release` preset构建，`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`，编译期移除宿主/键盘/原型/界面测试探针，不使用dev exe打包。`scripts/package_release_windows.ps1`拒绝测试构建，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
 
 Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
 

@@ -1,50 +1,66 @@
 name: build_and_release
-on: [push, pull_request, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      full_validation:
+        description: Run all Windows tests, headless boundary and official core probes
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
-  native:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            arch: win64_msvc2022_64
-          - os: ubuntu-22.04
-            arch: linux_gcc_64
-          - os: macos-14
-            arch: clang_64
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+  checks:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    concurrency:
+      group: windows-checks-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+    outputs:
+      product: ${{ steps.scope.outputs.product }}
+      full: ${{ steps.scope.outputs.full }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Select validation scope
+        id: scope
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          FULL_VALIDATION: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.full_validation == true }}
+        run: |
+          $changed = $null
+          $product = $true
+          if ($env:EVENT_NAME -eq 'pull_request') {
+            $changed = @(git diff --name-only "$($env:BASE_SHA)...$($env:HEAD_SHA)")
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot classify pull request changes' }
+          } elseif ($env:EVENT_NAME -eq 'push' -and $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and $env:BEFORE_SHA -ne ('0' * 40)) {
+            git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+              $changed = @(git diff --name-only $env:BEFORE_SHA $env:HEAD_SHA)
+              if ($LASTEXITCODE -ne 0) { throw 'Cannot classify push changes' }
+            }
+          }
+          if ($null -ne $changed) {
+            $product = @($changed | Where-Object { $_ -notmatch '^(docs/|[^/]+[.]md$)' -or $_ -match '^docs/baseline/((config_policy|release_matrix)[.]json|licenses[.]md)$' }).Count -gt 0
+          }
+          if ($env:FULL_VALIDATION -eq 'true') { $product = $true }
+          "product=$($product.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "full=$($env:FULL_VALIDATION.ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          $global:LASTEXITCODE = 0
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
-      - name: Pinned build and format tools
+      - name: Pinned formatter
         run: |
-          python -m pip install --only-binary=:all: cmake==4.3.0 ninja==1.13.2 clang-format==21.1.2
-      - uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.8.0'
-          arch: ${{ matrix.arch }}
-          cache: true
-          setup-python: false
-          aqtversion: '==3.3.0'
-          py7zrversion: '==1.1.0'
-      - uses: ilammy/msvc-dev-cmd@v1
-        if: runner.os == 'Windows'
-      - name: Linux Qt runtime dependencies
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libegl1
-      - name: Acquire verified YAML archive
-        if: runner.os != 'Windows'
-        shell: pwsh
-        run: ./scripts/fetch_dependencies.ps1 -YamlOnly
-      - name: Acquire verified Windows core, Geo and YAML assets
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: ./scripts/fetch_dependencies.ps1
+          python -m pip install --only-binary=:all: clang-format==21.1.2
       - name: Repository checks
         shell: pwsh
         run: |
@@ -60,71 +76,28 @@ jobs:
             clang-format --dry-run --Werror $file.FullName
             if ($LASTEXITCODE -ne 0) { throw 'C++ format check failed' }
           }
-      - name: Configure and build
-        if: runner.os != 'Windows'
-        run: |
-          cmake --preset dev
-          cmake --build --preset dev --parallel 3
-      - name: Contracts and QML smoke
-        if: runner.os != 'Windows'
-        # The runtime test requires the Windows official core and AppContainer.
-        run: ctest --preset dev --exclude-regex '^runtime$' --output-junit native_tests.xml
-      - name: QML static checks
-        if: runner.os != 'Windows'
-        run: cmake --build build/dev --target quickclash_qmllint
-      - name: Headless boundary
-        if: runner.os != 'Windows'
-        run: |
-          cmake --preset headless
-          cmake --build --preset headless --parallel 3
-          ctest --preset headless --output-junit headless_tests.xml
-      - name: Windows native build, lint, tests and headless boundary
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          ./scripts/build_windows.ps1
-          ./scripts/build_windows.ps1 -Headless
-      - name: Windows official core contract and Job
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          ./scripts/probe_mihomo.ps1
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native_logs_${{ matrix.os }}
+          name: repository_logs
           retention-days: 14
-          path: |
-            build/script_tests/
-            build/dev/Testing/Temporary/
-            build/dev/CMakeFiles/CMakeConfigureLog.yaml
-            build/dev/logs/
-            build/headless/Testing/Temporary/
-            build/headless/CMakeFiles/CMakeConfigureLog.yaml
-            build/headless/logs/
-            native_tests.xml
-            headless_tests.xml
-            aqtinstall.log
-            build/core_probe/
-  release_windows:
-    needs: native
-    if: >-
-      github.event_name != 'pull_request' &&
-      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+          path: build/script_tests/
+  windows:
+    needs: checks
+    if: needs.checks.outputs.product == 'true'
     runs-on: windows-2022
     timeout-minutes: 35
-    permissions:
-      contents: write
     concurrency:
-      group: release-${{ github.ref }}
-      cancel-in-progress: false
+      group: windows-build-${{ github.event.pull_request.number || github.ref }}
+      cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.14'
       - name: Pinned build tools
-        run: python -m pip install cmake==4.3.0 ninja==1.13.2
+        run: |
+          python -m pip install --only-binary=:all: cmake==4.3.0 ninja==1.13.2
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.0'
@@ -134,34 +107,95 @@ jobs:
           aqtversion: '==3.3.0'
           py7zrversion: '==1.1.0'
       - uses: ilammy/msvc-dev-cmd@v1
-      - name: Acquire verified runtime dependencies
+      - name: Cache pinned dependency assets
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/yaml_cpp_*.tar.gz
+            .cache/mihomo-windows-*.zip
+            .cache/mihomo/license.txt
+            .cache/geo/
+          key: windows-assets-${{ hashFiles('docs/baseline/release_matrix.json') }}
+      - name: Acquire and reverify runtime dependencies
         shell: pwsh
         run: ./scripts/fetch_dependencies.ps1
+      - name: Windows build, QML checks and selected tests
+        shell: pwsh
+        env:
+          FULL_VALIDATION: ${{ needs.checks.outputs.full }}
+        run: |
+          if ($env:FULL_VALIDATION -eq 'true') {
+            ./scripts/build_windows.ps1
+            ./scripts/build_windows.ps1 -Headless
+            ./scripts/probe_mihomo.ps1
+          } else {
+            ./scripts/build_windows.ps1 -Fast
+          }
       - name: Build production binaries without tests or probes
+        if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
         run: |
           cmake --preset release
           cmake --build --preset release --parallel 4
-      - name: Package and verify Windows runtime
+      - name: Package and smoke test Windows runtime
+        if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
         shell: pwsh
         env:
           RELEASE_REF: ${{ github.ref_name }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:RELEASE_REF } else { 'continuous' }
           ./scripts/package_release_windows.ps1 -Version $version -Commit $env:GITHUB_SHA
-      - name: Publish GitHub Release
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+        with:
+          name: windows_package
+          retention-days: 14
+          if-no-files-found: error
+          compression-level: 0
+          path: |
+            dist/quickclash_windows_x64.zip
+            dist/quickclash_windows_x64.zip.sha256
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: windows_logs
+          retention-days: 14
+          path: |
+            build/dev/logs/
+            build/dev/Testing/Temporary/
+            build/dev/CMakeFiles/CMakeConfigureLog.yaml
+            build/headless/logs/
+            build/headless/Testing/Temporary/
+            build/headless/CMakeFiles/CMakeConfigureLog.yaml
+            build/release/logs/
+            build/release/CMakeFiles/CMakeConfigureLog.yaml
+            build/core_probe/
+            aqtinstall.log
+  release_windows:
+    needs: windows
+    if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: windows-2022
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows_package
+          path: dist
+      - name: Publish verified package without rebuilding
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           RELEASE_REF: ${{ github.ref_name }}
-        run: |
-          ./scripts/publish_release.ps1 -Repository $env:GH_REPO -Commit $env:GITHUB_SHA -RefName $env:RELEASE_REF -RefType $env:GITHUB_REF_TYPE
+        run: ./scripts/publish_release.ps1 -Repository $env:GH_REPO -Commit $env:GITHUB_SHA -RefName $env:RELEASE_REF -RefType $env:GITHUB_REF_TYPE
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: release_windows_logs
           retention-days: 14
-          path: |
-            build/release/logs/
-            build/release/CMakeFiles/CMakeConfigureLog.yaml
-            aqtinstall.log
+          path: build/release/logs/

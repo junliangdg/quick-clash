@@ -6,6 +6,7 @@ param(
     [string]$CMake = 'cmake',
     [string]$Ninja = '',
     [switch]$Headless,
+    [switch]$Fast,
     [switch]$Fresh,
     [string]$BuildDirectory = '',
     [ValidateRange(1, 7200)][int]$ConfigureTimeoutSeconds = 120,
@@ -58,9 +59,13 @@ try {
     if ($BuildDirectory) { $configureArguments += @('-B', $BuildDirectory) }
     if ($Fresh) { $configureArguments += '--fresh' }
     Invoke-NativeStep -Executable $resolvedCMake -Arguments $configureArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'configure.log') -TimeoutSeconds $ConfigureTimeoutSeconds
-    Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--parallel', '4') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'build.log') -TimeoutSeconds $BuildTimeoutSeconds
+    $buildArguments = @('--build', $resolvedBuild, '--parallel', '4')
+    if ($Fast) { $buildArguments += @('--target', 'quickclash_ci_fast') }
+    Invoke-NativeStep -Executable $resolvedCMake -Arguments $buildArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'build.log') -TimeoutSeconds $BuildTimeoutSeconds
     if (-not $Headless) {
         Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--target', 'quickclash_qmllint') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'qmllint.log') -TimeoutSeconds $BuildTimeoutSeconds
     }
-    Invoke-NativeStep -Executable $ctest -Arguments @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml')) -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds $TestTimeoutSeconds
+    $testArguments = @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml'))
+    if ($Fast) { $testArguments += @('--label-exclude', 'ci_slow') }
+    Invoke-NativeStep -Executable $ctest -Arguments $testArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds $TestTimeoutSeconds
 } finally { Pop-Location }
