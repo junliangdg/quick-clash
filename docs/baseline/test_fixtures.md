@@ -10,6 +10,6 @@ tests/fixtures/mvp不包含真实订阅/凭据。inline_valid.yaml为基础公�
 
 P2-13已实现tests/integration/network_fixture.*：独立HTTP CONNECT代理与TLS站点使用随机回环端口，GET固定响应与域名CONNECT目标同时断言。保留域名fixture.quickclash.invalid在CONNECT fixture内映射至TLS站点，因此不能直连DNS成功来掩盖代理路径。客户端明确使用本地mixed入口，产品网站测试另用HEAD。记录方法/去查询串的路径/CONNECT目标，不包含真实订阅、密钥或用户代理快照。该逻辑远端位于同一开发机，未宣称公网跨机验收。
 
-P2-14使用独立WinINet PRECONFIG测试客户端验证系统代理、重复开启、端口迁移和停止后原快照相等；默认CTest不改OS设置，显式--native-system-proxy才运行该专项。tests/fixtures/network的公开证书/私钥仅用于本地测试，Qt信任限测试进程，WinINet未知CA例外限该请求，不改OS信任库。产品TLS策略无绕过。当前结果见 [P2报告](../progress/reports/20261024_p2_implementation.md)。
+P2-14使用独立WinINet PRECONFIG测试客户端验证系统代理、重复开启、端口迁移和停止后原快照相等；默认CTest不改OS设置，显式--native-system-proxy才运行该专项。tests/fixtures/network的公开证书/私钥仅用于本地测试，Qt信任限测试进程，WinINet未知CA例外限该请求，不改OS信任库。产品TLS策略无绕过。当前结果见 [P2报告](../progress/reports/windows_validation.md#订阅与代理功能)。
 
 P2-20的TLS夹具按User-Agent协商YAML并刻意返回text/html，断言默认UA/Accept、首尾空白、显式请求头覆盖。HTML/Base64/空更新均保留旧源和Ready会话。真实订阅仅经本地标准输入临时验证，仓库不保存URL、token、正文、节点名或凭据，证据仅匿名S1—S4结构计数。

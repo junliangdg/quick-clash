@@ -1,7 +1,0 @@
-
---- stderr ---
-publish_release.ps1: D:\repos\quick-clash\tests\scripts\publish_release_test.ps1:28
-Line |
-  28 |      & $taskPublish -Repository 'fixture/project' -Commit $taskCommit  ��
-     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-     | You cannot call a method on a null-valued expression.

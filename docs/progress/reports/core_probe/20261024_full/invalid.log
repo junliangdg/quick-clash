@@ -1,4 +1,0 @@
-time="2026-10-24T02:38:47.419103300+08:00" level=error msg="yaml: line 1: did not find expected node content"
-configuration file D:\repos\quick-clash\.cache\core_probe_8b7d0f7e0688457ba9a708d02c8cb8a6\invalid.yaml test failed
-
---- stderr ---

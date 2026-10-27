@@ -1,4 +1,0 @@
-QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
-Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
-This plugin does not support raise()
-Subscription delegates=0 pageHeight=750 contentHeight=93764

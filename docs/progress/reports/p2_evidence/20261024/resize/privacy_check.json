@@ -1,6 +1,0 @@
-{
-  "result": "Pass",
-  "matching_files": 0,
-  "scope": "Repository text including evidence; excluded .git, cache, build, dist and binary images/executables",
-  "pattern_scope": "Credential-like long subscription query values and IPv4 long subscription paths; no private values emitted"
-}

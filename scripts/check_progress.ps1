@@ -30,22 +30,39 @@ function Read-Cells([string]$Line) {
     return @($Line.Trim().Trim([char]'|').Split('|') | ForEach-Object { $_.Trim() })
 }
 
-# Completion evidence must be a saved local report, not a template or a remote-only claim.
-function Test-Evidence([string]$Value, [string]$Context) {
+# Routine work may use a specific DEVLOG entry or Actions run. Stage acceptance
+# still needs a report that explains each condition and its validation limits.
+function Test-Evidence([string]$Value, [string]$Context, [switch]$Acceptance) {
     $links = [regex]::Matches($Value, '\[[^\]\r\n]+\]\((?<target>[^)\r\n]+)\)')
     if ($links.Count -eq 0) {
-        Add-Issue "$Context requires a saved report link under reports/."
+        Add-Issue "$Context requires an evidence link (report, DEVLOG entry or Actions run)."
         return
     }
     $reportsRoot = [System.IO.Path]::GetFullPath((Join-Path $progressPath 'reports'))
     $reportsPrefix = $reportsRoot.TrimEnd([char[]]'\/') + [System.IO.Path]::DirectorySeparatorChar
     foreach ($link in $links) {
-        $target = ($link.Groups['target'].Value -split '#', 2)[0]
+        $parts = $link.Groups['target'].Value -split '#', 2
+        $target = $parts[0]
+        if (-not $Acceptance -and $target -match '^https://github\.com/[^/\s]+/[^/\s]+/actions/runs/[0-9]+(?:/attempts/[0-9]+)?(?:/job/[0-9]+)?/?$') {
+            continue
+        }
         if ($target -match '^[a-zA-Z][a-zA-Z0-9+.-]*:' -or [string]::IsNullOrWhiteSpace($target)) {
-            Add-Issue "$Context must link a local report; record external CI evidence inside that report."
+            Add-Issue "$Context has an invalid evidence URL; acceptance requires a local report."
             continue
         }
         $fullPath = [System.IO.Path]::GetFullPath((Join-Path $progressPath $target))
+        if (-not $Acceptance -and $fullPath -eq (Join-Path $progressPath 'DEVLOG.md') -and
+            (Test-Path -LiteralPath $fullPath -PathType Leaf)) {
+            $anchor = if ($parts.Count -gt 1) { [uri]::UnescapeDataString($parts[1]) } else { '' }
+            $anchors = @([regex]::Matches((Read-Text $fullPath), '(?m)^#{1,6} +(.+?)\r?$') | ForEach-Object {
+                $heading = $_.Groups[1].Value.ToLowerInvariant() -replace '[^\p{L}\p{N}_\-\s]', ''
+                $heading -replace '\s', '-'
+            })
+            if ([string]::IsNullOrWhiteSpace($anchor) -or $anchor -cnotin $anchors) {
+                Add-Issue "$Context requires an existing DEVLOG heading anchor."
+            }
+            continue
+        }
         if (-not $fullPath.StartsWith($reportsPrefix, [System.StringComparison]::OrdinalIgnoreCase) -or
             [System.IO.Path]::GetFileName($fullPath) -eq 'README.md' -or
             [System.IO.Path]::GetExtension($fullPath) -ne '.md' -or
@@ -121,7 +138,7 @@ foreach ($line in ($checklistText -split '\r?\n')) {
         if ($gates.ContainsKey($id)) { Add-Issue "Duplicate gate ID: $id"; continue }
         if ($phase -ne ('P' + $id.Substring(1))) { Add-Issue "$id has inconsistent phase $phase." }
         if ($state -notin $resultStates) { Add-Issue "$id has invalid state $state." }
-        if ($state -in @('Pass', 'Fail') -or $evidence -notin @('', '—')) { Test-Evidence $evidence $id }
+        if ($state -in @('Pass', 'Fail') -or $evidence -notin @('', '—')) { Test-Evidence $evidence $id -Acceptance }
         if ($state -in @('Fail', 'Blocked', 'Stale') -and $next -in @('', '—')) { Add-Issue "$id needs a reason and next step." }
         $gates[$id] = [pscustomobject]@{ Phase = $phase; State = $state }
     }
@@ -135,7 +152,7 @@ foreach ($line in ($checklistText -split '\r?\n')) {
         foreach ($reference in ($taskRefs -split ',\s*')) {
             if (-not $tasks.ContainsKey($reference)) { Add-Issue "$id refers to missing task $reference." }
         }
-        if ($state -in @('Pass', 'Fail') -or $evidence -notin @('', '—')) { Test-Evidence $evidence $id }
+        if ($state -in @('Pass', 'Fail') -or $evidence -notin @('', '—')) { Test-Evidence $evidence $id -Acceptance }
         if ($state -in @('Fail', 'Blocked', 'Stale') -and $next -in @('', '—')) { Add-Issue "$id needs a reason and next step." }
         $mvp[$id] = $state
     }
@@ -144,7 +161,7 @@ foreach ($line in ($checklistText -split '\r?\n')) {
         $isChecked = $Matches['checked'] -ne ' '
         if ($checks.ContainsKey($id)) { Add-Issue "Duplicate gate check $id."; continue }
         $checks[$id] = $isChecked
-        if ($isChecked) { Test-Evidence $line $id }
+        if ($isChecked) { Test-Evidence $line $id -Acceptance }
     }
 }
 foreach ($number in 0..5) {
@@ -173,7 +190,7 @@ if ($gates['G2'].State -eq 'Pass' -and @($mvp.Values | Where-Object { $_ -ne 'Pa
 
 # Include links in workflow, templates and reports, without treating planned code paths as existing files.
 foreach ($file in (Get-ChildItem -LiteralPath $progressPath -File -Recurse -Filter '*.md')) {
-    foreach ($link in [regex]::Matches((Read-Text $file.FullName), '(?<!!)\[[^\]\r\n]*\]\((?<target>[^)\r\n]+)\)')) {
+    foreach ($link in [regex]::Matches((Read-Text $file.FullName), '!?\[[^\]\r\n]*\]\((?<target>[^)\r\n]+)\)')) {
         $target = $link.Groups['target'].Value
         if ($target -match '^[a-zA-Z][a-zA-Z0-9+.-]*:' -or $target.StartsWith('#')) { continue }
         $relative = ($target -split '#', 2)[0]
@@ -197,6 +214,6 @@ if ($issues.Count -gt 0) {
     foreach ($issue in $issues) { Write-Output ('ERROR: ' + $issue) }
     throw "Progress validation failed with $($issues.Count) issue(s)."
 }
-Write-Output 'PASS: task IDs, dependencies, work packages, gate/MVP results, report references and local links are consistent.'
+Write-Output 'PASS: task IDs, dependencies, work packages, gate/MVP results, evidence references and local links are consistent.'
 Write-Output 'This validates tracking structure only; it does not run or certify product tests.'
 

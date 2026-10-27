@@ -1,0 +1,10 @@
+{
+  "parent_output": "utf-8",
+  "parent_input": "gb2312",
+  "stdout_hex": "6762323331320D0AD6D0CEC40D0A",
+  "stderr_hex": "D6D0CEC40D0A",
+  "stdout_utf8": "gb2312\r\n����\r\n",
+  "stdout_cp936": "gb2312\r\n中文\r\n",
+  "stderr_cp936": "中文\r\n",
+  "exit_code": 0
+}

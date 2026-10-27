@@ -51,6 +51,7 @@ jobs:
           ./scripts/build_design_docs.ps1 -Check
           ./scripts/check_source_layout.ps1
           ./scripts/check_progress.ps1
+          ./tests/scripts/check_progress_test.ps1
           ./tests/scripts/native_process_test.ps1
           ./tests/scripts/fetch_dependencies_test.ps1
           ./tests/scripts/publish_release_test.ps1
@@ -92,7 +93,9 @@ jobs:
         if: always()
         with:
           name: native_logs_${{ matrix.os }}
+          retention-days: 14
           path: |
+            build/script_tests/
             build/dev/Testing/Temporary/
             build/dev/CMakeFiles/CMakeConfigureLog.yaml
             build/dev/logs/
@@ -102,7 +105,7 @@ jobs:
             native_tests.xml
             headless_tests.xml
             aqtinstall.log
-            docs/progress/reports/p0_core/
+            build/core_probe/
   release_windows:
     needs: native
     if: >-
@@ -157,6 +160,7 @@ jobs:
         if: always()
         with:
           name: release_windows_logs
+          retention-days: 14
           path: |
             build/release/logs/
             build/release/CMakeFiles/CMakeConfigureLog.yaml

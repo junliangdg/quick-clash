@@ -1,6 +1,0 @@
-[0/2] Re-checking globbed directories...
-[1/45] Automatic MOC for target quickclash
-[2/44] Running AUTOMOC file extraction for target quickclash
-[3/44] Running moc --collect-json for target quickclash
-[4/6] Building CXX object CMakeFiles\quickclash.dir\app\keyboard_probe.cpp.obj
-[5/6] Linking CXX executable quickclash.exe

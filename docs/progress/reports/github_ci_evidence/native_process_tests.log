@@ -1,3 +1,0 @@
-PASS: native arguments, concurrent pipes, nonzero exit, timeout and owned process tree cleanup
-
---- stderr ---

@@ -7,6 +7,7 @@ function Invoke-NativeStep {
         [string[]]$Arguments = @(),
         [Parameter(Mandatory)][string]$WorkingDirectory,
         [Parameter(Mandatory)][string]$LogPath,
+        [Text.Encoding]$TextEncoding = [Text.Encoding]::UTF8,
         [ValidateRange(1, 7200)][int]$TimeoutSeconds = 120
     )
 
@@ -20,6 +21,10 @@ function Invoke-NativeStep {
     $startInfo.CreateNoWindow = $true
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
+    # The caller must select the child's wire encoding. UTF-8 is the default
+    # for our tools; do not infer it from the parent's console code page.
+    $startInfo.StandardOutputEncoding = $TextEncoding
+    $startInfo.StandardErrorEncoding = $TextEncoding
     foreach ($argument in $Arguments) { $startInfo.ArgumentList.Add($argument) }
 
     $process = [Diagnostics.Process]::new()
@@ -60,6 +65,7 @@ function Invoke-NativeStep {
                     executable = $resolvedExecutable
                     arguments = $Arguments
                     working_directory = $resolvedWorkingDirectory
+                    text_encoding = $TextEncoding.WebName
                     started_at_utc = $started.ToString('o')
                     elapsed_ms = $timer.ElapsedMilliseconds
                     exit_code = $exitCode

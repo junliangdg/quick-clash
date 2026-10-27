@@ -23,7 +23,7 @@
 ## 2026-10-24 / P0 实物与进度台账对齐
 
 - 关联任务 ID：P0-01—09；未新增 P1/P2 业务开发。
-- 产物核对：本地 HEAD `1ee26e6` 已含 CMake/Qt Quick 空壳、领域/Operation/接口、受限 YAML 预检与测试、官方资产获取/内核探针脚本、三平台 CI 配置及基线文档。详情与历史验证见 [P0 实施报告](reports/p0_implementation.md)，本次开始时工作区干净。
+- 产物核对：本地 HEAD `1ee26e6` 已含 CMake/Qt Quick 空壳、领域/Operation/接口、受限 YAML 预检与测试、官方资产获取/内核探针脚本、三平台 CI 配置及基线文档。详情与历史验证见 [P0 实施报告](reports/windows_validation.md#工程与内核)，本次开始时工作区干净。
 - 台账修正：P0-01/02/03/05 为 Done；P0-04/06/07/08/09 为 Blocked，均补负责人、报告与解除条件。已有草稿但欠缺必要运行证据的任务未提前标 Done。G0 为 Blocked，仅勾选 G0-A；G1—G5 和 16 项 MVP 仍为 NotRun。
 - 实际验证边界：已保存的历史证据包括官方资产离线摘要复核、Mihomo API-only 通过及 yaml-cpp 0.9.0 策略声明被 CMake 4.3 接受。本次仅同步文档/进度，不重跑构建或内核探针；完整客户端编译/启动、Job/端口归属、契约测试、三平台及资源测量仍未通过。
 - 阻塞：完整构建曾在受限环境挂起，后续重试因自动审批服务 401 故障未执行；完整内核探针还缺 TCP 归属查询能力与已编译 Job 探针。既有记录保留在 P0 报告，不以文档检查替代运行验收。
@@ -33,7 +33,7 @@
 
 ## 2026-10-24 / P0 构建与验证入口接续
 
-- 关联任务 ID：P0-04/06/07/08/09；证据见 [接续报告](reports/20261024_p0_validation.md)，保留此前工作区修改，未提交。
+- 关联任务 ID：P0-04/06/07/08/09；证据见 [接续报告](reports/windows_validation.md#工程与内核)，保留此前工作区修改，未提交。
 - 实现：新增带超时/双管道/进程树清理的原生执行器和独立测试；Windows 构建保存步骤元数据/JUnit 并自动 lint；headless 只显式查找 Core，smoke 修正软件渲染配置。内核探针保存逐次成功/失败/清理记录，Windows CI 接入完整探针及证据上传。
 - 验证：进程执行器覆盖中文/引号、双管道、非零退出和子/孙进程超时清理，退出 0；QML 静态检查、资产离线摘要、C++ 格式、PowerShell 解析通过；Mihomo API-only 三次递进版本通过，最终结果见报告。首次解析检查命令被外层 shell 展开而失败，直接解析后通过。
 - 阻塞：请求独立目录本机构建，自动审批服务再次 401，动作未执行；未改用其他构建通道。P0-06 从 Doing 回到 Blocked，全部 P0 仍为 4 Done/5 Blocked；G0/MVP 无新增通过。Job/端口归属、断网隔离、完整编译/契约测试、三平台与资源仍未验收。
@@ -43,7 +43,7 @@
 ## 2026-10-24 / 仓库目录命名迁移
 
 - 关联任务：P0-01/06/09；用户要求实际工作路径统一为 D:/repos/quick-clash。
-- 实现：仓库目录名 quick-clash、应用名 QuickClash、内部标识 quickclash；已同步 README/AGENTS/编码规范/构建说明，迁移记录见 [报告](reports/20261024_repository_rename.md)。
+- 实现：仓库目录名 quick-clash、应用名 QuickClash、内部标识 quickclash；已同步 README/AGENTS/编码规范/构建说明，迁移记录见 [报告](reports/windows_validation.md#工程与内核)。
 - 证据边界：旧核心探针原始输出保留原路径；旧构建缓存留存，迁移后采用全新构建目录；不把改名当作完整构建成功，P0/MVP 状态不变。
 - 阻塞：目录重命名请求因自动审批服务 401 未执行，实际 checkout 和 Codex 保存项目仍在原位置；目标路径尚不存在。报告保留可在父目录运行的迁移命令，未绕过审批或提前修改 Git origin。
 - 验证：进度、源码命名、设计合并和差异检查通过，当前代码/脚本/CMake/CI 未匹配到旧产品命名；实际目录仍在原路径。
@@ -55,11 +55,11 @@
 - P1-01—05：准备单实例/托盘/可卸载窗口宿主、八模块工厂/导航投影/路由/独立代理摘要、双主题/圆角贴片/代表回放页、需求释放/轻量状态、Windows 原始资源场景脚本和行为测试。
 - 受限边界：新路径不在当前会话可写根中，写入审批返回 401 / 无可用账户凭据，动作未执行。没有绕过；在允许的可视化目录保存 base/work 与独立补丁。代码及本文档更新尚未应用到 checkout。
 - 真实检查：17个QML解析/格式与moc元数据辅助qmllint无警告，C++格式/资源脚本语法/命名检查通过。完整编译、CTest、托盘/视觉和资源测量均NotRun，G0未通过，G1 Blocked，16项MVP仍NotRun。
-- 台账：P1-01—05 Blocked（实现补丁待应用及运行），P1-06 Todo；不以静态检查关闭任务。详细边界见 [报告](reports/20261024_p1_implementation.md)。
+- 台账：P1-01—05 Blocked（实现补丁待应用及运行），P1-06 Todo；不以静态检查关闭任务。详细边界见 [报告](reports/windows_validation.md#工程与内核)。
 - 下一步：重新打开新工作目录以更新写权限或修复审批服务；git apply --check 后应用补丁，新构建目录完成P0/P1测试，再执行G1场景与≤100MB资源评审。
 ## 2026-10-24 / P1 补丁应用与实际仓库验证
 
-- 关联任务：P1-01—06、P0-06；当前报告见 [P1 已落地实现与验收缺口](reports/20261024_p1_applied.md)。
+- 关联任务：P1-01—06、P0-06；当前报告见 [P1 已落地实现与验收缺口](reports/windows_validation.md#工程与内核)。
 - 新路径写权限已更新，git apply --check --whitespace=error 与实际应用均退出 0；保留此前全部修改，未提交。P1 单实例/托盘宿主、八模块工厂/导航/嵌入、双主题/圆角贴片/回放列表、需求释放/卸载重建和采集脚本已进入实际 checkout，不再等待应用补丁。
 - 修订：检查 UiState 的 Qt 注册模板兼容；最小化状态更新；嵌入参数变更/无效上下文释放旧实例；滚动恢复 Timer 随组件销毁；页面加载错误提示；smoke/原型循环核对加载就绪、QML诊断和筛选恢复。资源脚本支持双主题/多轮/预热、100ms默认采样，同时检查私有提交和工作集，失败保留输出/CSV/summary。
 - 代表内容补充：首页120点/1Hz的上传/下载回放曲线，有界数据且隐藏停更新；最终实际仓库18个QML重新生成moc/qmltypes后qmllint无警告。C++格式、PowerShell语法、命名、台账、设计生成/核对和diff检查通过。原始静态日志见 reports/p1_static/20261024_applied。
@@ -69,7 +69,7 @@
 
 ## 2026-10-24 / AutoUic 误识别手写头文件修复
 
-- 关联任务：P0-06；执行者 Zoo，保留已有全部工作区改动，未提交。详见 [修复报告](reports/20261024_autouic_fix.md)。
+- 关联任务：P0-06；执行者 Zoo，保留已有全部工作区改动，未提交。详见 [修复报告](reports/windows_validation.md#工程与内核)。
 - 失败证据：用户提供的 build/dev 日志显示主程序与状态测试的 AutoUic 将手写状态头文件误识别为生成头，寻找不存在的 Designer 表单并退出 1；此前 ABI/审批故障保留为历史。
 - 实现：Qt 标准设置后、主程序及后续测试目标创建前设置 CMAKE_AUTOUIC OFF；保留 AUTOMOC、QML 模块和资源处理，不重命名状态头文件、不添加虚假表单。
 - 验证：通过 powershell.exe 运行 check_progress.ps1、check_source_layout.ps1，并执行 git diff --check，串联命令退出 0；命名检查覆盖 28 个目录/59 个文件，差异检查仅提示 LF→CRLF。按用户约定不运行配置、自动生成、编译、CTest 或 GUI/资源验收，不以静态核对宣称构建通过。
@@ -78,7 +78,7 @@
 
 ## 2026-10-24 / QML 缓存生成代码 C4702 警告边界修复
 
-- 关联任务：P0-06；执行者 Zoo，保留此前全部工作区改动，未提交。详见 [修复报告](reports/20261024_qmlcache_warning_fix.md)。
+- 关联任务：P0-06；执行者 Zoo，保留此前全部工作区改动，未提交。详见 [修复报告](reports/windows_validation.md#工程与内核)。
 - 最新失败：用户 build/dev 日志已进入源码编译；Qt 6.8.0 的两个 QML 缓存编译单元触发 MSVC C4702，被 /WX 升级为 C2220，构建退出 1。此前 AutoUic/ABI/审批失败保留为历史，不作为当前失败点。
 - 实现：QML 模块声明后，仅在 MSVC 分支为目标中 .rcc/qmlcache 下的生成 C++ 文件追加 /wd4702；保持自有源码 /W4、/WX，保留 QML 缓存/AOT，不改生成文件、Qt 安装或依赖。
 - 验证：只读核对 Qt 源文件登记顺序；实际补丁模式匹配 18 个缓存与 1 个 loader，排除 16 个手写源码编译条目和 7 个负样本。首次辅助检查误分类缓存 tests 页面、首次进度检查不支持报告链接行号，修正后边界检查及 check_progress.ps1、check_source_layout.ps1、git diff --check 均退出 0；命名覆盖 28 个目录/59 个文件。按约定不运行配置、自动生成、编译、CTest、QML lint、GUI 或资源验收，不以静态检查宣称构建通过。
@@ -87,7 +87,7 @@
 
 ## 2026-10-24 / Windows P0收尾、专用工作集与P1键盘验证
 
-- 关联任务：P0-04/06—09、P1-01—06；保留所有工作区修改，无提交/推送/远端CI。当前事实见 [报告](reports/20261024_windows_private_working_set.md)。
+- 关联任务：P0-04/06—09、P1-01—06；保留所有工作区修改，无提交/推送/远端CI。当前事实见 [报告](reports/windows_validation.md#原型生命周期与资源)。
 - 按用户指定将100 MB硬门槛改为Windows客户端进程组专用工作集，K32GetProcessMemoryInfo/EX2采集，另保留总工作集/私有提交；API失败即采集失败。Linux/macOS原生及CI执行后置P4-06，Windows本地G0 Pass。
 - 完成官方内核零网络能力AppContainer正反-t、父/子回环对照、owned监听/Job/API验证。Windows Release/cache/lint、7/7 CTest、独立headless1/1、随包部署smoke通过。保留AutoUic和qmlcache警告修复边界，yaml-cpp0.9.0在CMake4.3完整构建通过。
 - 成本阶梯定位整份应用字体多占约40—50 MB，改用系统已安装Microsoft YaHei，保持中文可读。最新部署SHA f2019bd7ca1927c9980fd964ac5858db3de37749e016953793e1e3a5b48a27ca：双主题六场景12/12执行及专用工作集短测通过，峰值49.7—54.9 MB；三项原始数据和旧失败均保留。
@@ -101,13 +101,13 @@
 
 - 用户明确要求减少验证/性能工作，更多时间用于开发。未实施P2代码或新增性能埋点，也未启动正式/后台性能矩阵；此前读取没有修改产品代码。
 - 设计升级1.6：代码交付做一次Windows增量构建和受影响检查，资源敏感修改选一个10—30秒单轮短测。采集脚本默认首页/浅色/30秒单轮，完整矩阵需显式选择。取消G1两分钟预热/五次重复/十分钟场景及帧/GPU/自动滚动/周转前置，后期按需；100 MB专用工作集目标和另外两项指标保留。
-- 依据未改变二进制的已有构建/7项测试、原型行为、生命周期与12/12内存短测，P1-06由Blocked改Done，G1按新范围Pass；长时CPU/帧/GPU等没有被标为实测通过。见 [范围重评](reports/20261024_development_first.md)。P0 9Done、P1 6Done，P2—P5仍32Todo，MVP0/16。
+- 依据未改变二进制的已有构建/7项测试、原型行为、生命周期与12/12内存短测，P1-06由Blocked改Done，G1按新范围Pass；长时CPU/帧/GPU等没有被标为实测通过。见 [范围重评](reports/windows_validation.md#原型生命周期与资源)。P0 9Done、P1 6Done，P2—P5仍32Todo，MVP0/16。
 - 本次仅运行文档生成/一致性/命名及差异检查，结果见报告；不因文档变化重跑构建、UI或性能。旧失败和旧验收要求保留历史。
 - 下一任务P2-01：实现版本化原子仓库和损坏恢复，接续P2-02设置/DPAPI与P2-03官方内核进程/API，优先形成可用订阅—代理链路。
 
 ## 2026-10-24 / P2 Windows订阅与代理链路
 
-- 关联任务：P2-01—17，执行者Codex；保留此前工作区改动，无提交/推送。完整范围、逐任务状态与证据见 [P2交付报告](reports/20261024_p2_implementation.md)。
+- 关联任务：P2-01—17，执行者Codex；保留此前工作区改动，无提交/推送。完整范围、逐任务状态与证据见 [P2交付报告](reports/windows_validation.md#订阅与代理功能)。
 - 完成：单写者/原子schema仓库与manifest恢复、异步偏好/DPAPI、官方Mihomo认证Ready/owned Job/隔离-t、导入/订阅及来源头/更新/删除、节点身份恢复/模式与端口事务、系统代理租约/冲突/迁移/恢复、有限崩溃恢复、错误/修复入口、单目标HTTPS、OS事件合并、本地包和采样脚本。UI/托盘共用应用门面，系统代理意图独立持久化，退出保留/UserStop清除且不开机自动代理。
 - 产物：dist/p2_final/bin/quickclash.exe，SHA-256 075d3f620f1c67e0df47551cec35597481a2cfb7ae052526fb6cf39bb4d21767；随包Qt/QML/TLS/CRT、官方v1.19.33及摘要/许可/用户说明。BUILD_TESTING开启，未签名，仅开发验证，非干净机或公网发行验收。
 - 实际验证：Windows Release增量构建/WX退出0，最终CTest10/10（24.20秒）、headless2/2通过；QML lint退出0但Qt6.8 Dialogs重复类型警告仍保留。独立CurrentProxy域名CONNECT/TLS及真实WinINet PRECONFIG HTTPS/重复开启/端口迁移/原值恢复通过，最后追加意图退出/重开/停止语义断言也通过。
@@ -119,16 +119,16 @@
 
 ## 2026-10-24 / P2窄窗、多语言、订阅格式适配与主流功能分期
 
-- 交付P2-18/19/20：360×480最小窗/600断点三底栏、全路由状态保留；英文源文案/172条中文Qt词表/系统序匹配及英文回退；标准链接默认Clash/Mihomo UA+YAML Accept、内容识别/头覆盖/坏更新保留。见[响应式/语言/链接适配交付](reports/20261024_p2_responsive_localization.md)。
+- 交付P2-18/19/20：360×480最小窗/600断点三底栏、全路由状态保留；英文源文案/172条中文Qt词表/系统序匹配及英文回退；标准链接默认Clash/Mihomo UA+YAML Accept、内容识别/头覆盖/坏更新保留。见[响应式/语言/链接适配交付](reports/windows_validation.md#订阅与代理功能)。
 - Windows Release /WX通过；首次7项检查6Pass/1绑定循环Fail，改用C locale后最终7/7、19.54秒。QML lint退出0，保留Qt6.8 Dialogs重复类型警告。最终包dist/p2_adaptive、SHA081e680d2b089183ced2a92611d0940d68f4a073ecd7f16bbc9b9917b59680e0，随包smoke和中英文竖屏截图通过；用户旧实例保留。
 - 一次10秒/91样本，客户端专用工作集60,329,984 B，总工作集152,944,640 B，私有提交204,558,336 B，核心单列；仅Ready首页场景，非导入/持续转发或长时结论。旧包的UI/下载/资源证据Stale，旧失败保留。
 - 用户提供4个私有URL仅本地内存/标准输入测试，无真实地址/查询或路径凭据/正文/节点名进入仓库。均HTTP200且YAML；S1生产预检拒绝UnsupportedConfigFeature，类型统计证明需Hysteria2/Trojan/VLESS、url-test/fallback、Geo和fake-ip；不称已导入或远端转发成功。
-- 用户要求按基础/高级拆任务：P2-21主流协议、P2-22自动组、P2-23具体诊断；P3-02扩充Geo，P3-08 DNS，P3-09高级能力。新增均Todo，范围/条件见[Mihomo功能分期](reports/20261024_mihomo_feature_plan.md)。P2共16Done/2Review/2Blocked/3Todo，G2仍Blocked；没有因新增文档宣称实现。
+- 用户要求按基础/高级拆任务：P2-21主流协议、P2-22自动组、P2-23具体诊断；P3-02扩充Geo，P3-08 DNS，P3-09高级能力。新增均Todo，范围/条件见[Mihomo功能分期](reports/windows_validation.md#阶段范围与待补项)。P2共16Done/2Review/2Blocked/3Todo，G2仍Blocked；没有因新增文档宣称实现。
 - 下一开发任务P2-21，先前三类协议，再VMess/基础传输；后续自动组和诊断。真实OS事件/关键强杀恢复、干净普通用户环境缺口保留；不新增长时/帧/GPU矩阵。设计生成/Check、进度/布局、格式/秘密扫描和diff结果见交付报告。
 
 ## 2026-10-24 / P2主流协议、自动组与具体兼容性诊断
 
-- 完成P2-21/22/23，执行者Codex，保留原工作区改动，未提交/推送。新增按协议和嵌套字段校验Hysteria2/Trojan/VLESS/VMess，自动组url-test/fallback及无环引用，最多32项安全兼容性原因；187条中文词表完成。实现、边界与证据见[协议交付报告](reports/20261024_p2_protocols.md)。
+- 完成P2-21/22/23，执行者Codex，保留原工作区改动，未提交/推送。新增按协议和嵌套字段校验Hysteria2/Trojan/VLESS/VMess，自动组url-test/fallback及无环引用，最多32项安全兼容性原因；187条中文词表完成。实现、边界与证据见[协议交付报告](reports/windows_validation.md#订阅与代理功能)。
 - 真实runtime探针发现窗口创建前resize空指针，宿主改为暂存尺寸，内容/Ready后截图；最终430×850中文代理页可用，手选与自动组控件按能力区分。健康检查交官方Mihomo，不新增永久测速轮询；组命令与恢复均校验能力/成员身份。
 - Windows Release /WX增量构建通过，受影响CTest7/7（22.99秒），窗口修复后只重跑UI3/3（3.67秒）；官方隔离-t/Ready/选择/重启/坏候选保留、受控自动组健康检查通过。首次健康夹具漏HEAD的6/7及窗口调试栈保留。QML lint退出0，既有Qt Dialogs重复类型警告未消除。
 - 最终包dist/p2_protocols_final/bin/quickclash.exe，SHA bde55c99302143c3c3b33236b08609cea9ad123f1730a67e5d4292fd6ad7ee94；随包smoke及实际中文代理页核对通过。官方v1.19.33字节不变，未签名，普通用户干净环境未验收。
@@ -138,7 +138,7 @@
 
 ## 2026-10-24 / 连续缩放与导航切换卡顿修复
 
-- 关联P2-24，Codex；保留全部既有工作区修改，无提交/推送，未停止或覆盖用户正在运行的旧包。见[缩放报告](reports/20261024_resize_layout.md)。
+- 关联P2-24，Codex；保留全部既有工作区修改，无提交/推送，未停止或覆盖用户正在运行的旧包。见[缩放报告](reports/windows_validation.md#订阅与代理功能)。
 - 先减少外层Layout/导航名称隐式尺寸协商并固定240×36曲线绘制缓冲，offscreen通过但真实Windows仍停顿。渲染日志与本地栈确认GUI线程在D3D11帧延迟等待对象中约一秒阻塞；默认basic/D3D11启动路径禁用该等待对象，保留GPU/flip/vsync及显式环境覆盖。
 - 最终Release/WX与QML lint退出0，既有Qt Dialogs警告保留；qml_smoke/ui_keyboard/ui_responsive/host_lifecycle共4/4通过。真实窗口首页/代理各80步，最大事件处理耗时约15.3/19.9ms，同一页面、引擎及需求保留；这不是呈现帧测量或真实转发时缩放验收。
 - 完整包dist/p2_resize/bin/quickclash.exe，SHA-256 e61d250fcbb06ab09f5de7795a0763ae05b43c3db92b67600704f2f282b13f01；随包smoke及中文窄窗截图通过。官方v1.19.33不变，普通用户干净环境仍待核对。
@@ -148,7 +148,7 @@
 
 ## 2026-10-25 / P3代表订阅最小可用闭环（代码与首次联网检查于2026-10-24）
 
-- P3-10 Done / Codex，见[报告](reports/20261024_p3_subscription.md)。S3先因Geo/DNS/协议字段被拒绝，补固定Geo及有界内部fake-ip DNS、Hysteria2端口跳跃/mport规范化、TLS指纹及VLESS空flow兼容；保留原规则和DNS语义，禁用外部DNS监听和资源自动下载。
+- P3-10 Done / Codex，见[报告](reports/windows_validation.md#订阅与代理功能)。S3先因Geo/DNS/协议字段被拒绝，补固定Geo及有界内部fake-ip DNS、Hysteria2端口跳跃/mport规范化、TLS指纹及VLESS空flow兼容；保留原规则和DNS语义，禁用外部DNS监听和资源自动下载。
 - 用户指定URL仅经stdin、本地临时仓库导入；56节点/3组、官方v1.19.33 Ready，第二候选VLESS全局模式HTTPS200、完整1MiB、默认TLS验证及所选节点链且无DIRECT通过。未验证首个Hysteria2候选成功，不能宣称全部56节点可用。原文/节点名/凭据仅仓库外，证据为匿名统计。
 - 最终Windows增量构建/WX通过，contracts/runtime/localization/ui_state共4/4、23.03s；含公开DNS/Geo隔离-t/Ready。独立随包副本的Geo有效/缺失/损坏检查符合预期。首次资源清单遗漏schemaVersion造成1项回归失败，已修复；VLESS空flow误拒绝已补回归。
 - 本地包dist/p3_subscription/bin/quickclash.exe，SHA14c601fead90519d852212dc342c00d974163bdfc1111b6259e902c0ee209deb；固定Geo随包，清Qt PATH smoke退出0。一次10秒92样本，客户端专用工作集61,796,352B、总工作集157,601,792B、私有提交204,316,672B；核心三指标单列。退出0、owned核心已清理，系统代理未改；非私有56节点/持续流量资源验收，旧包资源证据Stale。
@@ -157,7 +157,7 @@
 
 ## 2026-10-25 / Windows日常订阅链路
 
-- P3-11 Done / Codex，见[报告](reports/20261025_daily_use.md)。单worker单定时器串行计划、6小时新订阅默认/旧条目手动、独立自动应用、结果/时间/退避、取消和重开恢复；选中变化走现有事务/补偿，未变不重启。候选和确认版本分离，停机更新不启核心，模式变更不误清待应用。
+- P3-11 Done / Codex，见[报告](reports/windows_validation.md#订阅与代理功能)。单worker单定时器串行计划、6小时新订阅默认/旧条目手动、独立自动应用、结果/时间/退避、取消和重开恢复；选中变化走现有事务/补偿，未变不重启。候选和确认版本分离，停机更新不启核心，模式变更不误清待应用。
 - 代理页名称筛选；profileId+组策略/成员HMAC和成员存在核对，新增无关节点保留选择，跨配置/变凭据不恢复。旧记录缺profileId跳过一次，重选后保存。新增文案英文+中文，随系统语言。
 - Windows Release/WX、7/7 CTest 42.43秒通过；最后测试增补后runtime --native-system-proxy 44.39秒退出0，含计划持久化及原有/新增更新反例、自动应用后租约、独立PRECONFIG转发、端口迁移和精确恢复；最终localization通过。
 - 私有代表订阅仅stdin/仓库外临时数据；56节点/3组，第二候选VLESS，全局HTTPS200/1MiB/TLS/非DIRECT所选链、更新后访问通过，未变保留会话。首轮探针旧空会话目录和短连接采样时序修复后通过，匿名失败保留；不声称所有节点/Hysteria2/公网规则通过。
@@ -167,7 +167,7 @@
 
 ## 2026-10-25 / G3 Windows日常交付与平台覆盖路线调整
 
-- P3-12 Done / Codex，设计基线1.8；见[方案报告](reports/20261025_g3_windows_plan.md)。本次仅修改设计、任务/清单、进度说明及合并生成器摘要，保留当前所有功能代码和历史证据。
+- P3-12 Done / Codex，设计基线1.8；见[方案报告](reports/windows_validation.md#阶段范围与待补项)。本次仅修改设计、任务/清单、进度说明及合并生成器摘要，保留当前所有功能代码和历史证据。
 - G3明确交付Windows日常使用：订阅/计划更新/自动应用、分组节点/测速、模式与系统代理/TUN、真实转发、后台内核恢复、八页面和退出清理。Windows关键恢复、普通用户干净包及TUN/服务实测仍需完成；资源采用必要单场景10—30秒短测和有效证据，不扩大全平台/长时/图形矩阵。
 - 三桌面平台后续按Linux/macOS分别原生覆盖，Windows正式安装/更新可先行；五平台远期增加Android/iOS，先核验宿主/官方资产/权限/分发。静态检查、原生构建、真实系统功能独立记录，未运行不标Pass。
 - 新增P3-13 Todo收敛跨平台静态兼容，初步发现DesktopRuntime具体凭据/代理头、desktop_features的Win32/SCM采样、EngineSession具体Windows进程和CMake平台源耦合；本次未修代码，不声明静态检查完成。P3功能切片依赖改为实际已完成前置，P3-07汇总仍依赖P2-17和全部必要P3任务。
@@ -176,7 +176,7 @@
 
 ## 2026-10-25 / G2恢复开发与逐项文档同步
 
-- 关联P2-11/15/16/17，Codex；见[G2恢复报告](reports/20261025_g2_recovery.md)。用户确认暂无干净Windows环境，先做本机开发，不把本机清PATH当干净机。
+- 关联P2-11/15/16/17，Codex；见[G2恢复报告](reports/windows_validation.md#恢复与本地包)。用户确认暂无干净Windows环境，先做本机开发，不把本机清PATH当干净机。
 - 已补接口/IP事件通知与合并计数、立即取消旧测试；代理设置失败时组合Operation不再误报成功；新增真实worker强杀/Job及持久租约恢复检查，修正DNS YAML测试夹具。Windows Release增量构建及storage/contracts/proxy_lease/ui_state/qml_smoke/ui_responsive通过。恢复夹具父进程QFile占用造成重开失败，关闭后单项通过；失败日志保留。MVP-05相关旧证据Stale。
 - P2-15从Blocked经Doing转Review，恢复开发不依赖真实OS事件；该依赖留在G2汇总。新增停止打断恢复退避检查、原生WinINet worker强杀→Job退出→下次启动恢复租约/事务已通过（recovery_native.log），增量构建通过。下一步核对当前runtime连续恢复和独立系统客户端转发。P3-01已有工作区保留，本次接续G2，未声明P3完成。
 - 当前runtime原生回归退出0/80.89秒，含PRECONFIG HTTPS、更新/迁移后租约及精确恢复、连续四次后台恢复/退出；匿名断言已保存。P2-15转Done，P2现21Done/2Review/1Blocked；MVP-05重新Pass，G2仍Blocked。下一步对齐当前后台行为的使用说明并提供当前本机验证包；真实OS事件/干净环境留待可用条件。
@@ -189,7 +189,7 @@
 
 ## 2026-10-25 / G2 必要范围与后移项复核
 
-- 用户要求区分G2必要、后移或移除项；本次是一个范围调整，设计1.9、需求追踪、包说明、TASKS/CHECKLISTS与入口同步，见[G2复核报告](reports/20261025_g2_scope_review.md)。未修改产品代码或历史报告，未运行产品构建/测试，不请求私有订阅。
+- 用户要求区分G2必要、后移或移除项；本次是一个范围调整，设计1.9、需求追踪、包说明、TASKS/CHECKLISTS与入口同步，见[G2复核报告](reports/windows_validation.md#阶段范围与待补项)。未修改产品代码或历史报告，未运行产品构建/测试，不请求私有订阅。
 - G2保留Windows本机完整订阅—代理链路、GUI实际节点可见可选、真实系统代理/转发、退出恢复、持久化/秘密保护及代表性故障；干净普通用户环境、一次真实换网或唤醒、GUI整体强杀/恢复、运行会话隐藏重建及外部代理变更转P3-14，G3前关闭。取消全协议/全节点公网握手、故障全排列和重复性能矩阵的统一门槛，已有保护/测试保留。100 MB专用工作集硬目标不变。
 - P2-11/16收窄但保持Review待按新条件核对；P2-17从旧范围Blocked转Todo，不再等待干净机器。P3-14新增Todo并成为P3-07前置；P2现21Done/2Review/1Todo，P3现3Done/1Doing/10Todo。G2改NotRun待1.9汇总，MVP-01改NotRun，未新增Pass，05/06保留；G3 NotRun。检查脚本与状态集合不改。
 - 文档检查：合并版生成/-Check、进度、命名及git差异检查均退出0，只有LF→CRLF提示；35目录/128文件命名通过，阶段/任务依赖及报告链接一致。没有产品构建/功能/资源验收，未提交。
@@ -209,7 +209,7 @@
 
 ## 2026-10-25 / 用户回归修复：代理组和出口
 
-- P3-01：已实现订阅顺序合并、默认规则/全局/直连出口链及查看组记忆，中英文本同步。见[修复报告](reports/20261025_proxy_memory_fixes.md)。验证中，增量构建待完成；尚无产品Pass。下一项为首页内存语义，然后定向测量并修复更新内存。
+- P3-01：已实现订阅顺序合并、默认规则/全局/直连出口链及查看组记忆，中英文本同步。见[修复报告](reports/20261026_subscription_memory_investigation.md#已修复的缓冲问题)。验证中，增量构建待完成；尚无产品Pass。下一项为首页内存语义，然后定向测量并修复更新内存。
 2026-10-25 / P3-06内存语义切片：客户端/内核独立展示三项指标及辅助服务口径已实现并同步报告，待受影响QML检查；完整P3-06保持Todo，不冒称所有资源能力Done。下一项定位更新内存。
 出口/资源卡片切片Windows增量和4/4受影响检查已通过，尚不宣称GUI主链路验收。内存worker样本未复现高常驻，继续GUI宿主同夹具采样，不先把重复解析定性为泄漏。
 P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未变订阅复用。真实GUI基线105.81MB瞬时、完成后66.62MB；尚不定性泄漏或宣布200/700MB已复现，待同场景复测。
@@ -232,7 +232,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 
 - 关联P0-09/P0-02；负责人Zoo，用户要求修复初始化时GeoSite摘要不一致，保留校验且不构建产品。开始时工作区干净，未提交。
 - 官方latest已变化；通过公开活动找到2026-10-24原数据提交，实际下载GeoIP/GeoSite/许可证均匹配原清单。清单固定完整提交来源，不更新Geo日期、字节或摘要。
-- 获取脚本已增强错误诊断、临时文件失败清理和明确PowerShell版本；新增隔离网络夹具定向测试。使用说明和相关台账同步，见[报告](reports/20261026_dependency_fetch_fix.md)。
+- 获取脚本已增强错误诊断、临时文件失败清理和明确PowerShell版本；新增隔离网络夹具定向测试。使用说明和相关台账同步，见[报告](reports/20261027_github_release.md#依赖固定来源)。
 - 状态：修复Done（脚本范围）。完整在线获取、完整离线和仅yaml-cpp离线均退出0；定向测试首轮因夹具网络模拟作用域错误失败，改共享状态后11/11通过。进度检查Fail：既有报告链接的dist/proxy_memory_fixes/bin/quickclash.exe本地缺失，已核对HEAD确认非本次引入。组合命令中止后，独立语法/命名/冻结基线/差异核对通过，35目录/134文件；日志已随报告保存。原数据字节未变，G2/G3及MVP不变。
 - 下一步：依赖已齐备，可由用户在IDE重新配置；本次未运行CMake、产品构建、GUI或内核转发。历史包链接留待证据维护处理，不为此构建；原P3-01节点选择/测速任务接续不变。未提交。
 
@@ -327,7 +327,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 
 - Zoo；按用户要求，清理设计分册与入口中的日期式开发记录、优化批次经过、当前任务状态、构建/测试结果、历史实测及版本修改流水，重新生成合并版。保留目标、架构、技术契约、设计决策、失败恢复与验收标准；有界读取、可靠控制/最新邮箱、需求代次、事务/provider/Geo安全和界面生命周期约束改写为稳定方案，不因清理过程记录而删除。
 - 历史经过和测试证据已有原日志与报告承载，保留原件，不复制成新的产品证据。项目约定、编码规范、设计入口及实施记录边界明确：设计直接修订方案，过程归本日志，当前状态归任务/清单，命令与历史证据归报告。
-- 仅运行文档检查：设计生成及一致性、源码布局、差异检查退出0；初次差异检查发现性能分册末尾多余空行，修正后通过。进度检查退出1，唯一错误为[历史代理内存报告](reports/20261025_proxy_memory_fixes.md)引用的旧产品包缺失；不构建或生成占位产物消除断链。
+- 仅运行文档检查：设计生成及一致性、源码布局、差异检查退出0；初次差异检查发现性能分册末尾多余空行，修正后通过。进度检查退出1，唯一错误为[历史代理内存报告](reports/20261026_subscription_memory_investigation.md#已修复的缓冲问题)引用的旧产品包缺失；不构建或生成占位产物消除断链。
 - 本轮保存的1209文件基线无缺失，除设计/规范文档与此日志外未改动；61条任务及64条阶段门/MVP/勾选记录逐条一致，产品源码、测试及历史证据保留。未运行构建或产品/资源测试，MVP-05/06 Stale、MVP Pass=0/16、G2/G3 NotRun不变；不新增产品通过或内存达标结论。
 - 下一步：后续设计变更直接更新稳定方案，开发经过继续集中于本日志；产品验证仍按既有任务与授权推进，本次整理不改变开发优先级或验收状态。
 
@@ -419,7 +419,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 
 ## 2026-10-26 / invalidateFilter 弃用修复
 
-- 关联任务 ID：P0-06；证据见 [修复报告](reports/20261026_invalidate_filter_deprecation_fix.md)，保留此前工作区改动，未提交。
+- 关联任务 ID：P0-06；证据见 [修复报告](DEVLOG.md#2026-10-26--invalidatefilter-弃用修复)，保留此前工作区改动，未提交。
 - 实现：Qt 6.12.0 头文件将 `QSortFilterProxyModel::invalidateFilter()` 标记弃用，MSVC /W4 /WX 将 C4996 升级为错误导致构建退出 2。因 `beginFilterChange()/endFilterChange()` 为 Qt 6.10 新增、6.8 不存在，按用户要求在 [runtime_list_model.h](../../src/presentation/runtime_list_model.h) 新增私有 `refilter()` 辅助，`QT_VERSION >= 6.10` 走新 API、否则走 `invalidateFilter()`；[runtime_list_model.cpp](../../src/presentation/runtime_list_model.cpp) 中 setQuery/setSourceFilter/setLevelFilter/finishBatch 共 4 处统一调用 `refilter()`，过滤/排序逻辑与角色不变。
 - 验证：通过 VsDevCmd x64 环境增量构建 `--target quickclash`（Qt 6.12.0），`runtime_list_model.cpp.obj` 编译并链接 `quickclash.exe` 成功，退出 0。Qt 6.8 分支本机无环境未实测（NotRun），仅经头文件核对 API 存在性；运行时过滤行为、QML 渲染与内存预算未测，保持 NotRun。
 - 下一步：运行时过滤/排序行为验证归入后续功能测试；Qt 6.8 分支待有环境时补编译验证；若 Qt 后续调整 `beginFilterChange` 签名需复核 `refilter()`。
@@ -428,7 +428,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 
 - Codex；P3-15/W01/W05。按用户确认采用极简桌面工具风，设计1.10统一Light/Dark、token、字体/尺寸、共享控件及状态、八页面模板、响应式导航、Qt Quick边界和验收。设计17嵌入明暗概念图并链接离线交互预览，相关分册/入口/合并版同步。
 - 直接替换旧界面参考，移除原截图/参考台账/专用布局报告及相关旧日志，不建立旧方案归档；保留无关工程/内核/功能原始证据。旧产品视觉结论标Stale，G1-B撤销，G1 Stale；P3-16跟踪QML迁移，G2/G3 NotRun、MVP Pass=0/16不变。
-- 验证通过：八页面/Light/Dark/系统跟随、节点筛选/选择、端口校验、菜单/确认焦点；6档宽度×2主题×4代表页共48项无溢出且导航数量正确，360×480单独核对。74组对比度、JS语法/离线资源、预览生成/--check、设计生成/-Check、进度、源码命名（166文件）与diff检查退出0，详见[当前交付报告](reports/20261027_unified_visual_design.md)。
+- 验证通过：八页面/Light/Dark/系统跟随、节点筛选/选择、端口校验、菜单/确认焦点；6档宽度×2主题×4代表页共48项无溢出且导航数量正确，360×480单独核对。74组对比度、JS语法/离线资源、预览生成/--check、设计生成/-Check、进度、源码命名（166文件）与diff检查退出0，详见[当前交付报告](reports/20261027_unified_visual_implementation.md#设计基准)。
 - 检查修正浅色危险按下态对比度、分数像素断点；Windows PowerShell 5.1误读UTF-8脚本，改用本机pwsh 7.6.5通过。既有旧包断链改为明确包缺失/Stale文字，不创建占位二进制。产品源码/QML未改动，未运行产品构建/CTest或资源测量；未提交。
 - P3-15 Done。下一步P3-16按设计17迁移ThemeTokens、共享组件与八页面，完成Windows增量构建/受影响检查及实际主题/字体/状态验收；本轮不扩大为产品实现。
 
@@ -445,9 +445,23 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 ## 2026-10-27 / GitHub三平台CI修复与Windows持续交付
 
 - Codex；关联P0-07/09打包工具维护、P4-06及后续P5发行。用户确定先发布可用Windows包，Linux/macOS保留CI构建。保留已有工作区修改，没有提交/推送。
-- 在线确认Ninja1.12.1没有PyPI包、Qt6.8 Linux架构为linux_gcc_64；修复Python/aqt顺序、Windows资产先于测试、非Windows仅排除runtime、跨平台Qt翻译定位及既有QHash编译阻断，见[CI报告](reports/20261027_github_ci_fix.md)。
+- 在线确认Ninja1.12.1没有PyPI包、Qt6.8 Linux架构为linux_gcc_64；修复Python/aqt顺序、Windows资产先于测试、非Windows仅排除runtime、跨平台Qt翻译定位及既有QHash编译阻断，见[CI报告](reports/20261027_github_release.md#ci故障与修复)。
 - Windows全目标及headless构建通过；初轮测试超时与取消观察失败均保留。修复测试生命周期观察并调整合理预算后runtime/publication/单实例3/3、headless5/5通过，QML退出0并保留6项既有警告。
 - 实现默认分支continuous预发行与v标签Release，PR只验证，发布任务依赖三平台成功且独占写权限；continuous跳过过期commit。独立BUILD_TESTING=OFF构建移除探针，包脚本核验官方资产、收集Qt/CRT、拒绝非运行文件并生成ZIP/摘要。
 - 本机Release构建及191项干净包通过，清开发PATH页面就绪/零QML错误；发布编排模拟与11项依赖回归通过。首次变量隔离失败与vc_redist安装器拒绝已修复留证，详见[发行报告](reports/20261027_github_release.md)。
 - 最终Windows全目标增量构建与22项回归通过，复用此前3项定向测试，dev共25项都有本轮Pass证据；headless5/5。设计生成/核对、进度/命名、全自有C++格式、actionlint/PowerShell语法及diff检查通过。
 - 专项Review；真实GitHub发布、非Windows原生构建、干净普通用户/TUN及签名验收NotRun，不将本地Qt6.9验证充当CI Qt6.8成功。下一步在推送后核对Actions三平台验证与Release资产；用户没有要求本轮提交或推送。
+
+## 2026-10-27 / Windows Actions进程测试编码修复
+
+- Codex；关联P0-07/P4-06工具维护。用户提供远端native_process_test断言Fail；本机PowerShell7.6.5复现，两个大管道完整，仅中文损坏。原始字节确认子进程CP936输出被按UTF-8解码；远端具体代码页因旧测试删除日志而未知，不能以此前本机Pass否认远端故障。
+- 显式约定执行器和测试夹具UTF-8，保留可选TextEncoding覆盖及元数据；拆分参数/stdout/stderr断言，继续验证100000字符双管道、非零退出与子孙进程超时清理。测试保留build/script_tests环境与日志，Actions无论成功失败均上传。
+- Windows父控制台CP437/CP936/UTF-8三项回归均Pass，证据见[CI报告](reports/20261027_github_release.md#ci故障与修复)。真实headless增量构建及5/5测试Pass；按Actions顺序完整Repository checks、actionlint/PowerShell解析与diff检查通过。专项Review/远端Fail待修复版重跑。
+- 下一步由推送后的Actions核对远端；未提交或推送，不将本地模拟认作GitHub已通过。
+
+## 2026-10-27 / 进度资料精简
+
+- Codex；日常改动不生成 report，不把历史输出另写成 Markdown；必要的验证结果在 DEVLOG 简记，任务证据允许具体条目或 Actions 运行。阶段门/MVP 保留逐项结论摘要，优先更新已有报告。AGENTS、开发规范、入口及模板同步。
+- check_progress 保留阶段通过条件约束，新增 DEVLOG 锚点/Actions 运行支持及图片断链检查。执行 tests/scripts/check_progress_test.ps1：12项正反例通过，涵盖缺证据、缺文件、无效锚点、模板、未完成任务及阶段报告限制。
+- reports 从1286文件/32份Markdown/10.68MiB精简为31文件/6份Markdown/0.74MiB（约减少93%）：5份关键摘要、1份索引、25份精选证据及来源清单。重复历史报告合并，批量日志/截图/临时夹具移除；清理前副本临时保存在忽略的 build/report_archive。
+- 内核探针默认输出改为 build/core_probe，Actions 上传相应目录并保留日志14天；使用说明同步，不影响 Release 发行资产。进度/源码命名/19章设计一致性、actionlint、PowerShell语法与diff检查通过；236处报告/日志链接及锚点、24项证据摘要/来源、JSON/XML和忽略规则通过。任务状态/负责人/依赖与阶段/MVP结论保持不变，已有进程编码修复保留；未重跑产品或真实内核。下一步仍为推送后核对远端Actions/发行结果，本轮未提交或推送。

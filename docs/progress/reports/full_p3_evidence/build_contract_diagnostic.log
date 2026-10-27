@@ -1,6 +1,0 @@
-[0/2] Re-checking globbed directories...
-[1/5] Automatic MOC for target contracts_test
-[2/4] Building CXX object CMakeFiles\contracts_test.dir\tests\unit\contracts_test.cpp.obj
-[3/4] Linking CXX executable contracts_test.exe
-
---- stderr ---

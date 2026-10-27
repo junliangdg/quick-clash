@@ -1,9 +1,0 @@
-Test project D:/repos/quick-clash/build/dev
-    Start 22: ui_subscriptions
-1/2 Test #22: ui_subscriptions .................   Passed    1.19 sec
-    Start 23: ui_subscriptions_zh
-2/2 Test #23: ui_subscriptions_zh ..............   Passed    1.20 sec
-
-100% tests passed, 0 tests failed out of 2
-
-Total Test time (real) =   2.49 sec

@@ -1,0 +1,149 @@
+{
+  "policy": "Curated evidence only. Original paths are provenance, not current links. Bulk outputs remain local in ignored build/report_archive, not a shared dependency.",
+  "files": [
+    {
+      "file": "core_contract.json",
+      "source_before_cleanup": "core_probe/20261024_isolated_bounded/summary.json",
+      "sha256": "4b0e75c296b80a8b4a75efa0f741fcff06cae8ff606158f57b4e829f2cd704fa",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "prototype_resources.json",
+      "source_before_cleanup": "p1_resources/20261024_current/summary.json",
+      "sha256": "760b8336d36035cb01c7bf0ec11b157c4af92d32e6263723c12361124641a7e7",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "g2_runtime.json",
+      "source_before_cleanup": "g2_evidence/runtime_evidence.json",
+      "sha256": "ef839ff482915c76985abb1b036fe7a13c3851dbaec2929ab654cf5dc69931a7",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "g2_memory.json",
+      "source_before_cleanup": "g2_evidence/runtime_memory/summary.json",
+      "sha256": "78be232208e0a64505c7577ae81eb3aafba4d3603dae3df90698145749013008",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "subscription_e2e.json",
+      "source_before_cleanup": "p3_evidence/subscription_e2e.json",
+      "sha256": "0e7233f7d4340096001ddd7b288cfb64265a7f5e9cd650ebfcb8bf86cd65f168",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "geo_integrity.json",
+      "source_before_cleanup": "p3_evidence/geo_integrity.json",
+      "sha256": "1501a16456dede969bf8701f65ddf9c452929cb8c80660c0cec423533ff3c664",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "font_before.json",
+      "source_before_cleanup": "subscription_memory_evidence/live_maps_20008.json",
+      "sha256": "66fda0984539faea26aa5c2f1480e4f495a0456b9f1d59ad4608e08392f987ff",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "font_after.json",
+      "source_before_cleanup": "subscription_memory_evidence/live_after_20008.json",
+      "sha256": "83ba7f2ef7a43db6fa687e4fafdf29deb52c4222c259e66bc0a82ba169d2e5db",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "release_package.json",
+      "source_before_cleanup": "github_ci_evidence/package_checks.json",
+      "sha256": "785d6a315dbf6fb824e6433f47948c385cd4c352e39380f6146973eb0403bd8f",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "release_smoke.json",
+      "source_before_cleanup": "github_ci_evidence/release_smoke.json",
+      "sha256": "1bd135c6c9ad2d4c61e046fb26aa447744187ba524b944a0de31a9280bb73af4",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "native_encoding_diagnostic.json",
+      "source_before_cleanup": "github_ci_evidence/native_encoding_diagnostic.json",
+      "sha256": "8b13697f3610a8ecbd8437c59510ea2fdb356e4058526f1fdf09440bf66e8ccf",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "native_encoding_matrix.json",
+      "source_before_cleanup": "github_ci_evidence/native_encoding_matrix.json",
+      "sha256": "a45b7a624c355efd027a0341c64af616418c51829b063d9f45ed3fac04a0be10",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "delivery_tests.xml",
+      "source_before_cleanup": "github_ci_evidence/delivery_tests.xml",
+      "sha256": "cc172146ff1dfc60d330be1eb3e15add2403f41b5248a13663c09723894b5204",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "targeted_tests.xml",
+      "source_before_cleanup": "github_ci_evidence/targeted_final.xml",
+      "sha256": "cd287bd46cd6acce4b3cc3e45ad1985c150f8b1756fbaf42248eab078ea76769",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "headless_tests.xml",
+      "source_before_cleanup": "github_ci_evidence/native_encoding_headless.xml",
+      "sha256": "92a7eddc129d8940c06a75d39d764deffdfa142d41bec23b81f2ec3ed0e23523",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "visual_tests.xml",
+      "source_before_cleanup": "unified_visual_implementation_evidence/tests_final.xml",
+      "sha256": "3eace9fb77b05687cd0779381f026a94f6a9d089391c3feac0d981d4db5a8a74",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "visual_memory.json",
+      "source_before_cleanup": "unified_visual_implementation_evidence/resources/summary.json",
+      "sha256": "5d4626aeb2ce8f0beea852b14bcdc7bd635ee306b208654eb05ccd73def51d7f",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "visual_cleanup.json",
+      "source_before_cleanup": "unified_visual_implementation_evidence/resources/cleanup.json",
+      "sha256": "166192ee3a9738259f580d3fade32d21cec6edd6fbff45ee3fd5cf3955002270",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "visual_captures.json",
+      "source_before_cleanup": "unified_visual_implementation_evidence/native/captures.json",
+      "sha256": "f2479a71553dcbc58719eaea96eb163c40969f6b5c7441abeaf407426eb0ff1c",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "light_home.png",
+      "source_before_cleanup": "unified_visual_implementation_evidence/native/light_home.png",
+      "sha256": "90bfdacbfaeb9e1fb04e6d032e277197c6de3343d80511df769dd42e1176654f",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "dark_home.png",
+      "source_before_cleanup": "unified_visual_implementation_evidence/native/dark_home.png",
+      "sha256": "3850efec28f7ff59b8234ede27b8924fc1df9f6deb35bac314281b33c14f5dd8",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "dark_home_360.png",
+      "source_before_cleanup": "unified_visual_implementation_evidence/native/dark_home_360.png",
+      "sha256": "534b314c33e48bde65e8781c6fa08a7f78f6d4f658b97e662499dbbb9c1b15f6",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "dark_runtime_error.png",
+      "source_before_cleanup": "unified_visual_implementation_evidence/native/dark_runtime_error.png",
+      "sha256": "effb04f532356c054ff8c7090684907e54af5393330abb676b6813a55c7c35e4",
+      "kind": "unchanged original"
+    },
+    {
+      "file": "prototype_lifecycle.json",
+      "source_before_cleanup": "p1_resources/lifecycle_current.log",
+      "sha256": "23f2d0afaedb6e9ebfb1d8f605f908ab5385b7b5739e79cd7114b3f86fcef9b0",
+      "kind": "extracted Lifecycle samples JSON; no values changed"
+    }
+  ]
+}

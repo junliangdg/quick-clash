@@ -1,2 +1,0 @@
-PASS: self counters/three metrics, duplicate rejection, missing rejection; target remains running (3 cases).
-EXIT_CODE=0

@@ -1,1 +1,0 @@
-PASS: changed C++ clang-format --dry-run --Werror; git diff --check after removing trailing blank lines (LF/CRLF notices only).

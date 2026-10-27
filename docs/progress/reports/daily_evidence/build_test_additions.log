@@ -1,9 +1,0 @@
-[0/2] Re-checking globbed directories...
-[1/9] Automatic MOC for target runtime_test
-[2/8] Automatic MOC for target localization_test
-[3/7] Building CXX object CMakeFiles\localization_test.dir\tests\unit\localization_test.cpp.obj
-[4/7] Linking CXX executable localization_test.exe
-[5/7] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
-[6/7] Linking CXX executable runtime_test.exe
-
---- stderr ---

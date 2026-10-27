@@ -1,0 +1,26 @@
+[
+  {
+    "parent_code_page": 437,
+    "result": "Pass",
+    "started_at_utc": "2026-10-27T10:02:06.4685367Z",
+    "captured_encoding": "utf-8",
+    "child_exit_code": 0,
+    "evidence": "docs/progress/reports/github_ci_evidence/native_encoding_cp437"
+  },
+  {
+    "parent_code_page": 936,
+    "result": "Pass",
+    "started_at_utc": "2026-10-27T10:02:11.5018412Z",
+    "captured_encoding": "utf-8",
+    "child_exit_code": 0,
+    "evidence": "docs/progress/reports/github_ci_evidence/native_encoding_cp936"
+  },
+  {
+    "parent_code_page": 65001,
+    "result": "Pass",
+    "started_at_utc": "2026-10-27T10:02:16.0749537Z",
+    "captured_encoding": "utf-8",
+    "child_exit_code": 0,
+    "evidence": "docs/progress/reports/github_ci_evidence/native_encoding_cp65001"
+  }
+]

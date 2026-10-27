@@ -1,37 +1,19 @@
-# 任务与验收证据
+# 关键报告与证据
 
-本页仅作报告索引与证据规范，不重复开发流水或维护第二份任务状态。当前状态以[任务台账](../TASKS.md)和[验收清单](../CHECKLISTS.md)为准，修改过程见[开发日志](../DEVLOG.md)。
+日常开发改动不生成report，不复制历史日志为Markdown。任务与验收只看[TASKS](../TASKS.md)/[CHECKLISTS](../CHECKLISTS.md)，必要的版本、验证命令/结果、限制与下一步简要写[DEVLOG](../DEVLOG.md)。有效CI记录直接链接，不重复抄写。
 
-## 专项报告
-
-| 主题 | 报告 |
+| 保留主题 | 用途 |
 |---|---|
-| 订阅更新后内存异常调查 | [调查与对照证据](20261026_subscription_memory_investigation.md) |
-| 客户端内存优化及最终跨批次审查 | [持续报告与验证矩阵](20261026_client_memory_optimization.md) |
-| 系统代理冲突显式开启重建基线 | [修复报告](20261026_system_proxy_conflict_fix.md) |
-| 统一视觉规范与Light/Dark概念预览 | [当前设计与验证](20261027_unified_visual_design.md) |
-| 方案C控件与八页面产品迁移 | [实施与验证](20261027_unified_visual_implementation.md) |
-| 依赖获取与Geo固定来源 | [工具维护报告](20261026_dependency_fetch_fix.md) |
-| GitHub三平台CI配置核验 | [修复与验证](20261027_github_ci_fix.md) |
-| Windows GitHub持续交付 | [干净发行包与自动Release](20261027_github_release.md) |
-| 代理出口与订阅更新内存 | [功能修复报告](20261025_proxy_memory_fixes.md) |
-| Windows MVP范围与日常交付路线 | [G2范围复核](20261025_g2_scope_review.md)、[G3方案](20261025_g3_windows_plan.md) |
+| [Windows阶段验证](windows_validation.md) | 工程/原型、订阅转发/恢复、阶段范围与关键结论 |
+| [真实内存调查](20261026_subscription_memory_investigation.md) | 未关闭字体/私有驻留异常及重要对照 |
+| [内存优化验证范围](20261026_client_memory_optimization.md) | 实现上界、历史静态检查与后续运行证据 |
+| [产品视觉验收](20261027_unified_visual_implementation.md) | 方案C/双主题/八页面实际验证与代表截图 |
+| [CI与持续交付](20261027_github_release.md) | 包内容、CI故障修复及真实发布待验范围 |
 
-## 阶段与历史证据
+## 留存规则
 
-历史报告只证明其记录版本和条件；不从旧报告继承当前产品Pass或资源结论。
-
-| 主题 | 报告 |
-|---|---|
-| P0/P1工程与原型 | [实施基线](p0_implementation.md)、[Windows验证](20261024_p0_p1_validation.md)、[资源证据](20261024_windows_private_working_set.md)、[G1范围](20261024_development_first.md) |
-| P2功能与界面 | [功能交付](20261024_p2_implementation.md)、[响应式/语言/链接](20261024_p2_responsive_localization.md)、[协议交付](20261024_p2_protocols.md)、[窗口缩放](20261024_resize_layout.md) |
-| 订阅、日常链路与恢复 | [订阅闭环](20261024_p3_subscription.md)、[日常链路](20261025_daily_use.md)、[恢复与包](20261025_g2_recovery.md)、[功能计划](20261024_mihomo_feature_plan.md) |
-| 早期构建与目录迁移 | [P0接续](20261024_p0_validation.md)、[P1落地](20261024_p1_applied.md)、[P1补丁](20261024_p1_implementation.md)、[AutoUic](20261024_autouic_fix.md)、[QML缓存警告](20261024_qmlcache_warning_fix.md)、[目录迁移](20261024_repository_rename.md) |
-
-## 报告与证据规范
-
-- 使用[任务报告模板](../templates/task-report.md)或[验收报告模板](../templates/acceptance-report.md)，填写真实事实；模板不能直接当完成证据。
-- 报告标识源码/补丁、构建、Qt/Mihomo/OS版本、输入摘要、真实命令/退出码、未运行项与限制；一次运行可以支撑多个验收ID，但需分别列出条件和结果。
-- 本地证据路径以报告目录为基准，链接必须实际存在。大产物可存构建设施，但应记录不可变版本、摘要与获取位置；不为消除断链伪造产物。
-- 新结果保留旧失败和旧版本记录，通过任务/清单维护当前状态，不在索引追加逐次修改摘要。
-- 禁止提交真实订阅、节点凭据、控制秘密、非公开私钥或未脱敏用户网络快照；[公开网络夹具](../../../tests/fixtures/network/readme.md)仅供测试，不能用于真实服务。
+- 仅阶段验收、重要未关闭调查、发行核验或不可替代性能对比需要长期文档；优先更新对应摘要，不为开发/重试新增Markdown。日常修复只记DEVLOG，可引用具体标题或不可变Actions运行。阶段门/MVP仍需逐项结论与适用版本，模板不是证据。
+- 原始日志、JUnit/CSV、批量JSON/截图、临时PID/夹具和工作区清单写Git忽略的build/；CI artifacts默认14天，Release资产独立保留。重要结果到期前摘出关键数据，过期产物不作为当前可获取证据。
+- evidence/仅放人工精选且报告引用的长期证据，.gitignore列出允许文件；来源/SHA见[清单](evidence/evidence_manifest.json)。原文件结果不改写；新证据须有不可替代价值并更新摘要/清单/允许列表，不搬整个运行目录。
+- 保留重要失败、前后结论及风险，无需永久保存每次输出。过期实施/交接报告合并后移除并修复引用，Git历史可查。清理前内容临时复制到本机build/report_archive/（忽略），不作为共享证据或长期Markdown台账。
+- 旧数据只证明原构建/条件，精简不把NotRun/Fail/Stale转Pass。禁止真实订阅、凭据/秘密或未脱敏网络快照入库；公开夹具见[说明](../../../tests/fixtures/network/readme.md)。

@@ -1,20 +1,36 @@
 #Requires -Version 7.2
 [CmdletBinding()]
-param()
+param([string]$EvidenceDirectory = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 . (Join-Path $repoRoot 'scripts/native_process.ps1')
-$runRoot = Join-Path $repoRoot ('.cache/native_process_test_' + [guid]::NewGuid().ToString('N'))
+if (-not $EvidenceDirectory) {
+    $EvidenceDirectory = 'build/script_tests/native_process/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '_' + [guid]::NewGuid().ToString('N')
+}
+$runRoot = [IO.Path]::GetFullPath($EvidenceDirectory, $repoRoot)
+if (Test-Path -LiteralPath $runRoot) { throw "Use a new evidence directory: $runRoot" }
 $null = New-Item -ItemType Directory -Path $runRoot
+Write-Output "Native process test evidence: $runRoot"
 $shell = (Get-Process -Id $PID).Path
+[ordered]@{
+    powershell = $PSVersionTable.PSVersion.ToString()
+    os = [Runtime.InteropServices.RuntimeInformation]::OSDescription
+    console_output_encoding = [Console]::OutputEncoding.WebName
+    console_input_encoding = [Console]::InputEncoding.WebName
+    pipe_encoding = 'utf-8'
+} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runRoot 'environment.json') -Encoding utf8
 function Require($Condition, $Message) { if (-not $Condition) { throw $Message } }
 try {
     $fixture = Join-Path $runRoot 'fixture.ps1'
     @'
 param([string]$Mode, [string]$Value)
+# A redirected Windows pwsh otherwise inherits the OEM console code page.
+# Match the process runner's explicit UTF-8 pipe contract on every platform.
+[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false)
 if ($Mode -eq 'output') {
     [Console]::Out.WriteLine($Value)
     [Console]::Out.WriteLine('x' * 100000)
+    [Console]::Error.WriteLine($Value)
     [Console]::Error.WriteLine('y' * 100000)
 } elseif ($Mode -eq 'fail') {
     [Console]::Error.WriteLine('expected failure')
@@ -39,7 +55,12 @@ if ($Mode -eq 'output') {
     $logPath = Join-Path $runRoot 'output.log'
     Invoke-NativeStep -Executable $shell -Arguments @('-NoProfile', '-File', $fixture, 'output', $value) -WorkingDirectory $runRoot -LogPath $logPath -TimeoutSeconds 10 6>$null
     $output = [IO.File]::ReadAllText($logPath)
-    Require ($output.Contains($value) -and $output.Contains('x' * 100000) -and $output.Contains('y' * 100000)) 'Arguments or concurrent pipe capture lost data'
+    $streams = $output -split [regex]::Escape("`n--- stderr ---`n"), 2
+    Require ($streams.Count -eq 2) 'Captured stream separator missing; inspect output.log'
+    Require ($streams[0].Contains($value)) 'Unicode, spaces, quotes or literal dollar stdout argument did not round-trip; inspect output.log'
+    Require ($streams[1].Contains($value)) 'Unicode stderr did not round-trip; inspect output.log'
+    Require ($streams[0].Contains('x' * 100000)) 'Concurrent stdout capture lost data; inspect output.log'
+    Require ($streams[1].Contains('y' * 100000)) 'Concurrent stderr capture lost data; inspect output.log'
     $failed = $false
     try {
         Invoke-NativeStep -Executable $shell -Arguments @('-NoProfile', '-File', $fixture, 'fail') -WorkingDirectory $runRoot -LogPath (Join-Path $runRoot 'fail.log') -TimeoutSeconds 10 6>$null
@@ -61,9 +82,5 @@ if ($Mode -eq 'output') {
     Require (-not (Get-Process -Id $descendantId -ErrorAction SilentlyContinue)) 'Timed-out owned descendant survived'
     Write-Output 'PASS: native arguments, concurrent pipes, nonzero exit, timeout and owned process tree cleanup'
 } finally {
-    $resolvedRun = [IO.Path]::GetFullPath($runRoot)
-    $expectedParent = [IO.Path]::GetFullPath((Join-Path $repoRoot '.cache')) + [IO.Path]::DirectorySeparatorChar
-    if ($resolvedRun.StartsWith($expectedParent, [StringComparison]::OrdinalIgnoreCase)) {
-        Remove-Item -LiteralPath $resolvedRun -Recurse -Force
-    }
+    Write-Output "Retained native process test evidence: $runRoot"
 }

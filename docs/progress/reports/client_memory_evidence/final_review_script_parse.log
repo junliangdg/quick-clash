@@ -1,5 +1,0 @@
-PARSED bench/attach_memory_windows.ps1
-PARSED bench/process_memory.ps1
-PARSED tests/scripts/attach_memory_test.ps1
-
-EXIT_CODE=0

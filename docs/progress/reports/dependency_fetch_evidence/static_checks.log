@@ -1,7 +1,0 @@
-PowerShell 7.6.6
-PASS: syntax scripts/fetch_dependencies.ps1
-PASS: syntax tests/scripts/fetch_dependencies_test.ps1
-PASS: original Geo bytes/digests/snapshot/license digest and Mihomo baseline unchanged
-CONFIRMED: progress failure is a pre-existing historical package link, not introduced by this repair
-PASS: git diff --check
-PASS: final documentation diff and no additional progress validation errors

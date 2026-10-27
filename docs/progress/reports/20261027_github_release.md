@@ -1,24 +1,40 @@
-# Windows GitHub持续交付与干净发行包
+# Windows持续交付与CI核验
 
-- 日期：2026-10-27；Codex；关联P0-09/P2-16打包工具维护，后续P4-06/P5发行验收。
-- 用户要求CI持续交付到GitHub Releases，dist只保留用户程序及必要依赖；已明确先发布Windows，Linux/macOS保留CI构建。
-- 状态：Review；实现、本地Release构建、实际打包、发布编排模拟及最终回归/仓库检查通过；远端实测仍待执行。当前工作区补丁未提交或推送，实际远端发布NotRun。
+2026-10-27 / Codex；状态Review。Windows发行构建/干净包及本地回归通过；用户报告的远端Windows进程测试Fail已复现修复，修复版远端重跑与实际Release发布NotRun。未提交/推送，不将本地结果称GitHub通过。
 
-## 实现与边界
+## 交付行为
 
-- `.github/workflows/build.yml`在全部native验证成功后运行Windows发行任务；PR不发布。默认分支/其手动运行更新continuous预发行；v标签发布对应版本，连字符版本标记预发行。写权限仅发行job持有。
-- release preset单独构建，Release/BUILD_TESTING=OFF；宿主/原型/键盘及已有UI探针编译期隔离。发行脚本拒绝测试构建，不从dev目录复制程序。
-- `package_release_windows.ps1`通过CMake安装Qt/QML/CRT运行依赖，清开发PATH启动并检查页面/错误；加入锁定内核、Geo、许可、必要元数据和用户说明，检查多余内容后生成ZIP和SHA-256。诊断只在build日志目录。
-- `publish_release.ps1`校验ZIP摘要，通过GitHub CLI更新continuous标签或使用已有版本标签，上传包及摘要；continuous重跑更新同名资产，发布前核对分支当前commit，跳过已经落后的运行，不创建每次commit一个Release。
-- 当前未签名；Linux/macOS用户包、干净普通用户环境/TUN验收与应用内自动更新签名链不在本次实现范围。
+[工作流](../../../.github/workflows/build.yml)在Windows/Linux/macOS验证全部成功后发布Windows包，PR只验证。默认分支（含其手动运行）更新continuous预发行，v标签生成对应版本，连字符版本为预发行。仅发行job有contents写权限；continuous替换同名资产，发布前跳过落后分支HEAD的commit。Linux/macOS保留构建验证，受管内核启动未实现，不发布用户包。
 
-## 验证
+release preset独立Release/BUILD_TESTING=OFF。[打包脚本](../../../scripts/package_release_windows.ps1)安装Qt/QML/app-local CRT、锁定官方Mihomo/Geo、许可/元数据/用户说明，拒绝测试构建及非运行内容，生成ZIP/SHA256；[发布脚本](../../../scripts/publish_release.ps1)校验后上传。诊断只写build，Actions日志保留14天，不影响Release资产。当前未签名，干净普通用户/TUN/应用内更新签名链未验收。
 
-- 本机Qt6.9.0/MSVC19.51，CI仍锁定Qt6.8.0/Windows2022；本机验证不能代替CI参考环境。独立Release首次构建发现未隔离的回放测试变量，修复编译期边界后[构建通过](github_ci_evidence/release_build_final.log)。首次包检查拒绝Qt默认加入的vc_redist.x64.exe，改用CMake InstallRequiredSystemLibraries安装app-local CRT DLL并关闭Qt安装器部署，[重构建](github_ci_evidence/release_crt_build.log)和[最终打包](github_ci_evidence/package_final.log)退出0。
-- 本地产物为dist/ci_release_final.zip（77,197,685字节），SHA-256为58fe68e4166a5499bfd6c4ff0e6cf9db3a9b765f3adee175e7405f6d6baa0ac2；仅供本次工作区验证，Version=local-validation、Commit为空，不冒充已提交版本。
-- [包检查](github_ci_evidence/package_checks.json)：191项，190个清单文件逐一核验，外加清单自身；仅3个exe（客户端/服务/Mihomo），无QtTest/测试程序/符号/开发源码/日志/安装器。发行build.ninja不含测试探针或QtTest；dev测试构建在写入dist前被拒绝。
-- [清开发PATH启动](github_ci_evidence/release_smoke.json)：page_ready=true、qml_errors=0、replay_running=false；诊断与安装日志在build/release/logs，包中没有诊断。此验证使用软件渲染进行部署检查，未改变产品默认GPU路径，也未安装服务或更改系统代理。
-- [发布编排模拟](github_ci_evidence/publish_tests_final.log)覆盖首次continuous、重复资产替换、过期commit跳过、正式/RC标签、上传失败和坏摘要拒绝；只模拟gh，没有外部写入。新增简明随包说明resources/windows_readme.md，不复制开发流水用户指南。
-- [最终Windows全目标增量构建](github_ci_evidence/dev_delivery_build.log)退出0；发行隔离后[开发回归JUnit](github_ci_evidence/delivery_tests.xml)22/22通过（65.93秒）。复用同一工作区此前runtime/publication/单实例3/3及headless5/5证据；25项dev测试均有本轮通过证据，没有宣称一次整套CTest通过。
-- 11项[依赖获取回归](github_ci_evidence/fetch_tests_final.log)通过；最终工作流actionlint、PowerShell语法、全自有C++格式、设计生成/核对、进度/源码命名及diff空白检查通过。配置缺少Vulkan头的提示不阻断现用Qt Quick默认后端构建；QML既有6项警告保持记录。
-- 远端发布未执行，不将本地打包等同GitHub Releases成功。
+## CI故障与修复
+
+- PyPI无ninja1.12.1包，改1.13.2，见[PyPI](https://pypi.org/pypi/ninja/json)。Qt6.8 Linux架构应linux_gcc_64，Windows为win64_msvc2022_64、macOS为clang_64，见[Qt Action](https://github.com/jurplel/install-qt-action/blob/v4/README.md)。
+- Python3.14先设置，关闭Qt Action内部setup-python，锁aqt3.3.0/py7zr1.1.0。Windows测试前获取YAML/Mihomo/Geo，非Windows仅获取YAML并排除依赖Windows受管进程的runtime。Qt翻译目录改qmake查询，避免库/framework路径假设。
+- QHash无first，provider_stream_test改按键借用设备并断言非空；失败后全目标重建通过。publication/runtime调整合理预算，取消断言改在validationActive观察semanticBytes，保留清理语义，产品取消行为未改。初轮超时/不完整CTest未计全套Pass。
+- Windows native_process_test中文损坏，本机复现双管道各100000字符完整、CP936字节误按UTF-8解码，见[原字节诊断](evidence/native_encoding_diagnostic.json)。执行器/子夹具显式UTF-8并记录可选TextEncoding；参数/输出独立断言，保留退出7/3秒超时及子孙回收。
+- [父代码页CP437/936/UTF-8](evidence/native_encoding_matrix.json)回归均Pass。远端旧测试无原字节，不能断言其具体代码页。未来日志统一build/script_tests并always上传。
+
+aqt实际查询三平台Qt6.8架构、pip三平台wheel dry-run均通过，只证明信息可解析。仓库Actions未认证API返回404，未取得修复版远端构建/发布结果。
+
+## 依赖固定来源
+
+Geo原latest/master变化与冻结摘要不符，拒绝正确。2026-10-26核对上游活动后固定数据提交bfa68b978ec9c0494203d7c0d64e186640f7257b、许可提交964be7423e659538e4aa4b77ff908188b7102890；实测与原2026-10-24摘要匹配，未放宽校验/自动升级。来源/大小/SHA以[清单](../../baseline/release_matrix.json)为准。真实在线/离线获取与11项隔离回归通过，不代表Geo自动更新或产品转发验收。
+
+## 本地验证
+
+本机Windows x64/Qt6.9.0/MSVC14.51，CI仍Qt6.8.0/windows-2022，不能替代远端环境。
+
+| 验证 | 真实结果与限制 |
+|---|---|
+| Windows全目标增量构建 | 退出0，客户端/服务/测试及翻译通过，QML lint退出0、6项既有警告 |
+| 最终开发回归 | [22项JUnit](evidence/delivery_tests.xml)全Pass（65.93秒），另[定向3项](evidence/targeted_tests.xml)runtime129.12秒/publication21秒/单实例0.62秒通过；25项均有证据，未称一次整套通过 |
+| 编码修复后headless | 同build_windows入口构建退出0，[5/5 JUnit](evidence/headless_tests.xml)6.54秒；GUI/内核沿用未受影响证据 |
+| 无测试Release构建 | 首次未隔离回放变量失败，修正编译期边界后通过；包拒绝Qt附带vc_redist安装器，改app-local CRT重建/打包通过 |
+| 包内容 | [191项核验](evidence/release_package.json)：190个清单文件及清单本身，仅quickclash/quickclash_service/mihomo三个exe，无QtTest/测试/符号/源码/日志/安装器；dev在写dist前拒绝 |
+| 清开发PATH启动 | [结果](evidence/release_smoke.json)：page_ready=true/qml_errors=0/replay=false；软件渲染仅部署检查，无系统代理/服务安装 |
+| 发布编排 | mock gh覆盖首次/重复continuous、过期commit、正式/RC、上传失败与坏摘要，无外部写入 |
+| 工程检查 | 11项依赖回归、进程执行器、发布模拟、完整Repository checks、actionlint1.7.12及PowerShell/格式/文档检查通过，不等于远端产品通过 |
+
+本地ZIP77,197,685B，SHA256=58fe68e4166a5499bfd6c4ff0e6cf9db3a9b765f3adee175e7405f6d6baa0ac2；Version=local-validation/Commit为空，不冒充已提交版本。下一步推送后核对三平台Actions/Release资产，专项仍Review。日常改动不追加本报告流水，不为重试新建report。

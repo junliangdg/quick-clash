@@ -1,9 +1,0 @@
-format=0
-format_check=0
-design_generate=0
-design_check=0
-source_layout=0
-progress=1
-diff_check=0
-static_text_review=0
-CMake/build/C++/GUI/core/network/ACL/performance=NotRun

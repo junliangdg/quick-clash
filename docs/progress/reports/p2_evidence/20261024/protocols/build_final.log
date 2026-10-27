@@ -1,4 +1,0 @@
-[0/2] Re-checking globbed directories...
-[1/5] Automatic MOC for target runtime_test
-[2/4] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
-[3/4] Linking CXX executable runtime_test.exe

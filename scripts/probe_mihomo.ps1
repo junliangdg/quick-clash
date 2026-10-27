@@ -12,7 +12,7 @@ $runRoot = Join-Path $repoRoot ('.cache/core_probe_' + [guid]::NewGuid().ToStrin
 $evidenceRoot = if ($EvidenceDirectory) {
     [IO.Path]::GetFullPath($EvidenceDirectory, $repoRoot)
 } else {
-    Join-Path $repoRoot ('docs/progress/reports/p0_core/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '_' + [guid]::NewGuid().ToString('N'))
+    Join-Path $repoRoot ('build/core_probe/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '_' + [guid]::NewGuid().ToString('N'))
 }
 if (Test-Path -LiteralPath $evidenceRoot) { throw 'EvidenceDirectory must be new; preserve previous runs' }
 New-Item $evidenceRoot -ItemType Directory | Out-Null
