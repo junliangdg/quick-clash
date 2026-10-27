@@ -1,0 +1,190 @@
+********* Start testing of RuntimePublicationTest *********
+Config: Using QtTest library 6.9.0, Qt 6.9.0 (x86_64-little_endian-llp64 shared (dynamic) release build; by MSVC 2022), windows 11
+INFO   : RuntimePublicationTest::initTestCase() entering
+PASS   : RuntimePublicationTest::initTestCase()
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() entering
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.begin(0, false).has_value())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(25) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(first.has_value() && *first)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(27) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.begin(1, true).has_value())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(28) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(demand.receiving(1))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(30) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(disable.has_value() && !*disable)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(32) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.receiving(2))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(34) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(retry.has_value() && !*retry)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(36) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.begin(3, true).has_value())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(38) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(reenable.has_value() && *reenable)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(41) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(demand.receiving(3))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(43) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(reset.has_value() && !*reset)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(46) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.receiving(5))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(47) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(fresh.has_value() && *fresh)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(50) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(demand.receiving(5))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(52) : message location
+INFO   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease() QVERIFY(!demand.begin(5, true).has_value())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(53) : message location
+PASS   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease()
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() entering
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(63) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(65) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(67) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(current.matches(demands, "session", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(70) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "other", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(71) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 5, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(72) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 4, 12))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(73) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(63) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(65) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(67) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(current.matches(demands, "session", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(70) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "other", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(71) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 5, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(72) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 4, 12))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(73) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(63) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(65) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(67) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(current.matches(demands, "session", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(70) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "other", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(71) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 5, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(72) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 4, 12))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(73) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(63) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(65) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!request.matches(demands, "session", 4, 10))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(67) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(current.matches(demands, "session", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(70) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "other", 4, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(71) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 5, 11))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(72) : message location
+INFO   : RuntimePublicationTest::readTicketsRejectSameSessionReuse() QVERIFY(!current.matches(demands, "session", 4, 12))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(73) : message location
+PASS   : RuntimePublicationTest::readTicketsRejectSameSessionReuse()
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() entering
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(std::holds_alternative<std::monostate>(store.open()))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(79) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!updates.isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(86) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QCOMPARE(runtime.snapshot().value("logs").toArray().size(), qsizetype{1000})
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(87) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QCOMPARE(runtime.snapshot().value("dataLifecycle").toObject().value("appLogCount").toInt(), 100)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(89) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(released.value(QLatin1String(channel)).toArray().isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(94) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!released.value("dataLifecycle") .toObject() .value("publishedChannels") .toArray() .contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(99) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(released.value(QLatin1String(channel)).toArray().isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(94) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!released.value("dataLifecycle") .toObject() .value("publishedChannels") .toArray() .contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(99) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(released.value(QLatin1String(channel)).toArray().isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(94) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!released.value("dataLifecycle") .toObject() .value("publishedChannels") .toArray() .contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(99) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(released.value(QLatin1String(channel)).toArray().isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(94) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!released.value("dataLifecycle") .toObject() .value("publishedChannels") .toArray() .contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(99) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QCOMPARE(released.value("dataLifecycle").toObject().value("providerDraftCount").toInt(), 0)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(101) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(released.value("dataLifecycle").toObject().value("pendingReads").toArray().isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(103) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!updates.isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(104) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(invalidated.invalidated.contains("logs"))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(107) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!invalidated.values.contains("logs"))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(108) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(!updates.isEmpty())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(111) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(reacquired.values.contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(115) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(reacquired.values.contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(115) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QVERIFY(reacquired.values.contains(QLatin1String(channel)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(115) : message location
+INFO   : RuntimePublicationTest::workerReleaseAndCompleteResend() QCOMPARE(settings.writes, 0)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(116) : message location
+PASS   : RuntimePublicationTest::workerReleaseAndCompleteResend()
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() entering
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(directory.isValid())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(120) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(std::holds_alternative<std::monostate>(store.open()))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(122) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(controls.size(), 1)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(131) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!compact.contains(QLatin1String(field)))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(135) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(compact.contains("status"))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(136) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(runtime.snapshot().contains("connections"))
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(137) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(updates.size(), 1)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(138) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(controls.size(), 0)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(143) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(updates.size(), 0)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(144) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!runtime.stopProxy(quickclash::domain::StopReason::UserStop).isNull())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(149) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!runtime.stopProxy(quickclash::domain::StopReason::UserStop).isNull())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(149) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!runtime.stopProxy(quickclash::domain::StopReason::UserStop).isNull())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(149) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QVERIFY(!runtime.stopProxy(quickclash::domain::StopReason::UserStop).isNull())
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(149) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(operations.size(), 4)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(150) : message location
+INFO   : RuntimePublicationTest::compactStateAndCoalescing() QCOMPARE(settings.writes, 0)
+D:\repos\quick-clash\tests\unit\runtime_publication_test.cpp(151) : message location
+PASS   : RuntimePublicationTest::compactStateAndCoalescing()
+INFO   : RuntimePublicationTest::cleanupTestCase() entering
+PASS   : RuntimePublicationTest::cleanupTestCase()
+Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted, 21269ms
+********* Finished testing of RuntimePublicationTest *********

@@ -1,0 +1,14 @@
+{
+  "executable": "D:\\repos\\quick-clash\\.cache\\ci_audit\\actionlint\\actionlint.exe",
+  "arguments": [
+    "-color",
+    "-shellcheck=",
+    "-pyflakes=",
+    ".github/workflows/build.yml"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T08:38:41.9171264Z",
+  "elapsed_ms": 145,
+  "exit_code": 1,
+  "timed_out": false
+}

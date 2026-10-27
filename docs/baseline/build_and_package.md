@@ -38,11 +38,25 @@
 
 脚本仍使用仓库 Ninja preset；可用 `-CMake` 指定 CMake 路径、`-BuildDirectory` 指定独立构建目录。默认使用 PATH 的 cmake，不隐式退到旧版本。Qt Creator/VS Code 可以选择兼容的 Qt ≥6.8 套件并提供 `CMAKE_PREFIX_PATH`，个人机器路径写入不提交的 `CMakeUserPresets.json`；首次先获取依赖，CMake 配置本身不联网。支持/发布结论仍以版本矩阵中的冻结 Qt 6.8.0 环境和真实验收为准。
 
-构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多 120 秒，构建和 lint 各 600 秒，可通过 `-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds` 调整；超时仅结束本次创建的进程树。UI 构建自动执行生成模块的 `quickclash_qmllint` 和 CTest，包括 offscreen 软件渲染 smoke；headless 运行契约测试。
+构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
 
 当前UI增量构建目录为`build/p2_responsive`，P0/P1历史目录为`build/p1_windows`、`build/p0_headless`。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 已通过；此测试不编译客户端。早期审批服务失败见历史报告，目前 Windows 原生构建与部署已通过。
 
-Linux/macOS 候选环境由 [CI](../../.github/workflows/build.yml) 固定。先运行 fetch_dependencies.ps1 -YamlOnly，再执行 cmake --preset dev、cmake --build --preset dev、ctest --preset dev。CI 未推送触发，三平台通过证据尚不存在。headless preset 只要求 Qt Core，不显式查找 Network/Quick/Qml/Gui/Widgets，契约目标仅使用 Qt Core 和 domain/config/application；domain/application 不包含 QProcess、窗口和 OS 头。Windows CI 使用同一构建脚本，并获取摘要锁定的官方内核运行完整 API/监听归属/Job 探针；工作流保留 UI/headless 和内核证据，尚未执行。
+Linux/macOS 候选环境由 [CI](../../.github/workflows/build.yml) 固定：ubuntu-22.04使用Qt6.8.0的`linux_gcc_64`，macos-14使用`clang_64`；Windows为windows-2022/`win64_msvc2022_64`。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2、clang-format21.1.2二进制包；Qt Action关闭内部Python设置，并固定aqtinstall3.3.0/py7zr1.1.0。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+
+Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev --exclude-regex '^runtime$'`；runtime集成测试依赖Windows官方内核和AppContainer，不能将非Windows占位适配当作已支持。其余单元/UI测试继续执行，headless构建及其全部测试另行执行。headless preset只要求Qt Core，不显式查找Network/Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
+
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo，然后使用同一本机构建脚本运行UI/headless构建、QML lint、全部测试及官方内核API/监听归属/Job探针。工作流始终上传可用的构建/测试日志及aqt安装日志。用户已报告三平台初始化失败；配置修复及本地验证见[CI核验报告](../progress/reports/20261027_github_ci_fix.md)，远端修复版重跑及Linux/macOS实际构建仍为NotRun，不宣称三平台通过。
+
+### GitHub持续交付与干净发行包
+
+PR仅验证。默认分支（当前main）全部native矩阵通过后更新GitHub Releases的`continuous`预发行版；`v*`标签运行成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则。Windows x64先发行，Linux/macOS继续构建验证。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。
+
+发行任务重新使用独立`release` preset，`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`，编译期移除宿主/键盘/原型/界面测试探针，不使用dev exe打包。`scripts/package_release_windows.ps1`拒绝测试构建，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
+
+Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
+
+本地核对命令（首次先完整获取依赖）：`cmake --preset release`、`cmake --build --preset release --parallel 4`、`pwsh -NoProfile -File scripts/package_release_windows.ps1 -Version continuous`。已有dist不覆盖，复核时显式选择新的`-Destination`。历史`package_windows.ps1`是本地验证包入口，不能作为自动发行入口。
 
 ## 质量命令
 

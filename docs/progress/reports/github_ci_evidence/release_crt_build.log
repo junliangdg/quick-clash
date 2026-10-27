@@ -1,0 +1,18 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (7.1s)
+-- Generating done (0.7s)
+-- Build files have been written to: D:/repos/quick-clash/build/release
+[0/4] Re-checking globbed directories...
+[1/122] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[2/89] Automatic MOC for target quickclash_storage
+[3/87] Automatic MOC for target quickclash_engine
+[4/85] Automatic MOC for target quickclash_runtime
+[5/83] Automatic MOC for target quickclash_service
+[6/81] Automatic MOC for target quickclash
+[7/80] Running AUTOMOC file extraction for target quickclash
+[8/80] Running moc --collect-json for target quickclash
+
+--- stderr ---

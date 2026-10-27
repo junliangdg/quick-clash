@@ -1,0 +1,326 @@
+[0/2] Re-checking globbed directories...
+[1/207] Automatic MOC for target quickclash_storage
+[2/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib\graphbuilderadapter.cpp for CXX dependencies
+[3/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib\graphbuilder.cpp for CXX dependencies
+[4/207] Building CXX object CMakeFiles\quickclash_storage.dir\quickclash_storage_autogen\mocs_compilation.cpp.obj
+[5/207] Building CXX object CMakeFiles\quickclash_domain.dir\src\domain\operation.cpp.obj
+[6/207] Linking CXX static library quickclash_domain.lib
+[7/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\infra\storage\provider_stage.cpp.obj
+[8/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\infra\storage\geo_resource_writer.cpp.obj
+[9/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\infra\storage\json_store.cpp.obj
+[10/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\binary.cpp for CXX dependencies
+[11/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\convert.cpp for CXX dependencies
+[12/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\infra\storage\config_repository.cpp.obj
+[13/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\depthguard.cpp for CXX dependencies
+[14/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\directives.cpp for CXX dependencies
+[15/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\emit.cpp for CXX dependencies
+[16/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\emitfromevents.cpp for CXX dependencies
+[17/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\infra\storage\settings_repository.cpp.obj
+[18/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\emitter.cpp for CXX dependencies
+[19/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\emitterstate.cpp for CXX dependencies
+[20/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\emitterutils.cpp for CXX dependencies
+[21/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\exceptions.cpp for CXX dependencies
+[22/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\exp.cpp for CXX dependencies
+[23/207] Building CXX object CMakeFiles\quickclash_storage.dir\src\platform\windows\credential_store.cpp.obj
+[24/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp for CXX dependencies
+[25/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\memory.cpp for CXX dependencies
+[26/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\node.cpp for CXX dependencies
+[27/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\null.cpp for CXX dependencies
+[28/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\node_data.cpp for CXX dependencies
+[29/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\nodeevents.cpp for CXX dependencies
+[30/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\nodebuilder.cpp for CXX dependencies
+[31/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\ostream_wrapper.cpp for CXX dependencies
+[32/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\parse.cpp for CXX dependencies
+[33/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\regex_yaml.cpp for CXX dependencies
+[34/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\parser.cpp for CXX dependencies
+[35/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\scanner.cpp for CXX dependencies
+[36/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\scanscalar.cpp for CXX dependencies
+[37/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\scantag.cpp for CXX dependencies
+[38/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\scantoken.cpp for CXX dependencies
+[39/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\simplekey.cpp for CXX dependencies
+[40/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\stream.cpp for CXX dependencies
+[41/207] Linking CXX static library quickclash_storage.lib
+[42/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\singledocparser.cpp for CXX dependencies
+[43/207] Scanning D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\tag.cpp for CXX dependencies
+[44/207] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[45/207] Automatic MOC for target quickclash_engine
+[46/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\contrib\graphbuilderadapter.cpp.obj
+[47/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\contrib\graphbuilder.cpp.obj
+[48/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\binary.cpp.obj
+[49/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\convert.cpp.obj
+[50/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\depthguard.cpp.obj
+[51/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\directives.cpp.obj
+[52/207] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_metadata.cpp.obj
+[53/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\emit.cpp.obj
+[54/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\emitfromevents.cpp.obj
+[55/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\emitter.cpp.obj
+[56/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\emitterstate.cpp.obj
+[57/207] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_preflight.cpp.obj
+[58/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\exceptions.cpp.obj
+[59/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\emitterutils.cpp.obj
+[60/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\exp.cpp.obj
+[61/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\fptostring.cpp.obj
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(234): warning C4267: ��������: �ӡ�size_t��ת������int�������ܶ�ʧ����
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(238): warning C4267: ��������: �ӡ�size_t��ת������int�������ܶ�ʧ����
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(195): warning C4267: ����ʼ����: �ӡ�size_t��ת������int�������ܶ�ʧ����
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(195): note: ģ��ʵ����������(�����ʵ����������)Ϊ
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(234): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������std::string YAML::detail::fp_formatting::FpToString<float>(T,int)��������
+        with
+        [
+            T=float
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(195): warning C4267: ����ʼ����: �ӡ�size_t��ת������const int�������ܶ�ʧ����
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3008): warning C4267: ��+=��: �ӡ�size_t��ת������DecimalExponentType�������ܶ�ʧ����
+        with
+        [
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3008): note: ģ��ʵ����������(�����ʵ����������)Ϊ
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(238): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������std::string YAML::detail::fp_formatting::FpToString<double>(T,int)��������
+        with
+        [
+            T=double
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(93): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,int,true,false> YAML::jkj::dragonbox::to_decimal<T,YAML::jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>,YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>,>(Float) noexcept��������
+        with
+        [
+            T=double,
+            Float=double
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4163): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,int,true,false> YAML::jkj::dragonbox::to_decimal_ex<FormatTraits,int,>(YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>,
+            ExponentBits=int
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4146): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,int,true,false> YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate<YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits>(SignedSignificandBits,Func,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>,
+            ExponentBits=int,
+            SignedSignificandBits=YAML::jkj::dragonbox::signed_significand_bits<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>,
+            Func=YAML::jkj::dragonbox::detail::to_decimal_dispatcher<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2483): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,int,true,false> YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()<_Ty>(IntervalTypeProvider,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,int) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>,
+            _Ty=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t,
+            IntervalTypeProvider=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4108): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,int,true,false> YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest<YAML::jkj::dragonbox::policy::sign::return_sign_t,YAML::jkj::dragonbox::policy::trailing_zero::remove_t,_Ty,YAML::jkj::dragonbox::policy::binary_to_decimal_rounding::to_even_t,YAML::jkj::dragonbox::policy::cache::full_t,YAML::jkj::dragonbox::policy::preferred_integer_types::match_t>(YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,int) noexcept��������
+        with
+        [
+            _Ty=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t,
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3353): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned __int64,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_,false,false> YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros<YAML::jkj::dragonbox::ieee754_binary64,unsigned __int64,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_>(DecimalSignificand,DecimalExponentType) noexcept��������
+        with
+        [
+            DecimalSignificand=unsigned __int64,
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2379): note: �鿴�����ڱ���� �� ģ�� ʵ������YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary64,unsigned __int64,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_>��������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2978): note: �ڱ��� �� ģ�� ��Ա������void YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary64,unsigned __int64,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_>::remove_trailing_zeros(uint_least64_t &,DecimalExponentType &) noexcept��ʱ
+        with
+        [
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2379): note: ����� "YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros" �ж� "YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary64,unsigned __int64,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest::decimal_exponent_type_>::remove_trailing_zeros" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3353): note: ����� "YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest" �ж� "YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4108): note: ����� "YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()" �ж� "YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>>::compute_nearest" �ĵ�һ������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2483): note: ����� "YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate" �ж� "YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()" �ĵ�һ������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary64,uint_least64_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4146): note: ����� "YAML::jkj::dragonbox::to_decimal_ex" �ж� "YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4163): note: ����� "YAML::jkj::dragonbox::to_decimal" �ж� "YAML::jkj::dragonbox::to_decimal_ex" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(93): note: ����� "YAML::detail::fp_formatting::FpToString" �ж� "YAML::jkj::dragonbox::to_decimal" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2970): warning C4267: ��+=��: �ӡ�size_t��ת������DecimalExponentType�������ܶ�ʧ����
+        with
+        [
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2970): note: ģ��ʵ����������(�����ʵ����������)Ϊ
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(234): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������std::string YAML::detail::fp_formatting::FpToString<float>(T,int)��������
+        with
+        [
+            T=float
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(93): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,int,true,false> YAML::jkj::dragonbox::to_decimal<T,YAML::jkj::dragonbox::default_float_bit_carrier_conversion_traits<Float>,YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>,>(Float) noexcept��������
+        with
+        [
+            T=float,
+            Float=float
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4163): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,int,true,false> YAML::jkj::dragonbox::to_decimal_ex<FormatTraits,int,>(YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>,
+            ExponentBits=int
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4146): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,int,true,false> YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate<YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits>(SignedSignificandBits,Func,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,ExponentBits) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>,
+            ExponentBits=int,
+            SignedSignificandBits=YAML::jkj::dragonbox::signed_significand_bits<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>,
+            Func=YAML::jkj::dragonbox::detail::to_decimal_dispatcher<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2483): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,int,true,false> YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()<_Ty>(IntervalTypeProvider,YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,int) noexcept��������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>,
+            _Ty=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t,
+            IntervalTypeProvider=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4108): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,int,true,false> YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest<YAML::jkj::dragonbox::policy::sign::return_sign_t,YAML::jkj::dragonbox::policy::trailing_zero::remove_t,_Ty,YAML::jkj::dragonbox::policy::binary_to_decimal_rounding::to_even_t,YAML::jkj::dragonbox::policy::cache::full_t,YAML::jkj::dragonbox::policy::preferred_integer_types::match_t>(YAML::jkj::dragonbox::signed_significand_bits<FormatTraits>,int) noexcept��������
+        with
+        [
+            _Ty=YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t,
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3353): note: �鿴�����ڱ���ĺ��� ģ�� ʵ������YAML::jkj::dragonbox::decimal_fp<unsigned int,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_,false,false> YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros<YAML::jkj::dragonbox::ieee754_binary32,unsigned int,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_>(DecimalSignificand,DecimalExponentType) noexcept��������
+        with
+        [
+            DecimalSignificand=unsigned int,
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2379): note: �鿴�����ڱ���� �� ģ�� ʵ������YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary32,unsigned int,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_>��������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2946): note: �ڱ��� �� ģ�� ��Ա������void YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary32,unsigned int,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_>::remove_trailing_zeros(uint_least32_t &,DecimalExponentType &) noexcept��ʱ
+        with
+        [
+            DecimalExponentType=YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2379): note: ����� "YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros" �ж� "YAML::jkj::dragonbox::remove_trailing_zeros_traits<YAML::jkj::dragonbox::policy::trailing_zero::remove_t,YAML::jkj::dragonbox::ieee754_binary32,unsigned int,YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest::decimal_exponent_type_>::remove_trailing_zeros" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(3353): note: ����� "YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest" �ж� "YAML::jkj::dragonbox::policy::trailing_zero::remove_t::on_trailing_zeros" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4108): note: ����� "YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()" �ж� "YAML::jkj::dragonbox::detail::impl<YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>>::compute_nearest" �ĵ�һ������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(2483): note: ����� "YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate" �ж� "YAML::jkj::dragonbox::detail::to_decimal_dispatcher<FormatTraits,YAML::jkj::dragonbox::to_decimal_ex::policy_holder>::operator ()" �ĵ�һ������
+        with
+        [
+            FormatTraits=YAML::jkj::dragonbox::ieee754_binary_traits<YAML::jkj::dragonbox::ieee754_binary32,uint_least32_t,int>
+        ]
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4146): note: ����� "YAML::jkj::dragonbox::to_decimal_ex" �ж� "YAML::jkj::dragonbox::policy::decimal_to_binary_rounding::nearest_to_even_t::delegate" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\contrib/dragonbox.h(4163): note: ����� "YAML::jkj::dragonbox::to_decimal" �ж� "YAML::jkj::dragonbox::to_decimal_ex" �ĵ�һ������
+D:\repos\quick-clash\build\release\_deps\yaml_cpp-src\src\fptostring.cpp(93): note: ����� "YAML::detail::fp_formatting::FpToString" �ж� "YAML::jkj::dragonbox::to_decimal" �ĵ�һ������
+[62/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\memory.cpp.obj
+[63/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\node.cpp.obj
+[64/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\null.cpp.obj
+[65/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\nodebuilder.cpp.obj
+[66/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\nodeevents.cpp.obj
+[67/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\node_data.cpp.obj
+[68/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\ostream_wrapper.cpp.obj
+[69/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\regex_yaml.cpp.obj
+[70/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\parse.cpp.obj
+[71/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\parser.cpp.obj
+[72/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\scanner.cpp.obj
+[73/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\scantag.cpp.obj
+[74/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\scanscalar.cpp.obj
+[75/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\scantoken.cpp.obj
+[76/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\simplekey.cpp.obj
+[77/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\singledocparser.cpp.obj
+[78/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\stream.cpp.obj
+[79/207] Building CXX object _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\src\tag.cpp.obj
+[80/207] Building CXX object CMakeFiles\quickclash_engine.dir\quickclash_engine_autogen\mocs_compilation.cpp.obj
+[81/207] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\geo_resources.cpp.obj
+[82/207] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_provider_stream.cpp.obj
+[83/207] Building CXX object CMakeFiles\quickclash_config.dir\src\infra\config\config_schema.cpp.obj
+[84/207] Building CXX object CMakeFiles\quickclash_engine.dir\src\platform\windows\owned_process.cpp.obj
+[85/207] Linking CXX static library _deps\yaml_cpp-build\yaml-cpp.lib
+[86/207] Linking CXX static library quickclash_config.lib
+[87/207] Building CXX object CMakeFiles\quickclash_engine.dir\src\infra\core\service_client.cpp.obj
+[88/207] Generating quickclash_zh_cn.qm
+Updating 'D:/repos/quick-clash/build/release/quickclash_zh_cn.qm'...
+    Generated 384 translation(s) (384 finished and 0 unfinished)
+[89/207] Building CXX object CMakeFiles\quickclash_engine.dir\src\infra\core\pipe_http.cpp.obj
+[90/207] Copying quickclash qml resources into build dir
+[91/207] Copying quickclash qml sources into build dir
+[92/207] Running rcc for resource quickclash_translations
+[93/207] Building CXX object CMakeFiles\quickclash_localization_resources_1.dir\build\release\.qt\rcc\qrc_quickclash_translations_init.cpp.obj
+[94/207] Building CXX object CMakeFiles\quickclash_localization.dir\build\release\.qt\rcc\qrc_quickclash_translations.cpp.obj
+[95/207] Running qmlimportscanner for quickclash
+[96/207] Building CXX object CMakeFiles\quickclash_localization.dir\src\presentation\localization.cpp.obj
+[97/207] Linking CXX static library quickclash_localization.lib
+[98/207] Building CXX object CMakeFiles\quickclash_engine.dir\src\infra\core\engine_session.cpp.obj
+[99/207] Linking CXX static library quickclash_engine.lib
+[100/207] Automatic MOC for target quickclash_service
+[101/207] Automatic MOC for target quickclash_runtime
+[102/207] Building CXX object CMakeFiles\quickclash_service.dir\quickclash_service_autogen\mocs_compilation.cpp.obj
+[103/207] Building CXX object CMakeFiles\quickclash_service.dir\app\service_main.cpp.obj
+[104/207] Building CXX object CMakeFiles\quickclash_runtime.dir\quickclash_runtime_autogen\mocs_compilation.cpp.obj
+[105/207] Building CXX object CMakeFiles\quickclash_service.dir\src\platform\windows\service_host.cpp.obj
+[106/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\latest_mailbox.cpp.obj
+[107/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\infra\storage\settings_service.cpp.obj
+[108/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\platform\windows\system_proxy.cpp.obj
+[109/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_providers.cpp.obj
+[110/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_backup.cpp.obj
+[111/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_features.cpp.obj
+[112/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_runtime.cpp.obj
+[113/207] Linking CXX executable quickclash_service.exe
+[114/207] Building CXX object CMakeFiles\quickclash_runtime.dir\src\application\desktop_resources.cpp.obj
+[115/207] Linking CXX static library quickclash_runtime.lib
+[116/207] Automatic MOC for target quickclash
+[117/207] Running AUTOMOC file extraction for target quickclash
+[118/207] Running rcc for resource qmake_QuickClash_Ui
+[119/207] Running rcc for resource quickclash_raw_qml_0
+[120/207] Generating .rcc/qmlcache/quickclash_qmlcache_loader.cpp
+[121/207] Running rcc for resource quickclash_raw_qml_0_extra_qmldirs
+[122/207] Running moc --collect-json for target quickclash
+[123/207] Automatic QML type registration for target quickclash
+[124/207] Generating .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp, .rcc/qmlcache/quickclash_qml/components/flat_tile_qml.cpp.aotstats
+[125/207] Generating .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp, .rcc/qmlcache/quickclash_qml/components/theme_tokens_qml.cpp.aotstats
+[126/207] Generating .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp, .rcc/qmlcache/quickclash_qml/components/action_button_qml.cpp.aotstats
+[127/207] Generating .rcc/qmlcache/quickclash_qml/main_qml.cpp, .rcc/qmlcache/quickclash_qml/main_qml.cpp.aotstats
+[128/207] Generating .rcc/qmlcache/quickclash_qml/components/focus_ring_qml.cpp, .rcc/qmlcache/quickclash_qml/components/focus_ring_qml.cpp.aotstats
+[129/207] Generating .rcc/qmlcache/quickclash_qml/components/state_surface_qml.cpp, .rcc/qmlcache/quickclash_qml/components/state_surface_qml.cpp.aotstats
+[130/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_field_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_field_qml.cpp.aotstats
+[131/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_text_area_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_text_area_qml.cpp.aotstats
+[132/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_switch_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_switch_qml.cpp.aotstats
+[133/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_check_box_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_check_box_qml.cpp.aotstats
+[134/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_combo_box_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_combo_box_qml.cpp.aotstats
+[135/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_spin_box_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_spin_box_qml.cpp.aotstats
+[136/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_dialog_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_dialog_qml.cpp.aotstats
+[137/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_tool_tip_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_tool_tip_qml.cpp.aotstats
+[138/207] Generating .rcc/qmlcache/quickclash_qml/components/themed_progress_qml.cpp, .rcc/qmlcache/quickclash_qml/components/themed_progress_qml.cpp.aotstats
+[139/207] Generating .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp, .rcc/qmlcache/quickclash_qml/components/deferred_content_qml.cpp.aotstats
+[140/207] Generating .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp, .rcc/qmlcache/quickclash_qml/components/replay_list_qml.cpp.aotstats
+[141/207] Generating .rcc/qmlcache/quickclash_qml/components/runtime_list_qml.cpp, .rcc/qmlcache/quickclash_qml/components/runtime_list_qml.cpp.aotstats
+[142/207] Generating .rcc/qmlcache/quickclash_qml/components/subscription_details_qml.cpp, .rcc/qmlcache/quickclash_qml/components/subscription_details_qml.cpp.aotstats
+[143/207] Generating .rcc/qmlcache/quickclash_qml/components/subscription_card_qml.cpp, .rcc/qmlcache/quickclash_qml/components/subscription_card_qml.cpp.aotstats
+[144/207] Generating .rcc/qmlcache/quickclash_qml/components/outbound_status_qml.cpp, .rcc/qmlcache/quickclash_qml/components/outbound_status_qml.cpp.aotstats
+[145/207] Generating .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp, .rcc/qmlcache/quickclash_qml/components/traffic_sparkline_qml.cpp.aotstats
+[146/207] Generating .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/page_host_qml.cpp.aotstats
+[147/207] Generating .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp, .rcc/qmlcache/quickclash_qml/shell/embedded_host_qml.cpp.aotstats
+[148/207] Generating .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp.aotstats
+[149/207] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxies_page_qml.cpp.aotstats
+[150/207] Generating .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp, .rcc/qmlcache/quickclash_qml/features/proxies/proxy_summary_qml.cpp.aotstats
+[151/207] Generating .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/subscriptions/subscriptions_page_qml.cpp.aotstats
+[152/207] Generating .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/logs/logs_page_qml.cpp.aotstats
+[153/207] Generating .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/rules/rules_page_qml.cpp.aotstats
+[154/207] Generating .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/connections/connections_page_qml.cpp.aotstats
+[155/207] Generating .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/tests/tests_page_qml.cpp.aotstats
+[156/207] Generating .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/settings/settings_page_qml.cpp.aotstats
+[157/207] Building CXX object CMakeFiles\quickclash.dir\app\deferred_ui_unload.cpp.obj
+[158/207] Building CXX object CMakeFiles\quickclash.dir\app\system_events.cpp.obj
+[159/207] Building CXX object CMakeFiles\quickclash.dir\app\application_host.cpp.obj
+[160/207] Building CXX object CMakeFiles\quickclash.dir\app\main.cpp.obj
+FAILED: [code=2] CMakeFiles/quickclash.dir/app/main.cpp.obj 
+"C:\PROGRA~1\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\bin\Hostx64\x64\cl.exe"  /nologo /TP -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_DEBUG -DQT_OPENGL_LIB -DQT_QMLINTEGRATION_LIB -DQT_QMLMETA_LIB -DQT_QMLMODELS_LIB -DQT_QMLWORKERSCRIPT_LIB -DQT_QML_LIB -DQT_QUICKCONTROLS2_LIB -DQT_QUICK_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -ID:\repos\quick-clash\build\release\quickclash_autogen\include -ID:\repos\quick-clash\src\presentation -ID:\repos\quick-clash -ID:\repos\quick-clash\src -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQml\6.9.0 -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQml\6.9.0\QtQml -external:IC:\Qt\6.9.0\msvc2022_64\include\QtCore\6.9.0 -external:IC:\Qt\6.9.0\msvc2022_64\include\QtCore\6.9.0\QtCore -external:IC:\Qt\6.9.0\msvc2022_64\include\QtCore -external:IC:\Qt\6.9.0\msvc2022_64\include -external:IC:\Qt\6.9.0\msvc2022_64\mkspecs\win32-msvc -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQml -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQmlIntegration -external:IC:\Qt\6.9.0\msvc2022_64\include\QtNetwork -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQuick -external:IC:\Qt\6.9.0\msvc2022_64\include\QtGui -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQmlMeta -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQmlModels -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQmlWorkerScript -external:IC:\Qt\6.9.0\msvc2022_64\include\QtOpenGL -external:IC:\Qt\6.9.0\msvc2022_64\include\QtQuickControls2 -external:IC:\Qt\6.9.0\msvc2022_64\include\QtWidgets -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W4 /permissive- /utf-8 /Zc:__cplusplus /WX -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\quickclash.dir\app\main.cpp.obj /FdCMakeFiles\quickclash.dir\ /FS -c D:\repos\quick-clash\app\main.cpp
+D:\repos\quick-clash\app\main.cpp(207): error C2065: ��prototype��: δ�����ı�ʶ��
+D:\repos\quick-clash\app\main.cpp(208): error C2065: ��hostTest��: δ�����ı�ʶ��
+D:\repos\quick-clash\app\main.cpp(208): error C2065: ��trayTest��: δ�����ı�ʶ��
+[161/207] Building CXX object CMakeFiles\quickclash.dir\quickclash_autogen\mocs_compilation.cpp.obj
+[162/207] Building CXX object CMakeFiles\quickclash.dir\app\single_instance.cpp.obj
+[163/207] Building CXX object CMakeFiles\quickclash.dir\src\presentation\feature_registry.cpp.obj
+ninja: build stopped: subcommand failed.
+
+--- stderr ---

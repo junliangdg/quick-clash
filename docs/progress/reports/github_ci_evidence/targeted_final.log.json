@@ -1,0 +1,17 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\ctest.exe",
+  "arguments": [
+    "--test-dir",
+    "build/dev",
+    "--output-on-failure",
+    "-R",
+    "^(runtime|runtime_publication|single_instance)$",
+    "--output-junit",
+    "D:/repos/quick-clash/docs/progress/reports/github_ci_evidence/targeted_final.xml"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T08:57:43.2357589Z",
+  "elapsed_ms": 151032,
+  "exit_code": 0,
+  "timed_out": false
+}

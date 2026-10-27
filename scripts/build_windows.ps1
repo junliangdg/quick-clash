@@ -9,7 +9,8 @@ param(
     [switch]$Fresh,
     [string]$BuildDirectory = '',
     [ValidateRange(1, 7200)][int]$ConfigureTimeoutSeconds = 120,
-    [ValidateRange(1, 7200)][int]$BuildTimeoutSeconds = 600
+    [ValidateRange(1, 7200)][int]$BuildTimeoutSeconds = 600,
+    [ValidateRange(1, 7200)][int]$TestTimeoutSeconds = 600
 )
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
@@ -46,7 +47,7 @@ if ($Ninja) {
 $preset = if ($Headless) { 'headless' } else { 'dev' }
 $resolvedBuild = if ($BuildDirectory) { [IO.Path]::GetFullPath($BuildDirectory, $repoRoot) } else { Join-Path $repoRoot "build/$preset" }
 $logRoot = Join-Path $resolvedBuild ('logs/' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ') + '_' + [guid]::NewGuid().ToString('N'))
-$resolvedCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop).Source
+$resolvedCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $ctest = Join-Path (Split-Path $resolvedCMake) 'ctest.exe'
 Write-Output "Build evidence: $logRoot"
 Push-Location $repoRoot
@@ -61,5 +62,5 @@ try {
     if (-not $Headless) {
         Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--target', 'quickclash_qmllint') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'qmllint.log') -TimeoutSeconds $BuildTimeoutSeconds
     }
-    Invoke-NativeStep -Executable $ctest -Arguments @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml')) -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds 120
+    Invoke-NativeStep -Executable $ctest -Arguments @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml')) -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds $TestTimeoutSeconds
 } finally { Pop-Location }

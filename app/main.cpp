@@ -1,8 +1,8 @@
 #include "application_host.h"
-#include "host_probe.h"
 #include "presentation/localization.h"
 #include "single_instance.h"
 #ifdef QUICKCLASH_TEST_PROBES
+#include "host_probe.h"
 #include "runtime_ui_probe.h"
 #include "subscription_memory_probe.h"
 #include "subscription_ui_probe.h"
@@ -85,6 +85,7 @@ int main(int argc, char* argv[]) {
     uiFont.setPixelSize(14);
     QApplication::setFont(uiFont);
     const auto arguments = app.arguments();
+#ifdef QUICKCLASH_TEST_PROBES
     const bool smoke = arguments.contains(QStringLiteral("--smoke-test"));
     const bool prototype = arguments.contains(QStringLiteral("--prototype-test"));
     const bool hostTest = arguments.contains(QStringLiteral("--host-test"));
@@ -99,6 +100,9 @@ int main(int argc, char* argv[]) {
                           responsiveTest || visualTest || runtimeListTest || subscriptionUiTest ||
                           pageMemoryTest || arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
+#else
+    const bool isolated = arguments.contains(QStringLiteral("--isolated"));
+#endif
     const auto option = [&arguments](const QString& key) {
         const auto prefix = key + QLatin1Char('=');
         for (const auto& argument : arguments) {
@@ -145,7 +149,11 @@ int main(int argc, char* argv[]) {
     }
     quickclash::ApplicationHost host(
         isolated ? probeSettings : QDir(configDirectory).filePath(QStringLiteral("ui.ini")),
+#ifdef QUICKCLASH_TEST_PROBES
         (isolated && !trayTest) || arguments.contains(QStringLiteral("--no-tray")));
+#else
+        isolated || arguments.contains(QStringLiteral("--no-tray")));
+#endif
     QObject::connect(&instance, &quickclash::SingleInstance::activationRequested, &host,
                      [&host] { (void)host.showWindow(); });
 #ifdef QUICKCLASH_TEST_PROBES
@@ -189,7 +197,6 @@ int main(int argc, char* argv[]) {
             timer->start(500);
         }
     }
-#endif
     const auto replayConnections = option(QStringLiteral("--replay-connections"));
     if (!replayConnections.isEmpty() &&
         !host.state().setReplayConnections(replayConnections.toInt())) {
@@ -198,6 +205,7 @@ int main(int argc, char* argv[]) {
     }
     host.state().setReplay(arguments.contains(QStringLiteral("--replay")) || prototype ||
                            hostTest || trayTest);
+#endif
     if (!option(QStringLiteral("--theme")).isEmpty()) {
         host.state().setThemeMode(option(QStringLiteral("--theme")));
     }
@@ -277,13 +285,13 @@ int main(int argc, char* argv[]) {
         }
         host.resizeWindow(QSize(dimensions[0].toInt(), dimensions[1].toInt()));
     }
+#ifdef QUICKCLASH_TEST_PROBES
     if (hostTest) {
         return quickclash::runHostProbe(host);
     }
     if (trayTest) {
         return quickclash::runTrayProbe(host);
     }
-#ifdef QUICKCLASH_TEST_PROBES
     if (subscriptionUiTest) {
         return quickclash::runSubscriptionUiProbe(host);
     }
@@ -301,10 +309,6 @@ int main(int argc, char* argv[]) {
     }
     if (keyboardTest) {
         return quickclash::runKeyboardProbe(host);
-    }
-#else
-    if (keyboardTest) {
-        return 14;
     }
 #endif
     const auto capture = option(QStringLiteral("--capture"));
@@ -331,10 +335,12 @@ int main(int argc, char* argv[]) {
             });
         captureTimer->start();
     }
+#ifdef QUICKCLASH_TEST_PROBES
     if (smoke) {
         QTimer::singleShot(300, &host,
                            [&host] { QCoreApplication::exit(host.contentReady() ? 0 : 8); });
     }
+#endif
     const auto quitAfter = option(QStringLiteral("--quit-after-ms")).toInt();
     if (quitAfter > 0) {
         QTimer::singleShot(quitAfter, &app, &QCoreApplication::quit);
@@ -397,6 +403,7 @@ int main(int argc, char* argv[]) {
             }
         });
     }
+#ifdef QUICKCLASH_TEST_PROBES
     if (prototype) {
         int step = 0;
         QJsonArray lifecycleSamples;
@@ -468,5 +475,6 @@ int main(int argc, char* argv[]) {
         timer->start();
         return app.exec();
     }
+#endif
     return app.exec();
 }

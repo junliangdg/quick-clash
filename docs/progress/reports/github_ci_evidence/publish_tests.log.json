@@ -1,0 +1,13 @@
+{
+  "executable": "C:\\Users\\Joon.Ye\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\native\\powershell\\pwsh.exe",
+  "arguments": [
+    "-NoProfile",
+    "-File",
+    "tests/scripts/publish_release_test.ps1"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T09:06:48.8559988Z",
+  "elapsed_ms": 1536,
+  "exit_code": 1,
+  "timed_out": false
+}

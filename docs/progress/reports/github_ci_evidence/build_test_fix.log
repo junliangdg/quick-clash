@@ -1,0 +1,39 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (15.2s)
+-- Generating done (1.9s)
+-- Build files have been written to: D:/repos/quick-clash/build/dev
+[0/4] Re-checking globbed directories...
+[1/180] Automatic MOC for target quickclash_storage
+[2/178] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[3/145] Automatic MOC for target bounded_read_test
+[4/143] Automatic MOC for target deferred_ui_unload_test
+[5/141] Automatic MOC for target quickclash_engine
+[6/139] Automatic MOC for target provider_stream_test
+[7/137] Automatic MOC for target geo_resource_writer_test
+[8/135] Automatic MOC for target storage_test
+[9/133] Automatic MOC for target quickclash_runtime
+[10/131] Automatic MOC for target quickclash_service
+[11/129] Automatic MOC for target contracts_test
+[12/127] Automatic MOC for target profile_model_test
+[13/125] Automatic MOC for target quickclash
+[14/124] Automatic MOC for target runtime_test
+[15/123] Automatic MOC for target proxy_lease_test
+[16/121] Automatic MOC for target recovery_test
+[17/119] Running AUTOMOC file extraction for target quickclash
+[18/119] Automatic MOC for target latest_mailbox_test
+[19/117] Automatic MOC for target runtime_publication_test
+[20/115] Running moc --collect-json for target quickclash
+[21/46] Automatic MOC for target runtime_list_model_test
+[22/44] Automatic MOC for target localization_test
+[23/42] Automatic MOC for target qt_cost_probe
+[24/40] Automatic MOC for target ui_state_test
+[25/38] Automatic MOC for target single_instance_test
+[26/36] Automatic MOC for target core_job_probe
+[27/34] Automatic MOC for target core_isolation_probe
+[28/32] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+[29/32] Linking CXX executable runtime_test.exe
+
+--- stderr ---

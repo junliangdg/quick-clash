@@ -10,9 +10,10 @@ if (-not $IsWindows) { throw 'Windows deployment smoke only.' }
 $taskRepo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'native_process.ps1')
 $taskBuild = (Resolve-Path -LiteralPath ([IO.Path]::GetFullPath($BuildDirectory, $taskRepo))).Path
+$taskTesting = Select-String -LiteralPath (Join-Path $taskBuild 'CMakeCache.txt') -Pattern '^BUILD_TESTING:BOOL=ON$' -Quiet
 # Qt 6.8 qt.conf generation requires an absolute install prefix.
 $taskDestination = [IO.Path]::GetFullPath($Destination, $taskRepo)
-$taskCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop).Source
+$taskCMake = (Get-Command $CMake -CommandType Application -ErrorAction Stop | Select-Object -First 1).Source
 $taskLogs = Join-Path $taskBuild ('logs/deploy_' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ'))
 Invoke-NativeStep -Executable $taskCMake -Arguments @('--install', $taskBuild, '--prefix', $taskDestination) -WorkingDirectory $taskRepo -LogPath (Join-Path $taskLogs 'install.log') -TimeoutSeconds 120
 $taskOriginalPath = $env:Path
@@ -24,7 +25,11 @@ try {
     $env:QT_QPA_PLATFORM = 'windows'
     $env:QT_QUICK_BACKEND = 'software'
     $env:QT_FORCE_STDERR_LOGGING = '1'
-    Invoke-NativeStep -Executable (Join-Path $taskDestination 'bin/quickclash.exe') -Arguments @('--smoke-test', "--diagnostics=$taskLogs/smoke.json") -WorkingDirectory $taskDestination -LogPath (Join-Path $taskLogs 'smoke.log') -TimeoutSeconds 15
+    $taskSmokeArguments = if ($taskTesting) { @('--smoke-test') } else { @('--isolated', '--quit-after-ms=1500') }
+    $taskSmokeArguments += "--diagnostics=$taskLogs/smoke.json"
+    Invoke-NativeStep -Executable (Join-Path $taskDestination 'bin/quickclash.exe') -Arguments $taskSmokeArguments -WorkingDirectory $taskDestination -LogPath (Join-Path $taskLogs 'smoke.log') -TimeoutSeconds 15
+    $taskSmoke = Get-Content -LiteralPath (Join-Path $taskLogs 'smoke.json') -Raw | ConvertFrom-Json
+    if (-not $taskSmoke.page_ready -or $taskSmoke.qml_errors -ne 0) { throw 'Deployed application did not load its QML page cleanly.' }
 } finally {
     $env:Path = $taskOriginalPath
     $env:QT_QPA_PLATFORM = $taskOriginalPlatform

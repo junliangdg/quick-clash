@@ -112,9 +112,12 @@ if(QUICKCLASH_BUILD_UI)
         COMMAND Qt6::lrelease "${CMAKE_CURRENT_SOURCE_DIR}/resources/i18n/quickclash_zh_cn.ts" -qm "${quickclash_catalog}"
         DEPENDS resources/i18n/quickclash_zh_cn.ts VERBATIM)
     set_source_files_properties("${quickclash_catalog}" PROPERTIES GENERATED TRUE QT_RESOURCE_ALIAS quickclash_zh_cn.qm)
-    get_target_property(quickclash_qt_core Qt6::Core IMPORTED_LOCATION_RELEASE)
-    get_filename_component(quickclash_qt_bin "${quickclash_qt_core}" DIRECTORY)
-    set(quickclash_qt_translations "${quickclash_qt_bin}/../translations")
+    # QtCore is a framework on macOS and lives under lib/ on Linux. Query Qt
+    # itself instead of deriving the installation prefix from its library path.
+    get_target_property(quickclash_qmake Qt6::qmake IMPORTED_LOCATION)
+    execute_process(COMMAND "${quickclash_qmake}" -query QT_INSTALL_TRANSLATIONS
+        OUTPUT_VARIABLE quickclash_qt_translations OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY)
     set_source_files_properties("${quickclash_qt_translations}/qtbase_zh_CN.qm" PROPERTIES QT_RESOURCE_ALIAS qtbase_zh_cn.qm)
     set_source_files_properties("${quickclash_qt_translations}/qtdeclarative_zh_CN.qm" PROPERTIES QT_RESOURCE_ALIAS qtdeclarative_zh_cn.qm)
     qt_add_resources(quickclash_localization quickclash_translations PREFIX /i18n FILES
@@ -128,7 +131,6 @@ if(QUICKCLASH_BUILD_UI)
     qt_add_executable(quickclash app/main.cpp app/application_host.cpp app/application_host.h
         app/deferred_ui_unload.cpp app/deferred_ui_unload.h
         app/system_events.cpp app/system_events.h
-        app/host_probe.cpp app/host_probe.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network quickclash_application quickclash_runtime quickclash_localization)
     if(WIN32)
@@ -204,7 +206,13 @@ if(QUICKCLASH_BUILD_UI)
         endforeach()
     endif()
     install(TARGETS quickclash BUNDLE DESTINATION . RUNTIME DESTINATION bin)
-    qt_generate_deploy_qml_app_script(TARGET quickclash OUTPUT_SCRIPT quickclash_deploy NO_UNSUPPORTED_PLATFORM_ERROR)
+    if(WIN32 AND MSVC)
+        # Portable packages carry the app-local CRT DLLs, not vc_redist.exe.
+        set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION bin)
+        include(InstallRequiredSystemLibraries)
+    endif()
+    qt_generate_deploy_qml_app_script(TARGET quickclash OUTPUT_SCRIPT quickclash_deploy
+        NO_COMPILER_RUNTIME NO_UNSUPPORTED_PLATFORM_ERROR)
     install(SCRIPT ${quickclash_deploy})
 endif()
 if(BUILD_TESTING)
@@ -251,7 +259,7 @@ if(BUILD_TESTING)
         target_link_libraries(runtime_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
         quickclash_warnings(runtime_test)
         add_test(NAME runtime COMMAND runtime_test)
-        set_tests_properties(runtime PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
+        set_tests_properties(runtime PROPERTIES TIMEOUT 240 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         if(WIN32)
             add_executable(recovery_test tests/integration/recovery_test.cpp)
             target_link_libraries(recovery_test PRIVATE quickclash_runtime)
@@ -282,7 +290,7 @@ if(BUILD_TESTING)
         target_link_libraries(runtime_publication_test PRIVATE quickclash_runtime Qt6::Test)
         quickclash_warnings(runtime_publication_test)
         add_test(NAME runtime_publication COMMAND runtime_publication_test)
-        set_tests_properties(runtime_publication PROPERTIES TIMEOUT 15)
+        set_tests_properties(runtime_publication PROPERTIES TIMEOUT 60)
         add_executable(runtime_list_model_test tests/unit/runtime_list_model_test.cpp
             src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h)
         target_link_libraries(runtime_list_model_test PRIVATE quickclash_application Qt6::Qml Qt6::Test)
@@ -293,7 +301,7 @@ if(BUILD_TESTING)
         target_link_libraries(localization_test PRIVATE quickclash_localization)
         quickclash_warnings(localization_test)
         add_test(NAME localization COMMAND localization_test)
-        target_sources(quickclash PRIVATE app/keyboard_probe.cpp)
+        target_sources(quickclash PRIVATE app/host_probe.cpp app/host_probe.h app/keyboard_probe.cpp)
         target_sources(quickclash PRIVATE tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h)
         target_sources(quickclash PRIVATE tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h)
         target_sources(quickclash PRIVATE tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp)

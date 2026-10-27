@@ -1,0 +1,51 @@
+[0/2] Re-checking globbed directories...
+[1/2] Re-running CMake...
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Could NOT find WrapVulkanHeaders (missing: Vulkan_INCLUDE_DIR) 
+-- Configuring done (5.8s)
+-- Generating done (0.9s)
+-- Build files have been written to: D:/repos/quick-clash/build/dev
+[0/4] Re-checking globbed directories...
+[1/202] Running rcc for resource quickclash_translations
+[2/202] Generating CXX dyndep file _deps\yaml_cpp-build\CMakeFiles\yaml-cpp.dir\CXX.dd
+[3/169] Automatic MOC for target bounded_read_test
+[4/168] Automatic MOC for target quickclash_storage
+[5/166] Automatic MOC for target contracts_test
+[6/166] Automatic MOC for target deferred_ui_unload_test
+[7/166] Automatic MOC for target quickclash_engine
+[8/164] Building CXX object CMakeFiles\quickclash_localization.dir\build\dev\.qt\rcc\qrc_quickclash_translations.cpp.obj
+[9/164] Automatic MOC for target provider_stream_test
+[10/163] Automatic MOC for target geo_resource_writer_test
+[11/162] Linking CXX static library quickclash_localization.lib
+[12/162] Automatic MOC for target quickclash_runtime
+[13/160] Automatic MOC for target quickclash_service
+[14/159] Automatic MOC for target profile_model_test
+[15/159] Automatic MOC for target storage_test
+[16/158] Automatic MOC for target quickclash
+[17/157] Automatic MOC for target runtime_test
+[18/157] Automatic MOC for target proxy_lease_test
+[19/156] Automatic MOC for target recovery_test
+[20/155] Running AUTOMOC file extraction for target quickclash
+[21/155] Automatic MOC for target latest_mailbox_test
+[22/155] Running moc --collect-json for target quickclash
+[23/87] Automatic MOC for target runtime_publication_test
+[24/87] Automatic MOC for target localization_test
+[25/86] Automatic MOC for target qt_cost_probe
+[26/86] Automatic MOC for target ui_state_test
+[27/84] Automatic MOC for target single_instance_test
+[28/84] Automatic MOC for target core_job_probe
+[29/84] Automatic MOC for target core_isolation_probe
+[30/84] Building CXX object CMakeFiles\contracts_test.dir\contracts_test_autogen\mocs_compilation.cpp.obj
+[31/84] Automatic MOC for target runtime_list_model_test
+[32/84] Building CXX object CMakeFiles\runtime_test.dir\runtime_test_autogen\mocs_compilation.cpp.obj
+[33/84] Building CXX object CMakeFiles\provider_stream_test.dir\tests\unit\provider_stream_test.cpp.obj
+FAILED: [code=2] CMakeFiles/provider_stream_test.dir/tests/unit/provider_stream_test.cpp.obj 
+"C:\PROGRA~1\Microsoft Visual Studio\18\Community\VC\Tools\MSVC\14.51.36231\bin\Hostx64\x64\cl.exe"  /nologo /TP -DQT_CORE_LIB -DQT_NO_DEBUG -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 -ID:\repos\quick-clash\build\dev\provider_stream_test_autogen\include -ID:\repos\quick-clash\src -external:IC:\Qt\6.9.0\msvc2022_64\include\QtCore -external:IC:\Qt\6.9.0\msvc2022_64\include -external:IC:\Qt\6.9.0\msvc2022_64\mkspecs\win32-msvc -external:W0 /DWIN32 /D_WINDOWS /EHsc /O2 /Ob2 /DNDEBUG -std:c++20 -MD /W4 /permissive- /utf-8 /Zc:__cplusplus /WX -Zc:__cplusplus -permissive- -utf-8 /showIncludes /FoCMakeFiles\provider_stream_test.dir\tests\unit\provider_stream_test.cpp.obj /FdCMakeFiles\provider_stream_test.dir\ /FS -c D:\repos\quick-clash\tests\unit\provider_stream_test.cpp
+D:\repos\quick-clash\tests\unit\provider_stream_test.cpp(79): error C2039: "first": ���� "QHash<QString,QIODevice *>" �ĳ�Ա
+C:\Qt\6.9.0\msvc2022_64\include\QtCore/qhash.h(830): note: �μ���QHash<QString,QIODevice *>��������
+[34/84] Building CXX object CMakeFiles\contracts_test.dir\tests\unit\contracts_test.cpp.obj
+[35/84] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\subscription_probe.cpp.obj
+[36/84] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\runtime_test.cpp.obj
+ninja: build stopped: subcommand failed.
+
+--- stderr ---

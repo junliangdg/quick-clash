@@ -1,0 +1,17 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\ctest.exe",
+  "arguments": [
+    "--test-dir",
+    "D:\\repos\\quick-clash\\build\\headless",
+    "--output-on-failure",
+    "--timeout",
+    "30",
+    "--output-junit",
+    "D:\\repos\\quick-clash\\build\\headless\\logs\\20261027T085733509Z_e3d1f0f901ff4f448e80c1c3a37fe1c1\\tests.xml"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T08:58:39.3934282Z",
+  "elapsed_ms": 5448,
+  "exit_code": 0,
+  "timed_out": false
+}

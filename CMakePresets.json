@@ -4,9 +4,11 @@
     { "name": "dev", "generator": "Ninja", "binaryDir": "${sourceDir}/build/dev",
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release", "BUILD_TESTING": "ON", "QUICKCLASH_WARNINGS_AS_ERRORS": "ON" } },
     { "name": "headless", "inherits": "dev", "binaryDir": "${sourceDir}/build/headless",
-      "cacheVariables": { "QUICKCLASH_BUILD_UI": "OFF" } }
+      "cacheVariables": { "QUICKCLASH_BUILD_UI": "OFF" } },
+    { "name": "release", "inherits": "dev", "binaryDir": "${sourceDir}/build/release",
+      "cacheVariables": { "BUILD_TESTING": "OFF", "QUICKCLASH_BUILD_UI": "ON" } }
   ],
-  "buildPresets": [ { "name": "dev", "configurePreset": "dev" }, { "name": "headless", "configurePreset": "headless" } ],
+  "buildPresets": [ { "name": "dev", "configurePreset": "dev" }, { "name": "headless", "configurePreset": "headless" }, { "name": "release", "configurePreset": "release" } ],
   "testPresets": [
     { "name": "dev", "configurePreset": "dev", "output": { "outputOnFailure": true } },
     { "name": "headless", "configurePreset": "headless", "output": { "outputOnFailure": true } }

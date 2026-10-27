@@ -1,0 +1,50 @@
+[0/2] Re-checking globbed directories...
+[1/49] Automatic MOC for target provider_stream_test
+[2/48] Building CXX object CMakeFiles\latest_mailbox_test.dir\latest_mailbox_test_autogen\mocs_compilation.cpp.obj
+[3/48] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\native_proxy_client.cpp.obj
+[4/48] Building CXX object CMakeFiles\runtime_publication_test.dir\runtime_publication_test_autogen\mocs_compilation.cpp.obj
+[5/48] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\network_fixture.cpp.obj
+[6/48] Building CXX object CMakeFiles\runtime_test.dir\tests\integration\subscription_memory_probe.cpp.obj
+[7/48] Building CXX object CMakeFiles\latest_mailbox_test.dir\tests\unit\latest_mailbox_test.cpp.obj
+[8/48] Building CXX object CMakeFiles\deferred_ui_unload_test.dir\deferred_ui_unload_test_autogen\mocs_compilation.cpp.obj
+[9/48] Building CXX object CMakeFiles\runtime_publication_test.dir\tests\unit\runtime_publication_test.cpp.obj
+[10/48] Building CXX object CMakeFiles\deferred_ui_unload_test.dir\app\deferred_ui_unload.cpp.obj
+[11/48] Building CXX object CMakeFiles\deferred_ui_unload_test.dir\tests\unit\deferred_ui_unload_test.cpp.obj
+[12/48] Building CXX object CMakeFiles\profile_model_test.dir\profile_model_test_autogen\mocs_compilation.cpp.obj
+[13/48] Building CXX object CMakeFiles\profile_model_test.dir\tests\unit\profile_model_test.cpp.obj
+[14/48] Building CXX object CMakeFiles\profile_model_test.dir\src\presentation\profile_model.cpp.obj
+[15/48] Building CXX object CMakeFiles\runtime_list_model_test.dir\runtime_list_model_test_autogen\mocs_compilation.cpp.obj
+[16/48] Building CXX object CMakeFiles\qt_cost_probe.dir\qt_cost_probe_autogen\mocs_compilation.cpp.obj
+[17/48] Building CXX object CMakeFiles\single_instance_test.dir\single_instance_test_autogen\mocs_compilation.cpp.obj
+[18/48] Building CXX object CMakeFiles\runtime_list_model_test.dir\tests\unit\runtime_list_model_test.cpp.obj
+[19/48] Building CXX object CMakeFiles\runtime_list_model_test.dir\src\presentation\runtime_list_model.cpp.obj
+[20/48] Building CXX object CMakeFiles\core_job_probe.dir\core_job_probe_autogen\mocs_compilation.cpp.obj
+[21/48] Building CXX object CMakeFiles\qt_cost_probe.dir\bench\qt_cost_probe.cpp.obj
+[22/48] Building CXX object CMakeFiles\core_isolation_probe.dir\core_isolation_probe_autogen\mocs_compilation.cpp.obj
+[23/48] Building CXX object CMakeFiles\single_instance_test.dir\app\single_instance.cpp.obj
+[24/48] Building CXX object CMakeFiles\single_instance_test.dir\tests\unit\single_instance_test.cpp.obj
+[25/48] Building CXX object CMakeFiles\core_job_probe.dir\tests\integration\core_job_probe.cpp.obj
+[26/48] Linking CXX executable quickclash_service.exe
+[27/48] Linking CXX executable bounded_read_test.exe
+[28/48] Linking CXX executable quickclash.exe
+[29/48] Linking CXX executable geo_resource_writer_test.exe
+[30/48] Linking CXX executable storage_test.exe
+[31/48] Building CXX object CMakeFiles\core_isolation_probe.dir\tests\integration\core_isolation_probe.cpp.obj
+[32/48] Linking CXX executable contracts_test.exe
+[33/48] Linking CXX executable proxy_lease_test.exe
+[34/48] Linking CXX executable runtime_test.exe
+[35/48] Linking CXX executable recovery_test.exe
+[36/48] Linking CXX executable deferred_ui_unload_test.exe
+[37/48] Linking CXX executable profile_model_test.exe
+[38/48] Linking CXX executable latest_mailbox_test.exe
+[39/48] Linking CXX executable runtime_list_model_test.exe
+[40/48] Linking CXX executable runtime_publication_test.exe
+[41/48] Linking CXX executable localization_test.exe
+[42/48] Linking CXX executable qt_cost_probe.exe
+[43/48] Linking CXX executable single_instance_test.exe
+[44/48] Linking CXX executable core_job_probe.exe
+[45/48] Linking CXX executable core_isolation_probe.exe
+[46/48] Building CXX object CMakeFiles\provider_stream_test.dir\tests\unit\provider_stream_test.cpp.obj
+[47/48] Linking CXX executable provider_stream_test.exe
+
+--- stderr ---

@@ -1,0 +1,392 @@
+
+--- stderr ---
+stop during provider validation clears private transaction and preserves catalog: {
+    "architecture": "x86_64",
+    "backgroundManaged": false,
+    "busy": false,
+    "configIssues": [
+    ],
+    "configLifecycle": {
+        "providerBytes": 0,
+        "providerFiles": 0,
+        "semanticBytes": 0,
+        "validated": false,
+        "validationActive": false
+    },
+    "connections": [
+    ],
+    "corePid": 27692,
+    "coreUptimeSeconds": 15,
+    "coreVersion": "v1.19.33",
+    "dataDirectory": "C:/Users/Joon.Ye/AppData/Local/Temp/runtime_test-sQnafZ",
+    "dataLifecycle": {
+        "active": [
+            "rules"
+        ],
+        "appLogCount": 13,
+        "generations": {
+            "connections": "2",
+            "resources": "2",
+            "rules": "5",
+            "traffic": "2"
+        },
+        "pendingReads": [
+        ],
+        "providerDraftCount": 0,
+        "publishedChannels": [
+            "delays",
+            "groups",
+            "nodes",
+            "profiles",
+            "rules",
+            "samples"
+        ]
+    },
+    "dataUrl": "file:///C:/Users/Joon.Ye/AppData/Local/Temp/runtime_test-sQnafZ",
+    "delayTarget": "",
+    "delays": {
+    },
+    "droppedLogs": 0,
+    "effectivePreview": "",
+    "epoch": "50ccf4fb-bf09-49e0-aa41-9dc2c4d4a281",
+    "error": "",
+    "errors": [
+        {
+            "code": "ServiceUnavailable",
+            "time": "2026-10-27T08:52:25Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-27T08:52:26Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-27T08:52:34Z"
+        },
+        {
+            "code": "CoreListenersNotOwned",
+            "time": "2026-10-27T08:52:44Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-27T08:52:48Z"
+        },
+        {
+            "code": "UnsupportedSubscriptionFormat",
+            "time": "2026-10-27T08:52:48Z"
+        },
+        {
+            "code": "EmptySubscription",
+            "time": "2026-10-27T08:52:49Z"
+        },
+        {
+            "code": "CoreListenersNotOwned",
+            "time": "2026-10-27T08:52:54Z"
+        },
+        {
+            "code": "CoreExited",
+            "time": "2026-10-27T08:52:55Z"
+        },
+        {
+            "code": "ProxyGroupAutomatic",
+            "time": "2026-10-27T08:53:06Z"
+        },
+        {
+            "code": "UnsupportedConfigFeature",
+            "time": "2026-10-27T08:53:07Z"
+        },
+        {
+            "code": "InvalidBackup",
+            "time": "2026-10-27T08:53:31Z"
+        },
+        {
+            "code": "InvalidYaml",
+            "time": "2026-10-27T08:53:58Z"
+        }
+    ],
+    "features": {
+        "backupResult": "Restored",
+        "backupUrl": "file:///C:/Users/Joon.Ye/AppData/Local/Temp/runtime_test-sQnafZ/backups/profiles_20261027_085322_446.json",
+        "dnsResult": "Cleared",
+        "nodes": [
+            {
+                "name": "managed_fixture",
+                "type": "http",
+                "udp": false
+            }
+        ],
+        "testHistory": [
+            {
+                "bytes": 28,
+                "elapsedMs": 165,
+                "epoch": "956b0630-9efc-409f-8e2f-de2ac1f147d8",
+                "path": "CurrentProxy",
+                "resolved": "CurrentProxy",
+                "state": "Reachable",
+                "status": 200,
+                "target": "https://fixture.quickclash.invalid:52665/website-test",
+                "time": "2026-10-27T08:52:25Z"
+            },
+            {
+                "bytes": 28,
+                "elapsedMs": 94,
+                "epoch": "956b0630-9efc-409f-8e2f-de2ac1f147d8",
+                "path": "Direct",
+                "resolved": "Direct",
+                "state": "Reachable",
+                "status": 200,
+                "target": "https://127.0.0.1:52665/direct",
+                "time": "2026-10-27T08:52:25Z"
+            },
+            {
+                "bytes": 28,
+                "elapsedMs": 177,
+                "epoch": "e6bd54a8-238a-463e-80ae-ec7ed300c178",
+                "path": "CurrentProxy",
+                "resolved": "CurrentProxy",
+                "state": "Reachable",
+                "status": 200,
+                "target": "https://fixture.quickclash.invalid:52665/after-update",
+                "time": "2026-10-27T08:52:32Z"
+            }
+        ],
+        "websiteTest": {
+            "state": "Stale"
+        }
+    },
+    "groups": [
+        {
+            "canSelect": true,
+            "current": "DIRECT",
+            "members": [
+                "DIRECT",
+                "REJECT",
+                "managed_fixture",
+                "managed_group"
+            ],
+            "name": "GLOBAL",
+            "type": "Selector"
+        },
+        {
+            "canSelect": true,
+            "current": "managed_fixture",
+            "members": [
+                "managed_fixture"
+            ],
+            "name": "managed_group",
+            "type": "Selector"
+        }
+    ],
+    "logs": [
+    ],
+    "operation": {
+        "error": "",
+        "id": "0806e1dc-4536-492d-9918-69e422b7ea4e",
+        "kind": "start_core",
+        "state": "Succeeded"
+    },
+    "outbound": {
+        "balanced": false,
+        "chain": [
+            "DIRECT"
+        ],
+        "confirmed": true,
+        "mode": "rule",
+        "node": "DIRECT",
+        "policy": "DIRECT"
+    },
+    "platform": "Windows 11 Version 25H2",
+    "preferences": {
+        "controllerPort": 52648,
+        "mixedPort": 52647,
+        "mode": "rule",
+        "schemaVersion": 1,
+        "systemProxyDesired": false,
+        "tunDesired": false
+    },
+    "profiles": [
+        {
+            "id": "7dae0376-3dd4-4a3e-a0de-984db56186ad",
+            "name": "Synthetic protocols",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "b941721af2a086fe9864413c5b0ecd74d500f023f3b57b7fb24b059793fcf207",
+            "sourceRef": "data/profiles/7dae0376-3dd4-4a3e-a0de-984db56186ad/dbaa57a9-0b6a-46b2-a4ec-449920f24faf.yaml",
+            "updatedAt": "2026-10-27T08:53:00Z"
+        },
+        {
+            "id": "1a4a99ea-84b4-4575-97ad-c319d2bd11a1",
+            "name": "Managed DNS and Geo",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "5125de908c6a119609af440c9959a1e9c24d6a313a337ed0ba2f5da14c5867fd",
+            "sourceRef": "data/profiles/1a4a99ea-84b4-4575-97ad-c319d2bd11a1/616713f8-0a28-4179-ac99-485a948befa2.yaml",
+            "updatedAt": "2026-10-27T08:53:09Z"
+        },
+        {
+            "id": "2e098590-4182-4256-9944-e652ed8c13aa",
+            "name": "Advanced DNS and TUIC",
+            "pendingApply": false,
+            "secretRef": "",
+            "sourceHash": "140203e3a4bbb8d8db37cd765e9c41d77eae2d68e2faa382f893969c70579690",
+            "sourceRef": "data/profiles/2e098590-4182-4256-9944-e652ed8c13aa/d48ad1b2-b887-43a0-a743-54d0868b6191.yaml",
+            "updatedAt": "2026-10-27T08:53:15Z"
+        },
+        {
+            "id": "0e0da26e-f78f-49aa-bea8-64b7ba23a92d",
+            "name": "Synthetic protocols",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "b941721af2a086fe9864413c5b0ecd74d500f023f3b57b7fb24b059793fcf207",
+            "sourceRef": "data/profiles/0e0da26e-f78f-49aa-bea8-64b7ba23a92d/restored.yaml",
+            "updatedAt": "2026-10-27T08:53:25Z"
+        },
+        {
+            "id": "f9b114a5-ec32-4242-98b6-f0cdd97b4fe7",
+            "name": "Managed DNS and Geo",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "5125de908c6a119609af440c9959a1e9c24d6a313a337ed0ba2f5da14c5867fd",
+            "sourceRef": "data/profiles/f9b114a5-ec32-4242-98b6-f0cdd97b4fe7/restored.yaml",
+            "updatedAt": "2026-10-27T08:53:27Z"
+        },
+        {
+            "id": "870ec7e3-068d-4f4c-a039-be2ce42ae352",
+            "name": "Advanced DNS and TUIC",
+            "pendingApply": true,
+            "secretRef": "",
+            "sourceHash": "140203e3a4bbb8d8db37cd765e9c41d77eae2d68e2faa382f893969c70579690",
+            "sourceRef": "data/profiles/870ec7e3-068d-4f4c-a039-be2ce42ae352/restored.yaml",
+            "updatedAt": "2026-10-27T08:53:31Z"
+        },
+        {
+            "autoApply": true,
+            "history": [
+                {
+                    "autoApply": true,
+                    "id": "0d53871b-6fb0-4af1-a226-275b21522a15",
+                    "lastAttemptAt": "2026-10-27T10:54:18Z",
+                    "lastUpdateError": "",
+                    "lastUpdateResult": "Updated",
+                    "managedProviders": [
+                        {
+                            "kind": "proxy-providers",
+                            "name": "managed",
+                            "updatedAt": "2026-10-27T08:53:50Z"
+                        },
+                        {
+                            "kind": "rule-providers",
+                            "name": "domains",
+                            "updatedAt": "2026-10-27T08:53:50Z"
+                        }
+                    ],
+                    "name": "Managed providers",
+                    "nextUpdateAt": "2026-10-27T16:54:18Z",
+                    "pendingApply": false,
+                    "secretRef": "eee97846-9ca6-4cbd-afa8-443381f3e0b0",
+                    "snapshotHash": "353e0bb705742f589afca5d8c72aa07584125181b3ec2d7faea718d463db9bf7",
+                    "snapshotRef": "data/profiles/0d53871b-6fb0-4af1-a226-275b21522a15/34d60b57-1229-4c55-9a24-cc75204be936.yaml.snapshot.yaml",
+                    "sourceHash": "fc44cae0f53b225b122888e0cfbf586d7b8473582a03bba41916927453ff3f03",
+                    "sourceRef": "data/profiles/0d53871b-6fb0-4af1-a226-275b21522a15/34d60b57-1229-4c55-9a24-cc75204be936.yaml",
+                    "updateFailures": 0,
+                    "updateIntervalMinutes": 360,
+                    "updatedAt": "2026-10-27T08:53:50Z",
+                    "usage": {
+                    }
+                }
+            ],
+            "id": "0d53871b-6fb0-4af1-a226-275b21522a15",
+            "lastAttemptAt": "2026-10-27T10:54:18Z",
+            "lastUpdateError": "",
+            "lastUpdateResult": "Updated",
+            "managedProviders": [
+                {
+                    "kind": "proxy-providers",
+                    "name": "managed",
+                    "updatedAt": "2026-10-27T08:53:59Z"
+                },
+                {
+                    "kind": "rule-providers",
+                    "name": "domains",
+                    "updatedAt": "2026-10-27T08:53:59Z"
+                }
+            ],
+            "name": "Managed providers",
+            "nextUpdateAt": "2026-10-27T16:54:18Z",
+            "pendingApply": false,
+            "secretRef": "3a6d4108-6fda-42b0-9815-fbeb4ae20727",
+            "snapshotHash": "112e682576cd6b34ca6ee35908d5a8f22c1bb018ad8a33899e0da299b0ad46f2",
+            "snapshotRef": "data/profiles/0d53871b-6fb0-4af1-a226-275b21522a15/c5e5f7d8-7975-41d7-a243-43ec5f7ba254.yaml.snapshot.yaml",
+            "sourceHash": "fc44cae0f53b225b122888e0cfbf586d7b8473582a03bba41916927453ff3f03",
+            "sourceRef": "data/profiles/0d53871b-6fb0-4af1-a226-275b21522a15/c5e5f7d8-7975-41d7-a243-43ec5f7ba254.yaml",
+            "updateFailures": 0,
+            "updateIntervalMinutes": 360,
+            "updatedAt": "2026-10-27T08:53:59Z",
+            "usage": {
+            }
+        }
+    ],
+    "providers": [
+    ],
+    "proxyConflict": false,
+    "publicationGeneration": "28",
+    "readOnly": false,
+    "ready": true,
+    "reconciliation": {
+        "completed": "3",
+        "requests": "41"
+    },
+    "recovering": false,
+    "rules": [
+        {
+            "extra": {
+                "disabled": false,
+                "hitAt": "1970-01-01T08:00:00+08:00",
+                "hitCount": 0,
+                "missAt": "1970-01-01T08:00:00+08:00",
+                "missCount": 0
+            },
+            "index": 0,
+            "payload": "changed.invalid",
+            "proxy": "managed_group",
+            "size": -1,
+            "type": "Domain"
+        },
+        {
+            "extra": {
+                "disabled": false,
+                "hitAt": "1970-01-01T08:00:00+08:00",
+                "hitCount": 0,
+                "missAt": "1970-01-01T08:00:00+08:00",
+                "missCount": 0
+            },
+            "index": 1,
+            "payload": "example.com",
+            "proxy": "managed_group",
+            "size": -1,
+            "type": "DomainSuffix"
+        },
+        {
+            "extra": {
+                "disabled": false,
+                "hitAt": "1970-01-01T08:00:00+08:00",
+                "hitCount": 0,
+                "missAt": "1970-01-01T08:00:00+08:00",
+                "missCount": 0
+            },
+            "index": 2,
+            "payload": "",
+            "proxy": "DIRECT",
+            "size": -1,
+            "type": "Match"
+        }
+    ],
+    "selectedId": "0d53871b-6fb0-4af1-a226-275b21522a15",
+    "selectedName": "Managed providers",
+    "selectionGeneration": "24",
+    "status": "Ready",
+    "systemProxy": false,
+    "testResult": "",
+    "testTarget": "https://fixture.quickclash.invalid:52665/after-update",
+    "tunState": "Off"
+}

@@ -1,0 +1,51 @@
+Test project D:/repos/quick-clash/build/dev
+      Start  1: provider_stream
+ 1/22 Test  #1: provider_stream ..................   Passed    4.79 sec
+      Start  2: bounded_read
+ 2/22 Test  #2: bounded_read .....................   Passed    0.39 sec
+      Start  3: geo_resource_writer
+ 3/22 Test  #3: geo_resource_writer ..............   Passed    1.18 sec
+      Start  4: storage
+ 4/22 Test  #4: storage ..........................   Passed    0.67 sec
+      Start  5: contracts
+ 5/22 Test  #5: contracts ........................   Passed    0.39 sec
+      Start  6: proxy_lease
+ 6/22 Test  #6: proxy_lease ......................   Passed    1.03 sec
+      Start  7: recovery
+ 7/22 Test  #7: recovery .........................   Passed   24.48 sec
+      Start  8: deferred_ui_unload
+ 8/22 Test  #8: deferred_ui_unload ...............   Passed    0.97 sec
+      Start  9: profile_model
+ 9/22 Test  #9: profile_model ....................   Passed    0.42 sec
+      Start 10: latest_mailbox
+10/22 Test #10: latest_mailbox ...................   Passed    0.37 sec
+      Start 11: runtime_list_model
+11/22 Test #11: runtime_list_model ...............   Passed    2.46 sec
+      Start 12: localization
+12/22 Test #12: localization .....................   Passed    0.30 sec
+      Start 13: ui_state
+13/22 Test #13: ui_state .........................   Passed    0.44 sec
+      Start 14: ui_prototype
+14/22 Test #14: ui_prototype .....................   Passed    9.69 sec
+      Start 15: qml_smoke
+15/22 Test #15: qml_smoke ........................   Passed    0.62 sec
+      Start 16: ui_keyboard
+16/22 Test #16: ui_keyboard ......................   Passed    1.08 sec
+      Start 17: ui_visual
+17/22 Test #17: ui_visual ........................   Passed    3.64 sec
+      Start 18: ui_responsive
+18/22 Test #18: ui_responsive ....................   Passed    2.87 sec
+      Start 19: ui_runtime_lists
+19/22 Test #19: ui_runtime_lists .................   Passed    1.24 sec
+      Start 20: ui_subscriptions
+20/22 Test #20: ui_subscriptions .................   Passed    1.15 sec
+      Start 21: ui_subscriptions_zh
+21/22 Test #21: ui_subscriptions_zh ..............   Passed    1.17 sec
+      Start 22: host_lifecycle
+22/22 Test #22: host_lifecycle ...................   Passed    6.45 sec
+
+100% tests passed, 0 tests failed out of 22
+
+Total Test time (real) =  65.93 sec
+
+--- stderr ---

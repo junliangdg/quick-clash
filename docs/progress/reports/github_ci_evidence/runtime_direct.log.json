@@ -1,0 +1,9 @@
+{
+  "executable": "D:\\repos\\quick-clash\\build\\dev\\runtime_test.exe",
+  "arguments": [],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T08:52:10.3676911Z",
+  "elapsed_ms": 123614,
+  "exit_code": 144,
+  "timed_out": false
+}

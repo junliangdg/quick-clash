@@ -11,6 +11,8 @@
 | 订阅更新后内存异常调查 | Review | Codex | NotRun | [调查报告](reports/20261026_subscription_memory_investigation.md)；可选--software-rendering构建/3项UI测试通过，旧页面已销毁；真实GPU专用175.68MB，Qt软件129.34—131.44MB；当前不设固定MB门槛，字体驻留504→491MB仍存在；继续定位Qt字体触发/私有分配，异常修复未关闭 |
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#28-最终实现验证矩阵)；另获构建授权后补新源码定向验证 |
 | 系统代理冲突显式开启重建基线 | Done | Zoo | Review | [修复报告](reports/20261026_system_proxy_conflict_fix.md)；增量构建/proxy_lease/recovery 退出0；全量 CTest 受既有 provider_stream_test 编译错误影响，GUI/原生转发验收 NotRun |
+| GitHub三平台CI配置修复 | Review | Codex | NotRun | [核验与修复报告](reports/20261027_github_ci_fix.md)；actionlint/三平台aqt与pip解析/Windows全目标及headless构建通过；修复后runtime/publication/单实例3项及headless5项Pass，QML退出0；远端及非Windows原生NotRun |
+| Windows GitHub持续交付发行包 | Review | Codex | NotRun | [持续交付报告](reports/20261027_github_release.md)；独立无测试Release构建、191项干净包/清PATH启动、发布编排模拟及22项最终回归/仓库检查Pass；默认分支continuous及版本tag发布已实现，待推送后远端验证 |
 
 ## 阶段任务
 

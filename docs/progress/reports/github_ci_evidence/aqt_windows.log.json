@@ -1,0 +1,17 @@
+{
+  "executable": "C:\\Program Files\\Python314\\python.exe",
+  "arguments": [
+    "-m",
+    "aqt",
+    "list-qt",
+    "windows",
+    "desktop",
+    "--arch",
+    "6.8.0"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T08:41:24.6432646Z",
+  "elapsed_ms": 10694,
+  "exit_code": 0,
+  "timed_out": false
+}

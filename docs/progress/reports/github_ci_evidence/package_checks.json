@@ -1,0 +1,18 @@
+{
+  "result": "Pass",
+  "build_testing": false,
+  "version": "local-validation",
+  "qt_version": "6.9.0",
+  "zip_files": 191,
+  "zip_bytes": 77197685,
+  "sha256": "58fe68e4166a5499bfd6c4ff0e6cf9db3a9b765f3adee175e7405f6d6baa0ac2",
+  "executables": [
+    "bin/quickclash.exe",
+    "bin/quickclash_service.exe",
+    "core/mihomo.exe"
+  ],
+  "manifest_hashes_verified": 190,
+  "zip_contains_only_runtime_content": true,
+  "test_build_rejected": true,
+  "probes_excluded_from_build": true
+}

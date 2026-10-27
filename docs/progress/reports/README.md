@@ -12,6 +12,8 @@
 | 统一视觉规范与Light/Dark概念预览 | [当前设计与验证](20261027_unified_visual_design.md) |
 | 方案C控件与八页面产品迁移 | [实施与验证](20261027_unified_visual_implementation.md) |
 | 依赖获取与Geo固定来源 | [工具维护报告](20261026_dependency_fetch_fix.md) |
+| GitHub三平台CI配置核验 | [修复与验证](20261027_github_ci_fix.md) |
+| Windows GitHub持续交付 | [干净发行包与自动Release](20261027_github_release.md) |
 | 代理出口与订阅更新内存 | [功能修复报告](20261025_proxy_memory_fixes.md) |
 | Windows MVP范围与日常交付路线 | [G2范围复核](20261025_g2_scope_review.md)、[G3方案](20261025_g3_windows_plan.md) |
 

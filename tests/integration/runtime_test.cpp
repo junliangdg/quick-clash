@@ -972,18 +972,21 @@ int main(int argc, char** argv) {
         "/provider_nodes",
         "proxies: [{name: managed_fixture, type: http, server: 127.0.0.1, port: 9}]\n");
     bool cancellationQueued = false;
+    QTimer cancelValidation;
+    cancelValidation.setInterval(0);
+    // Diagnostic lifecycle counters can change without a compact control-state
+    // notification. Observe them independently while validation is in flight.
     const auto cancelConnection =
-        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &reopened,
-                         [&](const QJsonObject&) {
-                             if (!cancellationQueued && reopened.snapshot()
-                                                                .value("configLifecycle")
-                                                                .toObject()
-                                                                .value("semanticBytes")
-                                                                .toInteger() > 0) {
-                                 cancellationQueued = true;
-                                 QTimer::singleShot(0, &reopened, [&] { reopened.stop(); });
-                             }
-                         });
+        QObject::connect(&cancelValidation, &QTimer::timeout, &reopened, [&] {
+            const auto lifecycle = reopened.snapshot().value("configLifecycle").toObject();
+            if (!cancellationQueued && lifecycle.value("validationActive").toBool() &&
+                lifecycle.value("semanticBytes").toInteger() > 0) {
+                cancellationQueued = true;
+                cancelValidation.stop();
+                reopened.stop();
+            }
+        });
+    cancelValidation.start();
     reopened.updateProfile(providerId);
     if (!require(waitFor([&] {
                      return cancellationQueued && !reopened.snapshot().value("busy").toBool();

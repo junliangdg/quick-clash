@@ -1,0 +1,60 @@
+Test project D:/repos/quick-clash/build/dev
+      Start  1: provider_stream
+ 1/25 Test  #1: provider_stream ..................   Passed    5.25 sec
+      Start  2: bounded_read
+ 2/25 Test  #2: bounded_read .....................   Passed    0.19 sec
+      Start  3: geo_resource_writer
+ 3/25 Test  #3: geo_resource_writer ..............   Passed    1.16 sec
+      Start  4: storage
+ 4/25 Test  #4: storage ..........................   Passed    1.04 sec
+      Start  5: contracts
+ 5/25 Test  #5: contracts ........................   Passed    0.19 sec
+      Start  6: proxy_lease
+ 6/25 Test  #6: proxy_lease ......................   Passed    2.00 sec
+      Start  7: runtime
+ 7/25 Test  #7: runtime ..........................***Timeout  90.01 sec
+
+      Start  8: recovery
+ 8/25 Test  #8: recovery .........................   Passed   23.92 sec
+      Start  9: deferred_ui_unload
+ 9/25 Test  #9: deferred_ui_unload ...............   Passed    0.77 sec
+      Start 10: profile_model
+10/25 Test #10: profile_model ....................   Passed    0.24 sec
+      Start 11: latest_mailbox
+11/25 Test #11: latest_mailbox ...................   Passed    0.18 sec
+      Start 12: runtime_publication
+12/25 Test #12: runtime_publication ..............***Timeout  15.04 sec
+********* Start testing of RuntimePublicationTest *********
+Config: Using QtTest library 6.9.0, Qt 6.9.0 (x86_64-little_endian-llp64 shared (dynamic) release build; by MSVC 2022), windows 11
+PASS   : RuntimePublicationTest::initTestCase()
+PASS   : RuntimePublicationTest::serviceLogDemandRetriesAndClearsReusedLease()
+PASS   : RuntimePublicationTest::readTicketsRejectSameSessionReuse()
+
+      Start 13: runtime_list_model
+13/25 Test #13: runtime_list_model ...............   Passed    2.41 sec
+      Start 14: localization
+14/25 Test #14: localization .....................   Passed    0.07 sec
+      Start 15: ui_state
+15/25 Test #15: ui_state .........................   Passed    0.65 sec
+      Start 16: single_instance
+16/25 Test #16: single_instance ..................***Failed   10.23 sec
+
+      Start 17: ui_prototype
+17/25 Test #17: ui_prototype .....................   Passed   11.47 sec
+      Start 18: qml_smoke
+18/25 Test #18: qml_smoke ........................   Passed    0.64 sec
+      Start 19: ui_keyboard
+19/25 Test #19: ui_keyboard ......................   Passed    2.03 sec
+      Start 20: ui_visual
+20/25 Test #20: ui_visual ........................   Passed    3.81 sec
+      Start 21: ui_responsive
+21/25 Test #21: ui_responsive ....................   Passed    3.19 sec
+      Start 22: ui_runtime_lists
+22/25 Test #22: ui_runtime_lists .................   Passed    1.47 sec
+      Start 23: ui_subscriptions
+23/25 Test #23: ui_subscriptions .................   Passed    1.23 sec
+      Start 24: ui_subscriptions_zh
+24/25 Test #24: ui_subscriptions_zh ..............   Passed    1.29 sec
+      Start 25: host_lifecycle
+
+--- stderr ---

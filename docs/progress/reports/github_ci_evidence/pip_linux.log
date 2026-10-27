@@ -1,0 +1,10 @@
+Collecting cmake==4.3.0
+  Downloading cmake-4.3.0-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.5 kB)
+Collecting ninja==1.13.2
+  Downloading ninja-1.13.2-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (5.4 kB)
+Collecting clang-format==21.1.2
+  Downloading clang_format-21.1.2-py2.py3-none-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (4.7 kB)
+Would install clang-format-21.1.2 cmake-4.3.0 ninja-1.13.2
+
+[notice] A new release of pip is available: 26.0.1 -> 26.2.2
+[notice] To update, run: python.exe -m pip install --upgrade pip

@@ -76,7 +76,8 @@ int main(int argc, char* argv[]) {
                   "short chunks append to disk");
             check(good(stage.finish()), "seal first file");
             const auto devices = stage.devices();
-            check(devices.size() == 1 && devices.first()->pos() == 0, "sealed file borrowed");
+            const auto* device = devices.value("rule-providers:a");
+            check(devices.size() == 1 && device && device->pos() == 0, "sealed file borrowed");
             check(!good(stage.begin("rule-providers:a")), "duplicate key not overwritten");
             stage.cancel();
             check(stage.fileCount() == 0 && stage.devices().isEmpty() && !feed(stage, "late") &&

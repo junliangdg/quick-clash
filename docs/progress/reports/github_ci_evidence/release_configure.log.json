@@ -1,0 +1,12 @@
+{
+  "executable": "C:\\Program Files\\CMake\\bin\\cmake.exe",
+  "arguments": [
+    "--preset",
+    "release"
+  ],
+  "working_directory": "D:\\repos\\quick-clash",
+  "started_at_utc": "2026-10-27T09:04:01.3358519Z",
+  "elapsed_ms": 16859,
+  "exit_code": 0,
+  "timed_out": false
+}

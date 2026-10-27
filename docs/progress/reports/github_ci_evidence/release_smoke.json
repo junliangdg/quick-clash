@@ -1,0 +1,21 @@
+{
+    "active_demands": 3,
+    "active_streams": 3,
+    "device_pixel_ratio": 1.25,
+    "engine_generation": 1,
+    "font_family": "Microsoft YaHei",
+    "graphics_api": 1,
+    "host_state": "Visible",
+    "logical_dpi": 96,
+    "open_ms": 1482,
+    "page": "home",
+    "page_ready": true,
+    "qml_errors": 0,
+    "qt_version": "6.9.0",
+    "replay_connections": 1000,
+    "replay_running": false,
+    "resolved_font_family": "Microsoft YaHei",
+    "tray_available": false,
+    "window_height": 640,
+    "window_width": 1000
+}

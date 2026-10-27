@@ -66,6 +66,9 @@ if ($core.executable_sha256 -and $exeHash -cne $core.executable_sha256) { throw 
 Write-Output "Verified Mihomo $($matrix.mihomo.tag): $exeHash"
 Write-Output "Core path: $exePath"
 Write-Output 'No core source is built.'
+if ($matrix.mihomo.license_sha256) {
+    Get-VerifiedAsset $matrix.mihomo.license_url (Join-Path $coreRoot 'license.txt') $matrix.mihomo.license_sha256 40000
+}
 $geoRoot = Join-Path $cacheRoot 'geo'
 New-Item $geoRoot -ItemType Directory -Force | Out-Null
 foreach ($asset in @($matrix.geo.geoip, $matrix.geo.geosite)) {

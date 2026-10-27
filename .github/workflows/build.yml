@@ -1,4 +1,4 @@
-name: native_build
+name: build_and_release
 on: [push, pull_request, workflow_dispatch]
 permissions:
   contents: read
@@ -11,31 +11,40 @@ jobs:
           - os: windows-2022
             arch: win64_msvc2022_64
           - os: ubuntu-22.04
-            arch: gcc_64
+            arch: linux_gcc_64
           - os: macos-14
             arch: clang_64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Pinned build and format tools
+        run: |
+          python -m pip install --only-binary=:all: cmake==4.3.0 ninja==1.13.2 clang-format==21.1.2
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.0'
           arch: ${{ matrix.arch }}
           cache: true
+          setup-python: false
+          aqtversion: '==3.3.0'
+          py7zrversion: '==1.1.0'
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
       - name: Linux Qt runtime dependencies
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libegl1
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Pinned build and format tools
-        run: python -m pip install cmake==4.3.0 ninja==1.12.1 clang-format==21.1.2
       - name: Acquire verified YAML archive
+        if: runner.os != 'Windows'
         shell: pwsh
         run: ./scripts/fetch_dependencies.ps1 -YamlOnly
+      - name: Acquire verified Windows core, Geo and YAML assets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./scripts/fetch_dependencies.ps1
       - name: Repository checks
         shell: pwsh
         run: |
@@ -43,6 +52,8 @@ jobs:
           ./scripts/check_source_layout.ps1
           ./scripts/check_progress.ps1
           ./tests/scripts/native_process_test.ps1
+          ./tests/scripts/fetch_dependencies_test.ps1
+          ./tests/scripts/publish_release_test.ps1
           $sources = Get-ChildItem app,src,tests -Recurse -File | Where-Object Extension -in '.h','.cpp'
           foreach ($file in $sources) {
             clang-format --dry-run --Werror $file.FullName
@@ -55,7 +66,8 @@ jobs:
           cmake --build --preset dev --parallel 3
       - name: Contracts and QML smoke
         if: runner.os != 'Windows'
-        run: ctest --preset dev
+        # The runtime test requires the Windows official core and AppContainer.
+        run: ctest --preset dev --exclude-regex '^runtime$' --output-junit native_tests.xml
       - name: QML static checks
         if: runner.os != 'Windows'
         run: cmake --build build/dev --target quickclash_qmllint
@@ -64,7 +76,7 @@ jobs:
         run: |
           cmake --preset headless
           cmake --build --preset headless --parallel 3
-          ctest --preset headless
+          ctest --preset headless --output-junit headless_tests.xml
       - name: Windows native build, lint, tests and headless boundary
         if: runner.os == 'Windows'
         shell: pwsh
@@ -75,7 +87,6 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          ./scripts/fetch_dependencies.ps1
           ./scripts/probe_mihomo.ps1
       - uses: actions/upload-artifact@v4
         if: always()
@@ -88,4 +99,65 @@ jobs:
             build/headless/Testing/Temporary/
             build/headless/CMakeFiles/CMakeConfigureLog.yaml
             build/headless/logs/
+            native_tests.xml
+            headless_tests.xml
+            aqtinstall.log
             docs/progress/reports/p0_core/
+  release_windows:
+    needs: native
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+    runs-on: windows-2022
+    timeout-minutes: 35
+    permissions:
+      contents: write
+    concurrency:
+      group: release-${{ github.ref }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - name: Pinned build tools
+        run: python -m pip install cmake==4.3.0 ninja==1.13.2
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.0'
+          arch: win64_msvc2022_64
+          cache: true
+          setup-python: false
+          aqtversion: '==3.3.0'
+          py7zrversion: '==1.1.0'
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Acquire verified runtime dependencies
+        shell: pwsh
+        run: ./scripts/fetch_dependencies.ps1
+      - name: Build production binaries without tests or probes
+        run: |
+          cmake --preset release
+          cmake --build --preset release --parallel 4
+      - name: Package and verify Windows runtime
+        shell: pwsh
+        env:
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:RELEASE_REF } else { 'continuous' }
+          ./scripts/package_release_windows.ps1 -Version $version -Commit $env:GITHUB_SHA
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_REF: ${{ github.ref_name }}
+        run: |
+          ./scripts/publish_release.ps1 -Repository $env:GH_REPO -Commit $env:GITHUB_SHA -RefName $env:RELEASE_REF -RefType $env:GITHUB_REF_TYPE
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release_windows_logs
+          path: |
+            build/release/logs/
+            build/release/CMakeFiles/CMakeConfigureLog.yaml
+            aqtinstall.log
