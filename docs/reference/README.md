@@ -1,15 +1,23 @@
-# UI 参考记录
+# QuickClash 方案 C 概念预览
 
-## 用户提供的 FlClash 风格首页截图
+当前界面基准为**方案 C：极简桌面工具风**。完整设计以[17统一视觉系统](../design/17-界面参考与QtQuick落地.md)为准；本目录只保存该方案的可编辑预览及离线入口。
 
-- 编号：UI-REF-20261023-01。
-- 来源：用户于 2026-10-23 在本会话提供，作为界面布局和视觉参考；尚未核验对应仓库 tag/commit 或实际运行版本。
-- 文件：[flclash-dashboard-user-reference.png](flclash-dashboard-user-reference.png)，720×455 像素；图片像素不等于窗口逻辑尺寸，不据此锁定断点或最小窗口。
-- SHA-256：66434ED9CF6BCB8A04AF5ED15F88D93E8F30FA500C22A0AC927479C275D230C2。
-- 参考范围：左侧图标/文字导航、右侧首页、圆角平面贴片、状态与流量层级、模式及网络开关、订阅/网站/代理组摘要编排。
-- 不作为功能或真实数据证据：截图中的地址、组织、流量、延迟、用量、IP 质量及请求/DNS 统计均为示例内容；不作为应用默认值、第三方服务契约或已实现能力。
-- 本图用于仓库内设计对照，不作为随客户端分发的图标、背景或产品素材；如需再分发须核对许可与来源，实际产品使用自行实现的组件和品牌。
+直接用浏览器打开[概念预览](quickclash_minimal_preview.html)，可切换Light、Dark、跟随系统，浏览八个页面，并通过“控件与状态”查看按钮、输入/下拉、开关/选项、选择/悬停/按下/焦点、禁用/处理中、错误、菜单及确认弹层。窄窗使用仪表盘/代理/订阅/设置四个底部图标入口，其他页面经设置进入。
 
-设计映射、主动调整和验收见 [17 UI 规范](../design/17-界面参考与QtQuick落地.md)。当前图片只提供浅色参考，深色主题由本项目按同一语义层级设计。
+| 文件 | 用途 |
+|---|---|
+| [quickclash_minimal_preview.fragment.html](quickclash_minimal_preview.fragment.html) | 可编辑的HTML/CSS/JS源，亦可用于会话概念预览 |
+| [quickclash_minimal_preview.html](quickclash_minimal_preview.html) | 自包含离线页面，可直接打开，不依赖服务或外部资源 |
+| [Light概念图](quickclash_minimal_light.png) / [Dark概念图](quickclash_minimal_dark.png) | 同一首页的明暗主题静态预览，嵌入设计正文；布局更新时同步重新截取 |
+| [生成脚本](../../scripts/build_ui_preview.py) | 以Python标准库生成离线页面，避免源/导出两份手工维护 |
 
-![用户提供的首页视觉参考](flclash-dashboard-user-reference.png)
+修改源后，在仓库根目录运行：
+
+~~~powershell
+python scripts/build_ui_preview.py
+python scripts/build_ui_preview.py --check
+~~~
+
+预览使用公开假数据和本地交互。节点、域名、用量、时间及测试结果均为演示；不访问网络，不读取用户配置，不修改系统代理/端口/文件，不作为产品默认值、真实功能或资源验收证据。菜单复制仅显示反馈，不改写系统剪贴板。预览默认浅色，产品默认跟随系统，两者用途不同。
+
+页面使用自有结构、CSS和脚本、系统字体及Unicode符号，无UI框架、图标字体、远程CDN或下载字体依赖；CSP禁止网络连接。Linear与shadcn/ui仅提供理念参考，未复制其代码、品牌或素材。产品落地仍为C++20与Qt Quick，字体/符号沿用项目既定Qt跨平台策略。

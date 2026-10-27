@@ -5,7 +5,7 @@
 - 日期/执行者：2026-10-23 / Codex。
 - 范围：P0-01—09，工作包 W00—W03/W08/W18；设计 1.4 的工程实施。
 - 实现标识：原实施会话以未提交工作区新增 CMake/app/qml/src/tests、原生构建/资产/核心验证脚本、CI、docs/baseline。2026-10-24 核对时这些产物已在本地 HEAD `1ee26e6`（feat: bootstrap cross-platform QuickClash foundation），核对开始时工作区干净；本报告没有远端 CI run 证据。
-- 结论：P0 部分交付。P0-01/02/03/05 的文档及资产基线完成；P0-04/06/07/08/09 尚缺必要验证，G0 为 Blocked。
+- 结论：本报告保留P0工程与资产证据。P0-01/02/03的基线完成；P0-04/06/07/08/09当时尚缺必要验证，G0为Blocked。当前UI基准直接见[设计17](../../design/17-界面参考与QtQuick落地.md)。
 
 后续接续记录见 [2026-10-24 P0 验证报告](20261024_p0_validation.md)，下面保留原实施/状态核对记录；新的局部通过不替代完整构建与 G0。
 
@@ -25,7 +25,6 @@
 | P0-02 | 官方 v1.19.33 归档与程序 SHA-256、来源/CPU、离线复核；Geo 明确不支持/无资产 | Linux/macOS 候选资产未执行；未称上游签名 |
 | P0-03 | [配置策略](../../baseline/config_policy.json)、[夹具说明](../../baseline/test_fixtures.md)；明确 http/socks5/ss、select、普通规则，拒绝 Geo/providers/fake-ip/外部文件/未知字段/别名 | C++ preflight 及其正反测试属于 P0-08，尚未运行；真实转发属于 P2 |
 | P0-04 | [真实契约](../../baseline/mihomo_contract.md)、API/退出码/重启证据 | Windows Job 与 OS 端口归属、无网络强制隔离未通过；任务 Blocked |
-| P0-05 | [UI 冻结台账](../../reference/reference_manifest.md)，图片摘要已复核，八模块/状态/嵌入/主题边界 | P1 视觉/生命周期/性能实测；没有复用源码，不虚构 FlClash commit |
 | P0-06 | CMake targets、snake_case QML 显式类型、QuickClash 空壳、presets、Windows 构建入口；Qt ≥6.8 可由 kit/用户 preset 发现，构建脚本支持显式 VS/Qt/Ninja 或沿用当前 MSVC 环境 | 完整构建/启动/cache/qmllint 仍未通过；工具链选择分支仅完成静态检查，任务 Blocked |
 | P0-07 | Windows/Linux/macOS CI 配置、原生/headless/format/QML 检查 | 尚未运行 CI 和三平台；依赖 P0-06，当前只记录实现草稿 |
 | P0-08 | domain/Operation/Error/上下文/接口、无 UI 测试目标、受限 YAML preflight/session；C++ 格式检查通过 | 未编译/运行 tests，前置 P0-04/06 未完成 |

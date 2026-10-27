@@ -1,0 +1,387 @@
+{
+  "themes": [
+    "light",
+    "dark",
+    "system"
+  ],
+  "pages": [
+    {
+      "page": "home",
+      "title": "仪表盘"
+    },
+    {
+      "page": "proxies",
+      "title": "代理"
+    },
+    {
+      "page": "subscriptions",
+      "title": "订阅"
+    },
+    {
+      "page": "connections",
+      "title": "连接"
+    },
+    {
+      "page": "rules",
+      "title": "规则"
+    },
+    {
+      "page": "logs",
+      "title": "日志"
+    },
+    {
+      "page": "tests",
+      "title": "测试"
+    },
+    {
+      "page": "settings",
+      "title": "设置"
+    }
+  ],
+  "interactions": {
+    "portInvalid70000": true,
+    "portValid7890": true,
+    "menuEscapeFocus": true,
+    "dialogCancelFocusAndReturn": true,
+    "nodeNoMatch": true,
+    "nodeFilterAndSelection": true
+  },
+  "responsiveChecks": [
+    {
+      "width": 360,
+      "theme": "light",
+      "page": "home",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "light",
+      "page": "components",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 360,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "light",
+      "page": "home",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "light",
+      "page": "components",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 599,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 4,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "light",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "light",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 600,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "light",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "light",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 999,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "light",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "light",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1000,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "light",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "page": "home",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "page": "proxies",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "page": "settings",
+      "navCount": 8,
+      "overflow": false
+    },
+    {
+      "width": 1280,
+      "theme": "dark",
+      "page": "components",
+      "navCount": 8,
+      "overflow": false
+    }
+  ]
+}
