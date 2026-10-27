@@ -37,7 +37,8 @@ ColumnLayout {
     }
     RowLayout {
         Layout.fillWidth: true
-        TextField {
+        ThemedField {
+            theme: root.theme
             id: filter
             objectName: "list_filter"
             font.family: root.theme.fontFamily
@@ -47,12 +48,6 @@ ColumnLayout {
             placeholderTextColor: root.theme.muted
             maximumLength: 128
             selectByMouse: true
-            background: Rectangle {
-                radius: 10
-                color: root.theme.surface
-                border.width: filter.activeFocus ? 2 : 1
-                border.color: filter.activeFocus ? root.theme.accent : root.theme.border
-            }
             onTextEdited: debounce.restart()
             onTextChanged: root.retainedFilter = text
             Accessible.name: qsTr("Filter list")
@@ -114,11 +109,12 @@ ColumnLayout {
                 height: 62
                 highlighted: ListView.isCurrentItem
                 onClicked: rows.currentIndex = index
-                background: Rectangle {
-                    radius: 10
-                    color: row.hovered || row.highlighted ? root.theme.accentSurface : "transparent"
-                    border.width: row.activeFocus ? 1 : 0
-                    border.color: root.theme.accent
+                background: StateSurface {
+                    theme: root.theme
+                    selected: row.highlighted
+                    hovered: row.hovered
+                    down: row.down
+                    focused: row.activeFocus
                 }
                 contentItem: RowLayout {
                     spacing: 16
@@ -128,15 +124,15 @@ ColumnLayout {
                         Label {
                             font.family: root.theme.fontFamily
                             text: row.name
-                            color: root.theme.text
-                            font.bold: true
+                            color: row.highlighted ? root.theme.onSelection : root.theme.text
+                            font.weight: Font.DemiBold
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                         }
                         Label {
                             font.family: root.theme.fontFamily
                             text: row.detail
-                            color: root.theme.muted
+                            color: row.highlighted ? root.theme.onSelection : root.theme.muted
                             font.pixelSize: 12
                             Layout.fillWidth: true
                             elide: Text.ElideRight
@@ -145,7 +141,7 @@ ColumnLayout {
                     Label {
                         font.family: root.theme.fontFamily
                         text: row.status
-                        color: root.theme.muted
+                        color: row.highlighted ? root.theme.onSelection : root.theme.muted
                     }
                     Label {
                         font.family: root.theme.fontFamily

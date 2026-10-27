@@ -30,20 +30,20 @@ FeatureRegistry::FeatureRegistry() {
              QString::fromUtf8(glyph), factory(QString::fromUtf8(path)),
              QCoreApplication::translate("FeatureRegistry", availability), std::move(keys)});
     };
-    add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "⌂",
+    add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "▦",
         "features/home/home_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"), "⇄",
+    add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"), "◎",
         "features/proxies/proxies_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"group"});
     add("subscriptions", QT_TRANSLATE_NOOP("FeatureRegistry", "Subscriptions"), "▤",
         "features/subscriptions/subscriptions_page.qml",
         QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"), "⇌",
+    add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"), "⇄",
         "features/connections/connections_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"filter"});
     add("rules", QT_TRANSLATE_NOOP("FeatureRegistry", "Rules"), "≡",
         "features/rules/rules_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "☷", "features/logs/logs_page.qml",
+    add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "›_", "features/logs/logs_page.qml",
         QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
     add("tests", QT_TRANSLATE_NOOP("FeatureRegistry", "Tests"), "⌁",
         "features/tests/tests_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));

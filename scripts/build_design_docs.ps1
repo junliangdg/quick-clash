@@ -69,7 +69,7 @@ if (-not $versionMatch.Success) { throw 'README must declare a document version 
 $parts = [System.Collections.Generic.List[string]]::new()
 $parts.Add('# QuickClash 完整设计文档（合并版）')
 $parts.Add("版本 $($versionMatch.Groups[1].Value) · $($versionMatch.Groups[2].Value)。由 19 个分册生成，修改请以分册为准。")
-$parts.Add('**官方预编译 Mihomo；G3 交付 Windows 日常使用，当前先落实跨平台静态兼容，三平台/五平台后续逐步真实覆盖；方案C极简桌面工具风，统一控件/页面与Light/Dark主题，桌面侧栏＋页面、窄窗底部四个图标入口；英文源文案/系统语言中英文/英文回退；Windows 客户端专用工作集 ≤100 MB，内核单列。**')
+$parts.Add('**官方预编译 Mihomo；G3 交付 Windows 日常使用，当前先落实跨平台静态兼容，三平台/五平台后续逐步真实覆盖；方案C极简桌面工具风，统一控件/页面与Light/Dark主题，桌面侧栏＋页面、窄窗底部四个图标入口；英文源文案/系统语言中英文/英文回退；客户端以小内存占用为目标，保持Qt Quick默认RHI/GPU，不设固定MB门槛，三项内存指标并记、内核单列。**')
 $parts.Add('本文件包含功能范围、首页、架构、恢复、实施与验收设计。实际实现、验证证据和下一步以 [开发进度台账](../progress/README.md) 为准，设计内容不表示功能已完成。生成与一致性检查使用 scripts/build_design_docs.ps1 及其 -Check 参数。')
 $parts.Add('## 目录')
 $parts.Add(($chapters | ForEach-Object { '- [' + $titles[$_.Name] + '](#' + $chapterIds[$_.Name] + ')' }) -join $lf)

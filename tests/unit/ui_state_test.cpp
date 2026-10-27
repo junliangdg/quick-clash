@@ -29,6 +29,44 @@ int main(int argc, char* argv[]) {
     try {
         FeatureRegistry registry;
         {
+            UiState traffic;
+            traffic.setUiVisible(true);
+            traffic.setDemand("chart", "traffic", true);
+            const auto deliver = [&traffic](int second) {
+                traffic.applyData(
+                    {1,
+                     "traffic-window",
+                     {{"traffic",
+                       QJsonObject{{"traffic", QJsonObject{{"time", QString::number(second)},
+                                                           {"up", second * 1024},
+                                                           {"down", second * 2048}}}}}},
+                     traffic.dataDemands().generations});
+            };
+            for (int second = 1; second <= 75; ++second)
+                deliver(second);
+            check(traffic.uploadHistory().size() == 60 && traffic.downloadHistory().size() == 60 &&
+                      traffic.uploadHistory().constFirst().toDouble() == 16.0 &&
+                      traffic.uploadHistory().constLast().toDouble() == 75.0 &&
+                      traffic.downloadHistory().constLast().toDouble() == 150.0,
+                  "60-second window drops the oldest sample and retains both series");
+            const auto history = traffic.uploadHistory();
+            deliver(75);
+            check(traffic.uploadHistory() == history, "duplicate traffic sample is not appended");
+            traffic.setDemand("chart", "traffic", false);
+            traffic.navigate("settings");
+            traffic.setThemeMode("dark");
+            check(traffic.uploadHistory() == history,
+                  "page and theme changes retain traffic history");
+            traffic.setDemand("chart", "traffic", true);
+            deliver(76);
+            check(traffic.uploadHistory().constFirst().toDouble() == 17.0,
+                  "reacquiring traffic continues the same bounded window");
+            traffic.setUiVisible(false);
+            check(traffic.uploadHistory().size() == 60 &&
+                      traffic.uploadHistory().constLast().toDouble() == 0.0,
+                  "hide resets the 60-point window");
+        }
+        {
             UiState live;
             live.setUiVisible(true);
             check(live.createDemandKey("rules") != live.createDemandKey("rules"),
@@ -92,7 +130,7 @@ int main(int argc, char* argv[]) {
             live.applyControl(control);
             check(live.liveConnections()->captureIds() == QStringList{"new"},
                   "old generation cannot revive old connections");
-            check(live.uploadHistory().size() == 300 &&
+            check(live.uploadHistory().size() == 60 &&
                       live.uploadHistory().constFirst().toDouble() == 0.0,
                   "epoch resets traffic history to a full zero ring");
             check(profileChanges == 1 && groupChanges == 1,
@@ -159,7 +197,7 @@ int main(int argc, char* argv[]) {
             const auto diagnostic = live.diagnosticSnapshot();
             check(live.liveRules()->count() == 0 && live.liveProviders()->count() == 0 &&
                       live.liveLogs()->count() == 0 && live.liveConnections()->count() == 0 &&
-                      live.uploadHistory().size() == 300 && !live.telemetry().contains("memory"),
+                      live.uploadHistory().size() == 60 && !live.telemetry().contains("memory"),
                   "hide releases all page models, paused logs and resources; traffic ring resets "
                   "to zeros");
             const auto lifecycle = diagnostic.value("dataLifecycle").toObject();
@@ -231,7 +269,7 @@ int main(int argc, char* argv[]) {
             check(state.connectionModel()->count() == 0, "disabled replay releases rows");
             check(state.setReplayConnections(1000), "restore representative scale");
             state.setReplay(true);
-            check(state.uploadHistory().size() == 300 && state.downloadHistory().size() == 300,
+            check(state.uploadHistory().size() == 60 && state.downloadHistory().size() == 60,
                   "bounded representative traffic curves");
             state.setDemand("hidden", "traffic", true);
             check(state.activeDemandCount() == 0, "hidden cannot register demand");

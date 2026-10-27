@@ -10,7 +10,15 @@
 namespace quickclash {
 namespace {
 QList<QQuickItem*> cards(ApplicationHost& host) {
-    return host.window()->findChildren<QQuickItem*>(QStringLiteral("subscription_card"));
+    QList<QQuickItem*> result;
+    const auto visit = [&result](auto&& self, QQuickItem* item) -> void {
+        if (item->objectName() == QStringLiteral("subscription_card"))
+            result.append(item);
+        for (auto* child : item->childItems())
+            self(self, child);
+    };
+    visit(visit, host.window()->contentItem());
+    return result;
 }
 bool click(ApplicationHost& host, QQuickItem* item) {
     if (!item || !item->isVisible() || !item->isEnabled())
@@ -45,8 +53,12 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     QMetaObject::invokeMethod(page, "scrollToRow", Q_ARG(QVariant, 0));
     QTest::qWait(50);
     auto initial = cards(host);
-    if (initial.isEmpty() || initial.size() > 96 || initial.size() >= profiles.size())
+    if (initial.isEmpty() || initial.size() > 96 || initial.size() >= profiles.size()) {
+        std::fprintf(stderr, "Subscription delegates=%lld pageHeight=%.0f contentHeight=%.0f\n",
+                     static_cast<long long>(initial.size()), page->property("height").toDouble(),
+                     page->property("contentHeight").toDouble());
         return 82;
+    }
     QPointer<QQuickItem> first = initial.first();
     QList<QPair<QPointer<QQuickItem>, QString>> originalCards;
     for (auto* card : initial)

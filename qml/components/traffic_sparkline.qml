@@ -1,6 +1,6 @@
 import QtQuick
 
-// Dual-series traffic chart: upload (orange) and download (blue) share one
+// Dual-series traffic chart: upload (amber) and download (purple) share one
 // coordinate system with a common maximum so both waves stay comparable.
 // Samples advance left-to-right: the newest point enters from the right edge.
 // The canvas follows the item size so the plot adapts to window resizing.
@@ -10,6 +10,7 @@ Canvas {
     required property var downloadSamples
     required property color uploadColor
     required property color downloadColor
+    required property color gridColor
     required property real uploadFillOpacity
     required property real downloadFillOpacity
     canvasSize: Qt.size(root.width, root.height)
@@ -22,6 +23,7 @@ Canvas {
         requestPaint()
     onUploadColorChanged: requestPaint()
     onDownloadColorChanged: requestPaint()
+    onGridColorChanged: requestPaint()
     onWidthChanged: requestPaint()
     onHeightChanged: requestPaint()
     onPaint: {
@@ -31,9 +33,18 @@ Canvas {
         painter.clearRect(0, 0, plotWidth, plotHeight);
         if (plotWidth < 2 || plotHeight < 4)
             return;
+        painter.strokeStyle = gridColor;
+        painter.lineWidth = 1;
+        for (let row = 1; row <= 3; ++row) {
+            const y = Math.round((plotHeight - 4) * row / 3) + 0.5;
+            painter.beginPath();
+            painter.moveTo(0, y);
+            painter.lineTo(plotWidth, y);
+            painter.stroke();
+        }
         const up = uploadSamples;
         const down = downloadSamples;
-        const count = Math.min(up.length, down.length, 300);
+        const count = Math.min(up.length, down.length, 60);
         if (count < 2)
             return;
         let maximum = 1;

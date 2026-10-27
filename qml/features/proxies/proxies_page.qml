@@ -60,13 +60,13 @@ Item {
     function delayColor(name): color {
         const result = delays[name];
         if (result === "Failed")
-            return theme.dark ? "#ff8a80" : "#c8392f";
+            return theme.error;
         if (result === "Testing")
             return theme.warning;
         const value = parseInt(result);
         if (isNaN(value))
             return theme.muted;
-        return value < 300 ? theme.success : value < 800 ? theme.warning : theme.dark ? "#ff8a80" : "#c8392f";
+        return value < 300 ? theme.success : value < 800 ? theme.warning : theme.error;
     }
     function nodeDetails(name): string {
         const node = nodeByName[name];
@@ -82,8 +82,18 @@ Item {
     // instantiates its node grid. The page keeps a single scrollbar whose
     // length derives from the real layout, so recycled variable-height rows
     // cannot make the content height (and the scrollbar) jump while scrolling.
+    ReplayList {
+        anchors.fill: parent
+        visible: root.ui.replay
+        ui: root.ui
+        theme: root.theme
+        pageId: "proxies"
+        stream: "proxies"
+        replayModel: root.ui.proxyModel
+    }
     Flickable {
         id: groupList
+        visible: !root.ui.replay
         anchors.fill: parent
         clip: true
         contentWidth: width
@@ -112,8 +122,7 @@ Item {
                     theme: root.theme
                     Layout.fillWidth: true
                     implicitHeight: groupContent.implicitHeight + 28
-                    border.width: expanded ? 1 : 0
-                    border.color: root.theme.accent
+                    border.color: root.theme.border
                     ColumnLayout {
                         id: groupContent
                         anchors.fill: parent
@@ -126,11 +135,11 @@ Item {
                             activeFocusOnTab: true
                             Accessible.name: groupTile.modelData.name
                             onClicked: root.toggleGroup(groupTile.modelData.name)
-                            background: Rectangle {
-                                radius: 12
-                                color: groupTile.expanded || groupToggle.hovered ? root.theme.accentSurface : "transparent"
-                                border.width: groupToggle.activeFocus ? 1 : 0
-                                border.color: root.theme.accent
+                            background: StateSurface {
+                                theme: root.theme
+                                hovered: groupToggle.hovered
+                                down: groupToggle.down
+                                focused: groupToggle.activeFocus
                             }
                             contentItem: RowLayout {
                                 spacing: 12
@@ -146,7 +155,7 @@ Item {
                                     Label {
                                         text: groupTile.modelData.name
                                         color: root.theme.text
-                                        font.bold: true
+                                        font.weight: Font.DemiBold
                                         font.pixelSize: 16
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
@@ -169,6 +178,7 @@ Item {
                                 }
                                 // Group latency batch test lives on the group card header.
                                 ActionButton {
+                                    id: testGroup
                                     objectName: "test_group"
                                     theme: root.theme
                                     text: "⚡"
@@ -176,8 +186,7 @@ Item {
                                     implicitHeight: 32
                                     font.pixelSize: 16
                                     Accessible.name: qsTr("Test this group")
-                                    ToolTip.visible: hovered
-                                    ToolTip.text: qsTr("Test this group")
+                                    ThemedToolTip { theme: root.theme; visible: testGroup.hovered; text: qsTr("Test this group") }
                                     enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
                                     onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name, root.delayTarget])
                                 }
@@ -189,6 +198,7 @@ Item {
                             visible: groupTile.expanded
                             Layout.fillWidth: true
                             spacing: 8
+                            Layout.minimumHeight: root.theme.compactHeight
                             Label {
                                 id: progressLabel
                                 text: root.progress.state ? (root.progress.state === "Cancelled" ? qsTr("Cancelled") : root.progress.state === "Completed" ? qsTr("Completed") : qsTr("Testing…")) + " · " + qsTr("%1 / %2 tested · %3 unavailable").arg(root.progress.completed || 0).arg(root.progress.total || 0).arg(root.progress.failed || 0) : qsTr("Not tested")
@@ -202,7 +212,7 @@ Item {
                                 visible: root.testing
                                 // Match the row text height so showing or hiding the
                                 // button never changes the row height.
-                                implicitHeight: progressLabel.implicitHeight
+                                implicitHeight: root.theme.compactHeight
                                 onClicked: root.ui.runtimeCommand("cancel_delays")
                             }
                         }
@@ -230,22 +240,23 @@ Item {
                                     enabled: !root.runtime.busy
                                     activeFocusOnTab: true
                                     Accessible.name: modelData
-                                    ToolTip.visible: hovered && !!groupTile.modelData.canSelect && !current
-                                    ToolTip.text: qsTr("Click to select")
+                                    ThemedToolTip { theme: root.theme; visible: nodeTile.hovered && !!groupTile.modelData.canSelect && !nodeTile.current; text: qsTr("Click to select") }
                                     onClicked: if (groupTile.modelData.canSelect && !current)
                                         root.ui.runtimeCommand("proxy", [groupTile.modelData.name, modelData])
-                                    background: Rectangle {
-                                        radius: 12
-                                        color: nodeTile.current || nodeTile.hovered ? root.theme.accentSurface : root.theme.inset
-                                        border.width: nodeTile.current || nodeTile.activeFocus ? 1 : 0
-                                        border.color: root.theme.accent
-                                        opacity: nodeTile.enabled ? 1 : 0.6
+                                    background: StateSurface {
+                                        theme: root.theme
+                                        selected: nodeTile.current
+                                        hovered: nodeTile.enabled && nodeTile.hovered
+                                        down: nodeTile.enabled && nodeTile.down
+                                        focused: nodeTile.activeFocus
+                                        border.width: 1
+                                        border.color: nodeTile.current ? root.theme.accent : root.theme.border
                                     }
                                     contentItem: ColumnLayout {
                                         spacing: 2
                                         Label {
                                             text: nodeTile.modelData
-                                            color: root.theme.text
+                                            color: nodeTile.current ? root.theme.onSelection : root.theme.text
                                             font.bold: nodeTile.current
                                             Layout.fillWidth: true
                                             maximumLineCount: 1
@@ -257,8 +268,8 @@ Item {
                                             spacing: 6
                                             Label {
                                                 text: root.nodeDetails(nodeTile.modelData)
-                                                color: root.theme.muted
-                                                font.pixelSize: 11
+                                                color: nodeTile.current ? root.theme.onSelection : root.theme.muted
+                                                font.pixelSize: root.theme.supportingSize
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
                                                 textFormat: Text.PlainText
@@ -266,23 +277,23 @@ Item {
                                             Label {
                                                 text: root.delayText(nodeTile.modelData)
                                                 color: root.delayColor(nodeTile.modelData)
-                                                font.bold: true
-                                                font.pixelSize: 11
+                                                font.weight: Font.DemiBold
+                                                font.pixelSize: root.theme.supportingSize
                                             }
                                             ActionButton {
+                                                id: testNode
                                                 objectName: "test_node"
                                                 theme: root.theme
                                                 text: "⚡"
                                                 implicitWidth: 30
-                                                implicitHeight: 24
+                                                implicitHeight: root.theme.compactHeight
                                                 leftPadding: 4
                                                 rightPadding: 4
                                                 font.pixelSize: 12
                                                 visible: nodeTile.testable
                                                 enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
                                                 Accessible.name: qsTr("Test delay")
-                                                ToolTip.visible: hovered
-                                                ToolTip.text: qsTr("Test delay")
+                                                ThemedToolTip { theme: root.theme; visible: testNode.hovered; text: qsTr("Test delay") }
                                                 onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData, root.delayTarget])
                                             }
                                         }

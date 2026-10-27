@@ -1,0 +1,10 @@
+[0/2] Re-checking globbed directories...
+[1/10] Copying quickclash qml sources into build dir
+[2/10] Running qmlimportscanner for quickclash
+[3/10] Running rcc for resource quickclash_raw_qml_0
+[4/10] Generating .rcc/qmlcache/quickclash_qml/main_qml.cpp, .rcc/qmlcache/quickclash_qml/main_qml.cpp.aotstats
+[5/10] Generating .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp, .rcc/qmlcache/quickclash_qml/features/home/home_page_qml.cpp.aotstats
+[6/10] Building CXX object CMakeFiles\quickclash.dir\build\dev\.qt\rcc\qrc_quickclash_raw_qml_0.cpp.obj
+[7/10] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\features\home\home_page_qml.cpp.obj
+[8/10] Building CXX object CMakeFiles\quickclash.dir\build\dev\.rcc\qmlcache\quickclash_qml\main_qml.cpp.obj
+[9/10] Linking CXX executable quickclash.exe

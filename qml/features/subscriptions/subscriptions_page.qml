@@ -72,7 +72,8 @@ ListView {
         nameFilters: [qsTr("YAML profiles (*.yaml *.yml)"), qsTr("All files (*)")]
         onAccepted: root.ui.runtimeCommand("import", [selectedFile.toString(), root.importName])
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: rollbackConfirmation
         parent: Overlay.overlay
         title: qsTr("Restore the previous subscription version?")
@@ -81,7 +82,8 @@ ListView {
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.ui.runtimeCommand("rollback_profile", [root.managedId, "confirmed"])
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: deleteConfirmation
         parent: Overlay.overlay
         title: qsTr("Delete this subscription?")
@@ -98,7 +100,8 @@ ListView {
             root.ui.runtimeCommand("delete", [root.managedId]);
         }
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: management
         parent: Overlay.overlay
         objectName: "subscription_management"
@@ -118,7 +121,8 @@ ListView {
             ColumnLayout {
                 width: parent.availableWidth
                 spacing: 12
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: itemName
                     objectName: "subscription_name"
                     Layout.fillWidth: true
@@ -131,7 +135,8 @@ ListView {
                     enabled: !root.ui.runtime.busy && itemName.text.trim().length > 0
                     onClicked: root.ui.runtimeCommand("rename", [root.managedId, itemName.text])
                 }
-                ComboBox {
+                ThemedComboBox {
+                    theme: root.theme
                     id: updateInterval
                     visible: !!root.managedProfile.secretRef
                     Layout.fillWidth: true
@@ -141,7 +146,8 @@ ListView {
                     currentIndex: Math.max(0, minutes.indexOf(root.managedProfile.updateIntervalMinutes || 0))
                     onActivated: root.ui.runtimeCommand("subscription_policy", [root.managedId, minutes[currentIndex].toString(), root.managedProfile.autoApply ? "true" : "false"])
                 }
-                Switch {
+                ThemedSwitch {
+                    theme: root.theme
                     visible: !!root.managedProfile.secretRef
                     text: qsTr("Apply updates when selected")
                     checked: !!root.managedProfile.autoApply
@@ -149,7 +155,8 @@ ListView {
                     palette.windowText: root.theme.text
                     onClicked: root.ui.runtimeCommand("subscription_policy", [root.managedId, (root.managedProfile.updateIntervalMinutes || 0).toString(), checked ? "true" : "false"])
                 }
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: sourceUrl
                     objectName: "subscription_source_url"
                     Layout.fillWidth: true
@@ -157,7 +164,8 @@ ListView {
                     echoMode: TextInput.Password
                     maximumLength: 8192
                 }
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: sourceHeaders
                     objectName: "subscription_source_headers"
                     Layout.fillWidth: true
@@ -185,6 +193,7 @@ ListView {
                 ActionButton {
                     theme: root.theme
                     text: qsTr("Delete")
+                    destructive: true
                     enabled: !root.ui.runtime.busy
                     onClicked: deleteConfirmation.open()
                 }
@@ -193,23 +202,24 @@ ListView {
     }
     header: ColumnLayout {
         width: root.availableWidth
-        spacing: 14
+        spacing: root.theme.gap
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: form.implicitHeight + 36
+            implicitHeight: form.implicitHeight + 32
             ColumnLayout {
                 id: form
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.margins: root.theme.panelPadding
                 spacing: 10
                 Label {
                     text: qsTr("Import")
                     color: root.theme.text
-                    font.pixelSize: 20
-                    font.bold: true
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
                 }
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: profileName
                     objectName: "import_profile_name"
                     placeholderText: qsTr("Name (optional)")
@@ -217,7 +227,8 @@ ListView {
                     maximumLength: 80
                     onTextChanged: root.importName = text
                 }
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: subscriptionUrl
                     objectName: "subscription_url"
                     placeholderText: qsTr("HTTPS subscription URL")
@@ -231,6 +242,7 @@ ListView {
                     ActionButton {
                         theme: root.theme
                         text: root.ui.runtime.busy ? qsTr("Working…") : qsTr("Add subscription")
+                        pending: !!root.ui.runtime.busy
                         enabled: !root.ui.runtime.busy && root.ui.settingsReady && subscriptionUrl.text.length > 0
                         prominent: true
                         onClicked: {
@@ -263,8 +275,8 @@ ListView {
         Label {
             text: qsTr("Subscriptions")
             color: root.theme.text
-            font.pixelSize: 20
-            font.bold: true
+            font.pixelSize: root.theme.bodySize
+            font.weight: Font.DemiBold
         }
         Label {
             visible: !root.ui.profileModel.count

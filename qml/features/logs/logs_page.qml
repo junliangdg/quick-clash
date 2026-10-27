@@ -61,17 +61,20 @@ Item {
                 visible: !!(root.runtime.features || {}).exportUrl
                 onClicked: Qt.openUrlExternally(root.runtime.features.exportUrl)
             }
-            ComboBox {
+            ThemedComboBox {
+                theme: root.theme
                 id: source
                 model: [qsTr("All sources"), "Core", "App"]
                 onCurrentIndexChanged: root.ui.liveLogs.sourceFilter = currentIndex === 0 ? "" : currentText
             }
-            ComboBox {
+            ThemedComboBox {
+                theme: root.theme
                 id: level
                 model: [qsTr("All levels"), "info", "warning", "error", "debug"]
                 onCurrentIndexChanged: root.ui.liveLogs.levelFilter = currentIndex === 0 ? "" : currentText
             }
-            CheckBox {
+            ThemedCheckBox {
+                theme: root.theme
                 id: follow
                 text: qsTr("Follow latest")
                 checked: true

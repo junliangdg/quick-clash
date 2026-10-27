@@ -4,26 +4,51 @@ import QuickClash.Ui
 
 Button {
     id: control
-    font.family: control.theme.fontFamily
     required property ThemeTokens theme
     property bool prominent: false
-    implicitHeight: 36
-    leftPadding: 14
-    rightPadding: 14
+    property bool selected: false
+    property bool destructive: false
+    property bool ghost: false
+    property bool pending: false
+    function foreground(): color {
+        if (pending)
+            return theme.onSelection;
+        if (!enabled)
+            return theme.muted;
+        if (destructive)
+            return theme.error;
+        if (prominent)
+            return theme.accentForeground;
+        if (selected)
+            return theme.onSelection;
+        if (ghost)
+            return theme.accent;
+        return theme.text;
+    }
+    font.family: theme.fontFamily
+    font.pixelSize: theme.bodySize
+    font.weight: prominent || selected ? Font.DemiBold : Font.Normal
+    implicitHeight: theme.controlHeight
+    implicitWidth: Math.max(implicitContentWidth + leftPadding + rightPadding, 36)
+    leftPadding: 12
+    rightPadding: 12
     activeFocusOnTab: true
+    hoverEnabled: true
     contentItem: Text {
         text: control.text
         font: control.font
-        color: control.enabled ? (control.prominent ? "#ffffff" : control.theme.text) : control.theme.muted
+        color: control.foreground()
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
         elide: Text.ElideRight
     }
-    background: Rectangle {
-        radius: 10
-        color: control.prominent ? (control.theme.dark ? "#286bc7" : "#1767d8") : (control.hovered ? control.theme.accentSurface : control.theme.inset)
-        opacity: control.enabled ? 1 : 0.55
-        border.width: control.activeFocus ? 2 : 0
-        border.color: control.theme.accent
+    background: StateSurface {
+        theme: control.theme
+        focused: control.activeFocus
+        color: control.pending ? theme.accentSurface : !control.enabled ? theme.inset
+             : control.destructive ? (control.down ? theme.errorPressed : control.hovered ? theme.errorHover : theme.errorSurface)
+             : control.prominent ? (control.down ? theme.primaryPressed : control.hovered ? theme.primaryHover : theme.accent)
+             : control.selected ? theme.stateColor(true, control.hovered, control.down)
+             : control.down ? theme.pressed : control.hovered ? theme.hover : control.ghost ? "transparent" : theme.inset
     }
 }

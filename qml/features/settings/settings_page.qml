@@ -11,7 +11,8 @@ ScrollView {
     required property ThemeTokens theme
     contentWidth: availableWidth
     clip: true
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: geoConfirmation
         title: qsTr("Download and apply Geo databases?")
         modal: true
@@ -24,7 +25,8 @@ ScrollView {
         }
         onAccepted: root.ui.runtimeCommand("update_geo")
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: geoRollback
         title: qsTr("Restore the previous Geo snapshot?")
         modal: true
@@ -38,7 +40,8 @@ ScrollView {
         nameFilters: [qsTr("QuickClash backup (*.json)")]
         onAccepted: restoreConfirmation.open()
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: backupConfirmation
         title: qsTr("Create sensitive local backup?")
         modal: true
@@ -51,7 +54,8 @@ ScrollView {
         }
         onAccepted: root.ui.runtimeCommand("backup", ["confirmed"])
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: restoreConfirmation
         title: qsTr("Import profiles from this backup?")
         modal: true
@@ -66,27 +70,88 @@ ScrollView {
     }
     ColumnLayout {
         width: root.availableWidth
-        spacing: 14
+        spacing: root.theme.gap
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: moduleContent.implicitHeight + 40
+            implicitHeight: appearance.implicitHeight + 32
+            ColumnLayout {
+                id: appearance
+                anchors.fill: parent
+                anchors.margins: root.theme.panelPadding
+                spacing: root.theme.gap
+                Label {
+                    font.family: root.theme.fontFamily
+                    text: qsTr("Appearance")
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
+                    color: root.theme.text
+                }
+                Label {
+                    font.family: root.theme.fontFamily
+                    text: qsTr("Light and dark themes are built in. The system theme is resolved before the first frame.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: qsTr("Language follows the system: English or Chinese. Other languages use English. Restart after changing the system language.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    spacing: 8
+                    Repeater {
+                        model: [
+                            {
+                                "key": "system",
+                                "label": qsTr("Follow system")
+                            },
+                            {
+                                "key": "light",
+                                "label": qsTr("Light")
+                            },
+                            {
+                                "key": "dark",
+                                "label": qsTr("Dark")
+                            }
+                        ]
+                        delegate: ActionButton {
+                            required property var modelData
+                            theme: root.theme
+                            text: modelData.label
+                            selected: root.ui.themeMode === modelData.key
+                            enabled: root.ui.settingsReady
+                            onClicked: root.ui.themeMode = modelData.key
+                        }
+                    }
+                }
+            }
+        }
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            visible: root.width < 600
+            implicitHeight: moduleContent.implicitHeight + 32
             ColumnLayout {
                 id: moduleContent
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 12
                 Label {
                     text: qsTr("More pages")
                     color: root.theme.text
-                    font.bold: true
+                    font.weight: Font.DemiBold
                 }
                 Flow {
                     Layout.fillWidth: true
                     spacing: 8
                     Repeater {
                         model: root.ui.navigation.filter(function (entry) {
-                            return ["home", "proxies", "settings"].indexOf(entry.pageId) < 0;
+                            return ["home", "proxies", "subscriptions", "settings"].indexOf(entry.pageId) < 0;
                         })
                         delegate: ActionButton {
                             required property var modelData
@@ -101,16 +166,16 @@ ScrollView {
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: delaySettings.implicitHeight + 40
+            implicitHeight: delaySettings.implicitHeight + 32
             ColumnLayout {
                 id: delaySettings
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 12
                 Label {
                     text: qsTr("Node delay testing")
-                    font.pixelSize: 20
-                    font.bold: true
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
                     color: root.theme.text
                 }
                 Label {
@@ -119,8 +184,10 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                TextField {
+                ThemedField {
+                    theme: root.theme
                     id: delayTarget
+                    objectName: "delay_target"
                     Layout.fillWidth: true
                     text: root.ui.runtime.delayTarget || "https://www.gstatic.com/generate_204"
                     placeholderText: qsTr("HTTPS target for node delay")
@@ -137,16 +204,16 @@ ScrollView {
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: repair.implicitHeight + 40
+            implicitHeight: repair.implicitHeight + 32
             ColumnLayout {
                 id: repair
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 12
                 Label {
                     text: qsTr("Network settings")
-                    font.pixelSize: 20
-                    font.bold: true
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
                     color: root.theme.text
                 }
                 Label {
@@ -161,14 +228,16 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                Switch {
+                ThemedSwitch {
+                    theme: root.theme
                     text: qsTr("System proxy")
                     checked: !!root.ui.runtime.systemProxy || !!(root.ui.runtime.preferences || {}).systemProxyDesired
                     enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                     onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                     palette.windowText: root.theme.text
                 }
-                Switch {
+                ThemedSwitch {
+                    theme: root.theme
                     text: qsTr("Virtual network adapter (TUN)")
                     checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
                     enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
@@ -182,8 +251,10 @@ ScrollView {
                         text: qsTr("Proxy port")
                         color: root.theme.text
                     }
-                    SpinBox {
+                    ThemedSpinBox {
+                        theme: root.theme
                         id: mixedPort
+                        objectName: "mixed_port"
                         from: 1024
                         to: 65535
                         editable: true
@@ -194,8 +265,10 @@ ScrollView {
                         text: qsTr("Controller port")
                         color: root.theme.text
                     }
-                    SpinBox {
+                    ThemedSpinBox {
+                        theme: root.theme
                         id: controllerPort
+                        objectName: "controller_port"
                         from: 1024
                         to: 65535
                         editable: true
@@ -249,7 +322,8 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                TextArea {
+                ThemedTextArea {
+                    theme: root.theme
                     visible: !!root.ui.runtime.effectivePreview
                     text: root.ui.runtime.effectivePreview || ""
                     readOnly: true
@@ -271,16 +345,16 @@ ScrollView {
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: advanced.implicitHeight + 40
+            implicitHeight: advanced.implicitHeight + 32
             ColumnLayout {
                 id: advanced
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 12
                 Label {
                     text: qsTr("DNS and diagnostics")
                     color: root.theme.text
-                    font.bold: true
+                    font.weight: Font.DemiBold
                 }
                 Label {
                     text: qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
@@ -288,7 +362,8 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                ComboBox {
+                ThemedComboBox {
+                    theme: root.theme
                     id: dnsMode
                     Layout.fillWidth: true
                     model: [
@@ -376,77 +451,17 @@ ScrollView {
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: appearance.implicitHeight + 40
-            ColumnLayout {
-                id: appearance
-                anchors.fill: parent
-                anchors.margins: 20
-                spacing: 14
-                Label {
-                    font.family: root.theme.fontFamily
-                    text: qsTr("Appearance")
-                    font.pixelSize: 20
-                    font.bold: true
-                    color: root.theme.text
-                }
-                Label {
-                    font.family: root.theme.fontFamily
-                    text: qsTr("Light and dark themes are built in. The system theme is resolved before the first frame.")
-                    color: root.theme.muted
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
-                Label {
-                    text: qsTr("Language follows the system: English or Chinese. Other languages use English. Restart after changing the system language.")
-                    color: root.theme.muted
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
-                Flow {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: implicitHeight
-                    spacing: 8
-                    Repeater {
-                        model: [
-                            {
-                                "key": "system",
-                                "label": qsTr("Follow system")
-                            },
-                            {
-                                "key": "light",
-                                "label": qsTr("Light")
-                            },
-                            {
-                                "key": "dark",
-                                "label": qsTr("Dark")
-                            }
-                        ]
-                        delegate: ActionButton {
-                            required property var modelData
-                            theme: root.theme
-                            text: modelData.label
-                            prominent: root.ui.themeMode === modelData.key
-                            enabled: root.ui.settingsReady
-                            onClicked: root.ui.themeMode = modelData.key
-                        }
-                    }
-                }
-            }
-        }
-        FlatTile {
-            theme: root.theme
-            Layout.fillWidth: true
-            implicitHeight: lifecycle.implicitHeight + 40
+            implicitHeight: lifecycle.implicitHeight + 32
             ColumnLayout {
                 id: lifecycle
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 10
                 Label {
                     font.family: root.theme.fontFamily
                     text: qsTr("Window and tray")
-                    font.pixelSize: 20
-                    font.bold: true
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
                     color: root.theme.text
                 }
                 Label {
@@ -456,7 +471,8 @@ ScrollView {
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
-                CheckBox {
+                ThemedCheckBox {
+                    theme: root.theme
                     id: unloadOption
                     font.family: root.theme.fontFamily
                     text: qsTr("Low memory: unload after 5 seconds hidden or minimized (experimental)")
@@ -491,20 +507,21 @@ ScrollView {
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
-            implicitHeight: replay.implicitHeight + 40
+            implicitHeight: replay.implicitHeight + 32
             ColumnLayout {
                 id: replay
                 anchors.fill: parent
-                anchors.margins: 20
+                anchors.margins: root.theme.panelPadding
                 spacing: 10
                 Label {
                     font.family: root.theme.fontFamily
                     text: qsTr("Prototype data")
-                    font.pixelSize: 20
-                    font.bold: true
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
                     color: root.theme.text
                 }
-                CheckBox {
+                ThemedCheckBox {
+                    theme: root.theme
                     font.family: root.theme.fontFamily
                     text: qsTr("Replay 500 nodes / %1 connections").arg(root.ui.replayConnections)
                     checked: root.ui.replay

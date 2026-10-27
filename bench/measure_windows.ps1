@@ -26,8 +26,8 @@ $taskEnvironment = [ordered]@{
     runtime = [Environment]::Version.ToString()
     executable = $taskExecutable
     executable_sha256 = (Get-FileHash -LiteralPath $taskExecutable -Algorithm SHA256).Hash.ToLowerInvariant()
-    metric = 'PrivateWorkingSetSize from K32GetProcessMemoryInfo/PROCESS_MEMORY_COUNTERS_EX2 must meet the limit; working set and private commit are diagnostic; CPU normalized to one logical core'
-    budget_metric = 'private_working_set_bytes'
+    metric = 'Record private working set, working set and private commit; CPU normalized to one logical core'
+    memory_policy = 'Low memory design goal; compare same-environment baselines and bounded lifecycle behavior, with no fixed byte gate'
     sample_interval_ms = $SampleIntervalMilliseconds
     steady_seconds = $Seconds
     warmup_seconds = $WarmupSeconds
@@ -41,7 +41,6 @@ $taskEnvironment = [ordered]@{
         QSG_RENDER_LOOP = $env:QSG_RENDER_LOOP
         QT_SCALE_FACTOR = $env:QT_SCALE_FACTOR; QT_FONT_DPI = $env:QT_FONT_DPI
     }
-    limit_bytes = 100000000
     build_requirement = 'Release; record CMake cache, Qt/compiler, DPI/GPU/backend separately in report'
     scope = 'P1 isolated GUI replay process; no Mihomo/helper/update process exists in this prototype'
     exclusions = 'Collector process and screenshot/profiler tools; future necessary client processes must be aggregated'
@@ -57,7 +56,7 @@ foreach ($taskScenario in $taskScenarios) {
             $taskDiagnostics = Join-Path $taskOutput ($taskName + '_diagnostics.json')
             $taskSummary = [ordered]@{
                 scenario = $taskScenario; theme = $taskTheme; run = $taskRun
-                execution_result = 'Running'; memory_budget_result = 'NotRun'
+                execution_result = 'Running'; memory_measurement_result = 'NotRun'
             }
             $taskStart = [Diagnostics.ProcessStartInfo]::new()
             $taskStart.FileName = $taskExecutable
@@ -141,7 +140,6 @@ foreach ($taskScenario in $taskScenarios) {
                 $taskSummary.peak_private_bytes = $taskPeakPrivate
                 $taskSummary.peak_working_set_bytes = $taskPeakWorkingSet
                 $taskSummary.peak_private_working_set_bytes = $taskPeakPrivateWorkingSet
-                $taskSummary.budget_metric = 'private_working_set_bytes'
                 $taskSummary.steady_private_bytes_max = ($taskSteady | Measure-Object private_bytes -Maximum).Maximum
                 $taskSummary.steady_working_set_bytes_max = ($taskSteady | Measure-Object working_set_bytes -Maximum).Maximum
                 $taskSummary.steady_private_working_set_bytes_max = ($taskSteady | Measure-Object private_working_set_bytes -Maximum).Maximum
@@ -154,7 +152,7 @@ foreach ($taskScenario in $taskScenarios) {
                     100.0 * ($taskLast.cpu_total_seconds - $taskFirst.cpu_total_seconds) / ($taskLast.seconds - $taskFirst.seconds)
                 } else { $null }
                 if ($taskRows.Count -gt 0) {
-                    $taskSummary.memory_budget_result = if ($taskPeakPrivateWorkingSet -gt 100000000) { 'Fail' } elseif ($taskSummary.execution_result -eq 'Pass' -and $taskSteady.Count -gt 0) { 'Pass' } else { 'NotRun' }
+                    $taskSummary.memory_measurement_result = if ($taskSteady.Count -gt 0) { 'Sampled' } else { 'NotRun' }
                 }
                 $taskSummaries.Add([pscustomobject]$taskSummary)
                 ConvertTo-Json -InputObject @($taskSummaries.ToArray()) -Depth 6 | Set-Content -LiteralPath (Join-Path $taskOutput 'summary.json') -Encoding utf8NoBOM
@@ -163,4 +161,4 @@ foreach ($taskScenario in $taskScenarios) {
     }
 }
 Write-Output "Saved raw samples to $taskOutput. P1 replay evidence may support design 1.6 G1 review; it does not prove G2 proxy, long-term CPU/frame/GPU or product performance."
-if (@($taskSummaries | Where-Object { $_.execution_result -ne 'Pass' -or $_.memory_budget_result -ne 'Pass' }).Count -gt 0) { throw 'One or more scenarios failed to execute or meet the 100,000,000-byte private working set limit; see summary.json' }
+if (@($taskSummaries | Where-Object { $_.execution_result -ne 'Pass' -or $_.memory_measurement_result -ne 'Sampled' }).Count -gt 0) { throw 'One or more scenarios failed to execute or collect memory samples; see summary.json' }

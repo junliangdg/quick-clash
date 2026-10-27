@@ -3,17 +3,49 @@ import QtQuick
 QtObject {
     required property bool dark
     property string fontFamily: "sans-serif"
-    readonly property color background: dark ? "#181a20" : "#f4f5f9"
-    readonly property color sidebar: dark ? "#202229" : "#eaeaf0"
-    readonly property color surface: dark ? "#252830" : "#ffffff"
-    readonly property color inset: dark ? "#30343e" : "#f0f1f6"
-    readonly property color text: dark ? "#edf0f7" : "#202533"
-    readonly property color muted: dark ? "#aab2c3" : "#687184"
-    readonly property color accent: dark ? "#76aaff" : "#1767d8"
-    readonly property color accentSurface: dark ? "#263b58" : "#e5efff"
-    readonly property color upload: dark ? "#f5a353" : "#e07b1f"
-    readonly property color download: dark ? "#5b9bf5" : "#1767d8"
-    readonly property color border: dark ? "#3b414e" : "#e1e5ed"
-    readonly property color success: dark ? "#9edcb2" : "#246d42"
-    readonly property color warning: dark ? "#f4c783" : "#82561a"
+    readonly property color background: dark ? "#101114" : "#FAFAFB"
+    readonly property color sidebar: dark ? "#15161A" : "#F4F4F6"
+    readonly property color surface: dark ? "#191A20" : "#FFFFFF"
+    readonly property color inset: dark ? "#22242C" : "#F2F2F5"
+    readonly property color text: dark ? "#EDEDF2" : "#202024"
+    readonly property color muted: dark ? "#A8A9B8" : "#62626E"
+    readonly property color accent: dark ? "#B0A5FF" : "#5B4BC4"
+    readonly property color accentForeground: dark ? "#251A58" : "#FFFFFF"
+    readonly property color accentSurface: dark ? "#312A4F" : "#EEEBFD"
+    readonly property color onSelection: dark ? "#C9BFFF" : "#5340AB"
+    readonly property color upload: dark ? "#D5AE72" : "#936025"
+    readonly property color download: accent
+    readonly property color border: dark ? "#323440" : "#E5E5EA"
+    readonly property color controlOutline: dark ? "#818496" : "#858591"
+    readonly property color success: dark ? "#93D4AC" : "#246944"
+    readonly property color successSurface: dark ? "#1D3228" : "#EAF5EE"
+    readonly property color warning: dark ? "#EBC47E" : "#855510"
+    readonly property color warningSurface: dark ? "#382D1C" : "#FFF4DF"
+    readonly property color error: dark ? "#FFA0B0" : "#B33043"
+    readonly property color errorSurface: dark ? "#3B222C" : "#FFF0F2"
+    readonly property color hover: dark ? "#2A2C36" : "#EAEAF0"
+    readonly property color pressed: dark ? "#343743" : "#E0DFE8"
+    readonly property color primaryHover: dark ? "#BDB3FF" : "#5141B2"
+    readonly property color primaryPressed: dark ? "#A195F0" : "#46369F"
+    readonly property color selectedHover: dark ? "#3B335F" : "#E5DFFB"
+    readonly property color selectedPressed: dark ? "#453B6D" : "#DAD2F6"
+    readonly property color errorHover: dark ? "#4A2A35" : "#FBE3E8"
+    readonly property color errorPressed: dark ? "#59323F" : "#F8D8DF"
+    readonly property color scrim: dark ? "#8F000000" : "#5C000000"
+    readonly property int panelRadius: 10
+    readonly property int controlRadius: 7
+    readonly property int panelPadding: 16
+    readonly property int gap: 16
+    readonly property int controlHeight: 36
+    readonly property int compactHeight: 32
+    readonly property int rowHeight: 40
+    readonly property int bodySize: 14
+    readonly property int supportingSize: 12
+    readonly property int titleSize: 24
+    readonly property int focusWidth: 2
+    readonly property int focusGap: 2
+    function stateColor(selected, hovered, down): color {
+        return selected ? (down ? selectedPressed : hovered ? selectedHover : accentSurface)
+                        : (down ? pressed : hovered ? hover : "transparent");
+    }
 }

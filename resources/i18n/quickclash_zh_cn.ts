@@ -376,6 +376,14 @@
   </context>
   <context>
     <name>home_page</name>
+    <message><source>Active</source><translation>已激活</translation></message>
+    <message><source>%1 proxy groups · %2 nodes</source><translation>%1 个代理组 · %2 个节点</translation></message>
+    <message><source>Current subscription</source><translation>当前订阅</translation></message>
+    <message><source>Manage</source><translation>管理</translation></message>
+    <message><source>Add subscription</source><translation>添加订阅</translation></message>
+    <message><source>Last 60 seconds</source><translation>最近 60 秒</translation></message>
+    <message><source>60 s ago</source><translation>60 秒前</translation></message>
+    <message><source>Now</source><translation>现在</translation></message>
     <message>
       <source>Subscription overview</source>
       <translation>订阅概览</translation>
@@ -412,7 +420,7 @@
     </message>
     <message>
       <source>Network traffic</source>
-      <translation>网络流量</translation>
+      <translation>实时流量</translation>
     </message>
     <message>
       <location filename="../../qml/features/home/home_page.qml" line="91" />
@@ -618,6 +626,11 @@
   </context>
   <context>
     <name>main</name>
+    <message><source>Running normally</source><translation>运行正常</translation></message>
+    <message><source>Runtime error</source><translation>运行异常</translation></message>
+    <message><source>Back to settings</source><translation>返回设置</translation></message>
+    <message><source>Appearance</source><translation>外观</translation></message>
+    <message><source>Follow system</source><translation>跟随系统</translation></message>
     <message>
       <location filename="../../qml/main.qml" line="85" />
       <source>Expand or collapse navigation</source>
@@ -1294,6 +1307,7 @@
   </context>
   <context>
     <name>subscription_details</name>
+    <message><source>Current usage</source><translation>本期用量</translation></message>
     <message>
       <location filename="../../qml/components/subscription_details.qml" line="16" />
       <location filename="../../qml/components/subscription_details.qml" line="25" />

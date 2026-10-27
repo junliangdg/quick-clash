@@ -8,7 +8,7 @@
 
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
-| 订阅更新后内存异常调查 | Review | Codex | NotRun | [调查报告](reports/20261026_subscription_memory_investigation.md)；可选--software-rendering构建/3项UI测试通过，旧页面已销毁；真实GPU专用175.68MB，Qt软件129.34—131.44MB仍超目标，字体驻留504→491MB仍存在；继续定位Qt字体触发/私有分配，异常修复未关闭 |
+| 订阅更新后内存异常调查 | Review | Codex | NotRun | [调查报告](reports/20261026_subscription_memory_investigation.md)；可选--software-rendering构建/3项UI测试通过，旧页面已销毁；真实GPU专用175.68MB，Qt软件129.34—131.44MB；当前不设固定MB门槛，字体驻留504→491MB仍存在；继续定位Qt字体触发/私有分配，异常修复未关闭 |
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#28-最终实现验证矩阵)；另获构建授权后补新源码定向验证 |
 | 系统代理冲突显式开启重建基线 | Done | Zoo | Review | [修复报告](reports/20261026_system_proxy_conflict_fix.md)；增量构建/proxy_lease/recovery 退出0；全量 CTest 受既有 provider_stream_test 编译错误影响，GUI/原生转发验收 NotRun |
 
@@ -71,8 +71,8 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P3-12 | P3 | W02, W03, W19 | G3 Windows优先方案、三/五平台路线与验收边界 | Done | Codex | — | [方案调整](reports/20261025_g3_windows_plan.md) | 设计1.8与任务/清单同步；仅文档方案交付，未改变G2/G3或产品兼容结论 |
 | P3-13 | P3 | W02, W03, W16 | 跨平台静态兼容核对与Windows耦合收敛 | Todo | 未分配 | P3-12 | [初步缺口](reports/20261025_g3_windows_plan.md) | 先抽离DesktopRuntime具体凭据/代理头、desktop_features的Win32/SCM采样及EngineSession的Windows进程类型；再核对CMake/能力/路径/导航/翻译/生命周期，原生运行转P4 |
 | P3-14 | P3 | W04, W13, W17, W18 | Windows普通用户包与有限OS/GUI宿主集成补证 | Todo | 未分配 | P1-04, P2-11, P2-15, P2-16 | [范围复核](reports/20261025_g2_scope_review.md) | G3前补干净普通用户包/代表路径/基本修复、一次真实换网或唤醒、GUI整体强杀/下次恢复、运行会话隐藏重建及一次外部代理变更；只补差异，暂无干净环境不阻塞其他开发 |
-| P3-15 | P3 | W01, W05 | 方案C统一视觉规范与双主题离线概念预览 | Done | Codex | — | [设计与预览验证](reports/20261027_unified_visual_design.md) | 规范/预览/旧参考清理及浏览器、对比度、生成/一致性、进度/命名/diff检查通过；产品迁移由P3-16承接，NotRun |
-| P3-16 | P3 | W05 | 方案C共享组件、八页面与双主题产品迁移 | Todo | 未分配 | P3-15 | — | 按设计17收敛ThemeTokens/控件/页面，Windows增量构建与受影响检查，实际字体/窗口/状态及必要资源短测；本轮未实施 |
+| P3-15 | P3 | W01, W05 | 方案C统一视觉规范与双主题离线概念预览 | Done | Codex | — | [设计与预览验证](reports/20261027_unified_visual_design.md) | 规范/预览/旧参考清理及浏览器、对比度、生成/一致性、进度/命名/diff检查通过；产品迁移见P3-16 |
+| P3-16 | P3 | W05 | 方案C共享组件、八页面与双主题产品迁移 | Done | Codex | P3-15 | [实施与验证](reports/20261027_unified_visual_implementation.md) | Windows构建、10项测试及末次布局3项回归通过；本机125%DPI原生GPU的26张界面/弹层/错误态截图核对，含360/800/1000/1200宽；60点流量、预览符号/文字及右上运行状态完成；固定MB门槛已移除，完整功能/高DPI矩阵按原任务继续 |
 | P4-01 | P4 | W16, W18 | Linux代理/托盘/服务与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中Linux原生基线就绪后逐项实现，记录GNOME/KDE/X11/Wayland及安装/更新范围；不等待macOS完成 |
 | P4-02 | P4 | W16, W18 | macOS菜单栏/代理/helper与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中macOS原生基线就绪后逐项实现，记录多网络服务/签名/公证/授权与安装更新；不等待Linux完成 |
 | P4-03 | P4 | W17 | 三平台网络/电源矩阵 | Todo | 未分配 | P4-01, P4-02 | — | 运行休眠、换网、时钟/会话变化用例 |

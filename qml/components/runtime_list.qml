@@ -4,9 +4,8 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
 
-Item {
+FlatTile {
     id: root
-    required property ThemeTokens theme
     required property RuntimeListModel listModel
     property string heading: ""
     property string actionText: ""
@@ -26,6 +25,7 @@ Item {
     }
     ColumnLayout {
         anchors.fill: parent
+        anchors.margins: root.theme.panelPadding
         spacing: 12
         Label {
             // Pages can host the heading row themselves (for example to place a
@@ -33,11 +33,12 @@ Item {
             visible: root.heading.length > 0
             text: root.heading + " · " + root.listModel.count
             color: root.theme.text
-            font.pixelSize: 20
+            font.pixelSize: root.theme.bodySize
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
-        TextField {
+        ThemedField {
+            theme: root.theme
             id: search
             objectName: "runtime_filter"
             text: root.listModel.query
@@ -57,18 +58,19 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
-            spacing: 8
+            spacing: 0
             reuseItems: true
             model: root.listModel
             onMovementStarted: root.userFollowing = false
             onMovementEnded: root.userFollowing = atYEnd
             ScrollBar.vertical: ScrollBar {}
-            delegate: FlatTile {
+            delegate: Rectangle {
                 id: tile
                 required property var entry
                 width: list.width
                 implicitHeight: content.implicitHeight + 28
-                theme: root.theme
+                color: "transparent"
+                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: root.theme.border }
                 ColumnLayout {
                     id: content
                     anchors.left: parent.left
@@ -85,6 +87,8 @@ Item {
                     ActionButton {
                         theme: root.theme
                         text: root.actionText
+                        ghost: true
+                        destructive: root.actionText.length > 0 && root.actionText === qsTr("Close connection")
                         visible: text.length > 0
                         onClicked: root.invoked(tile.entry)
                     }

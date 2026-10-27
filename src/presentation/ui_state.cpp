@@ -7,9 +7,9 @@
 
 namespace quickclash::presentation {
 namespace {
-// 300 samples at ~1 Hz cover 5 minutes of traffic history. The ring keeps a
+// 60 samples at ~1 Hz cover 60 seconds of traffic history. The ring keeps a
 // fixed footprint; page switches retain it, epoch changes and hide reset it.
-constexpr int kTrafficHistoryLimit = 300;
+constexpr int kTrafficHistoryLimit = 60;
 double replayRate(int sample, bool upload) {
     const double phase = static_cast<double>(sample);
     return upload ? 48.0 + 8.0 * std::sin(phase * 0.37) + 4.0 * std::sin(phase * 0.13)
@@ -176,7 +176,7 @@ void UiState::refreshTelemetry() {
     const auto timestamp = sample.value(QStringLiteral("time")).toString();
     if (!timestamp.isEmpty() && timestamp != trafficSample_) {
         trafficSample_ = timestamp;
-        // Bounded ring: 300 samples at ~1 Hz cover 5 minutes; the list stays
+        // Bounded ring: 60 samples at ~1 Hz cover 60 seconds; the list stays
         // at a fixed size so the history never grows with uptime.
         liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
         liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() / 1024.0);

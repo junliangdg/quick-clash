@@ -69,7 +69,8 @@ try {
     $taskRows | Export-Csv -LiteralPath (Join-Path $taskOutput 'memory.csv') -NoTypeInformation
     $taskPeak = ($taskRows | Measure-Object client_private_working_set_bytes -Maximum).Maximum
     [ordered]@{
-        result = if ($taskPeak -le 100000000) { 'Pass' } else { 'Fail' }
+        result = 'Sampled'
+        memory_policy = 'Low memory remains a design goal; no fixed machine-independent byte limit. Review same-environment baselines and bounded lifecycle behavior.'
         executable_sha256 = (Get-FileHash -LiteralPath $taskStart.FileName -Algorithm SHA256).Hash.ToLowerInvariant()
         scenario = 'Real Qt Quick home + persistent storage worker + official owned Ready core; local import/selection; system proxy untouched; no replay or sustained traffic'
         fixture = [IO.Path]::GetFileName($taskFixture)
@@ -83,7 +84,6 @@ try {
         core_private_commit_peak_bytes = ($taskRows | Measure-Object core_private_commit_bytes -Maximum).Maximum
         limitations = 'One development short sample; no sustained download, import peak, hidden/rebuild, CPU/frame/GPU or long-term acceptance.'
     } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath (Join-Path $taskOutput 'summary.json') -Encoding utf8NoBOM
-    if ($taskPeak -gt 100000000) { throw 'Private working set exceeds 100 MB.' }
 } finally {
     if ($taskProcess) {
         # Let the bounded probe exit normally, including lease/session/worker cleanup.

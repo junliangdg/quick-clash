@@ -10,6 +10,7 @@
 | 客户端内存优化及最终跨批次审查 | [持续报告与验证矩阵](20261026_client_memory_optimization.md) |
 | 系统代理冲突显式开启重建基线 | [修复报告](20261026_system_proxy_conflict_fix.md) |
 | 统一视觉规范与Light/Dark概念预览 | [当前设计与验证](20261027_unified_visual_design.md) |
+| 方案C控件与八页面产品迁移 | [实施与验证](20261027_unified_visual_implementation.md) |
 | 依赖获取与Geo固定来源 | [工具维护报告](20261026_dependency_fetch_fix.md) |
 | 代理出口与订阅更新内存 | [功能修复报告](20261025_proxy_memory_fixes.md) |
 | Windows MVP范围与日常交付路线 | [G2范围复核](20261025_g2_scope_review.md)、[G3方案](20261025_g3_windows_plan.md) |

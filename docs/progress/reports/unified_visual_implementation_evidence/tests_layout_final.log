@@ -1,0 +1,11 @@
+Test project D:/repos/quick-clash/build/dev
+    Start 18: qml_smoke
+1/3 Test #18: qml_smoke ........................   Passed    0.71 sec
+    Start 20: ui_visual
+2/3 Test #20: ui_visual ........................   Passed    3.66 sec
+    Start 21: ui_responsive
+3/3 Test #21: ui_responsive ....................   Passed    3.08 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   7.46 sec

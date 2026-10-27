@@ -1,0 +1,990 @@
+[
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_home",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_proxies",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_subscriptions",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#ffffff",
+                "color": "#62626e",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_connections",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_rules",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_logs",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_tests",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "开始测试"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_settings",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_theme_menu",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_confirmation",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "最小化"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "light_runtime_error",
+        "primaryButtons": [
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#ffffff",
+                "color": "#ffffff",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_home",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_proxies",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_subscriptions",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#a8a9b8",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_connections",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_rules",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_logs",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_tests",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "开始测试"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_settings",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_theme_menu",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_confirmation",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "最小化"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1000,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1250,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_runtime_error",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1000
+            }
+        ],
+        "width": 1000
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 1200,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1500,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_home_1200",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 1200
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 1200
+            }
+        ],
+        "width": 1200
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 800,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 1000,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_home_800",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 800
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 800
+            }
+        ],
+        "width": 800
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 360,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 450,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_home_360",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            },
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "添加订阅"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 360
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 360
+            }
+        ],
+        "width": 360
+    },
+    {
+        "contentHeight": 640,
+        "contentWidth": 360,
+        "dpr": 1.25,
+        "exposed": true,
+        "frameHeight": 800,
+        "frameWidth": 450,
+        "graphicsApi": 4,
+        "height": 640,
+        "name": "dark_settings_360",
+        "primaryButtons": [
+            {
+                "accentForeground": "#251a58",
+                "color": "#251a58",
+                "contentClass": "QQuickText",
+                "text": "Q"
+            }
+        ],
+        "qtVersion": "6.9.0",
+        "roots": [
+            {
+                "class": "QQuickControl",
+                "height": 640,
+                "scale": 1,
+                "width": 360
+            },
+            {
+                "class": "QQuickOverlay",
+                "height": 640,
+                "scale": 1,
+                "width": 360
+            }
+        ],
+        "width": 360
+    }
+]

@@ -1,0 +1,68 @@
+Test project D:/repos/quick-clash/build/dev
+    Start 14: localization
+1/9 Test #14: localization .....................   Passed    0.06 sec
+    Start 15: ui_state
+2/9 Test #15: ui_state .........................   Passed    0.20 sec
+    Start 18: qml_smoke
+3/9 Test #18: qml_smoke ........................***Failed    0.31 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 19: ui_keyboard
+4/9 Test #19: ui_keyboard ......................***Failed    0.28 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 20: ui_responsive
+5/9 Test #20: ui_responsive ....................***Failed    0.33 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 21: ui_runtime_lists
+6/9 Test #21: ui_runtime_lists .................***Failed    0.28 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 22: ui_subscriptions
+7/9 Test #22: ui_subscriptions .................***Failed    0.32 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 23: ui_subscriptions_zh
+8/9 Test #23: ui_subscriptions_zh ..............***Failed    0.29 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+    Start 24: host_lifecycle
+9/9 Test #24: host_lifecycle ...................***Failed    0.35 sec
+QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: ��Ϊ���Է�����ֵ
+
+
+22% tests passed, 7 tests failed out of 9
+
+Total Test time (real) =   2.47 sec
+
+The following tests FAILED:
+	 18 - qml_smoke (Failed)
+	 19 - ui_keyboard (Failed)
+	 20 - ui_responsive (Failed)
+	 21 - ui_runtime_lists (Failed)
+	 22 - ui_subscriptions (Failed)
+	 23 - ui_subscriptions_zh (Failed)
+	 24 - host_lifecycle (Failed)
+Errors while running CTest

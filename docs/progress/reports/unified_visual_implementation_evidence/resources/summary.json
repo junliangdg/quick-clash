@@ -1,0 +1,21 @@
+{
+  "result": "Fail",
+  "executable_sha256": "db903b09c050c83afbb38a473c762759158b25165e2cee8fbe0b8f1e4f029ad9",
+  "scenario": "Real Qt Quick home + persistent storage worker + official owned Ready core; local import/selection; system proxy untouched; no replay or sustained traffic",
+  "fixture": "inline_valid.yaml",
+  "client_process_group": [
+    34736
+  ],
+  "auxiliary_client_processes": [],
+  "core_pid": 27868,
+  "seconds": 10,
+  "samples": 91,
+  "sample_interval_ms": 100,
+  "client_private_working_set_peak_bytes": 115449856.0,
+  "client_working_set_peak_bytes": 215748608.0,
+  "client_private_commit_peak_bytes": 153567232.0,
+  "core_private_working_set_peak_bytes": 8585216.0,
+  "core_working_set_peak_bytes": 29454336.0,
+  "core_private_commit_peak_bytes": 66514944.0,
+  "limitations": "One development short sample; no sustained download, import peak, hidden/rebuild, CPU/frame/GPU or long-term acceptance."
+}

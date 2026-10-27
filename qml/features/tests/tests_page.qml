@@ -19,25 +19,27 @@ ScrollView {
     FlatTile {
         width: parent.width
         theme: root.theme
-        implicitHeight: content.implicitHeight + 40
+        implicitHeight: content.implicitHeight + 32
         ColumnLayout {
             id: content
             anchors.fill: parent
-            anchors.margins: 20
-            spacing: 14
+            anchors.margins: root.theme.panelPadding
+            spacing: root.theme.gap
             Label {
                 text: qsTr("Website test")
                 color: root.theme.text
-                font.pixelSize: 20
-                font.bold: true
+                font.pixelSize: root.theme.bodySize
+                font.weight: Font.DemiBold
             }
-            ComboBox {
+            ThemedComboBox {
+                theme: root.theme
                 id: route
                 Layout.fillWidth: true
                 model: [{key: "CurrentProxy", label: qsTr("Current proxy")}, {key: "Direct", label: qsTr("Direct (system routes still apply)")}, {key: "SystemDefault", label: qsTr("System proxy settings")}]
                 textRole: "label"
             }
-            TextArea {
+            ThemedTextArea {
+                theme: root.theme
                 id: target
                 Layout.fillWidth: true
                 placeholderText: qsTr("https://your-website.example")

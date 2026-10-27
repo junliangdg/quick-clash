@@ -37,10 +37,10 @@ Item {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
-        // Both close actions share one row.
-        RowLayout {
+        // Keep the close actions together, wrapping when the window is narrow.
+        Flow {
             Layout.fillWidth: true
-            spacing: 10
+            spacing: 8
             ActionButton {
                 theme: root.theme
                 text: qsTr("Close all connections…")
@@ -70,11 +70,12 @@ Item {
             Label {
                 text: qsTr("Connections") + " · " + root.ui.liveConnections.count
                 color: root.theme.text
-                font.pixelSize: 20
+                font.pixelSize: root.theme.bodySize
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
             }
-            ComboBox {
+            ThemedComboBox {
+                theme: root.theme
                 id: sorting
                 objectName: "connections_sorting"
                 font.family: root.theme.fontFamily
@@ -85,26 +86,6 @@ Item {
                 model: [qsTr("Newest first"), qsTr("Download speed"), qsTr("Upload speed")]
                 currentIndex: root.ui.liveConnections.sortMode
                 onActivated: root.ui.liveConnections.sortMode = currentIndex
-                background: Rectangle {
-                    radius: 10
-                    color: sorting.hovered ? root.theme.accentSurface : root.theme.inset
-                    border.width: sorting.activeFocus ? 2 : 0
-                    border.color: root.theme.accent
-                }
-                contentItem: Text {
-                    text: sorting.displayText
-                    font: sorting.font
-                    color: root.theme.text
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-                }
-                indicator: Text {
-                    x: sorting.width - width - 10
-                    y: (sorting.height - height) / 2
-                    text: "▾"
-                    color: root.theme.muted
-                    font.pixelSize: 14
-                }
             }
         }
         RuntimeList {
@@ -126,7 +107,8 @@ Item {
             }
         }
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: filteredConfirmation
         objectName: "filtered_connections_confirmation"
         title: qsTr("Close %1 captured connections?").arg(root.closeIds.length)
@@ -140,7 +122,8 @@ Item {
             root.ui.runtimeCommand("close_filtered_connections", args);
         }
     }
-    Dialog {
+    ThemedDialog {
+        theme: root.theme
         id: confirmation
         title: qsTr("Close every active connection?")
         modal: true

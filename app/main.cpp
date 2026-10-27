@@ -82,6 +82,7 @@ int main(int argc, char* argv[]) {
         uiFont.setStyleHint(QFont::SansSerif);
     }
 #endif
+    uiFont.setPixelSize(14);
     QApplication::setFont(uiFont);
     const auto arguments = app.arguments();
     const bool smoke = arguments.contains(QStringLiteral("--smoke-test"));
@@ -90,11 +91,12 @@ int main(int argc, char* argv[]) {
     const bool trayTest = arguments.contains(QStringLiteral("--tray-test"));
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
     const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
+    const bool visualTest = arguments.contains(QStringLiteral("--visual-test"));
     const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
     const bool pageMemoryTest = arguments.contains(QStringLiteral("--page-memory-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
-                          responsiveTest || runtimeListTest || subscriptionUiTest ||
+                          responsiveTest || visualTest || runtimeListTest || subscriptionUiTest ||
                           pageMemoryTest || arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
     const auto option = [&arguments](const QString& key) {
@@ -293,6 +295,9 @@ int main(int argc, char* argv[]) {
     }
     if (responsiveTest) {
         return quickclash::runResponsiveProbe(host);
+    }
+    if (visualTest) {
+        return quickclash::runVisualProbe(host);
     }
     if (keyboardTest) {
         return quickclash::runKeyboardProbe(host);

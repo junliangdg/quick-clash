@@ -21,8 +21,8 @@ FlatTile {
             actionRequested("select", profileId);
     }
     implicitHeight: cardContent.implicitHeight + 28
-    border.width: selected ? 2 : 0
-    border.color: theme.accent
+    border.width: 1
+    border.color: selected ? theme.accent : theme.border
     // Keep background selection below interactive children; buttons never bubble into it.
     MouseArea {
         anchors.fill: parent
@@ -37,7 +37,8 @@ FlatTile {
         anchors.top: parent.top
         anchors.margins: 14
         spacing: 8
-        Button {
+        ActionButton {
+            theme: root.theme
             id: selectButton
             objectName: "select_subscription"
             Layout.fillWidth: true
@@ -46,9 +47,11 @@ FlatTile {
             activeFocusOnTab: true
             Accessible.name: root.profile.name || ""
             onClicked: root.activate()
-            background: Rectangle {
-                color: parent.hovered ? root.theme.accentSurface : "transparent"
-                radius: 10
+            background: StateSurface {
+                theme: root.theme
+                hovered: selectButton.hovered
+                down: selectButton.down
+                focused: selectButton.activeFocus
             }
             contentItem: ColumnLayout {
                 id: titleContent
@@ -69,6 +72,7 @@ FlatTile {
                         objectName: "manage_subscription"
                         theme: root.theme
                         text: qsTr("Manage")
+                        ghost: true
                         Layout.alignment: Qt.AlignTop
                         enabled: !root.ui.runtime.busy
                         onClicked: root.manageRequested(root.profileId)

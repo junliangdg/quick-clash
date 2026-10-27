@@ -143,6 +143,17 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/flat_tile.qml
         qml/components/theme_tokens.qml
         qml/components/action_button.qml
+        qml/components/state_surface.qml
+        qml/components/focus_ring.qml
+        qml/components/themed_field.qml
+        qml/components/themed_text_area.qml
+        qml/components/themed_switch.qml
+        qml/components/themed_check_box.qml
+        qml/components/themed_combo_box.qml
+        qml/components/themed_spin_box.qml
+        qml/components/themed_dialog.qml
+        qml/components/themed_tool_tip.qml
+        qml/components/themed_progress.qml
         qml/components/deferred_content.qml
         qml/components/replay_list.qml
         qml/components/runtime_list.qml
@@ -315,6 +326,12 @@ if(BUILD_TESTING)
             TIMEOUT 60)
         add_test(NAME qml_smoke COMMAND quickclash --smoke-test)
         add_test(NAME ui_keyboard COMMAND quickclash --keyboard-test)
+        target_sources(quickclash PRIVATE tests/integration/visual_ui_probe.cpp)
+        add_test(NAME ui_visual COMMAND quickclash --visual-test)
+        set_tests_properties(ui_visual PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
+            TIMEOUT 30)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
         add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test)
         add_test(NAME ui_subscriptions COMMAND quickclash --subscription-ui-test)

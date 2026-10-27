@@ -8,6 +8,7 @@ ColumnLayout {
     id: root
     required property ThemeTokens theme
     property var profile: ({})
+    property bool overview: false
     readonly property var usage: profile.usage || ({})
     readonly property real usedBytes: Number(usage.upload || 0) + Number(usage.download || 0)
     readonly property real totalBytes: Number(usage.total || 0)
@@ -22,6 +23,7 @@ ColumnLayout {
     }
     spacing: 6
     Label {
+        visible: !root.overview
         text: qsTr("Updated: %1").arg(root.profile.updatedAt ? root.dateText(root.profile.updatedAt) : qsTr("Unknown"))
         color: root.theme.muted
         Layout.fillWidth: true
@@ -29,6 +31,7 @@ ColumnLayout {
         textFormat: Text.PlainText
     }
     Label {
+        visible: !root.overview
         text: root.usage.upload !== undefined || root.usage.download !== undefined
             ? qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
             : qsTr("Usage not provided")
@@ -36,7 +39,20 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
     }
-    ProgressBar {
+    RowLayout {
+        visible: root.overview
+        Layout.fillWidth: true
+        Label { text: qsTr("Current usage"); color: root.theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
+        Label {
+            text: root.usage.upload !== undefined || root.usage.download !== undefined
+                ? root.sizeText(root.usedBytes) + " / " + (root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
+                : qsTr("Usage not provided")
+            color: root.theme.muted
+            font.pixelSize: 12
+        }
+    }
+    ThemedProgress {
+        theme: root.theme
         Layout.fillWidth: true
         visible: root.totalBytes > 0
         from: 0
@@ -46,7 +62,17 @@ ColumnLayout {
     Label {
         text: qsTr("Expires: %1").arg(Number(root.usage.expire || 0) > 0 ? root.dateText(Number(root.usage.expire) * 1000) : qsTr("Not provided"))
         color: root.theme.muted
+        font.pixelSize: root.overview ? 12 : root.theme.bodySize
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
+    }
+    Label {
+        visible: root.overview
+        text: qsTr("Updated: %1").arg(root.profile.updatedAt ? root.dateText(root.profile.updatedAt) : qsTr("Unknown"))
+        color: root.theme.muted
+        font.pixelSize: 12
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        textFormat: Text.PlainText
     }
 }

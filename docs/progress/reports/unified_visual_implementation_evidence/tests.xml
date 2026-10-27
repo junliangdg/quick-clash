@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Win32-ninja"
+	tests="9"
+	failures="7"
+	disabled="0"
+	skipped="0"
+	hostname="PC-A41340"
+	time="2"
+	timestamp="2026-10-27T14:42:23"
+	>
+	<testcase name="localization" classname="localization" time="0.0633088" status="run">
+		<properties/>
+		<system-out>Locale preference, Chinese catalog, English and unsupported fallback passed
+</system-out>
+	</testcase>
+	<testcase name="ui_state" classname="ui_state" time="0.203879" status="run">
+		<properties/>
+		<system-out>UI state contracts passed
+</system-out>
+	</testcase>
+	<testcase name="qml_smoke" classname="qml_smoke" time="0.310927" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="ui_keyboard" classname="ui_keyboard" time="0.277207" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="ui_responsive" classname="ui_responsive" time="0.329145" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="ui_runtime_lists" classname="ui_runtime_lists" time="0.277584" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="ui_subscriptions" classname="ui_subscriptions" time="0.318343" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="ui_subscriptions_zh" classname="ui_subscriptions_zh" time="0.28617" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+	<testcase name="host_lifecycle" classname="host_lifecycle" time="0.350544" status="fail">
+		<failure message="Failed"/>
+		<properties/>
+		<system-out>QFontDatabase: Cannot find font directory C:/Qt/6.9.0/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QQmlApplicationEngine failed to load component
+qrc:/qt/qml/QuickClash/Ui/main.qml:25:10: [NON-UTF-8-BYTE-0xD2][NON-UTF-8-BYTE-0xD1]Ϊ[NON-UTF-8-BYTE-0xCA][NON-UTF-8-BYTE-0xF4][NON-UTF-8-BYTE-0xD0]Է[NON-UTF-8-BYTE-0xD6][NON-UTF-8-BYTE-0xC5][NON-UTF-8-BYTE-0xE4][NON-UTF-8-BYTE-0xC1][NON-UTF-8-BYTE-0xCB]ֵ
+</system-out>
+	</testcase>
+</testsuite>

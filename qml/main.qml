@@ -8,13 +8,16 @@ ApplicationWindow {
     id: window
     required property UiState ui
     required property font uiFont
-    property bool compact: width < 1000
+    readonly property bool compact: width < 1000
     readonly property bool narrow: width < 600
     property bool expandedRail: false
-    property bool wideNavigation: !compact || expandedRail
+    readonly property bool wideNavigation: !compact || expandedRail
     readonly property int navigationWidth: narrow ? 0 : (wideNavigation ? (width >= 1200 ? 208 : 192) : 64)
     readonly property int pageMargin: narrow ? 12 : (compact ? 16 : 24)
     readonly property bool pageReady: pageHost.status === Loader.Ready
+    readonly property bool runtimeFailed: ui.runtime.status === "Failed" || ui.runtimeError.length > 0
+    readonly property bool runtimeHealthy: !!ui.runtime.ready && !runtimeFailed
+    readonly property color runtimeColor: runtimeFailed ? tokens.error : runtimeHealthy ? tokens.success : tokens.muted
     width: 1000
     height: 640
     minimumWidth: 360
@@ -30,30 +33,19 @@ ApplicationWindow {
     palette.button: tokens.inset
     palette.buttonText: tokens.text
     palette.highlight: tokens.accent
-    palette.highlightedText: "#ffffff"
-    palette.mid: tokens.border
-    ThemeTokens {
-        id: tokens
-        dark: window.ui.dark
-        fontFamily: window.uiFont.family
-    }
-    onClosing: function (close) {
-        close.accepted = false;
-        ui.requestClose();
-    }
-    Shortcut {
-        sequences: [StandardKey.Close]
-        onActivated: window.ui.requestClose()
-    }
-    Shortcut {
-        sequences: [StandardKey.Quit]
-        onActivated: window.ui.requestQuit()
-    }
+    palette.highlightedText: tokens.accentForeground
+    palette.placeholderText: tokens.muted
+    palette.mid: tokens.controlOutline
+    palette.dark: tokens.muted
+    palette.toolTipBase: tokens.surface
+    palette.toolTipText: tokens.text
+    ThemeTokens { id: tokens; dark: window.ui.dark; fontFamily: window.uiFont.family }
+    onClosing: function(close) { close.accepted = false; ui.requestClose(); }
+    Shortcut { sequences: [StandardKey.Close]; onActivated: window.ui.requestClose() }
+    Shortcut { sequences: [StandardKey.Quit]; onActivated: window.ui.requestQuit() }
     Connections {
         target: window.ui
-        function onCloseConfirmationRequired(): void {
-            closeDialog.open();
-        }
+        function onCloseConfirmationRequired(): void { closeDialog.open(); }
     }
     Item {
         anchors.fill: parent
@@ -67,157 +59,194 @@ ApplicationWindow {
             width: window.navigationWidth
             clip: true
             color: tokens.sidebar
-            Item {
+            ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: 10
-                Item {
-                    id: navigationHeader
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    height: 42
+                spacing: 16
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    spacing: 10
                     ActionButton {
                         theme: tokens
                         text: "Q"
-                        width: 42
-                        height: 42
+                        prominent: true
+                        implicitWidth: 36
+                        font.weight: Font.DemiBold
                         onClicked: window.expandedRail = !window.expandedRail
                         Accessible.name: qsTr("Expand or collapse navigation")
                     }
                     Label {
-                        x: 54
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(0, parent.width - x)
-                        font.family: tokens.fontFamily
-                        text: "QuickClash"
                         visible: window.wideNavigation
-                        elide: Text.ElideRight
-                        font.bold: true
-                        font.pixelSize: 18
+                        Layout.fillWidth: true
+                        text: "QuickClash"
+                        font.pixelSize: 17
+                        font.weight: Font.DemiBold
                         color: tokens.text
+                        elide: Text.ElideRight
                     }
                 }
                 ListView {
                     id: navigation
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: navigationHeader.bottom
-                    anchors.topMargin: 16
-                    anchors.bottom: navigationVersion.top
-                    anchors.bottomMargin: 16
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     spacing: 4
                     clip: true
-                    model: window.ui.navigation
-                    delegate: ItemDelegate {
-                        id: entry
-                        font.family: tokens.fontFamily
-                        required property var modelData
-                        objectName: "navigation_" + modelData.pageId
-                        width: ListView.view.width
-                        height: 44
-                        implicitWidth: 44
-                        highlighted: window.ui.currentPage === modelData.pageId
-                        activeFocusOnTab: true
-                        Accessible.name: modelData.title
-                        ToolTip.visible: hovered && !window.wideNavigation
-                        ToolTip.text: modelData.title
-                        onClicked: window.ui.navigate(modelData.pageId)
-                        background: Rectangle {
-                            radius: 11
-                            color: entry.highlighted || entry.hovered ? tokens.accentSurface : "transparent"
-                            border.width: entry.activeFocus ? 1 : 0
-                            border.color: tokens.accent
-                        }
-                        contentItem: Item {
-                            Label {
-                                width: 24
-                                height: parent.height
-                                font.family: tokens.fontFamily
-                                text: entry.modelData.glyph
-                                color: entry.highlighted ? tokens.accent : tokens.muted
-                                font.pixelSize: 22
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                            Label {
-                                x: 36
-                                width: Math.max(0, parent.width - x)
-                                height: parent.height
-                                font.family: tokens.fontFamily
-                                visible: window.wideNavigation
-                                text: entry.modelData.title
-                                color: entry.highlighted ? tokens.accent : tokens.text
-                                font.pixelSize: 15
-                                font.bold: true
-                                elide: Text.ElideRight
-                                verticalAlignment: Text.AlignVCenter
-                            }
-                        }
-                    }
+                    model: window.ui.navigation.filter(entry => entry.pageId !== "settings")
+                    delegate: navigationDelegate
+                }
+                ListView {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 40
+                    interactive: false
+                    model: window.ui.navigation.filter(entry => entry.pageId === "settings")
+                    delegate: navigationDelegate
                 }
                 Label {
-                    id: navigationVersion
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 18
-                    font.family: tokens.fontFamily
                     visible: window.wideNavigation
+                    Layout.leftMargin: 10
+                    Layout.bottomMargin: 6
                     text: "QuickClash · 0.1"
                     color: tokens.muted
-                    font.pixelSize: 12
+                    font.pixelSize: tokens.supportingSize
                 }
             }
         }
-        ColumnLayout {
+        Component {
+            id: navigationDelegate
+            ItemDelegate {
+                id: entry
+                required property var modelData
+                objectName: "navigation_" + modelData.pageId
+                width: ListView.view.width
+                height: tokens.rowHeight
+                padding: 10
+                highlighted: window.ui.currentPage === modelData.pageId
+                activeFocusOnTab: true
+                Accessible.name: modelData.title
+                onClicked: window.ui.navigate(modelData.pageId)
+                ThemedToolTip { theme: tokens; visible: entry.hovered && !window.wideNavigation; text: entry.modelData.title }
+                background: StateSurface { theme: tokens; selected: entry.highlighted; hovered: entry.hovered; down: entry.down; focused: entry.activeFocus }
+                contentItem: RowLayout {
+                    spacing: 12
+                    Label {
+                        Layout.preferredWidth: 24
+                        text: entry.modelData.glyph
+                        color: entry.highlighted ? tokens.onSelection : tokens.muted
+                        font.pixelSize: 20
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Label {
+                        visible: window.wideNavigation
+                        Layout.fillWidth: true
+                        text: entry.modelData.title
+                        color: entry.highlighted ? tokens.onSelection : tokens.muted
+                        font.weight: entry.highlighted ? Font.DemiBold : Font.Normal
+                        font.pixelSize: tokens.bodySize
+                        elide: Text.ElideRight
+                    }
+                }
+            }
+        }
+        Item {
+            id: mainArea
             anchors.left: sideNavigation.right
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.bottom: bottomNavigation.top
-            anchors.margins: window.pageMargin
-            spacing: 14
-            RowLayout {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 36
-                Label {
-                    font.family: tokens.fontFamily
-                    text: window.ui.pageTitle
-                    font.pixelSize: window.narrow ? 22 : 26
-                    font.bold: true
-                    color: tokens.text
+            ColumnLayout {
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.topMargin: window.pageMargin
+                anchors.bottomMargin: window.pageMargin
+                width: Math.min(parent.width - 2 * window.pageMargin, 1440)
+                spacing: tokens.gap
+                RowLayout {
                     Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    elide: Text.ElideRight
+                    Layout.preferredHeight: 36
+                    ActionButton {
+                        theme: tokens
+                        visible: window.narrow && !["home", "proxies", "subscriptions", "settings"].includes(window.ui.currentPage)
+                        text: "←"
+                        ghost: true
+                        Accessible.name: qsTr("Back to settings")
+                        onClicked: window.ui.navigate("settings")
+                    }
+                    Label {
+                        text: window.ui.pageTitle
+                        font.pixelSize: window.narrow ? 22 : tokens.titleSize
+                        font.weight: Font.DemiBold
+                        color: tokens.text
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        elide: Text.ElideRight
+                    }
+                    ThemedComboBox {
+                        theme: tokens
+                        objectName: "theme_selector"
+                        visible: !window.narrow
+                        implicitWidth: window.narrow ? 110 : 130
+                        model: [qsTr("Follow system"), qsTr("Light"), qsTr("Dark")]
+                        currentIndex: ["system", "light", "dark"].indexOf(window.ui.themeMode)
+                        onActivated: window.ui.themeMode = ["system", "light", "dark"][currentIndex]
+                        Accessible.name: qsTr("Appearance")
+                    }
+                    Rectangle {
+                        objectName: "runtime_status_badge"
+                        Layout.preferredWidth: runtimeBadgeContent.implicitWidth + 18
+                        Layout.preferredHeight: 28
+                        radius: 14
+                        color: window.runtimeFailed ? tokens.errorSurface : window.runtimeHealthy ? tokens.successSurface : tokens.inset
+                        Accessible.role: Accessible.StaticText
+                        Accessible.name: runtimeBadgeText.text
+                        RowLayout {
+                            id: runtimeBadgeContent
+                            anchors.centerIn: parent
+                            spacing: 6
+                            Rectangle { implicitWidth: 6; implicitHeight: 6; radius: 3; color: window.runtimeColor }
+                            Label {
+                                id: runtimeBadgeText
+                                objectName: "runtime_status_text"
+                                text: window.runtimeFailed ? qsTr("Runtime error") : window.runtimeHealthy ? qsTr("Running normally") : window.ui.runtimeStatus
+                                color: window.runtimeColor
+                                font.pixelSize: tokens.supportingSize
+                            }
+                        }
+                        HoverHandler { id: runtimeBadgeHover }
+                        ThemedToolTip { theme: tokens; visible: runtimeBadgeHover.hovered && window.ui.runtimeError.length > 0; text: window.ui.runtimeError }
+                    }
                 }
                 Label {
-                    font.family: tokens.fontFamily
-                    visible: !window.narrow
-                    text: window.ui.replay ? qsTr("Replay data") : window.ui.runtimeStatus
-                    color: tokens.muted
+                    objectName: "runtime_error_detail"
+                    visible: window.ui.runtimeError.length > 0
+                    text: window.ui.runtimeError
+                    textFormat: Text.PlainText
+                    color: tokens.error
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
+                    HoverHandler { id: runtimeErrorHover }
+                    ThemedToolTip { theme: tokens; visible: runtimeErrorHover.hovered; text: window.ui.runtimeError }
                 }
-                ActionButton {
+                Label {
+                    visible: window.ui.routeError.length > 0
+                    text: window.ui.routeError
+                    color: tokens.error
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                PageHost {
+                    id: pageHost
+                    objectName: "active_page_host"
+                    ui: window.ui
                     theme: tokens
-                    text: window.ui.dark ? qsTr("Light") : qsTr("Dark")
-                    onClicked: window.ui.themeMode = window.ui.dark ? "light" : "dark"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.minimumWidth: 0
+                    Layout.minimumHeight: 0
                 }
-            }
-            Label {
-                font.family: tokens.fontFamily
-                visible: window.ui.routeError.length > 0
-                text: window.ui.routeError
-                color: tokens.warning
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-            }
-            PageHost {
-                id: pageHost
-                objectName: "active_page_host"
-                ui: window.ui
-                theme: tokens
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.minimumWidth: 0
-                Layout.minimumHeight: 0
             }
         }
         Rectangle {
@@ -227,8 +256,6 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             visible: window.narrow
-            // Icon-only entries keep the narrow bottom bar compact; titles stay
-            // available through tooltips and accessible names.
             height: visible ? 56 : 0
             color: tokens.sidebar
             Row {
@@ -249,18 +276,12 @@ ApplicationWindow {
                         highlighted: window.ui.currentPage === modelData.pageId
                         activeFocusOnTab: true
                         Accessible.name: modelData.title
-                        ToolTip.visible: hovered
-                        ToolTip.text: modelData.title
+                        ThemedToolTip { theme: tokens; visible: bottomEntry.hovered; text: bottomEntry.modelData.title }
                         onClicked: window.ui.navigate(modelData.pageId)
-                        background: Rectangle {
-                            radius: 12
-                            color: bottomEntry.highlighted || bottomEntry.hovered ? tokens.accentSurface : "transparent"
-                            border.width: bottomEntry.activeFocus ? 1 : 0
-                            border.color: tokens.accent
-                        }
+                        background: StateSurface { theme: tokens; selected: bottomEntry.highlighted; hovered: bottomEntry.hovered; down: bottomEntry.down; focused: bottomEntry.activeFocus }
                         contentItem: Label {
                             text: bottomEntry.modelData.glyph
-                            color: bottomEntry.highlighted ? tokens.accent : tokens.muted
+                            color: bottomEntry.highlighted ? tokens.onSelection : tokens.muted
                             font.pixelSize: 20
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
@@ -270,8 +291,9 @@ ApplicationWindow {
             }
         }
     }
-    Dialog {
+    ThemedDialog {
         id: closeDialog
+        theme: tokens
         objectName: "close_confirmation"
         parent: window.contentItem
         anchors.centerIn: parent
@@ -279,49 +301,23 @@ ApplicationWindow {
         title: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Tray unavailable")
         modal: true
         closePolicy: Popup.CloseOnEscape
-        background: Rectangle {
-            radius: 16
-            color: tokens.surface
-            border.width: 1
-            border.color: tokens.border
-        }
         contentItem: ColumnLayout {
-            spacing: 16
+            spacing: tokens.gap
             Label {
-                font.family: tokens.fontFamily
                 text: window.ui.trayAvailable ? qsTr("QuickClash will keep running. Open it again from the tray. This choice will be remembered.") : qsTr("The window will remain visible. You can minimize it or quit QuickClash.")
                 color: tokens.text
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
             }
             RowLayout {
-                ActionButton {
-                    theme: tokens
-                    text: qsTr("Cancel")
-                    onClicked: closeDialog.close()
-                }
-                Item {
-                    Layout.fillWidth: true
-                }
-                ActionButton {
-                    theme: tokens
-                    text: qsTr("Quit")
-                    onClicked: {
-                        closeDialog.close();
-                        window.ui.requestQuit();
-                    }
-                }
+                ActionButton { theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
+                Item { Layout.fillWidth: true }
+                ActionButton { theme: tokens; text: qsTr("Quit"); destructive: true; onClicked: { closeDialog.close(); window.ui.requestQuit(); } }
                 ActionButton {
                     theme: tokens
                     prominent: true
                     text: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Minimize")
-                    onClicked: {
-                        closeDialog.close();
-                        if (window.ui.trayAvailable)
-                            window.ui.requestClose(true);
-                        else
-                            window.ui.requestMinimize();
-                    }
+                    onClicked: { closeDialog.close(); if (window.ui.trayAvailable) window.ui.requestClose(true); else window.ui.requestMinimize(); }
                 }
             }
         }

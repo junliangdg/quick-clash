@@ -19,7 +19,8 @@ Item {
     Component.onDestruction: ui.setDemand(demandKey, "rules", false)
     ColumnLayout {
         anchors.fill: parent
-        ComboBox {
+        ThemedComboBox {
+            theme: root.theme
             id: section
             objectName: "rules_section"
             model: [qsTr("Rules"), qsTr("Providers")]

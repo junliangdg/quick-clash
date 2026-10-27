@@ -16,28 +16,40 @@ FlatTile {
     Component.onDestruction: ui.setDemand(instanceKey, "proxies", false)
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
+        anchors.margins: root.theme.panelPadding
         spacing: 10
-        Label {
-            font.family: root.theme.fontFamily
-            text: qsTr("Current outbound")
-            color: root.theme.text
-            font.bold: true
+        RowLayout {
+            Layout.fillWidth: true
+            Label {
+                font.family: root.theme.fontFamily
+                text: qsTr("Current outbound")
+                color: root.theme.text
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+            }
+            ActionButton {
+                theme: root.theme
+                text: qsTr("View proxies")
+                ghost: true
+                onClicked: root.ui.navigate("proxies", {
+                    "group": "primary"
+                })
+            }
         }
-        OutboundStatus { ui: root.ui; theme: root.theme; compact: true; Layout.fillWidth: true; maximumLineCount: 2; elide: Text.ElideRight }
+        OutboundStatus {
+            ui: root.ui
+            theme: root.theme
+            compact: true
+            Layout.fillWidth: true
+            maximumLineCount: 2
+            elide: Text.ElideRight
+        }
         Label {
             font.family: root.theme.fontFamily
             text: qsTr("New connections follow this policy. Other rules and existing connections may use different nodes.")
             color: root.theme.muted
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-        }
-        ActionButton {
-            theme: root.theme
-            text: qsTr("View proxies")
-            onClicked: root.ui.navigate("proxies", {
-                "group": "primary"
-            })
         }
     }
 }

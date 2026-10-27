@@ -21,7 +21,7 @@ QIcon buildApplicationIcon() {
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
     painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(QStringLiteral("#1877f2")));
+    painter.setBrush(QColor(QStringLiteral("#5b4bc4")));
     painter.drawRoundedRect(1, 1, 30, 30, 10, 10);
     painter.setPen(Qt::white);
     auto font = painter.font();
@@ -232,7 +232,7 @@ bool ApplicationHost::showWindow() {
     return true;
 }
 void ApplicationHost::centerInitialWindow() {
-    // First display centers the default 960x640 logical window in the
+    // First display centers the default 1000x640 logical window in the
     // available area of the screen under the cursor; a geometry saved by
     // hide/unload restores instead and takes precedence over this default.
     const QScreen* screen = QGuiApplication::screenAt(QCursor::pos());
