@@ -23,7 +23,7 @@ $taskCache = Get-Content -LiteralPath $taskCachePath -Raw
 if ($taskCache -notmatch '(?m)^BUILD_TESTING:BOOL=OFF\r?$' -or
     $taskCache -notmatch '(?m)^CMAKE_BUILD_TYPE:STRING=Release\r?$' -or
     $taskCache -notmatch '(?m)^QUICKCLASH_BUILD_UI:BOOL=ON\r?$') {
-    throw 'Use a separate Release build with BUILD_TESTING=OFF and QUICKCLASH_BUILD_UI=ON.'
+    throw 'Use a Release configuration with BUILD_TESTING=OFF and QUICKCLASH_BUILD_UI=ON.'
 }
 $taskMatrixPath = Join-Path $taskRepo 'docs/baseline/release_matrix.json'
 $taskMatrix = Get-Content -LiteralPath $taskMatrixPath -Raw | ConvertFrom-Json

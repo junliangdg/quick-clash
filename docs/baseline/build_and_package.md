@@ -36,7 +36,7 @@
 
 构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
 
-默认UI开发构建目录为`build/dev`，headless为`build/headless`，发行使用独立`build/release`。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
+默认UI开发构建目录为`build/dev`，headless为`build/headless`，本地独立发行默认`build/release`；Windows CI完成测试后在同一`build/dev`切换为无测试发行配置以复用编译结果，详见下节。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
 快速迭代阶段，[日常CI](../../.github/workflows/build.yml)只将Windows设为发布门：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
 
@@ -52,7 +52,9 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 
 PR仅验证。默认分支（当前main）Windows快速验证通过后更新GitHub Releases的`continuous`预发行版；`v*`标签完整Windows验证成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则，可用`full_validation`追加完整门槛。Linux/macOS独立手动验证，不是Windows发布依赖。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous仅代表快速验证的开发快照，版本发布还须结合已声明支持范围的验收证据。
 
-Windows验证runner复用已装工具/依赖，再使用独立`release` preset构建，`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`，编译期移除宿主/键盘/原型/界面测试探针，不使用dev exe打包。`scripts/package_release_windows.ps1`拒绝测试构建，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
+Windows验证runner复用已装工具/依赖，测试通过后执行`cmake --preset release -B build/dev`，在同一目录切换到`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`再构建。UI测试探针为仅测试静态库，测试宏/开发资产路径宏只作用于使用它们的源文件；切换时复用未变的公共对象/QML缓存，只重新编译有差异的代码及重新链接，不再启动第二套独立全量构建。目录中残留的测试文件不安装；配置和当前目标图均关闭测试，生产程序不再链接探针/QtTest。本地`cmake --preset release`仍默认独立目录，只有同工具链/同Qt/同源码且已完成测试的CI顺序流程采用目录复用。再次验证须先运行dev配置，不能对发行配置直接执行旧CTest清单。
+
+`scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
 
 Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
 

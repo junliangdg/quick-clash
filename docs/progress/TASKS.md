@@ -12,7 +12,7 @@
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#验证范围)；另获构建授权后补新源码定向验证 |
 | 系统代理冲突显式开启重建基线 | Done | Zoo | Review | [修复报告](reports/windows_validation.md#系统代理冲突修复)；增量构建/proxy_lease/recovery 退出0；全量 CTest 受既有 provider_stream_test 编译错误影响，GUI/原生转发验收 NotRun |
 | GitHub三平台CI配置修复 | Review | Codex | Fail | [核验与修复报告](reports/20261027_github_release.md#ci故障与修复)、[Qt6.8回归](DEVLOG.md#2026-10-27--actions-qt68-ui回归调查)；远端两项UI Fail已在本机Qt6.8复现，RuntimeList绑定修复后构建/QML lint及9/9 UI回归Pass；远端仍待重跑，不删除测试 |
-| Windows GitHub持续交付发行包 | Review | Codex | NotRun | [持续交付报告](reports/20261027_github_release.md)、[快速迭代CI](DEVLOG.md#2026-10-27--windows优先快速迭代ci)；Windows快速/完整验证、同runner打包及独立发布，其他平台手动后置；本机Qt6.8快速22/22、headless5/5及Release无测试配置通过，远端Actions/发行待核对 |
+| Windows GitHub持续交付发行包 | Review | Codex | NotRun | [持续交付报告](reports/20261027_github_release.md)、[main编译复用](DEVLOG.md#2026-10-27--main直接推送编译复用)；保留main快检，同目录切换无测试发行配置；本机Qt6.8快速22/22、切换仅重编3个源文件及干净包/清PATH启动通过，远端Actions/发行待核对 |
 
 ## 阶段任务
 

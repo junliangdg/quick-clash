@@ -131,11 +131,14 @@ jobs:
           } else {
             ./scripts/build_windows.ps1 -Fast
           }
-      - name: Build production binaries without tests or probes
+      - name: Prepare production binaries from the tested build
         if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
+        shell: pwsh
         run: |
-          cmake --preset release
-          cmake --build --preset release --parallel 4
+          . ./scripts/native_process.ps1
+          $logs = 'build/dev/logs/release_' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
+          Invoke-NativeStep -Executable (Get-Command cmake).Source -Arguments @('--preset', 'release', '-B', 'build/dev') -WorkingDirectory $PWD.Path -LogPath "$logs/configure.log" -TimeoutSeconds 120
+          Invoke-NativeStep -Executable (Get-Command cmake).Source -Arguments @('--build', 'build/dev', '--parallel', '4') -WorkingDirectory $PWD.Path -LogPath "$logs/build.log" -TimeoutSeconds 600
       - name: Package and smoke test Windows runtime
         if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
         shell: pwsh
@@ -143,7 +146,7 @@ jobs:
           RELEASE_REF: ${{ github.ref_name }}
         run: |
           $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:RELEASE_REF } else { 'continuous' }
-          ./scripts/package_release_windows.ps1 -Version $version -Commit $env:GITHUB_SHA
+          ./scripts/package_release_windows.ps1 -BuildDirectory build/dev -Version $version -Commit $env:GITHUB_SHA
       - uses: actions/upload-artifact@v4
         if: github.event_name != 'pull_request' && (github.ref == format('refs/heads/{0}', github.event.repository.default_branch) || startsWith(github.ref, 'refs/tags/v'))
         with:

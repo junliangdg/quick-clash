@@ -45,7 +45,8 @@ target_compile_definitions(quickclash_config PRIVATE
     QUICKCLASH_GEOIP_SHA256="${QUICKCLASH_GEOIP_SHA256}"
     QUICKCLASH_GEOSITE_SHA256="${QUICKCLASH_GEOSITE_SHA256}")
 if(BUILD_TESTING)
-    target_compile_definitions(quickclash_config PRIVATE QUICKCLASH_DEVELOPMENT_GEO="${CMAKE_SOURCE_DIR}/.cache/geo")
+    set_property(SOURCE src/infra/config/geo_resources.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+        QUICKCLASH_DEVELOPMENT_GEO="${CMAKE_SOURCE_DIR}/.cache/geo")
 endif()
 target_link_libraries(quickclash_config PUBLIC quickclash_domain PRIVATE yaml-cpp::yaml-cpp)
 quickclash_warnings(quickclash_config)
@@ -96,7 +97,7 @@ if(WIN32)
     target_link_libraries(quickclash_runtime PRIVATE wininet psapi)
 endif()
 if(BUILD_TESTING)
-    target_compile_definitions(quickclash_runtime PRIVATE
+    set_property(SOURCE src/application/desktop_runtime.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         QUICKCLASH_DEVELOPMENT_CORE="${CMAKE_SOURCE_DIR}/.cache/mihomo/mihomo.exe")
 endif()
 quickclash_warnings(quickclash_runtime)
@@ -301,13 +302,21 @@ if(BUILD_TESTING)
         target_link_libraries(localization_test PRIVATE quickclash_localization)
         quickclash_warnings(localization_test)
         add_test(NAME localization COMMAND localization_test)
-        target_sources(quickclash PRIVATE app/host_probe.cpp app/host_probe.h app/keyboard_probe.cpp)
-        target_sources(quickclash PRIVATE tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h)
-        target_sources(quickclash PRIVATE tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h)
-        target_sources(quickclash PRIVATE tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp)
-        target_include_directories(quickclash PRIVATE tests/integration app)
-        target_link_libraries(quickclash PRIVATE Qt6::Test)
-        target_compile_definitions(quickclash PRIVATE QUICKCLASH_TEST_PROBES)
+        # Keep test-only include paths/definitions out of the application and its
+        # generated QML objects so a tested build can reuse them for packaging.
+        add_library(quickclash_test_probes STATIC app/host_probe.cpp app/host_probe.h app/keyboard_probe.cpp
+            tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h
+            tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h
+            tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp
+            tests/integration/visual_ui_probe.cpp)
+        target_include_directories(quickclash_test_probes PRIVATE app tests/integration src/presentation)
+        target_link_libraries(quickclash_test_probes PRIVATE quickclash_runtime Qt6::Quick Qt6::Widgets Qt6::Test)
+        target_compile_definitions(quickclash_test_probes PRIVATE QUICKCLASH_TEST_PROBES)
+        quickclash_warnings(quickclash_test_probes)
+        target_link_libraries(quickclash PRIVATE quickclash_test_probes)
+        set_property(SOURCE app/main.cpp APPEND PROPERTY COMPILE_DEFINITIONS QUICKCLASH_TEST_PROBES)
+        set_property(SOURCE app/main.cpp APPEND PROPERTY INCLUDE_DIRECTORIES
+            "${CMAKE_SOURCE_DIR}/tests/integration")
         add_executable(qt_cost_probe bench/qt_cost_probe.cpp)
         target_link_libraries(qt_cost_probe PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)
         quickclash_warnings(qt_cost_probe)
@@ -334,7 +343,6 @@ if(BUILD_TESTING)
             TIMEOUT 60)
         add_test(NAME qml_smoke COMMAND quickclash --smoke-test)
         add_test(NAME ui_keyboard COMMAND quickclash --keyboard-test)
-        target_sources(quickclash PRIVATE tests/integration/visual_ui_probe.cpp)
         add_test(NAME ui_visual COMMAND quickclash --visual-test)
         set_tests_properties(ui_visual PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"

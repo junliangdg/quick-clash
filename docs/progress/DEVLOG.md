@@ -482,3 +482,10 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 旧headless缓存指向已移除MSVC14.50.35717，未修改产品绕过；改用新目录`build/ci_headless`后真实headless构建及5/5测试4.65秒全Pass，日志`build/ci_headless/logs/20261027T114717505Z_6bf727e0a75947f8a2b5dfbc1f8d284d/`。独立release preset配置到`build/ci_release_config`退出0，BUILD_TESTING=OFF/CTest零项，构建图无QtTest、测试/探针/快速target；本轮未重建发行包，既有干净包核验仅代表其原版本。
 - 两份工作流通过actionlint1.7.12；提取实际范围分类脚本的13项本地模拟通过，覆盖纯文档/运行策略/依赖清单/随包许可/源码/工作流/未知路径、手动/完整覆盖及diff失败。进度检查12项正反例、进程执行器、11项依赖回归、发布编排模拟、PowerShell语法和全自有C++格式检查通过，无远端发布写入。设计19章生成及-Check、最终进度/源码命名（185文件）/git diff --check均退出0。
 - 专项Review，远端Actions/发行和非Windows原生仍NotRun，本轮未运行慢测试及真实内核探针；阶段/MVP不因CI分层转Pass，未提交/推送。下一步推送后核对Windows日常验证和同次包发布，版本发行或内核/恢复等关键改动用完整模式，Linux/macOS按需手动验证。
+
+## 2026-10-27 / main直接推送编译复用
+
+- Codex；用户主要直接推送main，保留同次提交的Windows快检与发行包。将UI测试探针提取为仅测试静态库，测试宏/开发路径宏限制到实际使用源文件；验证通过后同工具链、同目录用release preset关闭BUILD_TESTING，复用未变公共库/QML对象，重新编译有差异的入口/资源定位代码并重新链接。安装仅选择生产target，打包仍要求Release/BUILD_TESTING=OFF，保留拒绝QtTest/测试exe与包启动检查。
+- Qt6.8.0真实增量构建/QML lint退出0，22/22快检31.10秒全Pass；日志`build/ci_qt680/logs/20261027T121635012Z_ac480575a7e74cc8aeeb0e677834d765/`。同目录切换release后，114条生产编译命令中仅main.cpp、geo_resources.cpp、desktop_runtime.cpp三条变化，实际对象时间戳/构建日志均确认只重编这3项；QML缓存与其余公共对象复用，增量构建12.759秒（含重编/链接，不含配置/打包），不将本机耗时当远端承诺。切换证据`build/ci_qt680/logs/release_reuse_20261027T121854184Z/`。
+- 首次打包因缺Mihomo许可缓存被拒绝；沙箱内及外在线获取均SSL失败，改用此前已下载官方许可，SHA256与锁定清单一致后恢复缓存，fetch_dependencies -Offline通过。未放宽资产校验或修改来源。再次打包成功，`build/ci_validation/reuse_package.zip`及摘要仅写build；清开发PATH启动page_ready=true/qml_errors=0，包仅quickclash/quickclash_service/mihomo三个exe、无QtTest/测试程序/静态库/符号，185项文件清单加清单本身。生产编译命令无测试/开发路径宏，当前目标图与链接无探针库/QtTest。
+- 两份工作流actionlint、设计生成/-Check、PowerShell语法、进度/源码命名与diff检查通过；Qt6.8 headless增量构建与5/5测试4.58秒Pass，日志`build/ci_headless/logs/20261027T122149301Z_911ed4c58b754ee2a06b2d6396b5fbb1/`。专项Review，远端Actions/发布仍NotRun，未重跑慢集成或内核探针，不修改阶段/MVP结论；下一步推送后核对main快检→增量发行→同次包发布，未提交/推送。
