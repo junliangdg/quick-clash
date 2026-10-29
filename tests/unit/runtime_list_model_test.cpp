@@ -87,6 +87,8 @@ class RuntimeListModelTest final : public QObject {
         QCOMPARE(firstId(view), QString("b"));
         view.setQuery("ALPHA");
         QCOMPARE(view.captureIds(), QStringList{"a"});
+        QCOMPARE(view.connection("a", "b").value("id").toString(), QString("b"));
+        QVERIFY(view.connection("old", "b").isEmpty());
         view.setQuery("browser");
         QCOMPARE(view.count(), 2);
         view.setQuery("proxy");
@@ -111,6 +113,28 @@ class RuntimeListModelTest final : public QObject {
         rows.apply({a, b});
         QCOMPARE(view.count(), 1);
         QCOMPARE(firstId(view), QString("b"));
+    }
+    void selectionSurvivesThousandRowChanges() {
+        RuntimeRows rows(RuntimeRows::Kind::Connections);
+        RuntimeListModel view(&rows, true);
+        QJsonArray values;
+        for (int i = 0; i < 1000; ++i)
+            values.append(connection(QString::number(i), QString("host%1").arg(i), i));
+        rows.apply(values);
+        QSignalSpy reset(&rows, &QAbstractItemModel::modelReset);
+        QSignalSpy updated(&view, &RuntimeListModel::entriesChanged);
+        view.setQuery("host999");
+        auto selected = values[0].toObject();
+        selected.insert("upload", 200);
+        values[0] = selected;
+        rows.apply(values);
+        QCOMPARE(view.connection("a", "0").value("upload").toInt(), 200);
+        QCOMPARE(view.count(), 1);
+        QVERIFY(!updated.isEmpty());
+        values.removeFirst();
+        rows.apply(values);
+        QVERIFY(view.connection("a", "0").isEmpty());
+        QCOMPARE(reset.size(), 0);
     }
     void rulesProvidersLogs() {
         RuntimeRows rules(RuntimeRows::Kind::Rules);
@@ -153,6 +177,15 @@ class RuntimeListModelTest final : public QObject {
                          QJsonObject{{"name", "same"}, {"kind", "proxies"}, {"count", 2}}});
         QCOMPARE(providerChange.size(), 1);
         QVERIFY(qvariant_cast<QList<int>>(providerChange[0][2]).contains(RuntimeRows::Count));
+        RuntimeListModel providerView(&providers, false);
+        providerView.setQuery("Failed");
+        QCOMPARE(providerView.count(), 0);
+        providers.apply(
+            {QJsonObject{
+                 {"name", "same"}, {"kind", "rules"}, {"count", 3}, {"lastResult", "Failed"}},
+             QJsonObject{{"name", "same"}, {"kind", "proxies"}, {"count", 2}}});
+        QCOMPARE(providerView.count(), 1);
+        QCOMPARE(providerView.index(0, 0).data(RuntimeRows::KindRole).toString(), QString("rules"));
         RuntimeRows logs(RuntimeRows::Kind::Logs);
         RuntimeListModel logView(&logs, false);
         const auto log = [](int sequence, const QString& source, const QString& level) {
@@ -177,6 +210,12 @@ class RuntimeListModelTest final : public QObject {
         // The joined search text is unchanged, but exact source/level matching must refresh.
         logs.apply({log(4, "App error", "warn")});
         QCOMPARE(logView.count(), 0);
+        logs.apply({log(5, "Core", "warning"), log(6, "Service", "warning")});
+        logView.setSourceFilter("Service");
+        logView.setLevelFilter("warning");
+        QCOMPARE(logView.count(), 1);
+        QCOMPARE(logView.index(0, 0).data(RuntimeRows::Entry).toMap().value("localSeq").toString(),
+                 QStringLiteral("6"));
     }
 };
 QTEST_GUILESS_MAIN(RuntimeListModelTest)

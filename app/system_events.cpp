@@ -59,6 +59,8 @@ bool SystemEvents::nativeEventFilter(const QByteArray& type, void* message, qint
     Q_UNUSED(result)
 #ifdef Q_OS_WIN
     const auto* event = static_cast<MSG*>(message);
+    if (event->message == WM_SETTINGCHANGE)
+        emit typographyChanged();
     if (event->message == WM_POWERBROADCAST &&
         (event->wParam == PBT_APMRESUMEAUTOMATIC || event->wParam == PBT_APMRESUMESUSPEND)) {
         emit reconcileRequested();

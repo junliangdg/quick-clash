@@ -22,10 +22,19 @@ preflightConfig(const QByteArray& input, const domain::RuntimePreferences& prefe
 [[nodiscard]] QJsonArray orderedProxyGroups(const QJsonArray& configured, const QJsonObject& live);
 [[nodiscard]] QJsonObject outboundSummary(const QJsonArray& groups, const QString& defaultPolicy,
                                           const QString& mode, bool ready);
-// Provider URLs remain on the worker; only bounded HTTPS snapshots are expanded.
+// Provider URLs remain on the worker. Raw HTTP providers require managed materialization.
 [[nodiscard]] domain::Result<QJsonArray> providerRequests(const QByteArray& input);
 [[nodiscard]] domain::Result<QByteArray>
 expandProviders(const QByteArray& input, const QHash<QString, QByteArray>& payloads);
+// Preserve managed HTTP providers and RULE-SET; fallback payloads have already passed expansion.
+// Paths are derived from provider identity, never copied from a subscription.
+[[nodiscard]] domain::Result<QByteArray>
+runtimeProviderConfig(const QByteArray& input, const QHash<QString, QIODevice*>& payloads);
+// Export the validated import fallback, never mutable core cache content or a remote fetch.
+[[nodiscard]] domain::Result<QByteArray> offlineProviderConfig(const QByteArray& input);
+[[nodiscard]] QString runtimeProviderPath(const QString& kind, const QString& name,
+                                          const QString& url, const QString& format,
+                                          const QString& behavior);
 // Production path: borrowed rewindable owned files, bounded output, no rule Node graph.
 [[nodiscard]] domain::CommandResult expandProviderFiles(QIODevice& input,
                                                         const QHash<QString, QIODevice*>& payloads,

@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "platform/windows/system_proxy.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QElapsedTimer>
@@ -302,6 +303,19 @@ bool networkAndConflict() {
     if (!waitFor([&] { return ready(runtime); }))
         return false;
     const auto pid = runtime.snapshot().value("corePid");
+    QTcpServer pendingWebsite;
+    if (!pendingWebsite.listen(QHostAddress::LocalHost))
+        return false;
+    runtime.testWebsite(QStringLiteral("https://127.0.0.1:%1/").arg(pendingWebsite.serverPort()),
+                        QStringLiteral("Direct"));
+    if (!check(runtime.snapshot()
+                       .value("features")
+                       .toObject()
+                       .value("websiteTest")
+                       .toObject()
+                       .value("state") == "Running",
+               "network reconciliation starts with an actual pending website test"))
+        return false;
     settings.value.insert(QStringLiteral("server"),
                           QStringLiteral("external.example.invalid:9000"));
     const auto external = settings.value;
@@ -361,13 +375,40 @@ bool networkAndConflict() {
     return check(runtime.snapshot().value("reconciliation").toObject().value("requests") == "20",
                  "shutdown ignores late OS events");
 }
+bool failedStopPreservesProfile() {
+    QTemporaryDir directory;
+    JsonStore store(directory.path());
+    Settings settings;
+    if (!passed(store.open()))
+        return false;
+    DesktopRuntime runtime(store, nullptr, &settings);
+    runtime.initialize();
+    if (!import(runtime))
+        return false;
+    runtime.start(true);
+    if (!waitFor([&] { return ready(runtime); }))
+        return false;
+    const auto before = runtime.snapshot();
+    settings.fail = true;
+    runtime.deleteProfile(before.value("selectedId").toString());
+    const auto failed = runtime.snapshot();
+    const bool preserved =
+        failed.value("profiles") == before.value("profiles") &&
+        failed.value("selectedId") == before.value("selectedId") &&
+        failed.value("selectionGeneration") == before.value("selectionGeneration") &&
+        failed.value("error") == "InjectedPlatformFailure";
+    settings.fail = false;
+    runtime.stop();
+    return check(preserved && settings.value == originalSettings(),
+                 "failed proxy release must preserve active profile and selection for repair");
+}
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     const auto arguments = app.arguments();
     if (arguments.contains(QStringLiteral("--child")))
         return child(arguments);
-    if (!firstFailures() || !networkAndConflict() ||
+    if (!firstFailures() || !networkAndConflict() || !failedStopPreservesProfile() ||
         !killedWorker(arguments.contains(QStringLiteral("--native-system-proxy"))))
         return 1;
     std::cout << "First port/platform/disk failures, managed partial failure, merged network "

@@ -61,6 +61,28 @@ domain::Result<StoredGeoResource> GeoResourceWriter::finish(const QString& fileN
     const auto digest = checksum_.result().toHex();
     const auto reference =
         QStringLiteral("data/geo/%1/%2").arg(QString::fromLatin1(digest), fileName);
+    const auto existingPath = store_.path(reference);
+    if (const auto* error = std::get_if<domain::Error>(&existingPath))
+        return fail(error->code.toLatin1().constData());
+    if (QFileInfo::exists(std::get<QString>(existingPath))) {
+        QFile existing(std::get<QString>(existingPath));
+        if (store_.readOnly() || !existing.open(QIODevice::ReadOnly) || existing.size() != total_)
+            return fail("GeoResourceIntegrityFailed");
+        QCryptographicHash verified(QCryptographicHash::Sha256);
+        qint64 count = 0;
+        const auto checked =
+            consumeAvailable(existing, count, kGeoLimit, [&](QByteArrayView chunk) {
+                verified.addData(chunk);
+                return true;
+            });
+        if (checked != ReadStatus::Complete || count != total_ || existing.size() != total_ ||
+            existing.error() != QFileDevice::NoError || verified.result().toHex() != digest)
+            return fail("GeoResourceIntegrityFailed");
+        const auto cleaned = cancel();
+        if (const auto* error = std::get_if<domain::Error>(&cleaned))
+            return *error;
+        return StoredGeoResource{reference, QString::fromLatin1(digest)};
+    }
     const auto resolved = store_.prepareWrite(reference, true);
     if (const auto* error = std::get_if<domain::Error>(&resolved))
         return fail(error->code.toLatin1().constData());

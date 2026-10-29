@@ -1,6 +1,14 @@
 #include "application/desktop_runtime.h"
+#ifdef Q_OS_WIN
+#include "platform/windows/system_proxy.h"
+#endif
+#include "backup_probe.h"
+#include "config_editor_probe.h"
+#include "geo_update_probe.h"
 #include "native_proxy_client.h"
 #include "network_fixture.h"
+#include "provider_probe.h"
+#include "subscription_download_probe.h"
 #include "subscription_memory_probe.h"
 #include "subscription_probe.h"
 #include <QCoreApplication>
@@ -18,6 +26,7 @@
 #include <QUrl>
 #include <future>
 #include <iostream>
+#include <yaml-cpp/yaml.h>
 
 namespace {
 class MemoryProxySettings final : public quickclash::platform::ProxySettings {
@@ -57,6 +66,16 @@ bool require(bool value, const char* message, quickclash::application::DesktopRu
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--provider-test")))
+        return quickclash::test::providerProbe();
+    if (app.arguments().contains(QStringLiteral("--backup-test")))
+        return quickclash::test::backupProbe();
+    if (app.arguments().contains(QStringLiteral("--config-editor-test")))
+        return quickclash::test::configEditorProbe();
+    if (app.arguments().contains(QStringLiteral("--geo-update-test")))
+        return quickclash::test::geoUpdateProbe();
+    if (app.arguments().contains(QStringLiteral("--subscription-download-test")))
+        return quickclash::test::subscriptionDownloadProbe();
     if (app.arguments().contains(QStringLiteral("--update-memory-probe")))
         return quickclash::test::subscriptionMemoryProbe();
     QTemporaryDir directory;
@@ -87,6 +106,21 @@ int main(int argc, char** argv) {
     while (controller == mixed)
         controller = port();
     runtime.setPorts(mixed, controller);
+    if (!require(runtime.snapshot()
+                             .value("settingsState")
+                             .toObject()
+                             .value("saved")
+                             .toObject()
+                             .value("mixedPort")
+                             .toInt() == mixed &&
+                     !runtime.snapshot()
+                          .value("settingsState")
+                          .toObject()
+                          .value("effective")
+                          .toObject()
+                          .contains("mixedPort"),
+                 "stopped preferences are saved without becoming effective", runtime))
+        return 157;
     runtime.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
                                                "tests/fixtures/mvp/inline_valid.yaml")))
                            .toString(),
@@ -139,7 +173,23 @@ int main(int argc, char** argv) {
                  }),
                  "encoded selector readback", runtime))
         return 6;
-    runtime.setMode(QStringLiteral("global"));
+    runtime.featureCommand("network_settings",
+                           {"global", QString::number(mixed), QString::number(controller),
+                            "profile", runtime.snapshot().value("epoch").toString(), "0"});
+    if (!require(runtime.snapshot().value("preferences").toObject().value("mode") == "rule",
+                 "network confirmation rejects changed selection", runtime))
+        return 158;
+    runtime.featureCommand("network_settings",
+                           {"global", QString::number(mixed), QString::number(controller),
+                            "profile", runtime.snapshot().value("epoch").toString(),
+                            runtime.snapshot().value("selectionGeneration").toString()});
+    const auto requestedSettings = runtime.snapshot().value("settingsState").toObject();
+    if (!require(requestedSettings.value("pending").toBool() &&
+                     requestedSettings.value("requested").toObject().value("mode") == "global" &&
+                     requestedSettings.value("effective").toObject().value("mode") == "rule" &&
+                     requestedSettings.value("saved").toObject().value("mode") == "rule",
+                 "requested change retains old effective settings until confirmation", runtime))
+        return 159;
     if (!require(waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }) &&
                      runtime.snapshot().value("ready").toBool() &&
                      runtime.snapshot().value("preferences").toObject().value("mode") ==
@@ -148,7 +198,13 @@ int main(int argc, char** argv) {
         return 7;
     runtime.stop();
     if (!require(!runtime.snapshot().value("ready").toBool() &&
-                     !runtime.snapshot().value("groups").toArray().isEmpty(),
+                     !runtime.snapshot().value("groups").toArray().isEmpty() &&
+                     !runtime.snapshot()
+                          .value("settingsState")
+                          .toObject()
+                          .value("effective")
+                          .toObject()
+                          .contains("mixedPort"),
                  "stop retains offline nodes", runtime))
         return 8;
     auto subscriptionTime = QDateTime::currentDateTimeUtc();
@@ -198,6 +254,7 @@ int main(int argc, char** argv) {
     const auto source =
         QStringLiteral("https://127.0.0.1:%1/subscription?token=public-fixture-token")
             .arg(origin.serverPort());
+    origin.subscriptionUsage = "upload=10;download=80;total=100;expire=1800086400";
     reopened.addSubscription(QStringLiteral("  ") + source + QStringLiteral("\r\n"),
                              QStringLiteral("Fixture B HTTPS"));
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
@@ -207,6 +264,21 @@ int main(int argc, char** argv) {
                  "https subscription", reopened))
         return 13;
     auto second = reopened.snapshot().value("profiles").toArray()[1].toObject();
+    {
+        quickclash::application::DesktopRuntime metadataReopened(store, nullptr, nullptr,
+                                                                 [&] { return subscriptionTime; });
+        metadataReopened.initialize();
+        const auto restored = metadataReopened.snapshot().value("profiles").toArray()[1].toObject();
+        if (!require(restored.value("usage") == second.value("usage") &&
+                         restored.value("usageCollectedAt") == second.value("usageCollectedAt") &&
+                         restored.value("usageStatus") == second.value("usageStatus"),
+                     "usage metadata and projected warnings survive reopen", metadataReopened))
+            return 149;
+    }
+    if (!require(!second.value("usageCollectedAt").toString().isEmpty() &&
+                     second.value("usageStatus").toObject().value("quotaState") == "Low",
+                 "subscription metadata records collection time and warning", reopened))
+        return 147;
     reopened.selectProfile(second.value("id").toString());
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
                  "second selection", reopened))
@@ -268,6 +340,140 @@ int main(int argc, char** argv) {
                              .value("path") == QStringLiteral("Direct"),
                  "explicit direct request reports selected path", reopened))
         return 182;
+    const auto websiteState = [&] {
+        return reopened.snapshot().value("features").toObject().value("websiteTest").toObject();
+    };
+    const auto probeWebsite = [&](const QString& suffix, const QString& expected,
+                                  const QString& route = QStringLiteral("CurrentProxy")) {
+        reopened.testWebsite(
+            QStringLiteral("https://%1:%2%3")
+                .arg(route == "CurrentProxy" ? "fixture.quickclash.invalid" : "127.0.0.1")
+                .arg(origin.serverPort())
+                .arg(suffix),
+            route);
+        return waitFor([&] { return websiteState().value("state") != "Running"; }) &&
+               websiteState().value("state") == expected;
+    };
+    origin.redirects.insert("/redirect", "/redirect-final");
+    origin.redirects.insert("/loop", "/loop");
+    origin.redirects.insert("/downgrade", "http://127.0.0.1/never-requested");
+    origin.redirects.insert("/credentials", "https://user:secret@127.0.0.1/never-requested");
+    origin.redirects.insert(
+        "/cross-origin",
+        QStringLiteral("https://127.0.0.1:%1/direct-final").arg(origin.serverPort()).toUtf8());
+    for (int hop = 0; hop < 4; ++hop)
+        origin.redirects.insert("/hop" + QByteArray::number(hop),
+                                "/hop" + QByteArray::number(hop + 1));
+    origin.payloads.insert("/large", QByteArray(65537, 'x'));
+    origin.payloads.insert("/chain-limit", QByteArray(40000, 'x'));
+    origin.payloads.insert("/chain-final", QByteArray(40000, 'x'));
+    origin.redirects.insert("/chain-limit", "/chain-final");
+    if (!require(
+            probeWebsite("/redirect", "Reachable") &&
+                websiteState().value("redirects").toInt() == 1 && origin.lastCookie.isEmpty() &&
+                websiteState().value("mode") == "rule" &&
+                !websiteState().value("finalOrigin").toString().isEmpty() &&
+                probeWebsite("/loop", "RedirectLimit") && probeWebsite("/hop0", "RedirectLimit") &&
+                websiteState().value("redirects").toInt() == 3 &&
+                probeWebsite("/downgrade", "RedirectBlocked") &&
+                probeWebsite("/credentials", "RedirectBlocked") &&
+                probeWebsite("/large", "ResponseLimit") &&
+                websiteState().value("bytes").toInt() == 65537 &&
+                probeWebsite("/chain-limit", "ResponseLimit") &&
+                probeWebsite("/cross-origin", "Reachable", "Direct") && origin.lastCookie.isEmpty(),
+            "bounded HTTPS redirects, aggregate bytes and no cookies", reopened))
+        return 155;
+    const auto remotePort = remote.serverPort();
+    const auto originBeforeFailure = origin.requests.size();
+    remote.close();
+    reopened.testWebsite(QStringLiteral("https://fixture.quickclash.invalid:%1/no-fallback")
+                             .arg(origin.serverPort()));
+    if (!require(waitFor([&] { return websiteState().value("state") != "Running"; }) &&
+                     websiteState().value("state") != "Reachable" &&
+                     origin.requests.size() == originBeforeFailure &&
+                     remote.listen(QHostAddress::LocalHost, remotePort),
+                 "unavailable upstream never falls back to direct origin", reopened))
+        return 162;
+    reopened.testWebsite(QStringLiteral("https://no-such-host.quickclash.invalid/"),
+                         QStringLiteral("Direct"));
+    if (!require(waitFor([&] { return websiteState().value("state") != "Running"; }) &&
+                     (websiteState().value("state") == "DnsError" ||
+                      websiteState().value("state") == "NetworkError"),
+                 "unreachable hostname remains a DNS or network failure under system DNS",
+                 reopened))
+        return 163;
+    reopened.testWebsite(
+        QStringLiteral("https://localhost:%1/tls-mismatch").arg(origin.serverPort()),
+        QStringLiteral("Direct"));
+    if (!require(waitFor([&] { return websiteState().value("state") != "Running"; }) &&
+                     websiteState().value("state") == "TlsError",
+                 "TLS hostname mismatch is not bypassed", reopened))
+        return 156;
+    origin.responseDelays.insert("/slow-first", 3000);
+    origin.responseDelays.insert("/slow-final", 11000);
+    origin.redirects.insert("/slow-first", "/slow-final");
+    if (!require(probeWebsite("/slow-first", "Timeout") &&
+                     websiteState().value("elapsedMs").toInt() <= 12500,
+                 "redirect chain shares one overall deadline", reopened))
+        return 157;
+    const auto countBeforeCancel = origin.requests.size();
+    reopened.featureCommand(
+        QStringLiteral("test_batch"),
+        {QStringLiteral("Direct"),
+         QStringLiteral("https://127.0.0.1:%1/slow-final").arg(origin.serverPort()),
+         QStringLiteral("https://127.0.0.1:%1/never-queued").arg(origin.serverPort())});
+    if (!waitFor([&] { return origin.requests.size() > countBeforeCancel; }))
+        return 158;
+    reopened.featureCommand(QStringLiteral("cancel_test"), {});
+    QCoreApplication::processEvents();
+    if (!require(websiteState().value("state") == "Cancelled" &&
+                     !origin.requests.contains(QStringLiteral("GET /never-queued")),
+                 "batch cancellation releases queue and rejects late reply", reopened))
+        return 159;
+    if (!probeWebsite("/before-stale", "Reachable"))
+        return 160;
+    reopened.reconcile();
+    if (!require(websiteState().value("state") == "Stale" && reopened.snapshot()
+                                                                 .value("features")
+                                                                 .toObject()
+                                                                 .value("testHistory")
+                                                                 .toArray()
+                                                                 .last()
+                                                                 .toObject()
+                                                                 .value("stale")
+                                                                 .toBool(),
+                 "network changes invalidate completed results and history immediately", reopened))
+        return 161;
+    for (int batch = 0; batch < 4; ++batch) {
+        QStringList urls{QStringLiteral("Direct")};
+        for (int item = 0; item < 8; ++item)
+            urls.append(QStringLiteral("https://127.0.0.1:%1/batch-%2-%3")
+                            .arg(origin.serverPort())
+                            .arg(batch)
+                            .arg(item));
+        reopened.featureCommand(QStringLiteral("test_batch"), urls);
+        const auto last = urls.last();
+        if (!require(waitFor([&] {
+                         return websiteState().value("state") == "Reachable" &&
+                                websiteState().value("target") == last;
+                     }) &&
+                         reopened.snapshot()
+                                 .value("features")
+                                 .toObject()
+                                 .value("testHistory")
+                                 .toArray()
+                                 .size() <= 32,
+                     "finite serial batches keep history bounded", reopened))
+            return 164;
+    }
+    if (!require(reopened.snapshot()
+                         .value("features")
+                         .toObject()
+                         .value("testHistory")
+                         .toArray()
+                         .size() == 32,
+                 "history evicts oldest results", reopened))
+        return 165;
     origin.invalidSubscription = true;
     reopened.updateProfile(second.value("id").toString());
     if (!require(
@@ -319,11 +525,22 @@ int main(int argc, char** argv) {
             "selection and forwarding survive automatic apply", reopened))
         return 62;
     const auto unchangedPid = reopened.snapshot().value("corePid");
+    origin.subscriptionUsage = "download=95;total=100";
     reopened.updateProfile(subscriptionId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
                      reopened.snapshot().value("corePid") == unchangedPid,
                  "unchanged update does not restart core", reopened))
         return 63;
+    if (!require(reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("usageStatus")
+                         .toObject()
+                         .value("quotaState") == "Unknown",
+                 "same-body update replaces missing metadata without guessing zero upload",
+                 reopened))
+        return 148;
     origin.invalidSubscription = true;
     subscriptionTime = subscriptionTime.addSecs(61 * 60);
     reopened.reconcile();
@@ -475,12 +692,24 @@ int main(int argc, char** argv) {
     QTcpServer occupied;
     if (!occupied.listen(QHostAddress::LocalHost))
         return 21;
-    reopened.setPorts(occupied.serverPort(), controller);
+    reopened.featureCommand("network_settings",
+                            {"rule", QString::number(occupied.serverPort()),
+                             QString::number(controller), "profile",
+                             reopened.snapshot().value("epoch").toString(),
+                             reopened.snapshot().value("selectionGeneration").toString()});
     if (!require(
             waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
                 reopened.snapshot().value("ready").toBool() &&
                 reopened.snapshot().value("preferences").toObject().value("mixedPort").toInt() ==
-                    mixed,
+                    mixed &&
+                reopened.snapshot()
+                        .value("settingsState")
+                        .toObject()
+                        .value("effective")
+                        .toObject()
+                        .value("mixedPort")
+                        .toInt() == mixed &&
+                !reopened.snapshot().value("settingsState").toObject().value("pending").toBool(),
             "occupied port compensation", reopened))
         return 22;
     const auto crashedPid = static_cast<quint32>(reopened.snapshot().value("corePid").toInt());
@@ -746,9 +975,25 @@ int main(int argc, char** argv) {
                                "automatic_groups_bypass_reject", "automatic_group_projection",
                                "automatic_mutation_rejected", "protocol_selection_readback",
                                "bad_candidate_preserves_running", "protocol_stop_restart"});
-    reopened.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
-                                                "tests/fixtures/mvp/dns_supported.yaml")))
-                            .toString(),
+    quickclash::test::DnsFixture dnsOrigin;
+    if (!dnsOrigin.initialize())
+        return 166;
+    QFile dnsInput(QStringLiteral("tests/fixtures/mvp/dns_supported.yaml"));
+    if (!dnsInput.open(QIODevice::ReadOnly))
+        return 167;
+    auto dnsBytes = dnsInput.readAll();
+    dnsBytes.replace("https://dns.example.invalid/dns-query", dnsOrigin.resolver.toUtf8());
+    dnsBytes.replace("tls://1.0.0.1:853", dnsOrigin.resolver.toUtf8());
+    dnsBytes += "\n  cache-algorithm: lru\n  nameserver-policy: {'+.quickclash.test': ['" +
+                dnsOrigin.resolver.toUtf8() + "']}\n  fake-ip-filter: ['+.quickclash.test']\n";
+    const auto dnsPath = directory.filePath(QStringLiteral("controlled_dns.yaml"));
+    {
+        QSaveFile dnsFile(dnsPath);
+        if (!dnsFile.open(QIODevice::WriteOnly) || dnsFile.write(dnsBytes) != dnsBytes.size() ||
+            !dnsFile.commit())
+            return 168;
+    }
+    reopened.importFile(QUrl::fromLocalFile(dnsPath).toString(),
                         QStringLiteral("Managed DNS and Geo"));
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
                      reopened.snapshot().value("profiles").toArray().size() == 2,
@@ -763,6 +1008,60 @@ int main(int argc, char** argv) {
     if (!require(waitFor([&] { return reopened.snapshot().value("ready").toBool(); }),
                  "DNS Geo Ready", reopened))
         return 56;
+    const auto queryDns = [&](const QString& name) {
+        const auto epoch = reopened.snapshot().value("epoch").toString();
+        QFile session(
+            directory.filePath(QStringLiteral("data/sessions/%1/config.yaml").arg(epoch)));
+        if (!session.open(QIODevice::ReadOnly))
+            return QByteArray{};
+        const auto config = YAML::Load(session.readAll().toStdString());
+        QNetworkAccessManager api;
+        api.setProxy(QNetworkProxy::NoProxy);
+        QNetworkRequest request(QUrl(QStringLiteral("http://127.0.0.1:%1/dns/query?name=%2&type=A")
+                                         .arg(controller)
+                                         .arg(name)));
+        request.setRawHeader("Authorization", "Bearer " + QByteArray::fromStdString(
+                                                              config["secret"].as<std::string>()));
+        request.setTransferTimeout(3000);
+        auto* reply = api.get(request);
+        return waitFor([&] { return reply->isFinished(); }, 4000) &&
+                       reply->error() == QNetworkReply::NoError
+                   ? reply->readAll()
+                   : QByteArray{};
+    };
+    if (!require(queryDns("fixture.quickclash.test").contains("203.0.113.7") &&
+                     dnsOrigin.requests > 0,
+                 "official fake-ip filtered policy uses controlled DNS", reopened))
+        return 169;
+    const auto cachedDnsRequests = dnsOrigin.requests;
+    if (!require(queryDns("fixture.quickclash.test").contains("203.0.113.7") &&
+                     dnsOrigin.requests == cachedDnsRequests,
+                 "DNS response cache reused", reopened))
+        return 170;
+    reopened.featureCommand(QStringLiteral("flush_dns"), {});
+    if (!require(waitFor([&] {
+                     return reopened.snapshot().value("features").toObject().value("dnsResult") ==
+                            "Cleared";
+                 }) &&
+                     queryDns("fixture.quickclash.test").contains("203.0.113.7") &&
+                     dnsOrigin.requests > cachedDnsRequests,
+                 "DNS cache flush forces controlled requery", reopened))
+        return 171;
+    reopened.featureCommand(QStringLiteral("dns_mode"), {QStringLiteral("redir-host")});
+    if (!require(waitFor([&] {
+                     return !reopened.snapshot().value("busy").toBool() &&
+                            reopened.snapshot().value("ready").toBool();
+                 }) &&
+                     queryDns("fixture.quickclash.test").contains("203.0.113.7"),
+                 "redir-host override retains policy and controlled resolution", reopened))
+        return 172;
+    reopened.featureCommand(QStringLiteral("dns_mode"), {QStringLiteral("profile")});
+    if (!require(waitFor([&] {
+                     return !reopened.snapshot().value("busy").toBool() &&
+                            reopened.snapshot().value("ready").toBool();
+                 }),
+                 "profile DNS override restoration", reopened))
+        return 173;
     reopened.stop();
     reopened.importFile(QUrl::fromLocalFile(QDir::current().absoluteFilePath(QStringLiteral(
                                                 "tests/fixtures/mvp/advanced_supported.yaml")))
@@ -784,6 +1083,33 @@ int main(int argc, char** argv) {
                  }),
                  "advanced Ready", reopened))
         return 112;
+    int balancedCount = 0;
+    for (const auto& entry : reopened.snapshot().value("groups").toArray()) {
+        const auto group = entry.toObject();
+        if (group.value("type") == "LoadBalance") {
+            if (!require(!group.value("canSelect").toBool() &&
+                             group.value("current").toString().isEmpty(),
+                         "official load balancing capability has no single current member",
+                         reopened))
+                return 174;
+            ++balancedCount;
+        }
+    }
+    if (!require(balancedCount == 3, "all load balancing strategies loaded", reopened))
+        return 175;
+    for (const auto& entry :
+         reopened.snapshot().value("features").toObject().value("nodes").toArray())
+        if (!require(entry.toObject().value("type") == "tuic" &&
+                         entry.toObject().value("udp").toBool(),
+                     "TUIC native UDP capability projection", reopened))
+            return 176;
+    const auto advancedPid = reopened.snapshot().value("corePid");
+    reopened.selectProxy(QStringLiteral("Balanced"), QStringLiteral("DIRECT"));
+    if (!require(reopened.snapshot().value("error") == "ProxyGroupAutomatic" &&
+                     reopened.snapshot().value("corePid") == advancedPid &&
+                     !reopened.snapshot().value("busy").toBool(),
+                 "load balancing rejects manual mutation without restart", reopened))
+        return 177;
     reopened.setDemands({QStringLiteral("rules")});
     reopened.featureCommand(QStringLiteral("rules"), {});
     if (!require(waitFor([&] { return !reopened.snapshot().value("rules").toArray().isEmpty(); }),
@@ -810,17 +1136,14 @@ int main(int argc, char** argv) {
                  "same-session rules reacquisition refetches unchanged complete data", reopened))
         return 128;
     reopened.featureCommand(QStringLiteral("flush_dns"), {});
-    if (!require(waitFor([&] {
-                     return !reopened.snapshot()
-                                 .value("features")
-                                 .toObject()
-                                 .value("dnsResult")
-                                 .toString()
-                                 .isEmpty();
-                 }) &&
-                     reopened.snapshot().value("features").toObject().value("dnsResult") ==
-                         "Cleared",
-                 "DNS cache API", reopened))
+    if (!require(
+            waitFor([&] {
+                const auto result =
+                    reopened.snapshot().value("features").toObject().value("dnsResult").toString();
+                return result == "Cleared" || result == "Failed";
+            }) &&
+                reopened.snapshot().value("features").toObject().value("dnsResult") == "Cleared",
+            "DNS cache API", reopened))
         return 114;
     reopened.setDemands(
         {QStringLiteral("traffic"), QStringLiteral("resources"), QStringLiteral("connections")});
@@ -831,8 +1154,80 @@ int main(int argc, char** argv) {
                  }),
                  "live feature demand", reopened))
         return 115;
+    const auto resourceMemory =
+        reopened.snapshot().value("features").toObject().value("memory").toObject();
+    if (!require(resourceMemory.value("core").toObject().value("pid").toString() ==
+                         reopened.snapshot().value("corePid").toVariant().toString() &&
+                     resourceMemory.value("host")
+                             .toObject()
+                             .value("privateCommit")
+                             .toString()
+                             .toULongLong() > 0,
+                 "resource sampler verifies owned core identity and host counters", reopened))
+        return 159;
+    QTcpSocket capturedConnection;
+    const auto holdConnection = [&](QTcpSocket& socket) {
+        socket.connectToHost(QHostAddress::LocalHost, static_cast<quint16>(mixed));
+        if (!waitFor([&] { return socket.state() == QAbstractSocket::ConnectedState; }))
+            return false;
+        socket.write("CONNECT 127.0.0.1:" + QByteArray::number(origin.serverPort()) +
+                     " HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+        return waitFor([&] { return socket.bytesAvailable() > 0; }) &&
+               socket.readAll().contains("200");
+    };
+    if (!require(holdConnection(capturedConnection), "open held connection", reopened))
+        return 150;
+    QString capturedId;
+    if (!require(waitFor([&] {
+                     for (const auto& value : reopened.snapshot().value("connections").toArray()) {
+                         const auto entry = value.toObject();
+                         if (entry.value("metadata")
+                                 .toObject()
+                                 .value("sourcePort")
+                                 .toVariant()
+                                 .toInt() == capturedConnection.localPort())
+                             capturedId = entry.value("id").toString();
+                     }
+                     return !capturedId.isEmpty();
+                 }),
+                 "held connection snapshot", reopened))
+        return 151;
+    reopened.featureCommand("close_connection", {"old-epoch", capturedId});
+    if (!require(!reopened.snapshot().value("features").toObject().value("closeRunning").toBool(),
+                 "old epoch rejected", reopened))
+        return 152;
+    QTcpSocket laterConnection;
+    if (!require(holdConnection(laterConnection), "open later connection", reopened))
+        return 153;
+    reopened.featureCommand("close_filtered_connections",
+                            {reopened.snapshot().value("epoch").toString(), "confirmed", capturedId,
+                             "00000000-0000-4000-8000-000000000099"});
+    if (!require(
+            waitFor([&] {
+                const auto state = reopened.snapshot().value("features").toObject();
+                return !state.value("closeRunning").toBool() &&
+                       state.value("closeRemaining").toInt() == 0;
+            }) &&
+                reopened.snapshot().value("features").toObject().value("closeSucceeded").toInt() ==
+                    1 &&
+                reopened.snapshot().value("features").toObject().value("closeEnded").toInt() == 1 &&
+                laterConnection.state() == QAbstractSocket::ConnectedState,
+            "filtered close accounts ended target and preserves new connections", reopened))
+        return 154;
+    reopened.featureCommand("close_all_connections",
+                            {reopened.snapshot().value("epoch").toString(), "confirmed"});
+    if (!require(
+            waitFor([&] {
+                return reopened.snapshot().value("features").toObject().value("closeAllResult") ==
+                       "Completed";
+            }),
+            "close all reports result", reopened))
+        return 155;
     reopened.setDemands({});
     reopened.stop();
+    if (!require(!reopened.snapshot().value("features").toObject().contains("closeAllResult"),
+                 "stop clears connection close results", reopened))
+        return 156;
     reopened.featureCommand(QStringLiteral("backup"), {QStringLiteral("confirmed")});
     const auto archiveUrl =
         reopened.snapshot().value("features").toObject().value("backupUrl").toString();
@@ -847,6 +1242,19 @@ int main(int argc, char** argv) {
         return 118;
     reopened.featureCommand(QStringLiteral("restore_backup"),
                             {archiveUrl, QStringLiteral("confirmed")});
+    if (!require(reopened.snapshot().value("error") == "BackupPreviewRequired",
+                 "restore requires reviewed preview", reopened))
+        return 157;
+    reopened.featureCommand(QStringLiteral("preview_backup"), {archiveUrl});
+    const auto restoreToken = reopened.snapshot()
+                                  .value("features")
+                                  .toObject()
+                                  .value("backupPreview")
+                                  .toObject()
+                                  .value("token")
+                                  .toString();
+    reopened.featureCommand(QStringLiteral("restore_backup"),
+                            {restoreToken, QStringLiteral("confirmed")});
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
                      reopened.snapshot().value("profiles").toArray().size() == 6,
                  "atomic backup restore", reopened))
@@ -862,9 +1270,8 @@ int main(int argc, char** argv) {
         return 120;
     badArchive.write(QJsonDocument(archiveObject).toJson());
     badArchive.close();
-    reopened.featureCommand(
-        QStringLiteral("restore_backup"),
-        {QUrl::fromLocalFile(badArchivePath).toString(), QStringLiteral("confirmed")});
+    reopened.featureCommand(QStringLiteral("preview_backup"),
+                            {QUrl::fromLocalFile(badArchivePath).toString()});
     if (!require(reopened.snapshot().value("error") == "InvalidBackup" &&
                      reopened.snapshot().value("profiles").toArray().size() == 6,
                  "bad backup leaves catalog intact", reopened))
@@ -1006,6 +1413,18 @@ int main(int argc, char** argv) {
     if (!require(configIdle() && !reopened.snapshot().value("ready").toBool() && stagingEmpty(),
                  "late validation callbacks cannot revive stopped transaction", reopened))
         return 145;
+    reopened.featureCommand(QStringLiteral("rollback_profile"),
+                            {providerId, QStringLiteral("confirmed"), QStringLiteral("0")});
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("error").toString().isEmpty() &&
+                     reopened.snapshot()
+                             .value("profiles")
+                             .toArray()
+                             .last()
+                             .toObject()
+                             .value("snapshotHash") == providerHash,
+                 "historical provider snapshot reuses verified immutable content", reopened))
+        return 146;
     reopened.stop();
     evidence.insert(QStringLiteral("managedProviderChecks"),
                     QJsonArray{"https_snapshots", "offline_nodes", "official_validation_ready",
@@ -1015,6 +1434,8 @@ int main(int argc, char** argv) {
     if (!require(!reopened.snapshot().value("groups").toArray().isEmpty(),
                  "offline nodes remain after stop", reopened))
         return 127;
+    reopened.testWebsite(QStringLiteral("https://127.0.0.1:%1/slow-final").arg(origin.serverPort()),
+                         QStringLiteral("Direct"));
     reopened.featureCommand(QStringLiteral("cancel_test"), {});
     if (!require(reopened.snapshot()
                          .value("features")
@@ -1051,7 +1472,9 @@ int main(int argc, char** argv) {
             return 131;
         MemoryProxySettings settings;
         const auto original = settings.value;
-        quickclash::application::DesktopRuntime managed(managedStore, nullptr, &settings);
+        auto managedNow = QDateTime::currentDateTimeUtc();
+        quickclash::application::DesktopRuntime managed(managedStore, nullptr, &settings,
+                                                        [&] { return managedNow; });
         managed.initialize();
         int managedMixed = port(), managedController = port();
         while (managedMixed == managedController)
@@ -1066,11 +1489,12 @@ int main(int argc, char** argv) {
         QFile managedFixture(fixturePath);
         if (!managedFixture.open(QIODevice::WriteOnly))
             return 133;
-        managedFixture.write(
-            "proxies:\n  - {name: first, type: http, server: 127.0.0.1, port: 9}\n"
-            "  - {name: second, type: http, server: 127.0.0.1, port: 9}\n"
-            "proxy-groups:\n  - {name: managed_group, type: select, proxies: [first, second]}\n"
-            "rules: ['MATCH,managed_group']\n");
+        managedFixture.write("proxies:\n  - {name: first, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: second, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: third, type: http, server: 127.0.0.1, port: 9}\n"
+                             "proxy-groups:\n  - {name: managed_group, type: select, proxies: "
+                             "[first, second, third]}\n"
+                             "rules: ['MATCH,managed_group']\n");
         managedFixture.close();
         managed.importFile(QUrl::fromLocalFile(fixturePath).toString(),
                            QStringLiteral("Managed A"));
@@ -1084,6 +1508,19 @@ int main(int argc, char** argv) {
             return 134;
         const auto firstId = managed.snapshot().value("selectedId").toString();
         const auto firstPid = managed.snapshot().value("corePid").toInt();
+        managed.selectProxy(QStringLiteral("managed_group"), QStringLiteral("second"));
+        managed.selectProxy(QStringLiteral("managed_group"), QStringLiteral("third"));
+        managed.selectProxy(QStringLiteral("managed_group"), QStringLiteral("first"));
+        if (!require(waitFor([&] {
+                         for (const auto& value : managed.snapshot().value("groups").toArray()) {
+                             const auto group = value.toObject();
+                             if (group.value("name") == "managed_group")
+                                 return isReady() && group.value("current") == "first";
+                         }
+                         return false;
+                     }),
+                     "rapid selection keeps the last intent and confirms core state", managed))
+            return 142;
         (void)managed.setSystemProxy(true);
         (void)managed.setSystemProxy(false);
         if (!require(isReady() && managed.snapshot().value("corePid").toInt() == firstPid &&
@@ -1098,7 +1535,24 @@ int main(int argc, char** argv) {
             return 141;
         managed.featureCommand(
             QStringLiteral("delay_batch"),
-            {QStringLiteral("managed_group"), managed.snapshot().value("delayTarget").toString()});
+            {QStringLiteral("managed_group"), QStringLiteral("https://ignored.invalid/")});
+        const auto queued = managed.snapshot().value("delays").toObject();
+        if (!require(queued.value("first") == "Testing" && queued.value("second") == "Testing" &&
+                         queued.value("third") == "Queued" &&
+                         managed.snapshot().value("delayTarget") == "https://example.invalid/delay",
+                     "delay concurrency is two and command cannot override settings target",
+                     managed))
+            return 143;
+        managed.featureCommand(QStringLiteral("cancel_delays"), {});
+        if (!require(managed.snapshot().value("delays").toObject().value("third") == "Cancelled",
+                     "cancel also marks nodes still in the queue", managed))
+            return 144;
+        QThread::msleep(30);
+        QCoreApplication::processEvents();
+        if (!require(managed.snapshot().value("delays").toObject().value("first") == "Cancelled",
+                     "late delay response cannot overwrite cancellation", managed))
+            return 145;
+        managed.featureCommand(QStringLiteral("delay_batch"), {QStringLiteral("managed_group")});
         if (!require(waitFor([&] {
                          return managed.snapshot()
                                     .value("features")
@@ -1107,10 +1561,20 @@ int main(int argc, char** argv) {
                                     .toObject()
                                     .value("state") == "Completed";
                      }) &&
-                         managed.snapshot().value("delays").toObject().size() == 2,
+                         managed.snapshot().value("delays").toObject().size() == 3,
                      "batch delay tests every node and completes despite unavailable nodes",
                      managed))
             return 136;
+        managedNow = managedNow.addSecs(601);
+        managed.refresh();
+        // A visible proxy demand shares the existing feature timer; no new cache timer.
+        quickclash::application::RuntimeDemands delayDemand;
+        delayDemand.active.insert(QStringLiteral("proxies"));
+        delayDemand.generations.insert(QStringLiteral("proxies"), 1);
+        managed.applyDemands(delayDemand);
+        if (!require(managed.snapshot().value("delays").toObject().value("first") == "Stale",
+                     "session delay cache expires after ten minutes", managed))
+            return 146;
         managed.featureCommand(
             QStringLiteral("delay"),
             {QStringLiteral("first"), QStringLiteral("https://example.invalid/")});

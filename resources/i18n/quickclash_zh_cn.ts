@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE TS[]>
 <TS version="2.1" language="zh_CN" sourcelanguage="en">
   <context>
@@ -128,6 +128,7 @@
   </context>
   <context>
     <name>UiState</name>
+    <message><source>Choose different proxy and controller ports from 1024 to 65535, a supported mode and DNS policy.</source><translation>请选择 1024 至 65535 之间不同的代理和控制器端口，以及支持的模式和 DNS 策略。</translation></message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="82" />
       <source>Visible</source>
@@ -313,6 +314,22 @@
   </context>
   <context>
     <name>connections_page</name>
+    <message><source>Unavailable</source><translation>不可用</translation></message>
+    <message><source>%1 s</source><translation>%1 秒</translation></message>
+    <message><source>Connection data is too large or invalid; updates paused</source><translation>连接数据过大或无效，已暂停更新</translation></message>
+    <message><source>Loading connections…</source><translation>正在加载连接…</translation></message>
+    <message><source>Sampled: %1</source><translation>采集时间：%1</translation></message>
+    <message><source>Retry connection updates</source><translation>重试更新连接</translation></message>
+    <message><source>Filters affect this view; complete snapshots are still received.</source><translation>筛选仅影响当前视图，仍接收完整连接快照。</translation></message>
+    <message><source>Close results · closed %1 · ended %2 · failed %3 · unknown %4 · remaining %5</source><translation>关闭结果 · 已关闭 %1 · 已结束 %2 · 失败 %3 · 未知 %4 · 剩余 %5</translation></message>
+    <message><source>Closing all connections…</source><translation>正在关闭所有连接…</translation></message>
+    <message><source>Close all completed</source><translation>关闭所有连接已完成</translation></message>
+    <message><source>Close all failed</source><translation>关闭所有连接失败</translation></message>
+    <message><source>Close all result is unknown; check the latest snapshot</source><translation>关闭所有连接的结果未知，请查看最新快照</translation></message>
+    <message><source>Details</source><translation>详情</translation></message>
+    <message><source>Connection ended</source><translation>连接已结束</translation></message>
+    <message><source>Connection details</source><translation>连接详情</translation></message>
+    <message><source>Duration: %1</source><translation>持续时间：%1</translation></message>
     <message>
       <location filename="../../qml/features/connections/connections_page.qml" line="31" />
       <source>Connection data is stale</source>
@@ -567,12 +584,22 @@
       <translation>私有提交：%1 MB</translation>
     </message>
     <message>
+      <source>Clash Meta (mihomo) · Configuration validator</source>
+      <translation>Clash Meta (mihomo) · 配置校验内核</translation>
+    </message>
+    <message>
       <source>Clash Meta (mihomo) · Core</source>
       <translation>Clash Meta (mihomo) · 内核</translation>
     </message>
   </context>
   <context>
     <name>logs_page</name>
+    <message><source>Review log export</source><translation>预览日志导出</translation></message>
+    <message><source>Exports a frozen copy of the whole buffer. Source and level filters only affect the page. Preview text is limited to 16 KiB; the file contains the complete bounded snapshot.</source><translation>导出整个缓冲区的固定快照，来源和级别筛选仅影响页面。预览文字最多16 KiB，文件包含完整的有界快照。</translation></message>
+    <message><source>Hide messages, domains and process names</source><translation>隐藏消息、域名和进程名</translation></message>
+    <message><source>Export redacted logs…</source><translation>导出脱敏日志…</translation></message>
+    <message><source>Dropped: %1 · Truncated: %2 · Gaps: %3 · Buffer: %4 bytes</source><translation>丢弃：%1 · 截断：%2 · 缺口：%3 · 缓冲：%4 字节</translation></message>
+    <message><source>[Message truncated]</source><translation>[消息已截断]</translation></message>
     <message>
       <location filename="../../qml/features/logs/logs_page.qml" line="24" />
       <source>Resume receiving</source>
@@ -698,6 +725,9 @@
   </context>
   <context>
     <name>proxies_page</name>
+    <message><source>Queued</source><translation>排队中</translation></message>
+    <message><source>Timed out</source><translation>超时</translation></message>
+    <message><source>Expired</source><translation>已过期</translation></message>
     <message>
       <location filename="../../qml/features/proxies/proxies_page.qml" line="100" />
       <source>Filter nodes by name</source>
@@ -964,6 +994,28 @@
   </context>
   <context>
     <name>rules_page</name>
+    <message><source>Updating</source><translation>正在更新</translation></message>
+    <message><source>Update completed; content may be unchanged</source><translation>更新完成；内容可能未变化</translation></message>
+    <message><source>Snapshot saved; pending apply</source><translation>快照已保存，待应用</translation></message>
+    <message><source>Update outcome uncertain; metadata reloaded</source><translation>更新结果不确定，已重新读取元数据</translation></message>
+    <message><source>Update failed; previous data retained</source><translation>更新失败，已保留旧数据</translation></message>
+    <message><source>No update in this view</source><translation>本次查看尚未更新</translation></message>
+    <message><source>Rule provider: %1</source><translation>规则提供者：%1</translation></message>
+    <message><source>Effective configuration</source><translation>当前生效配置</translation></message>
+    <message><source>Items: %1 · Updated: %2</source><translation>项目数：%1 · 更新时间：%2</translation></message>
+    <message><source>Limited information</source><translation>有限信息</translation></message>
+    <message><source>Selected profile snapshot</source><translation>所选配置快照</translation></message>
+    <message><source>Stale data</source><translation>旧数据</translation></message>
+    <message><source>Loading…</source><translation>正在读取…</translation></message>
+    <message><source>Edit selected profile overrides…</source><translation>编辑所选配置覆盖…</translation></message>
+    <message><source>Filtering keeps the effective rule order unchanged. Source details and hit counts are limited by the core API.</source><translation>筛选不改变生效规则的顺序。来源详情及命中次数受内核 API 限制。</translation></message>
+    <message><source>Runtime metadata describes the active core. Selected profile snapshots may be pending apply. Updates run one at a time.</source><translation>运行时元数据对应当前内核；所选配置快照可能尚待应用。每次只更新一个提供者。</translation></message>
+    <message><source>Read failed; previous data retained</source><translation>读取失败，已保留旧数据</translation></message>
+    <message><source>Proxy providers: %1</source><translation>代理提供者：%1</translation></message>
+    <message><source>Rule providers: %1</source><translation>规则提供者：%1</translation></message>
+    <message><source>Read at %1</source><translation>读取时间：%1</translation></message>
+    <message><source>Core runtime</source><translation>内核运行时</translation></message>
+    <message><source>Import snapshot</source><translation>导入快照</translation></message>
     <message>
       <location filename="../../qml/features/rules/rules_page.qml" line="28" />
       <source>Rules</source>
@@ -1015,6 +1067,60 @@
   </context>
   <context>
     <name>settings_page</name>
+    <message><source>Export this support package?</source><translation>导出此支持包？</translation></message>
+    <message><source>Archive data and start fresh?</source><translation>归档数据并重新开始？</translation></message>
+    <message><source>Review storage cleanup</source><translation>检查存储清理</translation></message>
+    <message><source>Includes version, fixed settings, state and log counts. Excludes log messages, names, addresses, paths, URLs, credentials and connection targets. Nothing is uploaded.</source><translation>包含版本、固定设置、状态和日志计数；不含日志正文、名称、地址、路径、网址、凭据及连接目标。不会上传任何内容。</translation></message>
+    <message><source>Preserves all current data in a private recovery folder. Restart QuickClash to use an empty store, then import a compatible backup or configuration. Newer schemas are not converted. Recovery archives may contain plain text credentials; keep them private.</source><translation>全部当前数据将保存在私有恢复目录中。重启 QuickClash 后使用空仓库，再导入兼容的备份或配置。不会转换新版数据格式。恢复归档可能包含明文凭据，请妥善保管。</translation></message>
+    <message><source>Budgets: 1 GiB total, 64 MiB temporary cache, 15 MiB exported logs. Removes old disposable files only when over budget. Referenced configurations, history, drafts, transactions, core caches, backups and recovery archives are retained. Protected data can keep usage above budget.</source><translation>预算：总量 1 GiB、临时缓存 64 MiB、导出日志 15 MiB。仅在超额时删除旧的可重建文件，保留引用中的配置、历史、草稿、事务、内核缓存、备份和恢复归档。受保护数据可能使占用持续超额。</translation></message>
+    <message><source>Archive damaged data…</source><translation>归档损坏数据…</translation></message>
+    <message><source>Open recovery archive</source><translation>打开恢复归档</translation></message>
+    <message><source>Data archived. Restart QuickClash to finish recovery. The archive is never removed automatically.</source><translation>数据已归档，请重启 QuickClash 完成恢复。归档不会被自动删除。</translation></message>
+    <message><source>Removed %1 files · Reclaimed %2 bytes</source><translation>已删除 %1 个文件 · 回收 %2 字节</translation></message>
+    <message><source>Protected data still exceeds the storage budget.</source><translation>受保护数据仍超过存储预算。</translation></message>
+    <message><source>Offline expanded profiles</source><translation>离线展开配置</translation></message>
+    <message><source>Original YAML and overrides</source><translation>原始 YAML 与覆盖项</translation></message>
+    <message><source>Original YAML and overrides (includes resource URLs)</source><translation>原始 YAML 与覆盖项（包含资源地址）</translation></message>
+    <message><source>The backup contains node credentials as plain text. It excludes saved subscription credentials, generated session secrets and system proxy leases. Original YAML may contain resource URLs. Keep it private.</source><translation>备份以明文包含节点凭据，不包含已保存的订阅凭据、生成的会话密钥和系统代理租约。原始 YAML 可能包含资源地址，请妥善保管。</translation></message>
+    <message><source>Excludes drafts, history, settings and Geo files. Limit: 10 MiB of decoded content; stored JSON up to 16 MiB. Source backups include a saved provider snapshot for offline restoration.</source><translation>不包含草稿、历史、设置和 Geo 文件。解码后内容上限 10 MiB，保存的 JSON 上限 16 MiB。原文备份包含已保存的提供者快照，可离线恢复。</translation></message>
+    <message><source>Contains node credentials. Scope: %1 · Decoded bytes: %2. Original YAML may include provider URLs. No history, drafts, Geo files, settings or old sessions are restored.</source><translation>包含节点凭据。范围：%1 · 解码字节数：%2。原始 YAML 可能包含提供者地址，不恢复历史、草稿、Geo 文件、设置或旧会话。</translation></message>
+    <message><source>%1 · Overrides: %2 · Provider snapshot: %3</source><translation>%1 · 覆盖项：%2 · 提供者快照：%3</translation></message>
+    <message><source>Yes</source><translation>是</translation></message>
+    <message><source>No</source><translation>否</translation></message>
+    <message><source>Cancel profile restore</source><translation>取消配置恢复</translation></message>
+    <message><source>Sensitive backup saved</source><translation>敏感备份已保存</translation></message>
+    <message><source>Review the backup before importing</source><translation>导入前请核对备份</translation></message>
+    <message><source>Validating profiles for restore…</source><translation>正在校验待恢复配置…</translation></message>
+    <message><source>Profiles restored</source><translation>配置已恢复</translation></message>
+    <message><source>Profile restore failed; existing profiles kept</source><translation>配置恢复失败，已保留现有配置</translation></message>
+    <message><source>Profile restore cancelled</source><translation>配置恢复已取消</translation></message>
+    <message><source>Use the bundled Geo databases?</source><translation>使用随包 Geo 数据库？</translation></message>
+    <message><source>Validates the offline databases from the application package and applies them together. The current snapshot remains available for rollback.</source><translation>校验应用包中的离线数据库并一起应用。当前快照将保留供回退。</translation></message>
+    <message><source>Use bundled Geo databases…</source><translation>使用随包 Geo 数据库…</translation></message>
+    <message><source>Cancel Geo update</source><translation>取消 Geo 更新</translation></message>
+    <message><source>Downloading both Geo databases…</source><translation>正在下载两份 Geo 数据库…</translation></message>
+    <message><source>Validating Geo databases…</source><translation>正在校验 Geo 数据库…</translation></message>
+    <message><source>Applying Geo databases…</source><translation>正在应用 Geo 数据库…</translation></message>
+    <message><source>Geo snapshot saved</source><translation>Geo 快照已保存</translation></message>
+    <message><source>Geo databases are unchanged</source><translation>Geo 数据库无变化</translation></message>
+    <message><source>Geo update failed; previous snapshot kept</source><translation>Geo 更新失败，已保留旧快照</translation></message>
+    <message><source>Geo update cancelled</source><translation>Geo 更新已取消</translation></message>
+    <message><source>Mode %1 · proxy port %2 · controller port %3 · DNS %4</source><translation>模式 %1 · 代理端口 %2 · 控制器端口 %3 · DNS %4</translation></message>
+    <message><source>Apply network settings?</source><translation>应用网络设置？</translation></message>
+    <message><source>The core restarts once and active connections are interrupted. If applying fails, QuickClash restores the confirmed settings.</source><translation>内核将重启一次，现有连接会中断。如果应用失败，QuickClash 将恢复已确认的设置。</translation></message>
+    <message><source>These settings are saved for the next core session. They are not active while the core is stopped.</source><translation>设置将保存供下次内核运行使用。内核停止时，这些设置尚未生效。</translation></message>
+    <message><source>Saved: %1</source><translation>已保存：%1</translation></message>
+    <message><source>Active: %1</source><translation>当前生效：%1</translation></message>
+    <message><source>Core stopped · saved settings are not active</source><translation>内核已停止 · 保存的设置尚未生效</translation></message>
+    <message><source>Applying requested settings: %1</source><translation>正在应用请求的设置：%1</translation></message>
+    <message><source>System proxy · requested %1 · active %2; TUN · requested %3 · active %4</source><translation>系统代理 · 请求 %1 · 生效 %2；TUN · 请求 %3 · 生效 %4</translation></message>
+    <message><source>On</source><translation>开启</translation></message>
+    <message><source>Off</source><translation>关闭</translation></message>
+    <message><source>Rule</source><translation>规则</translation></message>
+    <message><source>Global</source><translation>全局</translation></message>
+    <message><source>Direct</source><translation>直连</translation></message>
+    <message><source>Apply network settings…</source><translation>应用网络设置…</translation></message>
+    <message><source>Review and apply network settings…</source><translation>核对并应用网络设置…</translation></message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="80" />
       <source>More pages</source>
@@ -1183,6 +1289,18 @@
       <translation>清除 DNS 缓存</translation>
     </message>
     <message>
+      <source>Clearing DNS cache…</source>
+      <translation>正在清理 DNS 缓存…</translation>
+    </message>
+    <message>
+      <source>DNS cache cleared</source>
+      <translation>DNS 缓存已清理</translation>
+    </message>
+    <message>
+      <source>DNS cache could not be cleared</source>
+      <translation>无法清理 DNS 缓存</translation>
+    </message>
+    <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="275" />
       <source>Update Geo databases…</source>
       <translation>更新 Geo 数据库…</translation>
@@ -1307,6 +1425,12 @@
   </context>
   <context>
     <name>subscription_details</name>
+    <message><source>Subscription quota exhausted</source><translation>订阅流量已耗尽</translation></message>
+    <message><source>10% quota remaining or less</source><translation>订阅剩余流量不超过10%</translation></message>
+    <message><source>Subscription expired</source><translation>订阅已到期</translation></message>
+    <message><source>Expires within 7 days</source><translation>订阅将在7天内到期</translation></message>
+    <message><source>Usage collected: %1</source><translation>用量采集时间：%1</translation></message>
+    <message><source>Provider totals may be delayed and include other devices.</source><translation>服务商统计可能有延迟，并包含其他设备的用量。</translation></message>
     <message><source>Current usage</source><translation>本期用量</translation></message>
     <message>
       <location filename="../../qml/components/subscription_details.qml" line="16" />
@@ -1343,6 +1467,22 @@
   </context>
   <context>
     <name>subscriptions_page</name>
+    <message><source>Provider mode: import snapshot</source><translation>提供者模式：导入快照</translation></message>
+    <message><source>Provider mode: core runtime</source><translation>提供者模式：内核运行时</translation></message>
+    <message><source>Provider mode</source><translation>提供者模式</translation></message>
+    <message><source>Switching provider mode downloads and validates all resources. Runtime refresh uses the core cache; history restores the configuration and fallback, not past remote content. Dynamic node selections are not restored automatically.</source><translation>切换提供者模式会下载并校验全部资源。运行时刷新使用内核缓存；历史回退恢复配置和导入时的备用内容，无法还原过去的远程内容。动态节点的选择不会自动恢复。</translation></message>
+    <message><source>Restore the selected profile version?</source><translation>恢复所选配置版本？</translation></message>
+    <message><source>Edit original YAML…</source><translation>编辑原始 YAML…</translation></message>
+    <message><source>Edit profile overrides…</source><translation>编辑配置覆盖项…</translation></message>
+    <message><source>Version %1 · %2</source><translation>版本 %1 · %2</translation></message>
+    <message><source>Retained versions</source><translation>保留的历史版本</translation></message>
+    <message><source>Restore selected version…</source><translation>恢复所选版本…</translation></message>
+    <message><source>Direct download</source><translation>直接下载</translation></message>
+    <message><source>Running proxy</source><translation>使用运行中的代理</translation></message>
+    <message><source>Auto: direct, then running proxy</source><translation>自动：直连失败后使用运行中的代理</translation></message>
+    <message><source>Download path</source><translation>下载路径</translation></message>
+    <message><source>Last download: running proxy</source><translation>上次下载：运行中的代理</translation></message>
+    <message><source>Last download: direct</source><translation>上次下载：直连</translation></message>
     <message>
       <source>Standard HTTPS subscriptions request Clash/Mihomo YAML directly. New subscriptions update every 6 hours and apply changes to the selected profile. Supports mainstream inline nodes, automatic groups, bundled Geo rules and basic fake-ip DNS. Providers, share links and TUN are not available yet.</source>
       <translation type="vanished">标准 HTTPS 订阅通过直连请求 Clash/Mihomo YAML。新订阅默认每 6 小时更新，并自动应用到选中的配置。支持主流内联节点、自动代理组、随包 Geo 规则和基础 fake-ip DNS；提供者、分享链接和 TUN 尚未实现。</translation>
@@ -1620,8 +1760,8 @@
     </message>
     <message>
       <location filename="../../qml/features/tests/tests_page.qml" line="49" />
-      <source>Enter up to 8 HTTPS URLs, one per line. Requests run one at a time, with a 64 KiB and 12 second limit. Redirects are reported. Direct requests still follow TUN and system routes.</source>
-      <translation>最多输入 8 个 HTTPS 地址，每行一个，逐一测试。单次限制 64 KiB、12 秒；显示重定向。直连仍受 TUN 和系统路由影响。</translation>
+      <source>Enter up to 8 HTTPS URLs, one per line. Each request follows up to 3 HTTPS redirects within one 64 KiB and 12 second limit. Requests run one at a time without cookies. Direct requests still follow TUN and system routes. A reachable entry does not prove node forwarding.</source>
+      <translation>最多输入 8 个 HTTPS 地址，每行一个，逐一测试且不携带 Cookie。每项最多跟随 3 次 HTTPS 跳转，整条链限制 64 KiB、12 秒。直连仍受 TUN 和系统路由影响；入口可达不代表已验证节点转发。</translation>
     </message>
     <message>
       <location filename="../../qml/features/tests/tests_page.qml" line="72" />
@@ -1635,8 +1775,8 @@
     </message>
     <message>
       <location filename="../../qml/features/tests/tests_page.qml" line="79" />
-      <source>Reachable</source>
-      <translation>可访问</translation>
+      <source>Entry reachable</source>
+      <translation>入口可达</translation>
     </message>
     <message>
       <location filename="../../qml/features/tests/tests_page.qml" line="79" />
@@ -1678,6 +1818,11 @@
       <source>Recent results: %1 / 32</source>
       <translation>最近结果：%1 / 32</translation>
     </message>
+    <message><source>DNS error</source><translation>DNS 解析错误</translation></message>
+    <message><source>Proxy unavailable</source><translation>代理不可用</translation></message>
+    <message><source>Stale</source><translation>已过期</translation></message>
+    <message><source>Unsafe redirect blocked</source><translation>已阻止不安全跳转</translation></message>
+    <message><source>Redirect limit or loop</source><translation>跳转超限或循环</translation></message>
     <message>
       <location filename="../../qml/features/tests/tests_page.qml" line="56" />
       <source>Run test</source>
@@ -1719,6 +1864,36 @@
   </context>
   <context>
     <name>quickclash::presentation::UiState</name>
+    <message><source>The Windows service is in use by another client. Close that session first.</source><translation>Windows 服务正由另一客户端使用，请先关闭该会话。</translation></message>
+    <message><source>The Windows service is incompatible. Install the service from the same package.</source><translation>Windows 服务版本不兼容，请从同一程序包安装服务。</translation></message>
+    <message><source>The Windows service identity could not be verified. Check the protected installation.</source><translation>无法核验 Windows 服务身份，请检查受保护的安装目录。</translation></message>
+    <message><source>Data changed or the confirmation expired. Preview the operation again.</source><translation>数据已变化或确认已过期，请重新预览操作。</translation></message>
+    <message><source>Finish active operations, stop the core and resolve the system proxy lease before repairing data.</source><translation>请先结束当前操作、停止内核并处理系统代理租约，再修复数据。</translation></message>
+    <message><source>The log storage budget is full. Review storage cleanup before exporting again.</source><translation>日志存储预算已满，请检查存储清理后再导出。</translation></message>
+    <message><source>Data archival was interrupted. Keep the data and recovery folders, and follow the recovery guide before restarting normally.</source><translation>数据归档已中断。请保留数据和恢复目录，按恢复指南处理后再正常启动。</translation></message>
+    <message><source>Data could not be archived. Original data was restored; check folder access and try again.</source><translation>无法归档数据，原数据已恢复。请检查目录访问权限后重试。</translation></message>
+    <message><source>These data require a newer QuickClash version. Keep the originals or archive them before importing compatible data.</source><translation>这些数据需要较新的 QuickClash 版本。请保留原件或先归档，再导入兼容数据。</translation></message>
+    <message><source>The provider refresh response timed out. The core may still complete it. Check the provider state before retrying.</source><translation>提供者刷新响应超时，内核可能仍在完成操作。请先核对提供者状态，再决定是否重试。</translation></message>
+    <message><source>A saved provider resource is missing or damaged. Update the full subscription to repair it.</source><translation>保存的提供者资源缺失或损坏，请更新整个订阅以修复。</translation></message>
+    <message><source>This provider uses core runtime mode. Refresh it from the providers page.</source><translation>该提供者采用内核运行时模式，请在提供者页面刷新。</translation></message>
+    <message><source>The provider could not be downloaded or validated. The previous version is kept.</source><translation>提供者下载或校验失败，已保留原有版本。</translation></message>
+    <message><source>Use at most 32 HTTPS providers, 4 MiB each and 16 MiB total, with supported YAML or text payloads.</source><translation>最多使用 32 个 HTTPS 提供者，每项不超过 4 MiB、合计不超过 16 MiB，内容须为支持的 YAML 或文本格式。</translation></message>
+    <message><source>The backup format, size or checksum is invalid. Existing profiles are preserved.</source><translation>备份格式、大小或摘要无效，已保留现有配置。</translation></message>
+    <message><source>Preview this backup again before confirming the restore.</source><translation>请重新预览备份，再确认恢复。</translation></message>
+    <message><source>Core validation failed. No profiles were restored.</source><translation>内核校验失败，未恢复任何配置。</translation></message>
+    <message><source>The backup exceeds the supported size limit.</source><translation>备份超过支持的大小上限。</translation></message>
+    <message><source>Choose a readable local backup file.</source><translation>请选择可读取的本地备份文件。</translation></message>
+    <message><source>The profile changed. Compare the draft, save a copy, or load the latest version.</source><translation>配置已变化。请比较草稿、另存副本或加载最新版本。</translation></message>
+    <message><source>Invalid override operations or managed fields. Check set, remove and rules.</source><translation>覆盖操作无效或包含受管字段。请检查 set、remove 和 rules。</translation></message>
+    <message><source>Validate and review a fresh preview before saving and applying.</source><translation>保存并应用前，请重新校验并查看预览。</translation></message>
+    <message><source>The editor supports up to 1 MiB. Import larger profiles from a file.</source><translation>编辑器最多支持 1 MiB。更大的配置请通过文件导入。</translation></message>
+    <message><source>The editor requires UTF-8. Convert the source file before editing.</source><translation>编辑器要求 UTF-8 编码。请先转换源文件。</translation></message>
+    <message><source>The saved draft is invalid. Load the latest version to replace it.</source><translation>已保存的草稿无效。请加载最新版本以替换草稿。</translation></message>
+    <message><source>Unable to download both Geo databases. The previous snapshot is kept.</source><translation>无法下载两份 Geo 数据库，已保留旧快照。</translation></message>
+    <message><source>The subscription redirect is unsafe, loops or exceeds five redirects.</source><translation>订阅跳转不安全、存在循环或超过五次。</translation></message>
+    <message><source>Start the core before downloading through the running proxy, or choose Direct.</source><translation>请先启动内核再通过运行中的代理下载，或选择直接下载。</translation></message>
+    <message><source>Choose Direct, Running proxy or Auto for subscription downloads.</source><translation>请选择直接下载、运行中的代理或自动下载。</translation></message>
+    <message><source>The server returned no content after an unconditional request. Try again later.</source><translation>无条件请求后服务器仍未返回正文，请稍后重试。</translation></message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="82" />
       <source>Visible</source>
@@ -1972,5 +2147,67 @@
     <message><source>Next update: %1</source><translation>下次更新：%1</translation></message>
     <message><source>Update</source><translation>更新</translation></message>
     <message><source>Manage</source><translation>管理</translation></message>
+  </context>
+  <context>
+    <name>profile_editor</name>
+    <message><source>Edit original YAML</source><translation>编辑原始 YAML</translation></message>
+    <message><source>Edit profile overrides</source><translation>编辑配置覆盖项</translation></message>
+    <message><source> (copy)</source><translation>（副本）</translation></message>
+    <message><source>Discard draft and load latest?</source><translation>丢弃草稿并加载最新版本？</translation></message>
+    <message><source>Save and apply this configuration?</source><translation>保存并应用此配置？</translation></message>
+    <message><source>This replaces the saved draft. Subscription updates and history are kept.</source><translation>这会替换已保存的草稿。订阅更新和历史版本将保留。</translation></message>
+    <message><source>A running session may restart and interrupt connections. Validation or startup failures keep the draft and attempt to restore the last working session.</source><translation>运行中的会话可能重启并中断连接。校验或启动失败时保留草稿，并尝试恢复上次可用会话。</translation></message>
+    <message><source>Original content and overrides can contain credentials. Drafts are stored locally with restricted access. Editor limit: 1 MiB; larger profiles can be imported from a file.</source><translation>原文和覆盖项可能包含凭据。草稿存放在限制访问的本地目录。编辑上限为 1 MiB；更大的配置可通过文件导入。</translation></message>
+    <message><source>Draft base: %1 · Running revision: %2</source><translation>草稿基线：%1 · 运行版本：%2</translation></message>
+    <message><source>The profile changed while this draft was open. Compare the previews, save a copy, or load the latest version.</source><translation>编辑期间配置已发生变化。请比较预览、另存副本或加载最新版本。</translation></message>
+    <message><source>JSON operations: set merges objects and replaces arrays; remove lists root fields; rules uses mode prepend, append or replace and an items array. Runtime listeners, TUN and controller fields are managed by settings.</source><translation>JSON 操作：set 合并对象并替换数组；remove 列出要删除的根字段；rules 使用 prepend、append 或 replace 模式及 items 数组。运行监听器、TUN 和控制器字段由设置管理。</translation></message>
+    <message><source>Save draft</source><translation>保存草稿</translation></message>
+    <message><source>Validate and preview</source><translation>校验并预览</translation></message>
+    <message><source>Load latest…</source><translation>加载最新版本…</translation></message>
+    <message><source>Validating or applying…</source><translation>正在校验或应用…</translation></message>
+    <message><source>Candidate saved. Check the subscription's pending state and the current running status.</source><translation>候选配置已保存。请查看订阅的待应用状态和当前运行状态。</translation></message>
+    <message><source>Draft saved locally</source><translation>草稿已保存到本地</translation></message>
+    <message><source>Source → profile overrides (%1) → global mode, DNS, ports and TUN → reserved controller and resource constraints. Previews hide credentials and may omit content above 256 KiB.</source><translation>原文 → 配置覆盖项（%1）→ 全局模式、DNS、端口和 TUN → 保留控制器及资源约束。预览会隐藏凭据，超过 256 KiB 的内容可能省略。</translation></message>
+    <message><source>Current profile (redacted)</source><translation>当前配置（已脱敏）</translation></message>
+    <message><source>Draft effective configuration (redacted)</source><translation>草稿有效配置（已脱敏）</translation></message>
+    <message><source>Copy name</source><translation>副本名称</translation></message>
+    <message><source>Save and apply…</source><translation>保存并应用…</translation></message>
+    <message><source>Save as a local copy…</source><translation>另存为本地副本…</translation></message>
+  </context>
+  <context><name>tests_page</name>
+    <message><source>Request path</source><translation>请求路径</translation></message>
+    <message><source>HTTPS website targets</source><translation>HTTPS 网站测试目标</translation></message>
+  </context>
+  <context><name>settings_page</name>
+    <message><source>Backup content</source><translation>备份内容</translation></message>
+    <message><source>Routing mode</source><translation>路由模式</translation></message>
+    <message><source>Effective profile preview</source><translation>有效配置预览</translation></message>
+    <message><source>DNS mode</source><translation>DNS 模式</translation></message>
+  </context>
+  <context><name>subscriptions_page</name>
+    <message><source>Update interval</source><translation>更新间隔</translation></message>
+  </context>
+  <context><name>connections_page</name>
+    <message><source>Sort connections</source><translation>连接排序</translation></message>
+  </context>
+  <context><name>rules_page</name>
+    <message><source>Rules or providers</source><translation>规则或提供者</translation></message>
+  </context>
+  <context><name>logs_page</name>
+    <message><source>Log export preview</source><translation>日志导出预览</translation></message>
+    <message><source>Log source</source><translation>日志来源</translation></message>
+    <message><source>Log level</source><translation>日志级别</translation></message>
+  </context>
+  <context><name>runtime_list</name>
+    <message><source>Filter list</source><translation>筛选列表</translation></message>
+  </context>
+  <context><name>home_page</name>
+    <message><source>System proxy and TUN are not available on this platform yet.</source><translation>当前平台暂不支持系统代理和 TUN。</translation></message>
+  </context>
+  <context><name>settings_page</name>
+    <message><source>System proxy and TUN are not available on this platform yet.</source><translation>当前平台暂不支持系统代理和 TUN。</translation></message>
+  </context>
+  <context><name>quickclash::presentation::UiState</name>
+    <message><source>This feature is not available on this platform yet.</source><translation>当前平台暂不支持此功能。</translation></message>
   </context>
 </TS>

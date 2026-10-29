@@ -23,7 +23,7 @@ ComboBox {
         x: control.width - width - 10
         y: (control.height - height) / 2
         text: "▾"
-        font.pixelSize: 14
+        font.pixelSize: control.theme.scaledSize(14)
         color: control.theme.muted
     }
     background: StateSurface {

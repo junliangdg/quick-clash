@@ -1,6 +1,7 @@
 #include "infra/core/engine_session.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
+#include "platform/desktop_services.h"
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonArray>
@@ -19,7 +20,8 @@ domain::Error coreError(const char* code) {
     return error;
 }
 } // namespace
-EngineSession::EngineSession(QObject* parent) : QObject(parent) {
+EngineSession::EngineSession(QObject* parent)
+    : QObject(parent), process_(platform::makeDesktopProcess()) {
     servicePoll_.setInterval(1000);
     connect(&servicePoll_, &QTimer::timeout, this, [this] {
         if (!serviceMode_ || !ready_)
@@ -56,7 +58,10 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
                             if (value->value(QStringLiteral("dropped")).toInt() > 0)
                                 emit streamData(
                                     name,
-                                    {{QStringLiteral("type"), QStringLiteral("warning")},
+                                    {{QStringLiteral("source"), QStringLiteral("Service")},
+                                     {QStringLiteral("dropped"),
+                                      value->value(QStringLiteral("dropped"))},
+                                     {QStringLiteral("type"), QStringLiteral("warning")},
                                      {QStringLiteral("payload"),
                                       QStringLiteral("Service log buffer dropped old entries")}});
                         } else
@@ -81,7 +86,7 @@ EngineSession::EngineSession(QObject* parent) : QObject(parent) {
     connect(&probeTimer_, &QTimer::timeout, this, &EngineSession::probe);
     connect(&deadline_, &QTimer::timeout, this,
             [this] { fail(QStringLiteral("CoreReadyTimeout")); });
-    connect(&process_, &platform::OwnedProcess::finished, this, [this](int) {
+    connect(process_.get(), &application::IDesktopProcess::finished, this, [this](int) {
         const bool unexpected = ready_;
         stop();
         emit stopped(unexpected);
@@ -98,6 +103,11 @@ EngineSession::~EngineSession() {
 void EngineSession::start(const QString& executable, const QString& config,
                           const QString& directory, const QByteArray& secret, quint16 mixedPort,
                           quint16 controllerPort, const QString& expectedMode, bool serviceMode) {
+    const auto platform = platform::desktopPlatformInfo();
+    if (platform.capabilities.value(QStringLiteral("core")) != QStringLiteral("Supported")) {
+        emit failed(QStringLiteral("CorePlatformUnsupported"));
+        return;
+    }
     if (serviceCleanupUncertain_) {
         emit failed(QStringLiteral("ServiceCleanupUncertain"));
         return;
@@ -122,8 +132,7 @@ void EngineSession::start(const QString& executable, const QString& config,
     QFile binary(executable);
     QCryptographicHash hash(QCryptographicHash::Sha256);
     if (!binary.open(QIODevice::ReadOnly) || !hash.addData(&binary) ||
-        hash.result().toHex() !=
-            QByteArrayLiteral("1cde41cfffd3de0aedad63c0a8515e1ce5eea507e8133aed0f637d316c93800a")) {
+        hash.result().toHex() != platform.coreSha256) {
         emit failed(QStringLiteral("CoreIntegrityFailed"));
         return;
     }
@@ -149,6 +158,7 @@ void EngineSession::start(const QString& executable, const QString& config,
                          {{QStringLiteral("yaml"), QString::fromLatin1(loaded.bytes.toBase64())},
                           {QStringLiteral("mixedPort"), mixedPort},
                           {QStringLiteral("mode"), expectedMode},
+                          {QStringLiteral("tun"), true},
                           {QStringLiteral("dnsMode"), QStringLiteral("profile")}},
                          [this, generation](domain::Result<QJsonObject> result) {
                              if (generation != generation_)
@@ -171,7 +181,7 @@ void EngineSession::start(const QString& executable, const QString& config,
                          });
         return;
     }
-    const auto result = process_.start(
+    const auto result = process_->start(
         executable, {QStringLiteral("-f"), config, QStringLiteral("-d"), directory}, directory);
     if (const auto* error = std::get_if<domain::Error>(&result)) {
         fail(error->code);
@@ -193,7 +203,7 @@ void EngineSession::stop() {
     afterServiceStop_ = {};
     if (stopService && !serviceStopping_) {
         serviceStopping_ = true;
-        service_.command(QStringLiteral("stop"), {}, [this](domain::Result<QJsonObject> result) {
+        auto completeStop = [this](domain::Result<QJsonObject> result) {
             serviceStopping_ = false;
             auto continuation = std::move(afterServiceStop_);
             afterServiceStop_ = {};
@@ -205,7 +215,16 @@ void EngineSession::stop() {
             }
             if (continuation)
                 continuation();
-        });
+        };
+        // Starting may have allocated a new epoch before its final response. Read the
+        // authoritative state before stopping; never guess or reuse the previous epoch.
+        service_.command(QStringLiteral("status"), {},
+                         [this, completeStop](domain::Result<QJsonObject> state) {
+                             if (std::holds_alternative<domain::Error>(state))
+                                 completeStop(std::move(state));
+                             else
+                                 service_.command(QStringLiteral("stop"), {}, completeStop);
+                         });
     } else if (!serviceStopping_)
         service_.close();
     probing_ = false;
@@ -223,7 +242,7 @@ void EngineSession::stop() {
             reply->abort();
         }
     }
-    process_.stop();
+    process_->stop();
     secret_.fill('\0');
     secret_.clear();
 }
@@ -345,7 +364,16 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
             action = QStringLiteral("proxy_providers");
         else if (method == "GET" && path == "/providers/rules")
             action = QStringLiteral("rule_providers");
-        else if (method == "POST" && path == "/cache/dns/flush")
+        else if (method == "PUT" &&
+                 (path.startsWith("/providers/proxies/") || path.startsWith("/providers/rules/")) &&
+                 body.isEmpty()) {
+            const auto parts = path.split('/');
+            if (parts.size() == 4 && !parts[3].isEmpty()) {
+                action = QStringLiteral("refresh_provider");
+                payload = {{QStringLiteral("kind"), QString::fromLatin1(parts[2])},
+                           {QStringLiteral("name"), QUrl::fromPercentEncoding(parts[3])}};
+            }
+        } else if (method == "POST" && path == "/cache/dns/flush")
             action = QStringLiteral("flush_dns");
         else if (method == "DELETE" && path == "/connections")
             action = QStringLiteral("close_connections");
@@ -398,7 +426,8 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
-    request.setTransferTimeout(3000);
+    const bool providerRefresh = method == "PUT" && path.startsWith("/providers/");
+    request.setTransferTimeout(providerRefresh ? 12000 : 3000);
     auto* reply = network_.sendCustomRequest(
         request, method,
         method == "GET" ? QByteArray{} : QJsonDocument(body).toJson(QJsonDocument::Compact));
@@ -413,11 +442,15 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
         }
     });
     auto* timeout = new QTimer(reply);
+    auto expired = std::make_shared<bool>(false);
     timeout->setSingleShot(true);
-    timeout->start(3500);
-    connect(timeout, &QTimer::timeout, reply, &QNetworkReply::abort);
+    timeout->start(providerRefresh ? 12500 : 3500);
+    connect(timeout, &QTimer::timeout, reply, [reply, expired] {
+        *expired = true;
+        reply->abort();
+    });
     connect(reply, &QNetworkReply::finished, this,
-            [this, reply, bytes, tooLarge, generation, handler = std::move(handler)] {
+            [this, reply, bytes, tooLarge, expired, generation, handler = std::move(handler)] {
                 replies_.removeAll(reply);
                 reply->deleteLater();
                 if (generation != generation_) {
@@ -432,8 +465,12 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
                 }
                 if (!readOk || reply->error() != QNetworkReply::NoError || status < 200 ||
                     status >= 300) {
-                    handler(coreError(status == 401 ? "CoreAuthenticationFailed"
-                                                    : "CoreRequestFailed"));
+                    handler(coreError(*expired || reply->error() == QNetworkReply::TimeoutError ||
+                                              status == 504
+                                          ? "CoreRequestTimeout"
+                                      : status == 404 ? "CoreTargetNotFound"
+                                      : status == 401 ? "CoreAuthenticationFailed"
+                                                      : "CoreRequestFailed"));
                     return;
                 }
                 if (bytes->isEmpty()) {
@@ -480,7 +517,7 @@ void EngineSession::probe() {
                     .toObject()
                     .value(QStringLiteral("enable"))
                     .toBool() ||
-                !process_.ownsListener(mixedPort_) || !process_.ownsListener(controllerPort_)) {
+                !process_->ownsListener(mixedPort_) || !process_->ownsListener(controllerPort_)) {
                 fail(QStringLiteral("CoreListenersNotOwned"));
                 return;
             }
@@ -496,9 +533,48 @@ void EngineSession::refreshGroups() {
     if (!ready_) {
         return;
     }
-    request("GET", "/proxies", {}, [this](domain::Result<QJsonObject> result) {
+    const auto generation = generation_;
+    request("GET", "/proxies", {}, [this, generation](domain::Result<QJsonObject> result) {
+        if (!ready_ || generation != generation_)
+            return;
         if (const auto* value = std::get_if<QJsonObject>(&result)) {
-            emit groupsChanged(value->value(QStringLiteral("proxies")).toObject());
+            auto objects = value->value(QStringLiteral("proxies")).toObject();
+            // /proxies omits provider-only nodes in the pinned core. Include their safe
+            // descriptors for capabilities and conservative identity handling.
+            request("GET", "/providers/proxies", {},
+                    [this, generation,
+                     objects = std::move(objects)](domain::Result<QJsonObject> providers) mutable {
+                        if (!ready_ || generation != generation_)
+                            return;
+                        if (const auto* response = std::get_if<QJsonObject>(&providers)) {
+                            const auto entries = response->value("providers").toObject();
+                            for (auto it = entries.begin(); it != entries.end(); ++it) {
+                                const auto provider = it.value().toObject();
+                                if (provider.value("vehicleType") != "HTTP")
+                                    continue;
+                                for (const auto& value : provider.value("proxies").toArray()) {
+                                    auto node = value.toObject();
+                                    const auto name = node.value("name").toString();
+                                    if (name.isEmpty() || objects.size() >= 5503)
+                                        continue;
+                                    node.insert("providerDynamic", true);
+                                    if (!objects.contains(name))
+                                        objects.insert(name, node);
+                                    else {
+                                        auto existing = objects.value(name).toObject();
+                                        existing.insert("providerDynamic", true);
+                                        objects.insert(name, existing);
+                                    }
+                                }
+                            }
+                        } else {
+                            // A partial read cannot prove static/dynamic name collisions safe
+                            // for restoring saved selections. Keep the previous confirmed view.
+                            emit failed(std::get<domain::Error>(providers).code);
+                            return;
+                        }
+                        emit groupsChanged(objects);
+                    });
         } else {
             emit failed(std::get<domain::Error>(result).code);
         }

@@ -106,7 +106,7 @@ ColumnLayout {
                 required property string status
                 required property string metric
                 width: ListView.view.width
-                height: 62
+                height: root.theme.scaledSize(62)
                 highlighted: ListView.isCurrentItem
                 onClicked: rows.currentIndex = index
                 background: StateSurface {
@@ -133,7 +133,7 @@ ColumnLayout {
                             font.family: root.theme.fontFamily
                             text: row.detail
                             color: row.highlighted ? root.theme.onSelection : root.theme.muted
-                            font.pixelSize: 12
+                            font.pixelSize: root.theme.scaledSize(12)
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                         }

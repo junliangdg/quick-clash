@@ -1,0 +1,11 @@
+proxies:
+  - name: unused_local_fixture
+    type: http
+    server: 127.0.0.1
+    port: 9
+proxy-groups:
+  - name: desktop_fixture
+    type: select
+    proxies: [DIRECT, unused_local_fixture]
+rules:
+  - MATCH,DIRECT

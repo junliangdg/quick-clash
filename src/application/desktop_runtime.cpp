@@ -1,6 +1,10 @@
 #include "application/desktop_runtime.h"
+#include "domain/subscription_usage.h"
+#include "infra/config/config_overlay.h"
 #include "infra/config/geo_resources.h"
 #include "infra/io/bounded_read.h"
+#include "infra/storage/runtime_provider_cache.h"
+#include "infra/storage/storage_maintenance.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -36,17 +40,26 @@ QByteArray newSecret() {
     return bytes.toHex();
 }
 } // namespace
-DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
-                               platform::ProxySettings* proxySettings,
-                               std::function<QDateTime()> clock)
-    : QObject(parent), store_(store), repository_(store), credentials_(store),
-      proxyLease_(store, proxySettings ? *proxySettings : defaultProxySettings_),
+DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services, QObject* parent,
+                               std::function<QDateTime()> clock, const QUrl& geoSourceBase)
+    : QObject(parent), store_(store), repository_(store),
+      credentials_(std::move(services.credentials)),
+      platformInfo_(std::move(services.platformInfo)), resources_(std::move(services.resources)),
+      proxyLease_(std::move(services.proxyLease)), validator_(std::move(services.validator)),
       clock_(clock ? std::move(clock) : [] { return QDateTime::currentDateTimeUtc(); }),
       runtimePreferences_(infra::SettingsRepository::runtimeDefaults()) {
+    geoSourceBase_ =
+        geoSourceBase.isEmpty()
+            ? QUrl(QStringLiteral(
+                  "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/"))
+            : geoSourceBase;
     directNetwork_.setProxy(QNetworkProxy::NoProxy);
     publicationTimer_.setSingleShot(true);
     publicationTimer_.setInterval(0);
     connect(&publicationTimer_, &QTimer::timeout, this, &DesktopRuntime::flushData);
+    logPublicationTimer_.setSingleShot(true);
+    logPublicationTimer_.setInterval(100);
+    connect(&logPublicationTimer_, &QTimer::timeout, this, &DesktopRuntime::publish);
     featureTimer_.setInterval(1000);
     connect(&featureTimer_, &QTimer::timeout, this, &DesktopRuntime::pollFeatures);
     connect(&engine_, &infra::EngineSession::streamData, this,
@@ -56,8 +69,15 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
                      !featureDemands_.contains(QStringLiteral("log_feed"))))
                     return;
                 if (stream == QStringLiteral("logs")) {
-                    appendLog(QStringLiteral("Core"), data.value(QStringLiteral("type")).toString(),
-                              data.value(QStringLiteral("payload")).toString());
+                    if (data.value(QStringLiteral("source")) == QStringLiteral("Service"))
+                        logs_.addDropped(
+                            std::max(0, data.value(QStringLiteral("dropped")).toInt()));
+                    appendLog(data.value(QStringLiteral("source")) == QStringLiteral("Service")
+                                  ? QStringLiteral("Service")
+                                  : QStringLiteral("Core"),
+                              data.value(QStringLiteral("type")).toString(),
+                              data.value(QStringLiteral("payload")).toString(),
+                              data.value(QStringLiteral("truncated")).toBool());
                 } else {
                     auto sample = data;
                     sample.insert(QStringLiteral("time"),
@@ -74,6 +94,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
             return;
         }
         const auto now = clock_();
+        usageMinute_ = -1; // A threshold may cross within the last published minute.
+        publish();         // Refresh local expiry warnings without any additional download.
         for (const auto& value : profiles_) {
             const auto item = value.toObject();
             const auto due = QDateTime::fromString(
@@ -99,7 +121,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
             return;
         }
         restartAttempt_ = true;
-        start(backgroundManaged_ ? persistedProxyIntent_ && !proxyLease_.conflict()
+        start(backgroundManaged_ ? persistedProxyIntent_ && !proxyLease_->conflict()
                                  : proxyDesired_);
     });
     reconcileTimer_.setSingleShot(true);
@@ -108,8 +130,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         if (shuttingDown_)
             return;
         ++reconcileCount_;
-        if (proxyLease_.active()) {
-            const auto result = proxyLease_.matches();
+        if (proxyLease_->active()) {
+            const auto result = proxyLease_->matches();
             if (!std::holds_alternative<bool>(result) || !std::get<bool>(result)) {
                 proxyDesired_ = false;
                 error(QStringLiteral("SystemProxyConflict"));
@@ -121,14 +143,14 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         publish();
     });
     connect(&validationDeadline_, &QTimer::timeout, this, [this] {
-        validator_.stop();
+        validator_->stop();
         if (validationCompletion_) {
             auto completion = std::move(validationCompletion_);
             staging_.reset();
             completion(false);
         }
     });
-    connect(&validator_, &platform::OwnedProcess::finished, this, [this](int code) {
+    connect(validator_.get(), &IDesktopProcess::finished, this, [this](int code) {
         validationDeadline_.stop();
         if (validationCompletion_) {
             auto completion = std::move(validationCompletion_);
@@ -137,6 +159,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         }
     });
     connect(&engine_, &infra::EngineSession::becameReady, this, [this](const QString&) {
+        effectivePreferences_ = sessionPreferences_;
         coreUptime_.start();
         status_ = QStringLiteral("RestoringSelections");
         publish();
@@ -149,11 +172,15 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         }
     });
     connect(&engine_, &infra::EngineSession::stopped, this, [this](bool unexpected) {
+        effectivePreferences_ = {};
+        invalidateWebsiteTest();
         for (const auto& stream :
              {QStringLiteral("connections"), QStringLiteral("rules"), QStringLiteral("providers"),
               QStringLiteral("traffic"), QStringLiteral("resources")})
             releaseFeature(stream);
         cancelDelayTests();
+        resetConnectionClose();
+        queuedSelections_.clear();
         connections_ = {};
         featureState_.remove(QStringLiteral("traffic"));
         if (!applying_)
@@ -168,7 +195,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
             busy_ = false;
             pendingGroup_.clear();
             pendingMember_.clear();
-            const auto released = proxyLease_.release();
+            const auto released = proxyLease_->release();
             if (const auto* failure = std::get_if<domain::Error>(&released))
                 error(failure->code);
             error(QStringLiteral("CoreExited"));
@@ -191,49 +218,97 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
         }
         publish();
     });
-    connect(&engine_, &infra::EngineSession::groupsChanged, this,
-            [this](const QJsonObject& objects) {
-                groups_ = infra::orderedProxyGroups(configuredGroups_, objects);
-                if (restoringNodes_) {
-                    restoringNodes_ = false;
-                    for (auto it = selections_.begin(); it != selections_.end(); ++it) {
-                        const auto saved = it.value().toObject();
-                        const auto member = saved.value(QStringLiteral("member")).toString();
-                        bool selectable = false;
-                        for (const auto& entry : groups_) {
-                            const auto currentGroup = entry.toObject();
-                            if (currentGroup.value(QStringLiteral("name")) == it.key() &&
-                                currentGroup.value(QStringLiteral("canSelect")).toBool() &&
-                                currentGroup.value(QStringLiteral("members"))
-                                    .toArray()
-                                    .contains(member))
-                                selectable = true;
-                        }
-                        if (!selectable)
-                            continue;
-                        if (identities_.value(it.key()) ==
-                                saved.value(QStringLiteral("groupIdentity")) &&
-                            saved.value(QStringLiteral("profileId")) ==
-                                candidate_.value(QStringLiteral("selection"))
-                                    .toObject()
-                                    .value(QStringLiteral("profileId")) &&
-                            identities_.contains(member) &&
-                            identities_.value(member) == saved.value(QStringLiteral("identity"))) {
-                            if (restoredGroups_.contains(it.key()))
-                                continue;
-                            restoredGroups_.insert(it.key());
-                            restoringNodes_ = true;
-                            pendingGroup_ = it.key();
-                            pendingMember_ = member;
-                            engine_.select(pendingGroup_, pendingMember_);
-                            break;
-                        }
-                    }
-                    if (!restoringNodes_)
-                        confirmed();
+    connect(
+        &engine_, &infra::EngineSession::groupsChanged, this, [this](const QJsonObject& objects) {
+            QJsonObject previous;
+            for (const auto& entry : groups_) {
+                const auto group = entry.toObject();
+                previous.insert(group.value(QStringLiteral("name")).toString(),
+                                group.value(QStringLiteral("current")));
+            }
+            groups_ = infra::orderedProxyGroups(configuredGroups_, objects);
+            QJsonArray liveNodes;
+            for (auto it = objects.begin(); it != objects.end(); ++it) {
+                const auto node = it.value().toObject();
+                auto type = node.value(QStringLiteral("type")).toString().toLower();
+                if (type == QStringLiteral("shadowsocks"))
+                    type = QStringLiteral("ss");
+                if (type == QStringLiteral("http") || type == QStringLiteral("socks5") ||
+                    type == QStringLiteral("ss") || type == QStringLiteral("hysteria2") ||
+                    type == QStringLiteral("trojan") || type == QStringLiteral("vless") ||
+                    type == QStringLiteral("vmess") || type == QStringLiteral("tuic"))
+                    liveNodes.append(QJsonObject{{QStringLiteral("name"), it.key()},
+                                                 {QStringLiteral("type"), type},
+                                                 {QStringLiteral("udp"), node.value("udp")}});
+            }
+            featureState_.insert(QStringLiteral("nodes"), liveNodes);
+            // API descriptors omit endpoint credentials. Permit explicit live selection,
+            // but never persist/restore a dynamic node using its display name as identity.
+            QSet<QString> liveNames;
+            for (auto it = objects.begin(); it != objects.end(); ++it)
+                liveNames.insert(it.key());
+            for (const auto& value : groups_)
+                for (const auto& member : value.toObject().value("members").toArray())
+                    liveNames.insert(member.toString());
+            for (const auto& name : liveNames)
+                if (!identities_.contains(name) ||
+                    objects.value(name).toObject().value("providerDynamic").toBool())
+                    identities_.insert(name, QStringLiteral("unverified:"));
+            for (auto it = identities_.begin(); it != identities_.end();)
+                if (it.value() == QStringLiteral("unverified:") && !liveNames.contains(it.key()))
+                    it = identities_.erase(it);
+                else
+                    ++it;
+            for (const auto& entry : groups_) {
+                const auto group = entry.toObject();
+                const auto name = group.value(QStringLiteral("name")).toString();
+                if (previous.contains(name) &&
+                    previous.value(name) != group.value(QStringLiteral("current"))) {
+                    invalidateWebsiteTest();
+                    break;
                 }
-                publish();
-            });
+            }
+            if (restoringNodes_) {
+                restoringNodes_ = false;
+                for (auto it = selections_.begin(); it != selections_.end(); ++it) {
+                    const auto saved = it.value().toObject();
+                    const auto member = saved.value(QStringLiteral("member")).toString();
+                    bool selectable = false;
+                    for (const auto& entry : groups_) {
+                        const auto currentGroup = entry.toObject();
+                        if (currentGroup.value(QStringLiteral("name")) == it.key() &&
+                            currentGroup.value(QStringLiteral("canSelect")).toBool() &&
+                            currentGroup.value(QStringLiteral("members"))
+                                .toArray()
+                                .contains(member))
+                            selectable = true;
+                    }
+                    if (!selectable)
+                        continue;
+                    if (identities_.value(it.key()) ==
+                            saved.value(QStringLiteral("groupIdentity")) &&
+                        saved.value(QStringLiteral("profileId")) ==
+                            candidate_.value(QStringLiteral("selection"))
+                                .toObject()
+                                .value(QStringLiteral("profileId")) &&
+                        identities_.contains(member) &&
+                        identities_.value(member) != QStringLiteral("unverified:") &&
+                        identities_.value(member) == saved.value(QStringLiteral("identity"))) {
+                        if (restoredGroups_.contains(it.key()))
+                            continue;
+                        restoredGroups_.insert(it.key());
+                        restoringNodes_ = true;
+                        pendingGroup_ = it.key();
+                        pendingMember_ = member;
+                        engine_.select(pendingGroup_, pendingMember_);
+                        break;
+                    }
+                }
+                if (!restoringNodes_)
+                    confirmed();
+            }
+            publish();
+        });
     connect(&engine_, &infra::EngineSession::mutationFinished, this,
             [this](const QString& kind, bool success) {
                 if (kind != QStringLiteral("select") || pendingGroup_.isEmpty())
@@ -249,13 +324,17 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
                 }
                 busy_ = false;
                 if (success) {
-                    selections_.insert(
-                        pendingGroup_,
-                        QJsonObject{
-                            {QStringLiteral("member"), pendingMember_},
-                            {QStringLiteral("profileId"), selectedId_},
-                            {QStringLiteral("identity"), identities_.value(pendingMember_)},
-                            {QStringLiteral("groupIdentity"), identities_.value(pendingGroup_)}});
+                    if (identities_.value(pendingMember_) == QStringLiteral("unverified:")) {
+                        selections_.remove(pendingGroup_);
+                    } else {
+                        selections_.insert(pendingGroup_,
+                                           QJsonObject{{QStringLiteral("member"), pendingMember_},
+                                                       {QStringLiteral("profileId"), selectedId_},
+                                                       {QStringLiteral("identity"),
+                                                        identities_.value(pendingMember_)},
+                                                       {QStringLiteral("groupIdentity"),
+                                                        identities_.value(pendingGroup_)}});
+                    }
                     const auto saved = store_.write(QStringLiteral("data/node_selections.json"),
                                                     {{QStringLiteral("groups"), selections_}});
                     if (const auto* failure = std::get_if<domain::Error>(&saved))
@@ -267,13 +346,18 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
                 pendingGroup_.clear();
                 pendingMember_.clear();
                 publish();
+                if (!queuedSelections_.isEmpty()) {
+                    const auto next = queuedSelections_.firstKey();
+                    const auto member = queuedSelections_.take(next);
+                    selectProxy(next, member);
+                }
             });
 }
 DesktopRuntime::~DesktopRuntime() {
     stop(domain::StopReason::AppExit);
 }
 void DesktopRuntime::initialize() {
-    const auto released = proxyLease_.release();
+    const auto released = proxyLease_->release();
     const bool leaseRecovered = std::holds_alternative<std::monostate>(released);
     if (const auto* failure = std::get_if<domain::Error>(&released))
         error(failure->code);
@@ -374,13 +458,19 @@ void DesktopRuntime::initialize() {
             return;
         }
     }
+    runtimePreferences_.remove(QStringLiteral("schemaVersion"));
     const auto mode = runtimePreferences_.value(QStringLiteral("mode")).toString();
     const auto mixed = runtimePreferences_.value(QStringLiteral("mixedPort")).toInt();
     const auto controller = runtimePreferences_.value(QStringLiteral("controllerPort")).toInt();
+    const auto dnsMode =
+        runtimePreferences_.value(QStringLiteral("dnsMode")).toString(QStringLiteral("profile"));
     if ((mode != QStringLiteral("rule") && mode != QStringLiteral("global") &&
          mode != QStringLiteral("direct")) ||
         mixed < 1024 || mixed > 65535 || controller < 1024 || controller > 65535 ||
-        mixed == controller) {
+        mixed == controller ||
+        !QStringList{QStringLiteral("profile"), QStringLiteral("fake-ip"),
+                     QStringLiteral("redir-host")}
+             .contains(dnsMode)) {
         store_.freeze();
         error(QStringLiteral("RuntimePreferencesRecoveryRequired"));
         return;
@@ -397,15 +487,16 @@ void DesktopRuntime::initialize() {
         return;
     }
     persistedProxyIntent_ = savedIntent && savedIntent->value(QStringLiteral("desired")).toBool();
+    savedPreferences_ = runtimePreferences_;
     const auto selections = store_.read(QStringLiteral("data/node_selections.json"));
     if (const auto* value = std::get_if<std::optional<QJsonObject>>(&selections); value && *value)
         selections_ = (*value)->value(QStringLiteral("groups")).toObject();
     loadOfflineGroups();
-    const auto target = credentials_.read(QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891"));
+    const auto target = credentials_->read(QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891"));
     if (const auto* value = std::get_if<QByteArray>(&target))
         testTarget_ = QString::fromUtf8(*value);
     const auto savedDelayTarget =
-        credentials_.read(QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"));
+        credentials_->read(QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"));
     if (const auto* value = std::get_if<QByteArray>(&savedDelayTarget))
         delayTarget_ = QString::fromUtf8(*value);
     const auto storedErrors = store_.read(QStringLiteral("logs/errors.json"));
@@ -452,9 +543,13 @@ domain::Generation DesktopRuntime::selectionGeneration() const {
 QJsonObject DesktopRuntime::controlState() const {
     auto runtimePreferences = runtimePreferences_;
     runtimePreferences.insert(QStringLiteral("systemProxyDesired"), persistedProxyIntent_);
+    auto effective = engine_.ready() ? effectivePreferences_ : QJsonObject{};
+    effective.insert(QStringLiteral("systemProxy"), proxyLease_->active());
+    effective.insert(QStringLiteral("tun"), engine_.tunActive());
     auto features = featureState_;
-    for (const auto* key : {"nodes", "traffic", "memory", "memorySample", "memoryComplete",
-                            "connectionSample", "connectionsStale"})
+    for (const auto* key :
+         {"nodes", "traffic", "memory", "memorySample", "memoryComplete", "connectionSample",
+          "connectionsStale", "connectionsPaused", "connectionError"})
         features.remove(QLatin1String(key));
     return {
         {QStringLiteral("features"), features},
@@ -462,6 +557,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("epoch"), epoch_},
         {QStringLiteral("platform"), QSysInfo::prettyProductName()},
         {QStringLiteral("architecture"), QSysInfo::currentCpuArchitecture()},
+        {QStringLiteral("capabilities"), platformInfo_.capabilities},
         {QStringLiteral("outbound"), outbound_},
         {QStringLiteral("selectedId"), selectedId_},
         {QStringLiteral("selectionGeneration"), repository_.manifest()
@@ -471,6 +567,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("selectedName"), selectedName_},
         {QStringLiteral("status"), status_},
         {QStringLiteral("busy"), busy_},
+        {QStringLiteral("selectingProxy"), !pendingGroup_.isEmpty() && !restoringNodes_},
         {QStringLiteral("ready"), engine_.ready()},
         {QStringLiteral("backgroundManaged"), backgroundManaged_},
         {QStringLiteral("recovering"), recoveryTimer_.isActive()},
@@ -484,8 +581,8 @@ QJsonObject DesktopRuntime::controlState() const {
              ? QStringLiteral("AuthorizationRequired")
              : QStringLiteral("Off")},
         {QStringLiteral("readOnly"), store_.readOnly()},
-        {QStringLiteral("systemProxy"), proxyLease_.active()},
-        {QStringLiteral("proxyConflict"), proxyLease_.conflict()},
+        {QStringLiteral("systemProxy"), proxyLease_->active()},
+        {QStringLiteral("proxyConflict"), proxyLease_->conflict()},
         {QStringLiteral("error"), lastError_},
         {QStringLiteral("configIssues"), configIssues_},
         {QStringLiteral("errors"), errors_},
@@ -495,6 +592,13 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("operation"), operationSnapshot_},
         {QStringLiteral("effectivePreview"), effectivePreview_},
         {QStringLiteral("preferences"), runtimePreferences},
+        {QStringLiteral("settingsState"),
+         QJsonObject{{QStringLiteral("requested"), runtimePreferences},
+                     {QStringLiteral("saved"), savedPreferences_},
+                     {QStringLiteral("effective"), effective},
+                     {QStringLiteral("running"), engine_.ready()},
+                     {QStringLiteral("pending"), runtimePreferences_ != savedPreferences_},
+                     {QStringLiteral("phase"), status_}}},
         {QStringLiteral("coreVersion"), engine_.ready() ? QStringLiteral("v1.19.33") : QString{}},
         {QStringLiteral("dataDirectory"), store_.root()},
         {QStringLiteral("dataUrl"), QUrl::fromLocalFile(store_.root()).toString()}};
@@ -508,12 +612,14 @@ QJsonObject DesktopRuntime::snapshot() const {
         infra::outboundSummary(groups_, defaultPolicy_,
                                runtimePreferences_.value(QStringLiteral("mode")).toString(),
                                engine_.ready() && status_ == QStringLiteral("Ready")));
-    result.insert(QStringLiteral("profiles"), profiles_);
+    result.insert(QStringLiteral("profiles"), profileViews());
     result.insert(QStringLiteral("features"), featureState_);
     result.insert(QStringLiteral("connections"), connections_);
     result.insert(QStringLiteral("rules"), rules_);
     result.insert(QStringLiteral("providers"), providers_);
-    result.insert(QStringLiteral("logs"), logs_);
+    result.insert(QStringLiteral("rulePage"), rulePageState_);
+    result.insert(QStringLiteral("providerPage"), providerPageState_);
+    result.insert(QStringLiteral("logs"), logs_.entries());
     QJsonObject revisions;
     for (auto it = demandState_.generations.constBegin(); it != demandState_.generations.constEnd();
          ++it)
@@ -527,7 +633,8 @@ QJsonObject DesktopRuntime::snapshot() const {
                               {QStringLiteral("pendingReads"),
                                QJsonArray::fromStringList(pendingFeatureRequests_.values())},
                               {QStringLiteral("providerDraftCount"), providerDraft_.size()},
-                              {QStringLiteral("appLogCount"), appLogs_.size()}});
+                              {QStringLiteral("providerResultCount"), providerResults_.size()},
+                              {QStringLiteral("appLogCount"), appLogs_.entries().size()}});
     // Sparse diagnostic counters only; never included in production control/data publications.
     result.insert(
         QStringLiteral("configLifecycle"),
@@ -540,7 +647,8 @@ QJsonObject DesktopRuntime::snapshot() const {
              configTransaction_ ? configTransaction_->semantic.size() : 0},
             {QStringLiteral("validated"), configTransaction_ && configTransaction_->validated},
             {QStringLiteral("validationActive"), static_cast<bool>(validationCompletion_)}});
-    result.insert(QStringLiteral("droppedLogs"), droppedLogs_);
+    result.insert(QStringLiteral("droppedLogs"),
+                  logs_.status().value(QStringLiteral("droppedLogs")));
     result.insert(QStringLiteral("delays"), delays_);
     result.insert(QStringLiteral("groups"), groups_);
     result.insert(QStringLiteral("coreUptimeSeconds"),
@@ -548,6 +656,13 @@ QJsonObject DesktopRuntime::snapshot() const {
     return result;
 }
 void DesktopRuntime::publish() {
+    finishSnapshotProviderRefresh();
+    if (geoOperationActive_ && !busy_) {
+        geoOperationActive_ = false;
+        featureState_.insert(QStringLiteral("geoResult"), lastError_.isEmpty()
+                                                              ? QStringLiteral("Applied")
+                                                              : QStringLiteral("Failed"));
+    }
     if (!busy_ && !updatingSubscription_.isEmpty())
         completeSubscriptionUpdate(lastError_.isEmpty() ? QStringLiteral("Updated")
                                                         : QStringLiteral("Failed"));
@@ -566,8 +681,11 @@ void DesktopRuntime::publish() {
         summaryReady_ = ready;
         outbound_ = infra::outboundSummary(groups_, defaultPolicy_, mode, ready);
     }
-    if (summaryProfiles_ != profiles_ || summarySelectedId_ != selectedId_) {
+    if (summaryProfiles_ != profiles_ || summarySelectedId_ != selectedId_ ||
+        usageMinute_ != clock_().toSecsSinceEpoch() / 60) {
         summaryProfiles_ = profiles_;
+        profileViews_ = profileViews();
+        usageMinute_ = clock_().toSecsSinceEpoch() / 60;
         summarySelectedId_ = selectedId_;
         selectedName_ = profile(selectedId_).value(QStringLiteral("name"));
     }
@@ -592,21 +710,26 @@ void DesktopRuntime::flushData() {
     };
     const QJsonObject channels{
         {QStringLiteral("samples"), samples},
-        {QStringLiteral("profiles"), profiles_},
+        {QStringLiteral("profiles"), profileViews_},
         {QStringLiteral("groups"), groups_},
         {QStringLiteral("nodes"), featureState_.value(QStringLiteral("nodes")).toArray()},
         {QStringLiteral("delays"), delays_},
         {QStringLiteral("connections"), connections_},
         {QStringLiteral("rules"), rules_},
         {QStringLiteral("providers"), providers_},
-        {QStringLiteral("logs"), logs_},
+        {QStringLiteral("rule_status"), QJsonObject{{QStringLiteral("rulePage"), rulePageState_}}},
+        {QStringLiteral("provider_status"),
+         QJsonObject{{QStringLiteral("providerPage"), providerPageState_}}},
+        {QStringLiteral("logs"), logs_.entries()},
+        {QStringLiteral("editor"), editor_},
         {QStringLiteral("traffic"), fields({QStringLiteral("traffic")})},
         {QStringLiteral("resources"),
          fields({QStringLiteral("memory"), QStringLiteral("memorySample"),
                  QStringLiteral("memoryComplete")})},
         {QStringLiteral("connection_status"),
-         fields({QStringLiteral("connectionSample"), QStringLiteral("connectionsStale")})},
-        {QStringLiteral("log_status"), QJsonObject{{QStringLiteral("droppedLogs"), droppedLogs_}}}};
+         fields({QStringLiteral("connectionSample"), QStringLiteral("connectionsStale"),
+                 QStringLiteral("connectionsPaused"), QStringLiteral("connectionError")})},
+        {QStringLiteral("log_status"), logs_.status()}};
     RuntimeUpdate update{publicationGeneration_, epoch_, {}};
     update.demandGenerations = demandState_.generations;
     update.invalidated = std::move(invalidatedChannels_);
@@ -657,6 +780,15 @@ void DesktopRuntime::scheduleSubscriptions() {
     bool scheduled = false;
     for (const auto& value : profiles_) {
         const auto item = value.toObject();
+        const auto usage = domain::subscriptionUsageStatus(
+            item.value(QStringLiteral("usage")).toObject(), clock_());
+        const auto expiry =
+            QDateTime::fromString(usage.value(QStringLiteral("expiresAt")).toString(), Qt::ISODate);
+        if (expiry.isValid() && expiry > clock_()) {
+            scheduled = true;
+            const auto soon = expiry.addDays(-7);
+            delay = std::min(delay, clock_().msecsTo(soon > clock_() ? soon : expiry));
+        }
         if (item.value(QStringLiteral("secretRef")).toString().isEmpty() ||
             item.value(QStringLiteral("updateIntervalMinutes")).toInt() <= 0)
             continue;
@@ -729,14 +861,16 @@ void DesktopRuntime::configError(const domain::Error& failure) {
 }
 QString DesktopRuntime::coreExecutable() const {
     const auto directory = QCoreApplication::applicationDirPath();
-    const auto packaged = QDir(directory).filePath(QStringLiteral("../core/mihomo.exe"));
-    if (QFileInfo::exists(packaged)) {
+    const auto packaged =
+        QDir(directory).filePath(QStringLiteral("../core/") + platformInfo_.coreFileName);
+    if (QFileInfo::exists(packaged) || QFileInfo::exists(QDir(directory).filePath(
+                                           QStringLiteral("../metadata/release_matrix.json")))) {
         return QFileInfo(packaged).absoluteFilePath();
     }
 #ifdef QUICKCLASH_DEVELOPMENT_CORE
     return QStringLiteral(QUICKCLASH_DEVELOPMENT_CORE);
 #else
-    return QDir(directory).filePath(QStringLiteral("core/mihomo.exe"));
+    return QDir(directory).filePath(QStringLiteral("core/") + platformInfo_.coreFileName);
 #endif
 }
 domain::RuntimePreferences DesktopRuntime::preferences() const {
@@ -753,6 +887,29 @@ domain::RuntimePreferences DesktopRuntime::preferences() const {
         runtimePreferences_.value(QStringLiteral("dnsMode")).toString(QStringLiteral("profile"));
     return value;
 }
+QJsonArray DesktopRuntime::profileViews() const {
+    QJsonArray views;
+    const auto now = clock_();
+    for (const auto& entry : profiles_) {
+        auto view = entry.toObject();
+        view.insert(QStringLiteral("revision"), profileRevision(view));
+        view.remove(QStringLiteral("overlay"));
+        view.remove(QStringLiteral("providerResources"));
+        auto history = view.value(QStringLiteral("history")).toArray();
+        for (qsizetype i = 0; i < history.size(); ++i) {
+            auto version = history[i].toObject();
+            version.remove(QStringLiteral("overlay"));
+            version.remove(QStringLiteral("providerResources"));
+            history[i] = version;
+        }
+        view.insert(QStringLiteral("history"), history);
+        view.insert(
+            QStringLiteral("usageStatus"),
+            domain::subscriptionUsageStatus(view.value(QStringLiteral("usage")).toObject(), now));
+        views.append(view);
+    }
+    return views;
+}
 QJsonObject DesktopRuntime::profile(const QString& id) const {
     for (const auto& value : profiles_) {
         if (value.toObject().value(QStringLiteral("id")) == id) {
@@ -762,6 +919,7 @@ QJsonObject DesktopRuntime::profile(const QString& id) const {
     return {};
 }
 bool DesktopRuntime::saveCatalog(const QJsonArray& profiles) {
+    const auto previousProviders = profile(selectedId_).value(QStringLiteral("managedProviders"));
     const auto result =
         store_.write(QStringLiteral("data/catalog.json"), {{QStringLiteral("profiles"), profiles}});
     if (const auto* failure = std::get_if<domain::Error>(&result)) {
@@ -769,6 +927,15 @@ bool DesktopRuntime::saveCatalog(const QJsonArray& profiles) {
         return false;
     }
     profiles_ = profiles;
+    if (previousProviders != profile(selectedId_).value(QStringLiteral("managedProviders"))) {
+        // A saved candidate can change while auto-apply is off and the old core keeps running.
+        ++featureRequests_[QStringLiteral("providers")];
+        pendingFeatureRequests_.remove(QStringLiteral("providers"));
+        loadedFeatures_.remove(QStringLiteral("providers"));
+        providerDraft_ = {};
+        providerPageState_ = {};
+    }
+    scheduleSubscriptions();
     return true;
 }
 void DesktopRuntime::importFile(const QString& url, const QString& name) {
@@ -794,8 +961,9 @@ void DesktopRuntime::importFile(const QString& url, const QString& name) {
     resolveImport(std::move(loaded.bytes),
                   name.isEmpty() ? QFileInfo(file).completeBaseName() : name, {});
 }
-void DesktopRuntime::addSubscription(const QString& url, const QString& name) {
-    download(url, name);
+void DesktopRuntime::addSubscription(const QString& url, const QString& name,
+                                     const QString& route) {
+    download(url, name, {}, {}, route);
 }
 void DesktopRuntime::updateProfile(const QString& id) {
     if (busy_ || store_.readOnly()) {
@@ -809,7 +977,7 @@ void DesktopRuntime::updateProfile(const QString& id) {
     }
     updatingSubscription_ = id;
     lastError_.clear();
-    const auto secret = credentials_.read(item.value(QStringLiteral("secretRef")).toString());
+    const auto secret = credentials_->read(item.value(QStringLiteral("secretRef")).toString());
     if (const auto* failure = std::get_if<domain::Error>(&secret)) {
         error(failure->code);
         return;
@@ -819,7 +987,9 @@ void DesktopRuntime::updateProfile(const QString& id) {
     download(envelope.isEmpty() ? QString::fromUtf8(bytes)
                                 : envelope.value(QStringLiteral("url")).toString(),
              item.value(QStringLiteral("name")).toString(), id,
-             envelope.value(QStringLiteral("headers")).toObject());
+             envelope.value(QStringLiteral("headers")).toObject(),
+             item.value(QStringLiteral("downloadRoute")).toString(QStringLiteral("Direct")),
+             envelope.value(QStringLiteral("cache")).toObject());
 }
 void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
                                          const QString& headers) {
@@ -838,164 +1008,17 @@ void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
     lastError_.clear();
     download(url, item.value(QStringLiteral("name")).toString(), id, document.object());
 }
-void DesktopRuntime::download(const QString& url, const QString& name, const QString& id,
-                              const QJsonObject& headers) {
-    if (busy_ || store_.readOnly()) {
-        error(QStringLiteral("OperationUnavailable"));
-        return;
-    }
-    const auto normalizedUrl = url.trimmed();
-    const QUrl source(normalizedUrl);
-    if (!source.isValid() || source.scheme() != QStringLiteral("https") ||
-        source.host().isEmpty() || !source.userInfo().isEmpty() || source.hasFragment() ||
-        url.size() > 8192) {
-        error(QStringLiteral("HttpsSubscriptionRequired"));
-        return;
-    }
-    if (headers.size() > 16) {
-        error(QStringLiteral("InvalidSubscriptionHeaders"));
-        return;
-    }
-    for (auto it = headers.begin(); it != headers.end(); ++it) {
-        const auto key = it.key().toLower();
-        if ((key != QStringLiteral("authorization") && key != QStringLiteral("user-agent") &&
-             key != QStringLiteral("accept")) ||
-            !it.value().isString() || it.value().toString().size() > 4096 ||
-            it.value().toString().contains(QLatin1Char('\r')) ||
-            it.value().toString().contains(QLatin1Char('\n'))) {
-            error(QStringLiteral("InvalidSubscriptionHeaders"));
-            return;
-        }
-    }
-    busy_ = true;
-    const auto generation = ++operationGeneration_;
-    publish();
-    QNetworkRequest request(source);
-    // Standard subscription endpoints negotiate their output from the client identity.
-    // Preserve the original query (including signatures) instead of guessing format flags.
-    request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/0.1.0");
-    request.setRawHeader("Accept", "application/yaml, text/yaml, text/plain;q=0.9, */*;q=0.1");
-    for (auto it = headers.begin(); it != headers.end(); ++it)
-        request.setRawHeader(it.key().toLatin1(), it.value().toString().toUtf8());
-    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                         QNetworkRequest::ManualRedirectPolicy);
-    request.setTransferTimeout(15000);
-    auto* reply = directNetwork_.get(request);
-    downloadReply_ = reply;
-    reply->setReadBufferSize(infra::kReadChunkSize);
-    auto bytes = std::make_shared<QByteArray>();
-    connect(reply, &QIODevice::readyRead, this, [reply, bytes] {
-        if (!infra::appendAvailable(*reply, *bytes, kSourceLimit)) {
-            reply->abort();
-        }
-    });
-    auto* timer = new QTimer(reply);
-    timer->setSingleShot(true);
-    timer->start(20000);
-    connect(timer, &QTimer::timeout, reply, &QNetworkReply::abort);
-    connect(reply, &QNetworkReply::finished, this,
-            [this, reply, bytes, generation, normalizedUrl, name, id, headers] {
-                reply->deleteLater();
-                if (generation != operationGeneration_) {
-                    return;
-                }
-                busy_ = false;
-                const auto readOk = infra::appendAvailable(*reply, *bytes, kSourceLimit);
-                if (bytes->size() > kSourceLimit) {
-                    error(QStringLiteral("SubscriptionTooLarge"));
-                    return;
-                }
-                const auto status =
-                    reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-                if (status >= 300 && status < 400) {
-                    error(QStringLiteral("SubscriptionRedirectUnsupported"));
-                    return;
-                }
-                if (!readOk || reply->error() != QNetworkReply::NoError || status != 200) {
-                    error(status == 401 || status == 403
-                              ? QStringLiteral("SubscriptionAuthenticationFailed")
-                              : QStringLiteral("SubscriptionDownloadFailed"));
-                    return;
-                }
-                const auto previous = profile(id);
-                // Only reuse a validated source after its persisted SHA-256 matches. Providers
-                // still require fetching because their snapshots may have changed independently.
-                bool unchanged = false;
-                if (!previous.isEmpty() && !previous.contains(QStringLiteral("snapshotRef")) &&
-                    previous.value(QStringLiteral("sourceHash")) == hash(*bytes)) {
-                    unchanged = std::holds_alternative<std::monostate>(store_.verifyBytes(
-                        previous.value(QStringLiteral("sourceRef")).toString(), hash(*bytes)));
-                }
-                // Some endpoints serve YAML with text/html. Inspect new bounded bodies, not MIME.
-                if (!unchanged) {
-                    const auto payloadError = infra::subscriptionPayloadError(*bytes);
-                    if (!payloadError.isEmpty()) {
-                        error(payloadError);
-                        return;
-                    }
-                }
-                const auto secretRef = QUuid::createUuid().toString(QUuid::WithoutBraces);
-                {
-                    const auto secured = credentials_.write(
-                        secretRef, QJsonDocument(QJsonObject{{QStringLiteral("url"), normalizedUrl},
-                                                             {QStringLiteral("headers"), headers}})
-                                       .toJson(QJsonDocument::Compact));
-                    if (const auto* failure = std::get_if<domain::Error>(&secured)) {
-                        error(failure->code);
-                        return;
-                    }
-                }
-                QJsonObject metadata, usage;
-                const auto usageHeader = reply->rawHeader("subscription-userinfo");
-                if (usageHeader.size() <= 1024) {
-                    for (const auto& field : usageHeader.split(';')) {
-                        const auto pair = field.trimmed().split('=');
-                        if (pair.size() != 2 ||
-                            !QList<QByteArray>{"upload", "download", "total", "expire"}.contains(
-                                pair[0]))
-                            continue;
-                        bool valid = false;
-                        const auto value = pair[1].toULongLong(&valid);
-                        if (valid && value <= 9007199254740991ULL)
-                            usage.insert(QString::fromLatin1(pair[0]), QString::number(value));
-                    }
-                }
-                metadata.insert(QStringLiteral("usage"), usage);
-                if (unchanged) {
-                    *bytes = {}; // No raw body survives into a possible queued application.
-                    auto catalog = profiles_;
-                    for (qsizetype i = 0; i < catalog.size(); ++i) {
-                        auto item = catalog[i].toObject();
-                        if (item.value(QStringLiteral("id")) != id)
-                            continue;
-                        item.insert(QStringLiteral("secretRef"), secretRef);
-                        item.insert(QStringLiteral("updatedAt"), clock_().toString(Qt::ISODate));
-                        item.insert(QStringLiteral("usage"), usage);
-                        catalog[i] = item;
-                    }
-                    if (saveCatalog(catalog)) {
-                        collectGarbage();
-                        if (id == selectedId_ &&
-                            previous.value(QStringLiteral("pendingApply")).toBool() &&
-                            previous.value(QStringLiteral("autoApply")).toBool()) {
-                            applyProfile(id, engine_.ready());
-                            return;
-                        }
-                        lastError_.clear();
-                        publish();
-                    }
-                    return;
-                }
-                resolveImport(std::exchange(*bytes, {}), name, secretRef, id, metadata);
-            });
-}
 void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(bool)> completion) {
     lastError_.clear();
+    if (platformInfo_.capabilities.value(QStringLiteral("core")) != QStringLiteral("Supported")) {
+        error(QStringLiteral("CorePlatformUnsupported"));
+        completion(false);
+        return;
+    }
     QFile binary(coreExecutable());
     QCryptographicHash checksum(QCryptographicHash::Sha256);
     if (!binary.open(QIODevice::ReadOnly) || !checksum.addData(&binary) ||
-        checksum.result().toHex() !=
-            QByteArrayLiteral("1cde41cfffd3de0aedad63c0a8515e1ce5eea507e8133aed0f637d316c93800a")) {
+        checksum.result().toHex() != platformInfo_.coreSha256) {
         error(QStringLiteral("CoreIntegrityFailed"));
         completion(false);
         return;
@@ -1015,7 +1038,7 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         return;
     }
     QFile config(staging_->filePath(QStringLiteral("config.yaml")));
-    const auto copied = staging_->filePath(QStringLiteral("mihomo.exe"));
+    const auto copied = staging_->filePath(platformInfo_.coreFileName);
     {
         const auto materialized = infra::materializeSession({semantic, {}}, newSecret());
         if (!std::holds_alternative<QByteArray>(materialized) ||
@@ -1041,10 +1064,10 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
     }
     validationCompletion_ = std::move(completion);
     const auto launched =
-        validator_.start(copied,
-                         {QStringLiteral("-t"), QStringLiteral("-f"), config.fileName(),
-                          QStringLiteral("-d"), staging_->path()},
-                         staging_->path(), true);
+        validator_->start(copied,
+                          {QStringLiteral("-t"), QStringLiteral("-f"), config.fileName(),
+                           QStringLiteral("-d"), staging_->path()},
+                          staging_->path(), true);
     if (const auto* failure = std::get_if<domain::Error>(&launched)) {
         auto callback = std::move(validationCompletion_);
         staging_.reset();
@@ -1074,6 +1097,9 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
         candidates ? std::move(candidates) : std::make_shared<ConfigCandidates>(store_);
     context->profileId =
         existingId.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : existingId;
+    context->previewOnly = metadata.value(QStringLiteral("_previewOnly")).toBool();
+    context->forceApply = metadata.value(QStringLiteral("_forceApply")).toBool();
+    context->editorToken = metadata.value(QStringLiteral("_editorToken")).toString();
     context->preferences = runtimePreferences_;
     const auto sourceRef =
         storedSource.isEmpty()
@@ -1089,6 +1115,13 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
         }
         context->candidates->references.append(sourceRef);
         imported.insert(QStringLiteral("sourceHash"), hash(bytes));
+    } else if (storedSource.contains(QStringLiteral("snapshotRef"))) {
+        if (hash(bytes) != storedSource.value(QStringLiteral("snapshotHash")) ||
+            std::holds_alternative<domain::Error>(store_.verifyBytes(
+                storedSource.value(QStringLiteral("snapshotRef")).toString(), hash(bytes)))) {
+            error(QStringLiteral("SourceIntegrityFailed"));
+            return;
+        }
     } else {
         const auto snapshotRef = sourceRef + QStringLiteral(".snapshot.yaml");
         const auto saved = store_.writeBytes(snapshotRef, bytes, true);
@@ -1109,9 +1142,19 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     imported.insert(QStringLiteral("updatedAt"),
                     QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
     for (auto it = metadata.begin(); it != metadata.end(); ++it)
-        imported.insert(it.key(), it.value());
+        if (!it.key().startsWith(QLatin1Char('_')))
+            imported.insert(it.key(), it.value());
+    if (!imported.contains(QStringLiteral("overlay")))
+        imported.insert(QStringLiteral("overlay"),
+                        profile(existingId).value(QStringLiteral("overlay")).toObject());
     context->imported = imported;
-    auto preflight = infra::preflightConfig(bytes, preferences());
+    auto composed =
+        infra::composeOverlay(bytes, imported.value(QStringLiteral("overlay")).toObject());
+    if (const auto* failure = std::get_if<domain::Error>(&composed)) {
+        configError(*failure);
+        return;
+    }
+    auto preflight = infra::preflightConfig(std::get<QByteArray>(composed), preferences());
     bytes = {}; // Persisted raw/snapshot input does not cross the asynchronous validation boundary.
     if (const auto* failure = std::get_if<domain::Error>(&preflight)) {
         configError(*failure);
@@ -1146,6 +1189,10 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     });
 }
 void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& context) {
+    if (context->previewOnly) {
+        finishEditorPreview(context);
+        return;
+    }
     const auto id = context->profileId;
     const auto previous = profile(id);
     QJsonObject item = previous;
@@ -1157,7 +1204,8 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
     if (!previous.isEmpty() &&
         (previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
          previous.value(QStringLiteral("snapshotHash")) !=
-             item.value(QStringLiteral("snapshotHash")))) {
+             item.value(QStringLiteral("snapshotHash")) ||
+         previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay")))) {
         auto history = previous.value(QStringLiteral("history")).toArray();
         auto version = previous;
         version.remove(QStringLiteral("history"));
@@ -1176,10 +1224,13 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
     const bool changed =
         previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
         previous.value(QStringLiteral("snapshotHash")) !=
-            item.value(QStringLiteral("snapshotHash"));
-    const bool activate = selectedId_.isEmpty() ||
-                          (id == selectedId_ && item.value(QStringLiteral("autoApply")).toBool() &&
-                           (changed || item.value(QStringLiteral("pendingApply")).toBool()));
+            item.value(QStringLiteral("snapshotHash")) ||
+        previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay"));
+    const bool activate =
+        selectedId_.isEmpty() ||
+        (id == selectedId_ &&
+         (context->forceApply || item.value(QStringLiteral("autoApply")).toBool()) &&
+         (changed || item.value(QStringLiteral("pendingApply")).toBool()));
     item.insert(QStringLiteral("pendingApply"),
                 changed || item.value(QStringLiteral("pendingApply")).toBool());
     auto catalog = profiles_;
@@ -1197,6 +1248,20 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
     if (saveCatalog(catalog)) {
         // Catalog now owns the immutable source/snapshot, even if later application fails.
         context->candidates->references.clear();
+        if (!context->editorToken.isEmpty() &&
+            context->editorToken == editor_.value(QStringLiteral("token")) &&
+            id == editor_.value(QStringLiteral("id"))) {
+            editor_.insert(QStringLiteral("candidateSaved"), true);
+            editor_.insert(QStringLiteral("baseRevision"), profileRevision(item));
+            editor_.insert(QStringLiteral("sourceHash"), item.value(QStringLiteral("sourceHash")));
+            editor_.insert(QStringLiteral("baseSourceRef"),
+                           item.value(QStringLiteral("sourceRef")));
+            editor_.insert(QStringLiteral("baseSnapshotRef"),
+                           item.value(QStringLiteral("snapshotRef")));
+            editor_.insert(QStringLiteral("baseOverlay"), item.value(QStringLiteral("overlay")));
+            editor_.insert(QStringLiteral("conflict"), false);
+            saveEditorDraft(context->editorToken, editor_.value(QStringLiteral("text")).toString());
+        }
         collectGarbage();
         lastError_.clear();
         configIssues_ = {};
@@ -1243,6 +1308,17 @@ void DesktopRuntime::renameProfile(const QString& id, const QString& name) {
     }
 }
 void DesktopRuntime::deleteProfile(const QString& id) {
+    if (!store_.readOnly() && busy_ && updatingSubscription_ == id && downloadReply_ &&
+        downloadReply_->manager() == &subscriptionNetwork_) {
+        ++operationGeneration_;
+        downloadReply_->abort();
+        downloadReply_.clear();
+        busy_ = false;
+        auto state = featureState_.value(QStringLiteral("subscriptionDownload")).toObject();
+        state.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
+        featureState_.insert(QStringLiteral("subscriptionDownload"), state);
+        completeSubscriptionUpdate(QStringLiteral("Cancelled"));
+    }
     if (busy_ || store_.readOnly() || profile(id).isEmpty()) {
         error(QStringLiteral("OperationUnavailable"));
         return;
@@ -1296,17 +1372,19 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     const auto selected = repository_.manifest().value(QStringLiteral("selection")).toObject();
     const bool adjustSelected = id == selectedId_ && !previousPreferences_.isEmpty();
     auto context = configTransaction_;
-    const bool trusted = context && context->validated &&
-                         context->generation == operationGeneration_ && context->profileId == id &&
-                         context->preferences == runtimePreferences_ && !adjustSelected &&
-                         context->imported.value(QStringLiteral("sourceRef")) ==
-                             item.value(QStringLiteral("sourceRef")) &&
-                         context->imported.value(QStringLiteral("sourceHash")) ==
-                             item.value(QStringLiteral("sourceHash")) &&
-                         context->imported.value(QStringLiteral("snapshotRef")) ==
-                             item.value(QStringLiteral("snapshotRef")) &&
-                         context->imported.value(QStringLiteral("snapshotHash")) ==
-                             item.value(QStringLiteral("snapshotHash"));
+    const bool trusted =
+        context && context->validated && context->generation == operationGeneration_ &&
+        context->profileId == id && context->preferences == runtimePreferences_ &&
+        !adjustSelected &&
+        context->imported.value(QStringLiteral("sourceRef")) ==
+            item.value(QStringLiteral("sourceRef")) &&
+        context->imported.value(QStringLiteral("sourceHash")) ==
+            item.value(QStringLiteral("sourceHash")) &&
+        context->imported.value(QStringLiteral("snapshotRef")) ==
+            item.value(QStringLiteral("snapshotRef")) &&
+        context->imported.value(QStringLiteral("snapshotHash")) ==
+            item.value(QStringLiteral("snapshotHash")) &&
+        context->imported.value(QStringLiteral("overlay")) == item.value(QStringLiteral("overlay"));
     if (trusted) {
         const auto reference = item.contains(QStringLiteral("snapshotRef"))
                                    ? QStringLiteral("snapshotRef")
@@ -1362,7 +1440,18 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             error(QStringLiteral("SourceIntegrityFailed"));
             return;
         }
-        auto composed = infra::preflightConfig(std::get<QByteArray>(source), preferences());
+        auto overlaid =
+            adjustSelected
+                ? domain::Result<QByteArray>(std::get<QByteArray>(source))
+                : infra::composeOverlay(std::get<QByteArray>(source),
+                                        item.value(QStringLiteral("overlay")).toObject());
+        if (const auto* failure = std::get_if<domain::Error>(&overlaid)) {
+            busy_ = false;
+            restorePreferences();
+            configError(*failure);
+            return;
+        }
+        auto composed = infra::preflightConfig(std::get<QByteArray>(overlaid), preferences());
         if (const auto* failure = std::get_if<domain::Error>(&composed)) {
             busy_ = false;
             restorePreferences();
@@ -1373,6 +1462,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     }
     busy_ = true;
     status_ = QStringLiteral("Validating");
+    invalidateWebsiteTest();
     const auto generation = ++operationGeneration_;
     context->generation = generation;
     configTransaction_ = context;
@@ -1462,7 +1552,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             confirmed();
             return;
         }
-        previouslyProxied_ = proxyLease_.active();
+        previouslyProxied_ = proxyLease_->active();
         if (previousPreferences_.isEmpty()) {
             const auto previousPref =
                 store_.read(previous_.value(QStringLiteral("selection"))
@@ -1472,10 +1562,11 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             if (const auto* value = std::get_if<std::optional<QJsonObject>>(&previousPref);
                 value && *value)
                 previousPreferences_ = **value;
+            previousPreferences_.remove(QStringLiteral("schemaVersion"));
         }
         proxyDesired_ = previouslyProxied_;
         if (previouslyProxied_) {
-            const auto suspended = proxyLease_.suspend();
+            const auto suspended = proxyLease_->suspend();
             if (const auto* failure = std::get_if<domain::Error>(&suspended)) {
                 // Core has not changed; preserve the current session on a lease conflict.
                 const auto rolledBack = repository_.rollback();
@@ -1517,13 +1608,23 @@ void DesktopRuntime::launch() {
     loadedFeatures_.clear();
     pendingFeatureRequests_.clear();
     cancelDelayTests();
-    closingConnections_ = false;
+    resetConnectionClose();
+    featureState_.remove(QStringLiteral("connectionsPaused"));
+    featureState_.remove(QStringLiteral("connectionSample"));
+    featureState_.remove(QStringLiteral("connectionError"));
+    featureState_.remove(QStringLiteral("connectionsStale"));
     connections_ = {};
     rules_ = {};
     providers_ = {};
     providerDraft_ = {};
+    rulePageState_ = {};
+    providerPageState_ = {};
+    providerResults_ = {};
     delays_ = {};
+    delayTimes_.clear();
+    featureState_.remove(QStringLiteral("delayTest"));
     featureState_.remove(QStringLiteral("traffic"));
+    featureState_.remove(QStringLiteral("dnsResult"));
     connectionSampleMs_ = 0;
     const auto selection = candidate_.value(QStringLiteral("selection")).toObject();
     QByteArray semantic;
@@ -1558,14 +1659,14 @@ void DesktopRuntime::launch() {
             return;
         }
     }
-    auto key = credentials_.read(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"));
+    auto key = credentials_->read(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"));
     const auto keyPath =
         store_.path(QStringLiteral("data/credentials/c137006a-58f4-4d6c-a795-b987e368c820.blob"));
     if (std::holds_alternative<domain::Error>(key) && std::holds_alternative<QString>(keyPath) &&
         !QFileInfo::exists(std::get<QString>(keyPath))) {
         const auto bytes = newSecret();
         const auto saved =
-            credentials_.write(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"), bytes);
+            credentials_->write(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"), bytes);
         if (std::holds_alternative<std::monostate>(saved))
             key = bytes;
     }
@@ -1624,8 +1725,15 @@ void DesktopRuntime::launch() {
         failedApply(failure->code);
         return;
     }
+    const auto providerCache =
+        infra::prepareRuntimeProviderCache(semantic, store_, QStringLiteral("data/core_state"));
+    if (const auto* failure = std::get_if<domain::Error>(&providerCache)) {
+        failedApply(failure->code);
+        return;
+    }
     semantic = {}; // Engine/service startup must not nest underneath retained YAML buffers.
     status_ = QStringLiteral("Starting");
+    sessionPreferences_ = runtimePreferences_;
     publish();
     engine_.start(coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory),
                   secret_, values.mixedPort, values.controllerPort,
@@ -1633,6 +1741,8 @@ void DesktopRuntime::launch() {
                   runtimePreferences_.value(QStringLiteral("tunDesired")).toBool());
 }
 void DesktopRuntime::confirmed() {
+    if (engine_.ready())
+        effectivePreferences_ = sessionPreferences_;
     QString networkFailure;
     if (startAfter_ && applying_ && !recovering_) {
         const auto result = repository_.phase(QStringLiteral("CoreConfirmed"));
@@ -1649,13 +1759,13 @@ void DesktopRuntime::confirmed() {
                 return;
             }
         }
-        const auto leased = proxyLease_.acquire(preferences().mixedPort, epoch_);
+        const auto leased = proxyLease_->acquire(preferences().mixedPort, epoch_);
         if (const auto* failure = std::get_if<domain::Error>(&leased)) {
             if (backgroundManaged_) {
                 // A platform proxy failure must not take down the local forwarding engine.
                 networkFailure = failure->code;
                 proxyDesired_ = false;
-                const auto released = proxyLease_.release();
+                const auto released = proxyLease_->release();
                 if (const auto* restoreFailure = std::get_if<domain::Error>(&released))
                     networkFailure = restoreFailure->code;
                 const auto saved = saveProxyIntent(false);
@@ -1665,7 +1775,7 @@ void DesktopRuntime::confirmed() {
             } else if (applying_)
                 failedApply(failure->code);
             else {
-                const auto released = proxyLease_.release();
+                const auto released = proxyLease_->release();
                 if (const auto* restoreFailure = std::get_if<domain::Error>(&released))
                     error(restoreFailure->code);
                 engine_.stop();
@@ -1719,7 +1829,7 @@ void DesktopRuntime::confirmed() {
             applying_ = false;
             busy_ = false;
             engine_.stop();
-            const auto released = proxyLease_.release();
+            const auto released = proxyLease_->release();
             Q_UNUSED(released)
             cleanupSession();
             status_ = QStringLiteral("Failed");
@@ -1731,6 +1841,12 @@ void DesktopRuntime::confirmed() {
         return;
     }
     previousProxyIntent_.reset();
+    if (selectedId_ != applyingId_) {
+        cancelDelayTests();
+        delays_ = {};
+        delayTimes_.clear();
+        featureState_.remove(QStringLiteral("delayTest"));
+    }
     selectedId_ = applyingId_;
     auto catalog = profiles_;
     for (qsizetype i = 0; i < catalog.size(); ++i) {
@@ -1749,6 +1865,7 @@ void DesktopRuntime::confirmed() {
     previousPreferences_ = {};
     applying_ = false;
     busy_ = false;
+    savedPreferences_ = runtimePreferences_;
     if (catalogSaved && networkFailure.isEmpty())
         lastError_.clear();
     configIssues_ = {};
@@ -1757,11 +1874,7 @@ void DesktopRuntime::confirmed() {
         loadOfflineGroups();
     else
         pollFeatures();
-    testResult_.clear();
-    ++testGeneration_;
-    featureState_.insert(QStringLiteral("websiteTest"),
-                         QJsonObject{{QStringLiteral("state"), QStringLiteral("Stale")}});
-    testQueue_.clear();
+    invalidateWebsiteTest();
     finishOperation(networkFailure.isEmpty() ? domain::OperationState::Succeeded
                                              : domain::OperationState::Failed,
                     networkFailure);
@@ -1800,7 +1913,7 @@ void DesktopRuntime::failedApply(const QString& code) {
     applying_ = false;
     busy_ = false;
     status_ = QStringLiteral("Failed");
-    const auto released = proxyLease_.release();
+    const auto released = proxyLease_->release();
     if (const auto* failure = std::get_if<domain::Error>(&released))
         error(failure->code);
     const auto result = repository_.rollback();
@@ -1865,8 +1978,21 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
     return result;
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
+    clearMaintenancePreview();
+    snapshotProviderRefresh_ = {};
+    releaseFeature(QStringLiteral("rules"));
+    releaseFeature(QStringLiteral("providers"));
+    if (geoOperationActive_) {
+        geoOperationActive_ = false;
+        featureState_.insert(QStringLiteral("geoResult"), QStringLiteral("Cancelled"));
+    }
+    featureState_.remove(QStringLiteral("dnsResult"));
     cancelDelayTests();
-    closingConnections_ = false;
+    resetConnectionClose();
+    featureState_.remove(QStringLiteral("connectionsPaused"));
+    featureState_.remove(QStringLiteral("connectionSample"));
+    featureState_.remove(QStringLiteral("connectionError"));
+    featureState_.remove(QStringLiteral("connectionsStale"));
     connections_ = {};
     featureState_.remove(QStringLiteral("traffic"));
     if (reason == domain::StopReason::AppExit) {
@@ -1881,6 +2007,7 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     finishOperation(domain::OperationState::Cancelled, QStringLiteral("UserStopped"));
     ++operationGeneration_;
     providerImport_.reset();
+    cancelBackupRestore();
     discardConfigTransaction();
     recoveryTimer_.stop();
     reconcileTimer_.stop();
@@ -1900,17 +2027,22 @@ void DesktopRuntime::stop(domain::StopReason reason) {
             error(failure->code);
         }
     }
-    if (downloadReply_)
+    if (downloadReply_) {
+        const bool subscription = downloadReply_->manager() == &subscriptionNetwork_;
         downloadReply_->abort();
-    if (testReply_)
-        testReply_->abort();
-    testQueue_.clear();
-    ++testGeneration_;
-    validator_.stop();
+        downloadReply_.clear();
+        if (subscription) {
+            auto state = featureState_.value(QStringLiteral("subscriptionDownload")).toObject();
+            state.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
+            featureState_.insert(QStringLiteral("subscriptionDownload"), state);
+        }
+    }
+    invalidateWebsiteTest();
+    validator_->stop();
     validationDeadline_.stop();
     validationCompletion_ = {};
     staging_.reset();
-    const auto released = proxyLease_.release();
+    const auto released = proxyLease_->release();
     if (const auto* failure = std::get_if<domain::Error>(&released)) {
         stopFailure_ = failure->code;
         error(failure->code);
@@ -1919,6 +2051,7 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     busy_ = false;
     pendingGroup_.clear();
     pendingMember_.clear();
+    queuedSelections_.clear();
     restoringNodes_ = false;
     applying_ = false;
     recovering_ = false;
@@ -1935,6 +2068,10 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     publish();
 }
 void DesktopRuntime::setTun(bool desired) {
+    if (platformInfo_.capabilities.value(QStringLiteral("tun")) == QStringLiteral("Unsupported")) {
+        error(QStringLiteral("ServicePlatformUnsupported"));
+        return;
+    }
     if (busy_ || selectedId_.isEmpty() || store_.readOnly()) {
         error(QStringLiteral("OperationUnavailable"));
         return;
@@ -1986,8 +2123,23 @@ void DesktopRuntime::cleanupSession() {
     epoch_.clear();
 }
 void DesktopRuntime::collectGarbage() {
-    if (store_.readOnly() || repository_.recoveryRequired() || applying_)
+    if (store_.readOnly() || repository_.recoveryRequired() || applying_ || busy_ ||
+        configTransaction_ || backupRestore_ || providerImport_ || downloadReply_)
         return;
+    // Validate the whole tree and all journals before deleting even a single orphan.
+    const auto inventory = infra::inspectStorage(store_);
+    if (std::holds_alternative<domain::Error>(inventory))
+        return;
+    const auto journalsBefore = store_.files(QStringLiteral("data/transactions"));
+    if (!std::holds_alternative<QStringList>(journalsBefore))
+        return;
+    for (const auto& ref : std::get<QStringList>(journalsBefore)) {
+        const auto journal = store_.read(ref);
+        const auto* value = std::get_if<std::optional<QJsonObject>>(&journal);
+        if (!value || !*value ||
+            ((*value)->value("stage") != "Committed" && (*value)->value("stage") != "RolledBack"))
+            return;
+    }
     const auto manifest = repository_.manifest();
     QSet<QString> revisions;
     revisions.insert(manifest.value(QStringLiteral("selection"))
@@ -2009,11 +2161,18 @@ void DesktopRuntime::collectGarbage() {
         revisions.insert(QString::number(versions[i]));
     QSet<QString> sources;
     QSet<QString> credentialRefs{QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"),
+                                 QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"),
                                  QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891")};
+    const auto retainProviders = [&sources](const QJsonObject& item) {
+        for (const auto& value : item.value(QStringLiteral("providerResources")).toArray())
+            sources.insert(value.toObject().value(QStringLiteral("sourceRef")).toString());
+    };
     for (const auto& item : profiles_) {
+        retainProviders(item.toObject());
         sources.insert(item.toObject().value(QStringLiteral("sourceRef")).toString());
         sources.insert(item.toObject().value(QStringLiteral("snapshotRef")).toString());
         for (const auto& version : item.toObject().value(QStringLiteral("history")).toArray()) {
+            retainProviders(version.toObject());
             sources.insert(version.toObject().value(QStringLiteral("sourceRef")).toString());
             sources.insert(version.toObject().value(QStringLiteral("snapshotRef")).toString());
             credentialRefs.insert(version.toObject().value(QStringLiteral("secretRef")).toString());
@@ -2021,6 +2180,31 @@ void DesktopRuntime::collectGarbage() {
     }
     for (const auto& item : profiles_)
         credentialRefs.insert(item.toObject().value(QStringLiteral("secretRef")).toString());
+    const auto draftFiles = store_.files(QStringLiteral("data/drafts"));
+    if (!std::holds_alternative<QStringList>(draftFiles))
+        return;
+    if (backupRestore_)
+        for (const auto& reference : backupRestore_->candidates->references)
+            sources.insert(reference);
+    if (const auto* files = std::get_if<QStringList>(&draftFiles)) {
+        for (const auto& file : *files) {
+            const auto bytes = store_.readBytes(file);
+            if (const auto* value = std::get_if<QByteArray>(&bytes)) {
+                const auto parsed = QJsonDocument::fromJson(*value);
+                if (!parsed.isObject() || parsed.object().isEmpty())
+                    return;
+                const auto draft = parsed.object();
+                if (draft.value("schemaVersion") != 1 ||
+                    draft.value("baseSourceRef").toString().isEmpty() ||
+                    std::holds_alternative<domain::Error>(
+                        store_.path(draft.value("baseSourceRef").toString())))
+                    return;
+                sources.insert(draft.value(QStringLiteral("baseSourceRef")).toString());
+                sources.insert(draft.value(QStringLiteral("baseSnapshotRef")).toString());
+            } else
+                return;
+        }
+    }
     // Keep immutable Geo files referenced by retained preference revisions or the current
     // operation. Unreferenced downloads are safe to remove, never core-owned files.
     QSet<QString> geoFiles;
@@ -2038,6 +2222,9 @@ void DesktopRuntime::collectGarbage() {
         if (revision.isEmpty())
             continue;
         const auto pref = store_.read(QStringLiteral("data/preferences/%1.json").arg(revision));
+        if (std::holds_alternative<domain::Error>(pref) ||
+            !std::get<std::optional<QJsonObject>>(pref))
+            return;
         if (const auto* value = std::get_if<std::optional<QJsonObject>>(&pref); value && *value)
             retainGeo(**value);
     }
@@ -2097,6 +2284,13 @@ void DesktopRuntime::collectGarbage() {
             Q_UNUSED(removed)
         }
     }
+    const auto usage = infra::inspectStorage(store_);
+    if (const auto* value = std::get_if<infra::StorageInventory>(&usage)) {
+        const auto cleaned = infra::trimStorage(store_, *value);
+        if (const auto* result = std::get_if<QJsonObject>(&cleaned))
+            featureState_.insert(QStringLiteral("storageCleanup"), *result);
+        featureState_.insert(QStringLiteral("storageUsage"), value->summary());
+    }
 }
 void DesktopRuntime::restorePreferences() {
     if (!previousPreferences_.isEmpty())
@@ -2138,13 +2332,16 @@ void DesktopRuntime::setPorts(int mixed, int controller) {
         if (const auto* failure = std::get_if<domain::Error>(&saved)) {
             restorePreferences();
             error(failure->code);
-        } else
+        } else {
             previousPreferences_ = {};
+            savedPreferences_ = runtimePreferences_;
+        }
         publish();
     }
 }
 void DesktopRuntime::selectProxy(const QString& group, const QString& member) {
-    if (busy_ || !identities_.contains(group) || !identities_.contains(member))
+    if ((busy_ && (pendingGroup_.isEmpty() || restoringNodes_)) || !identities_.contains(group) ||
+        !identities_.contains(member))
         return;
     bool present = false;
     for (const auto& item : groups_) {
@@ -2159,6 +2356,11 @@ void DesktopRuntime::selectProxy(const QString& group, const QString& member) {
     }
     if (!present) {
         error(QStringLiteral("ProxyMemberNotFound"));
+        return;
+    }
+    if (busy_) {
+        // One latest intent per group; the in-flight selection always completes readback.
+        queuedSelections_.insert(group, member);
         return;
     }
     if (!engine_.ready()) {
@@ -2182,16 +2384,7 @@ void DesktopRuntime::selectProxy(const QString& group, const QString& member) {
     busy_ = true;
     pendingGroup_ = group;
     pendingMember_ = member;
-    testResult_.clear();
-    testQueue_.clear();
-    ++testGeneration_;
-    featureState_.insert(QStringLiteral("websiteTest"),
-                         QJsonObject{{QStringLiteral("state"), QStringLiteral("Stale")}});
-    if (testReply_) {
-        const auto reply = testReply_;
-        testReply_.clear();
-        reply->abort();
-    }
+    invalidateWebsiteTest();
     engine_.select(group, member);
     publish();
 }
@@ -2226,15 +2419,15 @@ void DesktopRuntime::reapplySystemProxy() {
         error(QStringLiteral("ReadyProxyRequired"));
         return;
     }
-    if (!proxyLease_.conflict() || proxyLease_.active()) {
+    if (!proxyLease_->conflict() || proxyLease_->active()) {
         error(QStringLiteral("SystemProxyConflictRequired"));
         return;
     }
-    auto result = proxyLease_.reapply(preferences().mixedPort, epoch_);
+    auto result = proxyLease_->reapply(preferences().mixedPort, epoch_);
     if (std::holds_alternative<std::monostate>(result))
         result = saveProxyIntent(true);
     if (const auto* failure = std::get_if<domain::Error>(&result)) {
-        const auto released = proxyLease_.release();
+        const auto released = proxyLease_->release();
         if (const auto* restoreFailure = std::get_if<domain::Error>(&released))
             error(restoreFailure->code);
         proxyDesired_ = false;
@@ -2252,22 +2445,18 @@ void DesktopRuntime::reconcile() {
     ++reconcileRequests_;
     if (!reconcileTimer_.isActive()) {
         // Invalidate immediately: an old reply can finish during the debounce window.
-        testResult_.clear();
-        testQueue_.clear();
-        ++testGeneration_;
-        featureState_.insert(QStringLiteral("websiteTest"),
-                             QJsonObject{{QStringLiteral("state"), QStringLiteral("Stale")}});
-        if (testReply_) {
-            const auto reply = testReply_;
-            testReply_.clear();
-            reply->abort();
-        }
+        invalidateWebsiteTest();
         cancelDelayTests();
         reconcileTimer_.start();
         publish();
     }
 }
 QUuid DesktopRuntime::setSystemProxy(bool desired) {
+    if (platformInfo_.capabilities.value(QStringLiteral("systemProxy")) !=
+        QStringLiteral("Supported")) {
+        error(QStringLiteral("SystemProxyUnsupported"));
+        return {};
+    }
     if (busy_ || (desired && !engine_.ready())) {
         if (desired && !busy_) {
             const auto id = beginOperation(QStringLiteral("start_proxy"));
@@ -2280,21 +2469,22 @@ QUuid DesktopRuntime::setSystemProxy(bool desired) {
     }
     const auto id = beginOperation(desired ? QStringLiteral("system_proxy_on")
                                            : QStringLiteral("system_proxy_off"));
+    invalidateWebsiteTest();
     auto result =
-        desired ? proxyLease_.acquire(preferences().mixedPort, epoch_) : proxyLease_.release();
-    if (desired && std::holds_alternative<domain::Error>(result) && proxyLease_.conflict() &&
-        !proxyLease_.active()) {
+        desired ? proxyLease_->acquire(preferences().mixedPort, epoch_) : proxyLease_->release();
+    if (desired && std::holds_alternative<domain::Error>(result) && proxyLease_->conflict() &&
+        !proxyLease_->active()) {
         // An explicit switch-on authorizes abandoning a conflicted lease: the
         // current external value becomes the new restore baseline instead of
         // failing closed behind a hidden recovery entry. Corrupted lease files
         // still require manual repair and are not auto-baselined.
-        result = proxyLease_.reapply(preferences().mixedPort, epoch_);
+        result = proxyLease_->reapply(preferences().mixedPort, epoch_);
     }
     if (std::holds_alternative<std::monostate>(result))
         result = saveProxyIntent(desired);
     if (const auto* failure = std::get_if<domain::Error>(&result)) {
         if (desired) {
-            const auto released = proxyLease_.release();
+            const auto released = proxyLease_->release();
             if (const auto* restoreFailure = std::get_if<domain::Error>(&released))
                 error(restoreFailure->code);
             proxyDesired_ = false;
@@ -2379,7 +2569,7 @@ QUuid DesktopRuntime::stopProxy(domain::StopReason reason) {
     return id;
 }
 void DesktopRuntime::testWebsite(const QString& target, const QString& path) {
-    if (testReply_ && !testReply_->isFinished()) {
+    if (testReply_ || busy_) {
         error(QStringLiteral("WebsiteTestBusy"));
         return;
     }
@@ -2394,15 +2584,15 @@ void DesktopRuntime::testWebsite(const QString& target, const QString& path) {
         error(QStringLiteral("ReadyProxyAndHttpsTargetRequired"));
         return;
     }
-    const auto saved =
-        credentials_.write(QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891"), target.toUtf8());
+    const auto saved = credentials_->write(QStringLiteral("e430ed25-78b8-47ea-a7b0-d746a5783891"),
+                                           target.toUtf8());
     if (const auto* failure = std::get_if<domain::Error>(&saved)) {
         testQueue_.clear();
         error(failure->code);
         return;
     }
     testTarget_ = target;
-    const auto testGeneration = ++testGeneration_;
+    testResult_.clear();
     QString resolved = path;
     QNetworkProxy proxy(QNetworkProxy::NoProxy);
     if (path == QStringLiteral("CurrentProxy"))
@@ -2420,105 +2610,195 @@ void DesktopRuntime::testWebsite(const QString& target, const QString& path) {
                        ? QStringLiteral("NoProxy")
                        : QStringLiteral("Proxy:%1:%2").arg(proxy.hostName()).arg(proxy.port());
     }
-    featureState_.insert(QStringLiteral("websiteTest"),
-                         QJsonObject{{QStringLiteral("state"), QStringLiteral("Running")},
-                                     {QStringLiteral("path"), path},
-                                     {QStringLiteral("resolved"), resolved},
-                                     {QStringLiteral("epoch"), epoch_}});
-    publish();
     testNetwork_.setProxy(proxy);
+    testNetwork_.clearAccessCache();
+    auto probe = std::make_shared<WebsiteProbe>();
+    probe->generation = ++testGeneration_;
+    probe->operationGeneration = operationGeneration_;
+    probe->context = QJsonObject{
+        {QStringLiteral("path"), path},
+        {QStringLiteral("target"), target},
+        {QStringLiteral("resolved"), resolved},
+        {QStringLiteral("epoch"), epoch_},
+        {QStringLiteral("mode"), engine_.ready()
+                                     ? effectivePreferences_.value(QStringLiteral("mode"))
+                                     : runtimePreferences_.value(QStringLiteral("mode"))},
+        {QStringLiteral("selectionGeneration"), QString::number(selectionGeneration())}};
+    QJsonObject selected;
+    for (const auto& entry : groups_) {
+        const auto group = entry.toObject();
+        selected.insert(group.value(QStringLiteral("name")).toString(),
+                        group.value(QStringLiteral("current")));
+    }
+    probe->context.insert(QStringLiteral("selections"), selected);
+    probe->timer.start();
+    requestWebsite(probe, url);
+}
+void DesktopRuntime::requestWebsite(const std::shared_ptr<WebsiteProbe>& probe, const QUrl& url) {
+    const auto remaining = 12000 - probe->timer.elapsed();
+    if (remaining <= 0) {
+        finishWebsite(probe, QStringLiteral("Timeout"), 0);
+        return;
+    }
+    if (probe->context.value(QStringLiteral("path")) == QStringLiteral("SystemDefault")) {
+        const auto proxies = QNetworkProxyFactory::systemProxyForQuery(QNetworkProxyQuery(url));
+        if (proxies.isEmpty()) {
+            finishWebsite(probe, QStringLiteral("ProxyUnavailable"), 0);
+            return;
+        }
+        const auto proxy = proxies.first();
+        testNetwork_.setProxy(proxy);
+        probe->context.insert(
+            QStringLiteral("resolved"),
+            proxy.type() == QNetworkProxy::NoProxy
+                ? QStringLiteral("NoProxy")
+                : QStringLiteral("Proxy:%1:%2").arg(proxy.hostName()).arg(proxy.port()));
+    }
+    probe->visited.insert(url.adjusted(QUrl::NormalizePathSegments));
+    QUrl origin;
+    origin.setScheme(url.scheme());
+    origin.setHost(url.host());
+    origin.setPort(url.port());
+    probe->context.insert(QStringLiteral("finalOrigin"), origin.toString());
+    auto running = probe->context;
+    running.insert(QStringLiteral("state"), QStringLiteral("Running"));
+    featureState_.insert(QStringLiteral("websiteTest"), running);
     QNetworkRequest request(url);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
-    request.setTransferTimeout(10000);
+    request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
+    request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
+    request.setAttribute(QNetworkRequest::AuthenticationReuseAttribute, QNetworkRequest::Manual);
+    request.setAttribute(QNetworkRequest::CacheLoadControlAttribute,
+                         QNetworkRequest::AlwaysNetwork);
+    request.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);
+    request.setTransferTimeout(static_cast<int>(qMin<qint64>(10000, remaining)));
     auto* reply = testNetwork_.get(request);
     reply->setReadBufferSize(65537);
-    auto received = std::make_shared<qint64>(0);
-    connect(reply, &QIODevice::readyRead, this, [reply, received] {
-        if (infra::consumeAvailable(*reply, *received, 65536, [](QByteArrayView) {
+    connect(reply, &QIODevice::readyRead, this, [reply, probe] {
+        if (infra::consumeAvailable(*reply, probe->received, 65536, [](QByteArrayView) {
                 return true;
             }) != infra::ReadStatus::Complete)
             reply->abort();
     });
     testReply_ = reply;
-    const auto generation = operationGeneration_;
-    auto timer = std::make_shared<QElapsedTimer>();
-    timer->start();
     auto* deadline = new QTimer(reply);
     deadline->setSingleShot(true);
-    deadline->start(12000);
+    deadline->start(static_cast<int>(remaining));
     connect(deadline, &QTimer::timeout, reply, &QNetworkReply::abort);
-    connect(
-        reply, &QNetworkReply::finished, this,
-        [this, reply, timer, received, generation, testGeneration, path, resolved, target] {
-            reply->deleteLater();
-            if (testReply_ != reply || generation != operationGeneration_ ||
-                testGeneration != testGeneration_ ||
-                (path == QStringLiteral("CurrentProxy") && !engine_.ready())) {
-                if (testReply_ == reply) {
-                    testQueue_.clear();
-                    testReply_.clear();
-                    featureState_.insert(
-                        QStringLiteral("websiteTest"),
-                        QJsonObject{{QStringLiteral("state"), QStringLiteral("Stale")}});
-                    publish();
-                }
+    connect(reply, &QNetworkReply::finished, this, [this, reply, probe, url] {
+        reply->deleteLater();
+        if (testReply_ != reply || probe->operationGeneration != operationGeneration_ ||
+            probe->generation != testGeneration_ ||
+            (probe->context.value(QStringLiteral("path")) == QStringLiteral("CurrentProxy") &&
+             !engine_.ready())) {
+            if (testReply_ == reply) {
+                invalidateWebsiteTest();
+                publish();
+            }
+            return;
+        }
+        testReply_.clear();
+        const auto readOk = infra::consumeAvailable(*reply, probe->received, 65536,
+                                                    [](QByteArrayView) { return true; }) ==
+                            infra::ReadStatus::Complete;
+        const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        QString outcome = QStringLiteral("NetworkError");
+        if (probe->received > 65536)
+            outcome = QStringLiteral("ResponseLimit");
+        else if (probe->timer.elapsed() >= 12000)
+            outcome = QStringLiteral("Timeout");
+        else if (status == 301 || status == 302 || status == 303 || status == 307 ||
+                 status == 308) {
+            auto next =
+                url.resolved(reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl());
+            next.setFragment({});
+            if (!readOk || reply->error() != QNetworkReply::NoError)
+                outcome = QStringLiteral("NetworkError");
+            else if (!next.isValid() || next.scheme() != QStringLiteral("https") ||
+                     next.host().isEmpty() || !next.userInfo().isEmpty() ||
+                     next.toString().size() > 8192)
+                outcome = QStringLiteral("RedirectBlocked");
+            else if (probe->redirects >= 3 ||
+                     probe->visited.contains(next.adjusted(QUrl::NormalizePathSegments)))
+                outcome = QStringLiteral("RedirectLimit");
+            else {
+                ++probe->redirects;
+                requestWebsite(probe, next);
                 return;
             }
-            testReply_.clear();
-            const auto readOk = infra::consumeAvailable(*reply, *received, 65536,
-                                                        [](QByteArrayView) { return true; }) ==
-                                infra::ReadStatus::Complete;
-            const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            QString outcome = QStringLiteral("NetworkError");
-            if (*received > 65536)
-                outcome = QStringLiteral("ResponseLimit");
-            else if (status >= 300 && status < 400)
-                outcome = QStringLiteral("Redirect");
-            else if (readOk && reply->error() == QNetworkReply::NoError && status >= 200 &&
-                     status < 300)
-                outcome = QStringLiteral("Reachable");
-            else if (status > 0)
-                outcome = QStringLiteral("HttpError");
-            else if (reply->error() == QNetworkReply::SslHandshakeFailedError)
-                outcome = QStringLiteral("TlsError");
-            else if (reply->error() == QNetworkReply::OperationCanceledError ||
-                     reply->error() == QNetworkReply::TimeoutError)
-                outcome = QStringLiteral("Timeout");
-            const QJsonObject result{
-                {QStringLiteral("state"), outcome},
-                {QStringLiteral("status"), status},
-                {QStringLiteral("elapsedMs"), timer->elapsed()},
-                {QStringLiteral("bytes"), *received},
-                {QStringLiteral("path"), path},
-                {QStringLiteral("target"), target},
-                {QStringLiteral("resolved"), resolved},
-                {QStringLiteral("epoch"), epoch_},
-                {QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}};
-            featureState_.insert(QStringLiteral("websiteTest"), result);
-            auto history = featureState_.value(QStringLiteral("testHistory")).toArray();
-            history.append(result);
-            while (history.size() > 32)
-                history.removeFirst();
-            featureState_.insert(QStringLiteral("testHistory"), history);
-            testResult_ =
-                outcome == QStringLiteral("Reachable")
-                    ? (path == QStringLiteral("CurrentProxy")
-                           ? tr("HTTP %1 · %2 ms · Current proxy")
-                           : tr("HTTP %1 · %2 ms"))
-                          .arg(reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt())
-                          .arg(timer->elapsed())
-                    : (path == QStringLiteral("CurrentProxy")
-                           ? tr("Current proxy test failed (no direct fallback)")
-                           : tr("Website test failed"));
-            publish();
-            if (!testQueue_.isEmpty()) {
-                const auto next = testQueue_.takeFirst();
-                QTimer::singleShot(0, this, [this, next, path, testGeneration] {
-                    if (testGeneration == testGeneration_)
-                        testWebsite(next, path);
-                });
-            }
+        } else if (readOk && reply->error() == QNetworkReply::NoError && status >= 200 &&
+                   status < 300)
+            outcome = QStringLiteral("Reachable");
+        else if (status > 0)
+            outcome = QStringLiteral("HttpError");
+        else if (reply->error() == QNetworkReply::SslHandshakeFailedError)
+            outcome = QStringLiteral("TlsError");
+        else if (reply->error() == QNetworkReply::OperationCanceledError ||
+                 reply->error() == QNetworkReply::TimeoutError)
+            outcome = QStringLiteral("Timeout");
+        else if (reply->error() == QNetworkReply::HostNotFoundError)
+            outcome = QStringLiteral("DnsError");
+        else if (reply->error() >= QNetworkReply::ProxyConnectionRefusedError &&
+                 reply->error() <= QNetworkReply::UnknownProxyError)
+            outcome = QStringLiteral("ProxyUnavailable");
+        finishWebsite(probe, outcome, status);
+    });
+    publish();
+}
+void DesktopRuntime::finishWebsite(const std::shared_ptr<WebsiteProbe>& probe,
+                                   const QString& outcome, int status) {
+    auto result = probe->context;
+    result.insert(QStringLiteral("state"), outcome);
+    result.insert(QStringLiteral("status"), status);
+    result.insert(QStringLiteral("elapsedMs"), probe->timer.elapsed());
+    result.insert(QStringLiteral("bytes"), probe->received);
+    result.insert(QStringLiteral("redirects"), probe->redirects);
+    result.insert(QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
+    featureState_.insert(QStringLiteral("websiteTest"), result);
+    auto history = featureState_.value(QStringLiteral("testHistory")).toArray();
+    history.append(result);
+    while (history.size() > 32)
+        history.removeFirst();
+    featureState_.insert(QStringLiteral("testHistory"), history);
+    const auto path = probe->context.value(QStringLiteral("path")).toString();
+    testResult_ =
+        outcome == QStringLiteral("Reachable")
+            ? (path == QStringLiteral("CurrentProxy") ? tr("HTTP %1 · %2 ms · Current proxy")
+                                                      : tr("HTTP %1 · %2 ms"))
+                  .arg(status)
+                  .arg(probe->timer.elapsed())
+            : (path == QStringLiteral("CurrentProxy")
+                   ? tr("Current proxy test failed (no direct fallback)")
+                   : tr("Website test failed"));
+    if (!testQueue_.isEmpty()) {
+        QTimer::singleShot(0, this, [this, path, generation = probe->generation] {
+            if (generation == testGeneration_ && !testQueue_.isEmpty())
+                testWebsite(testQueue_.takeFirst(), path);
         });
+    }
+    publish();
+}
+void DesktopRuntime::invalidateWebsiteTest() {
+    testResult_.clear();
+    testQueue_.clear();
+    ++testGeneration_;
+    auto current = featureState_.value(QStringLiteral("websiteTest")).toObject();
+    if (!current.isEmpty()) {
+        current.insert(QStringLiteral("state"), QStringLiteral("Stale"));
+        featureState_.insert(QStringLiteral("websiteTest"), current);
+    }
+    auto history = featureState_.value(QStringLiteral("testHistory")).toArray();
+    for (qsizetype index = 0; index < history.size(); ++index) {
+        auto result = history[index].toObject();
+        result.insert(QStringLiteral("stale"), true);
+        history[index] = result;
+    }
+    featureState_.insert(QStringLiteral("testHistory"), history);
+    if (testReply_) {
+        const auto reply = testReply_;
+        testReply_.clear();
+        reply->abort();
+    }
 }
 } // namespace quickclash::application

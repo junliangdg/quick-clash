@@ -23,14 +23,48 @@ body {margin:0;padding:16px;}
     <div class="app-body">
       <nav class="app-nav" aria-label="预览页面">
         <div class="nav-caption">工作空间</div>
-        <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true">▦</span><span>仪表盘</span></button>
-        <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true">◎</span><span>代理</span></button>
-        <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true">▤</span><span>订阅</span></button>
-        <button type="button" data-page="connections" aria-label="连接" title="连接"><span class="qc-symbol" aria-hidden="true">⇄</span><span>连接</span></button>
-        <button type="button" data-page="rules" aria-label="规则" title="规则"><span class="qc-symbol" aria-hidden="true">≡</span><span>规则</span></button>
-        <button type="button" data-page="logs" aria-label="日志" title="日志"><span class="qc-symbol" aria-hidden="true">›_</span><span>日志</span></button>
-        <button type="button" data-page="tests" aria-label="测试" title="测试"><span class="qc-symbol" aria-hidden="true">⌁</span><span>测试</span></button>
-        <button type="button" data-page="settings" aria-label="设置" title="设置" class="settings-nav"><span class="qc-symbol" aria-hidden="true">⚙</span><span>设置</span></button>
+        <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <rect width="7" height="9" x="3" y="3" rx="1"/>
+  <rect width="7" height="5" x="14" y="3" rx="1"/>
+  <rect width="7" height="9" x="14" y="12" rx="1"/>
+  <rect width="7" height="5" x="3" y="16" rx="1"/>
+</svg></span><span>仪表盘</span></button>
+        <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <rect x="16" y="16" width="6" height="6" rx="1"/>
+  <rect x="2" y="16" width="6" height="6" rx="1"/>
+  <rect x="9" y="2" width="6" height="6" rx="1"/>
+  <path d="M5 16v-3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v3"/>
+  <path d="M12 12V8"/>
+</svg></span><span>代理</span></button>
+        <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"/>
+  <path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"/>
+  <path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"/>
+</svg></span><span>订阅</span></button>
+        <button type="button" data-page="connections" aria-label="连接" title="连接"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="m16 3 4 4-4 4"/>
+  <path d="M20 7H4"/>
+  <path d="m8 21-4-4 4-4"/>
+  <path d="M4 17h16"/>
+</svg></span><span>连接</span></button>
+        <button type="button" data-page="rules" aria-label="规则" title="规则"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2 5h20"/>
+  <path d="M6 12h12"/>
+  <path d="M9 19h6"/>
+</svg></span><span>规则</span></button>
+        <button type="button" data-page="logs" aria-label="日志" title="日志"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M15 12h-5"/>
+  <path d="M15 8h-5"/>
+  <path d="M19 17V5a2 2 0 0 0-2-2H4"/>
+  <path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>
+</svg></span><span>日志</span></button>
+        <button type="button" data-page="tests" aria-label="测试" title="测试"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"/>
+</svg></span><span>测试</span></button>
+        <button type="button" data-page="settings" aria-label="设置" title="设置" class="settings-nav"><span class="qc-symbol" aria-hidden="true"><svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/>
+  <circle cx="12" cy="12" r="3"/>
+</svg></span><span>设置</span></button>
         <div class="nav-footer"><span class="status-dot"></span><span>内核运行中</span></div>
       </nav>
       <main class="app-main">
@@ -253,7 +287,9 @@ body {margin:0;padding:16px;}
 #qc-style-review h2 {line-height:32px;}
 #qc-style-review h3 {font-size:14px;line-height:20px;}
 #qc-style-review .subscription-panel h3 {font-size:20px;line-height:28px;}
-#qc-style-review .app-nav button {gap:8px;}
+#qc-style-review .app-nav button {gap:16px;}
+#qc-style-review .app-nav .qc-symbol {width:20px;height:20px;}
+#qc-style-review .app-nav .qc-symbol svg {width:20px;height:20px;}
 #qc-style-review .traffic-values {align-items:center;gap:12px;flex-wrap:wrap;}
 #qc-style-review .traffic-values .traffic-labels {gap:6px;}
 #qc-style-review .switch {height:20px;width:36px;}

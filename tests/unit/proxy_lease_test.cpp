@@ -81,6 +81,13 @@ int main(int argc, char** argv) {
     // Journal failure must be reported, but cannot prevent an exactly owned restore.
     if (passed(lease.release()) || settings.value != original || lease.active())
         return 13;
+    const auto safe = lease.safeToArchive();
+    if (!std::holds_alternative<bool>(safe) || !std::get<bool>(safe))
+        return 16;
+    settings.value = external;
+    const auto unsafe = lease.safeToArchive();
+    if (!std::holds_alternative<bool>(unsafe) || std::get<bool>(unsafe))
+        return 17;
     std::cout
         << "Lease intent, idempotency, suspend/migration, PAC/bypass restoration, external "
            "conflict, interrupted recovery and write failure passed. OS settings untouched.\n";

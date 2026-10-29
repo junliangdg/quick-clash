@@ -29,6 +29,32 @@ int main(int argc, char* argv[]) {
     try {
         FeatureRegistry registry;
         {
+            UiState editor;
+            editor.setUiVisible(true);
+            editor.setDemand("edit", "editor", true);
+            const quickclash::application::RuntimeUpdate original{
+                1,
+                "editor",
+                {{"editor", QJsonObject{{"text", "private_draft"}, {"token", "first"}}}},
+                editor.dataDemands().generations};
+            editor.applyData(original);
+            check(editor.editor().value("text") == "private_draft" &&
+                      !editor.diagnosticSnapshot().contains("editor"),
+                  "raw drafts have a private scoped channel outside diagnostics");
+            bool beforeRelease = false;
+            QObject::connect(&editor, &UiState::uiAboutToHide, [&] {
+                beforeRelease = editor.uiVisible() && !editor.editor().isEmpty() &&
+                                editor.dataDemands().active.contains("editor");
+            });
+            editor.setUiVisible(false);
+            check(beforeRelease && editor.editor().isEmpty(),
+                  "hide allows saving before revoking and clearing the editor lease");
+            editor.setUiVisible(true);
+            editor.setDemand("edit", "editor", true);
+            editor.applyData(original);
+            check(editor.editor().isEmpty(), "old draft publication cannot reappear after hide");
+        }
+        {
             UiState traffic;
             traffic.setUiVisible(true);
             traffic.setDemand("chart", "traffic", true);
@@ -174,6 +200,12 @@ int main(int argc, char* argv[]) {
                   "changing a token's stream releases its old stream");
             for (const auto* stream : {"rules", "providers", "logs", "traffic", "resources"})
                 live.setDemand(QLatin1String(stream), QLatin1String(stream), true);
+            const auto resourceGeneration = live.dataDemands().generations.value("resources");
+            live.setDemand("resource_second_view", "resources", true);
+            live.setDemand("resources", "resources", false);
+            check(live.dataDemands().active.contains("resources") &&
+                      live.dataDemands().generations.value("resources") == resourceGeneration,
+                  "multiple resource views share the same sampling lease until last release");
             const auto revisions = live.dataDemands().generations;
             const quickclash::application::RuntimeUpdate populated{
                 1,

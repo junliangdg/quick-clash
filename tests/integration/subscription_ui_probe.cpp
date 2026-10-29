@@ -1,5 +1,6 @@
 #include "subscription_ui_probe.h"
 #include "application_host.h"
+#include "domain/subscription_usage.h"
 #include <QJSValue>
 #include <QPointer>
 #include <QQuickItem>
@@ -36,12 +37,14 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     ui.applyControl({{"publicationGeneration", "1"}, {"epoch", "fixture"}, {"selectedId", "p0"}});
     QJsonArray profiles;
     for (int i = 0; i < 1000; ++i)
-        profiles.append(
-            QJsonObject{{"id", QStringLiteral("p%1").arg(i)},
-                        {"name", QString(80, QLatin1Char('W'))},
-                        {"secretRef", "opaque"},
-                        {"pendingApply", true},
-                        {"usage", QJsonObject{{"total", 1000000}, {"download", 1234}}}});
+        profiles.append(QJsonObject{{"id", QStringLiteral("p%1").arg(i)},
+                                    {"name", QString(80, QLatin1Char('W'))},
+                                    {"secretRef", "opaque"},
+                                    {"pendingApply", true},
+                                    {"usage", QJsonObject{{"total", 1000000}, {"download", 1234}}},
+                                    {"usageStatus", domain::subscriptionUsageStatus(
+                                                        {{"total", 1000000}, {"download", 1234}},
+                                                        QDateTime::currentDateTimeUtc())}});
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
     if (!ui.navigate("subscriptions"))
         return 80;
@@ -64,6 +67,29 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     for (auto* card : initial)
         originalCards.append({card, card->property("profileId").toString()});
     const auto managedId = first->property("profileId").toString();
+    auto* progress = first->findChild<QQuickItem*>(QStringLiteral("subscription_usage_progress"));
+    auto* alert = first->findChild<QQuickItem*>(QStringLiteral("subscription_usage_alert"));
+    auto* collected = first->findChild<QQuickItem*>(QStringLiteral("subscription_usage_collected"));
+    if (!progress || progress->isVisible() || !alert || alert->isVisible() || !collected ||
+        !collected->isVisible() || collected->property("text").toString().isEmpty())
+        return 98;
+    const auto firstIndex = managedId.mid(1).toInt();
+    auto warned = profiles[firstIndex].toObject();
+    warned.insert("usageStatus",
+                  domain::subscriptionUsageStatus(
+                      domain::parseSubscriptionUsage("upload=10;download=90;total=100;expire=1"),
+                      QDateTime::currentDateTimeUtc()));
+    warned.insert("usageCollectedAt", "2026-10-28T00:00:00Z");
+    warned.insert("providerMode", "runtime");
+    warned.insert("managedProviders",
+                  QJsonArray{QJsonObject{{"name", "nodes"}, {"mode", "runtime"}}});
+    profiles[firstIndex] = warned;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
+    QTest::qWait(30);
+    if (!progress->isVisible() || progress->property("value").toDouble() != 1 ||
+        !alert->isVisible() || alert->property("text").toString().isEmpty() ||
+        !collected->property("text").toString().contains("2026"))
+        return 99;
     QSignalSpy action(first, SIGNAL(actionRequested(QString, QString)));
     QSignalSpy manage(first, SIGNAL(manageRequested(QString)));
     auto* title = first->findChild<QQuickItem*>(QStringLiteral("select_subscription"));
@@ -87,6 +113,17 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!dialog || !dialog->property("visible").toBool() ||
         page->property("managedId") != managedId)
         return 87;
+    auto* downloadRoute =
+        host.window()->findChild<QObject*>(QStringLiteral("subscription_download_route"));
+    if (!downloadRoute || downloadRoute->property("count").toInt() != 3 ||
+        downloadRoute->property("currentIndex").toInt() != 0)
+        return 100;
+    auto* providerMode =
+        host.window()->findChild<QObject*>(QStringLiteral("subscription_provider_mode"));
+    if (!providerMode || !providerMode->property("visible").toBool() ||
+        providerMode->property("count").toInt() != 2 ||
+        providerMode->property("currentIndex").toInt() != 1)
+        return 101;
     for (int row : {80, 160, 250, 320}) {
         QMetaObject::invokeMethod(page, "scrollToRow", Q_ARG(QVariant, row));
         QTest::qWait(40);
@@ -107,6 +144,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         return 90;
     auto changed = profiles[managedIndex].toObject();
     changed.insert("name", "Updated while offscreen");
+    changed.insert("downloadRoute", "RunningProxy");
     profiles[managedIndex] = changed;
     QSignalSpy reset(ui.profileModel(), &QAbstractItemModel::modelReset);
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
@@ -114,7 +152,8 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (managedValue.metaType() == QMetaType::fromType<QJSValue>())
         managedValue = managedValue.value<QJSValue>().toVariant();
     const auto managed = managedValue.toMap();
-    if (managed.value("name") != "Updated while offscreen" || reset.size())
+    if (managed.value("name") != "Updated while offscreen" || reset.size() ||
+        downloadRoute->property("currentIndex").toInt() != 1)
         return 91;
     profiles.removeAt(managedIndex);
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
@@ -162,6 +201,32 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     }
     if (host.qmlErrorCount() || !host.contentReady())
         return 95;
+    auto* editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
+    if (!editor || !QMetaObject::invokeMethod(editor, "edit", Q_ARG(QVariant, "p0"),
+                                              Q_ARG(QVariant, "source")))
+        return 101;
+    QTest::qWait(30);
+    ui.applyData({1,
+                  "fixture",
+                  {{"editor", QJsonObject{{"id", "p0"},
+                                          {"kind", "source"},
+                                          {"token", "editor_ui"},
+                                          {"text", "# private draft"},
+                                          {"name", "Fixture"}}}},
+                  ui.dataDemands().generations});
+    auto* content = host.window()->findChild<QObject*>(QStringLiteral("profile_editor_text"));
+    if (!content || content->property("text") != "# private draft" ||
+        !editor->property("ready").toBool())
+        return 102;
+    content->setProperty("text", "# changed just before hide");
+    if (!editor->property("dirty").toBool())
+        return 103;
+    ui.setUiVisible(false);
+    if (!content->property("text").toString().isEmpty() || !ui.editor().isEmpty() ||
+        ui.dataDemands().active.contains("editor"))
+        return 104;
+    ui.setUiVisible(true);
+    QMetaObject::invokeMethod(editor, "close");
     std::puts("Subscription UI: bounded/reused delegates, stable actions, persistent management, "
               "incremental metadata, responsive long text and keyboard passed");
     return 0;

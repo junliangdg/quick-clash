@@ -1,5 +1,6 @@
 #include "platform/windows/owned_process.h"
 #include "infra/storage/json_store.h"
+#include "platform/desktop_services.h"
 #include <algorithm>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -86,6 +87,7 @@ struct OwnedProcess::State {
     Handle process;
     Handle output;
     quint32 pid = 0;
+    ProcessIdentity identity;
     QString profile;
     QString grantedDirectory;
     QString grantedExecutable;
@@ -108,7 +110,8 @@ struct OwnedProcess::State {
 #else
 struct OwnedProcess::State {};
 #endif
-OwnedProcess::OwnedProcess(QObject* parent) : QObject(parent), state_(std::make_unique<State>()) {
+OwnedProcess::OwnedProcess(QObject* parent)
+    : IDesktopProcess(parent), state_(std::make_unique<State>()) {
     timer_.setInterval(50);
     connect(&timer_, &QTimer::timeout, this, &OwnedProcess::poll);
 }
@@ -128,6 +131,21 @@ quint32 OwnedProcess::pid() const {
 #else
     return 0;
 #endif
+}
+QJsonObject OwnedProcess::memory() const {
+#ifdef Q_OS_WIN
+    return processMemory(state_->identity);
+#else
+    return {};
+#endif
+}
+std::unique_ptr<application::IDesktopProcess> makeDesktopProcess() {
+    return std::make_unique<OwnedProcess>();
+}
+domain::CommandResult OwnedProcess::start(const QString& executable, const QStringList& arguments,
+                                          const QString& directory, bool isolated) {
+    return start(executable, arguments, directory, isolated,
+                 QProcessEnvironment::systemEnvironment());
 }
 domain::CommandResult OwnedProcess::start(const QString& executable, const QStringList& arguments,
                                           const QString& directory, bool isolated,
@@ -229,6 +247,10 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
         return infra::storageError("CoreProcessFailed");
     }
     state_->process.reset(process.hProcess);
+    FILETIME created{}, exited{}, kernel{}, user{};
+    if (GetProcessTimes(process.hProcess, &created, &exited, &kernel, &user))
+        state_->identity = {process.dwProcessId,
+                            (quint64{created.dwHighDateTime} << 32) | created.dwLowDateTime};
     Handle thread;
     thread.reset(process.hThread);
     if (!AssignProcessToJobObject(state_->job.get(), process.hProcess) ||

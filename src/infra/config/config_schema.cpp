@@ -1,4 +1,6 @@
 #include "infra/config/config_schema.h"
+#include "infra/config/config_preflight.h"
+#include <QHostAddress>
 #include <QRegularExpression>
 #include <QUrl>
 #include <algorithm>
@@ -178,7 +180,10 @@ class Schema final {
         }
         keys(proxy, allowed, path);
         if (type == "tuic") {
-            require((proxy["uuid"] && proxy["password"]) || proxy["token"], path + ".uuid");
+            const bool token = static_cast<bool>(proxy["token"]);
+            require(token ? !proxy["uuid"] && !proxy["password"]
+                          : proxy["uuid"] && proxy["password"],
+                    path + ".uuid");
             if (proxy["uuid"])
                 require(QRegularExpression(
                             QStringLiteral("^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}$"))
@@ -199,6 +204,8 @@ class Schema final {
             for (const auto* field : {"disable-sni", "reduce-rtt", "fast-open"})
                 if (proxy[field])
                     boolean(proxy[field], path + '.' + field);
+            if (proxy["udp"])
+                require(proxy["udp"].as<bool>(), path + ".udp");
             for (const auto* field : {"request-timeout", "heartbeat-interval",
                                       "max-udp-relay-packet-size", "max-open-streams"})
                 if (proxy[field])
@@ -292,8 +299,16 @@ class Schema final {
             transport(proxy, type, path);
     }
     void validate(const YAML::Node& root, const std::vector<std::string>* separateRules) {
+        for (const auto* kind : {"proxy-providers", "rule-providers"})
+            for (const auto& entry : root[kind])
+                if (!entry.second["payload"] || !entry.second["size-limit"]) {
+                    issue("UnsupportedResource", QStringLiteral("$.") + kind, kind);
+                    return; // Raw providers must pass the managed import pipeline first.
+                }
         keys(root,
              {"proxies",
+              "proxy-providers",
+              "rule-providers",
               "proxy-groups",
               "rules",
               "mode",
@@ -361,16 +376,19 @@ class Schema final {
                 if (!oneOf(mode, {"fake-ip", "redir-host", "normal"}))
                     issue("UnsupportedDns", "$.dns.enhanced-mode", "DNS");
             }
-            if (dns["fake-ip-range"])
-                require(QRegularExpression(
-                            QStringLiteral(
-                                "^198\\.1[89]\\.[0-9]{1,3}\\.[0-9]{1,3}/(1[6-9]|2[0-9]|30)$"))
-                            .match(QString::fromStdString(
-                                text(dns["fake-ip-range"], "$.dns.fake-ip-range", 32)))
-                            .hasMatch(),
+            if (dns["fake-ip-range"]) {
+                const auto range =
+                    QString::fromStdString(text(dns["fake-ip-range"], "$.dns.fake-ip-range", 32));
+                const auto subnet = QHostAddress::parseSubnet(range);
+                require(subnet.first.protocol() == QAbstractSocket::IPv4Protocol &&
+                            subnet.second >= 15 && subnet.second <= 30 &&
+                            subnet.first.isInSubnet(QHostAddress(QStringLiteral("198.18.0.0")), 15),
                         "$.dns.fake-ip-range");
+            }
             const auto list = [&](const YAML::Node& values, const QString& path, bool resolver) {
-                require(values.IsSequence() && values.size() <= 256, path);
+                require(values.IsSequence() && values.size() <= 256 &&
+                            (!resolver || values.size() > 0),
+                        path);
                 for (const auto& value : values) {
                     const auto entry = QString::fromStdString(text(value, path + "[]", 2048));
                     if (!resolver)
@@ -383,16 +401,19 @@ class Schema final {
                                  url.scheme() == "tls" || url.scheme() == "https"),
                             path + "[]");
                     const auto host = url.host().toLower();
-                    require(!host.startsWith(QStringLiteral("127.")) &&
-                                host != QStringLiteral("::1") &&
-                                !host.startsWith(QStringLiteral("::ffff:127.")) &&
-                                !host.startsWith(QStringLiteral("::ffff:7f")) &&
-                                host != QStringLiteral("::ffff:0.0.0.0") &&
-                                host != QStringLiteral("::ffff:0:0") &&
-                                host != QStringLiteral("::") && host != QStringLiteral("0.0.0.0") &&
+                    const QHostAddress address(host);
+                    bool isV4 = false;
+                    const auto ipv4 = address.toIPv4Address(&isV4);
+                    require(!address.isLoopback() &&
+                                !(isV4 && ((ipv4 >> 24) == 127 || ipv4 == 0)) &&
+                                address != QHostAddress::AnyIPv6 && !host.contains('%') &&
                                 host != QStringLiteral("localhost") &&
-                                host != QStringLiteral("localhost."),
+                                !host.endsWith(QStringLiteral(".localhost")) &&
+                                host != QStringLiteral("localhost.") &&
+                                !host.endsWith(QStringLiteral(".localhost.")),
                             path + "[]");
+                    if (path == QStringLiteral("$.dns.default-nameserver"))
+                        require(!address.isNull(), path + "[]");
                 }
             };
             for (const auto* field :
@@ -455,9 +476,101 @@ class Schema final {
         require(proxies.IsSequence() && proxies.size() <= 5000, "$.proxies");
         require(groups.IsSequence() && groups.size() <= 500, "$.proxy-groups");
         Keys names{"DIRECT", "REJECT", "GLOBAL"};
+        Keys proxyProviders, ruleProviders, dynamicNames;
+        std::size_t providerCount = 0, dynamicCount = 0, providerRules = 0;
+        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
+            const auto providers = root[kind];
+            if (!providers)
+                continue;
+            require(providers.IsMap() && providers.size() <= 32 - providerCount, "$<providers>");
+            providerCount += providers.size();
+            for (const auto& entry : providers) {
+                const bool proxyProvider = std::string(kind) == "proxy-providers";
+                const auto path = QStringLiteral("$.") + kind + QStringLiteral(".<provider>");
+                const auto name = text(entry.first, path, 512);
+                require(name != "default" && name != "GLOBAL" && name != "DIRECT" &&
+                            name != "REJECT",
+                        path);
+                (proxyProvider ? proxyProviders : ruleProviders).insert(name);
+                const auto value = entry.second;
+                Keys allowed{"type", "url", "path", "interval", "size-limit", "payload"};
+                if (proxyProvider)
+                    allowed.insert("health-check");
+                else
+                    allowed.insert({"behavior", "format"});
+                keys(value, allowed, path);
+                require(text(value["type"], path + ".type") == "http", path + ".type");
+                const auto address = text(value["url"], path + ".url", 8192);
+                const QUrl url(QString::fromStdString(address));
+                require(url.isValid() && url.scheme() == "https" && !url.host().isEmpty() &&
+                            url.userInfo().isEmpty() && !url.hasFragment(),
+                        path + ".url");
+                const auto format =
+                    value["format"] ? text(value["format"], path + ".format") : "yaml";
+                const auto behavior =
+                    value["behavior"] ? text(value["behavior"], path + ".behavior") : "";
+                require(format == "yaml" || (!proxyProvider && format == "text"), path + ".format");
+                require(proxyProvider || oneOf(behavior, {"domain", "ipcidr", "classical"}),
+                        path + ".behavior");
+                require(text(value["path"], path + ".path") ==
+                            runtimeProviderPath(
+                                QString::fromLatin1(kind), QString::fromStdString(name),
+                                QString::fromStdString(address), QString::fromStdString(format),
+                                QString::fromStdString(behavior))
+                                .toStdString(),
+                        path + ".path");
+                number(value["size-limit"], path + ".size-limit", 1, 4 * 1024 * 1024);
+                number(value["interval"], path + ".interval", 0, 604800);
+                const auto payload = value["payload"];
+                require(payload.IsSequence(), path + ".payload");
+                if (proxyProvider) {
+                    require(payload.size() > 0 &&
+                                payload.size() <= 5000 - proxies.size() - dynamicCount,
+                            path + ".payload");
+                    dynamicCount += payload.size();
+                    for (const auto& node : payload) {
+                        const auto nodeName = text(node["name"], path + ".payload[].name", 512);
+                        require(!names.contains(nodeName) && dynamicNames.insert(nodeName).second,
+                                path + ".payload[].name");
+                        proxy(node, path + ".payload[]");
+                    }
+                } else {
+                    require(payload.size() <= 20000 - providerRules, path + ".payload");
+                    providerRules += payload.size();
+                    for (const auto& rule : payload)
+                        text(rule, path + ".payload[]", 8192);
+                }
+                if (value["health-check"]) {
+                    const auto health = value["health-check"];
+                    keys(health,
+                         {"enable", "url", "interval", "timeout", "lazy", "expected-status"},
+                         path + ".health-check");
+                    boolean(health["enable"], path + ".health-check.enable");
+                    if (health["url"]) {
+                        const QUrl target(QString::fromStdString(
+                            text(health["url"], path + ".health-check.url", 4096)));
+                        require(target.isValid() &&
+                                    oneOf(target.scheme().toStdString(), {"http", "https"}) &&
+                                    !target.host().isEmpty() && target.userInfo().isEmpty() &&
+                                    !target.hasFragment(),
+                                path + ".health-check.url");
+                    }
+                    if (health["interval"])
+                        number(health["interval"], path + ".health-check.interval", 1, 86400);
+                    if (health["timeout"])
+                        number(health["timeout"], path + ".health-check.timeout", 1, 60000);
+                    if (health["lazy"])
+                        boolean(health["lazy"], path + ".health-check.lazy");
+                    if (health["expected-status"])
+                        text(health["expected-status"], path + ".health-check.expected-status",
+                             128);
+                }
+            }
+        }
         for (std::size_t i = 0; i < proxies.size(); ++i) {
             const auto path = QStringLiteral("$.proxies[%1]").arg(i);
             const auto name = text(proxies[i]["name"], path + ".name", 512);
+            require(!dynamicNames.contains(name), path + ".name");
             require(names.insert(name).second, path + ".name");
             attempt([&] { proxy(proxies[i], path); }, path);
         }
@@ -468,6 +581,7 @@ class Schema final {
                 [&] {
                     const auto group = groups[i];
                     const auto name = text(group["name"], path + ".name", 512);
+                    require(!dynamicNames.contains(name), path + ".name");
                     require(names.insert(name).second, path + ".name");
                     const auto type = text(group["type"], path + ".type", 64);
                     if (!oneOf(type, {"select", "url-test", "fallback", "load-balance"})) {
@@ -475,7 +589,7 @@ class Schema final {
                               type == "load-balance" ? type : "group");
                         return;
                     }
-                    Keys fields{"name", "type", "proxies"};
+                    Keys fields{"name", "type", "proxies", "use"};
                     if (type != "select")
                         fields.insert({"url", "interval", "timeout", "lazy", "expected-status"});
                     if (type == "url-test")
@@ -514,9 +628,21 @@ class Schema final {
                                     .hasMatch(),
                                 path + ".expected-status");
                     }
-                    require(group["proxies"].IsSequence() && group["proxies"].size() > 0 &&
-                                group["proxies"].size() <= 5000,
+                    require((!group["proxies"] || group["proxies"].IsSequence()) &&
+                                group["proxies"].size() <= 5000 &&
+                                (group["proxies"].size() > 0 || group["use"].size() > 0),
                             path + ".proxies");
+                    if (group["use"]) {
+                        require(group["use"].IsSequence() && group["use"].size() <= 32,
+                                path + ".use");
+                        Keys used;
+                        for (const auto& ref : group["use"]) {
+                            const auto provider = text(ref, path + ".use[]", 512);
+                            require(proxyProviders.contains(provider) &&
+                                        used.insert(provider).second,
+                                    path + ".use[]");
+                        }
+                    }
                     Keys members;
                     for (const auto& member : group["proxies"]) {
                         const auto value = text(member, path + ".proxies[]", 512);
@@ -566,8 +692,13 @@ class Schema final {
                     require(!value.empty() && value.size() <= 8192, path);
                     const auto parts = QString::fromStdString(value).split(',');
                     const auto type = parts.front().toStdString();
+                    if (type == "RULE-SET" &&
+                        (parts.size() < 2 || !ruleProviders.contains(parts[1].toStdString()))) {
+                        issue("UnsupportedRule", path, "RULE-SET");
+                        return;
+                    }
                     if (!oneOf(type, {"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR",
-                                      "IP-CIDR6", "GEOIP", "GEOSITE", "MATCH"})) {
+                                      "IP-CIDR6", "GEOIP", "GEOSITE", "RULE-SET", "MATCH"})) {
                         issue("UnsupportedRule", path,
                               oneOf(type, {"GEOIP", "GEOSITE", "RULE-SET"}) ? type : "rule");
                         return;
@@ -575,10 +706,13 @@ class Schema final {
                     const bool match = type == "MATCH";
                     require(parts.size() == (match ? 2 : 3) ||
                                 (!match && parts.size() == 4 &&
-                                 (type == "IP-CIDR" || type == "IP-CIDR6" || type == "GEOIP") &&
+                                 (type == "IP-CIDR" || type == "IP-CIDR6" || type == "GEOIP" ||
+                                  type == "RULE-SET") &&
                                  parts.back() == "no-resolve"),
                             path);
                     require(names.contains(parts[match ? 1 : 2].toStdString()), path);
+                    if (type == "RULE-SET")
+                        require(ruleProviders.contains(parts[1].toStdString()), path);
                 },
                 path);
         }

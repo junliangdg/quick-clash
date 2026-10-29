@@ -1,6 +1,7 @@
 """Build the self-contained UI concept preview using only Python's standard library."""
 
 import argparse
+import re
 from pathlib import Path
 
 
@@ -12,6 +13,15 @@ def main():
     fragment = (directory / "quickclash_minimal_preview.fragment.html").read_text(
         encoding="utf-8"
     )
+    icons = directory.parent.parent / "resources" / "icons" / "navigation"
+
+    def navigation_icon(match):
+        svg = (icons / (match.group(1) + ".svg")).read_text(encoding="utf-8").strip()
+        return svg.replace("<svg ", '<svg aria-hidden="true" ', 1).replace(
+            'stroke="#000000"', 'stroke="currentColor"'
+        )
+
+    fragment = re.sub(r"<!-- navigation_icon:([a-z_]+) -->", navigation_icon, fragment)
     header = '''<!doctype html>
 <html lang="zh-CN">
 <head>

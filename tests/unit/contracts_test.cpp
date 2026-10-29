@@ -1,11 +1,21 @@
 #include "application/ports.h"
+#include "domain/connection_snapshot.h"
+#include "domain/log_buffer.h"
+#include "domain/resource_snapshot.h"
+#include "domain/rule_snapshot.h"
+#include "domain/subscription_usage.h"
+#include "domain/support_report.h"
 #include "infra/config/config_metadata.h"
+#include "infra/config/config_overlay.h"
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
+#include "infra/core/provider_command.h"
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonArray>
+#include <QJsonDocument>
 #include <QTemporaryDir>
+#include <QTimeZone>
 #include <iostream>
 #include <limits>
 #include <set>
@@ -47,6 +57,223 @@ int main(int argc, char* argv[]) {
         return std::holds_alternative<Error>(result) ? 1 : 0;
     }
     try {
+        {
+            const QString secret =
+                "private-marker https://user:password@internal.test/path?token=123\nAuthorization: "
+                "Bearer abc C:/Users/private";
+            const QJsonObject hostile{
+                {"status", secret},
+                {"error", secret},
+                {"platform", secret},
+                {"architecture", secret},
+                {"dataDirectory", secret},
+                {"profiles", QJsonArray{QJsonObject{{"name", secret}, {"secretRef", secret}}}},
+                {"errors", QJsonArray{QJsonObject{{"code", secret}, {"message", secret}}}},
+                {"logs", QJsonArray{QJsonObject{{"source", secret},
+                                                {"level", secret},
+                                                {"time", secret},
+                                                {"message", secret},
+                                                {"unknown", secret}}}},
+                {"features",
+                 QJsonObject{{"memory", QJsonObject{{"path", secret}}}, {"unknown", secret}}},
+                {"settingsState", QJsonObject{{"saved", QJsonObject{{"mode", secret},
+                                                                    {"dnsMode", secret},
+                                                                    {"proxy", secret}}}}}};
+            const auto report = supportReport(hostile);
+            const auto encoded = QJsonDocument(report).toJson();
+            for (const auto* forbidden : {"private-marker", "internal.test", "password",
+                                          "Authorization", "Bearer", "C:/Users", "secretRef"})
+                check(!encoded.contains(forbidden),
+                      "support report excludes malicious arbitrary fields");
+            check(report.value("status") == "Unknown" && report.value("profileCount") == 1 &&
+                      report.value("recentErrors").toArray().first() == "Unknown",
+                  "support projection keeps bounded facts");
+        }
+        {
+            const auto source = fixture("inline_valid.yaml");
+            const auto overlay = QJsonObject{
+                {"set",
+                 QJsonObject{{"log-level", "debug"}, {"dns", QJsonObject{{"enable", false}}}}},
+                {"rules", QJsonObject{{"mode", "prepend"},
+                                      {"items", QJsonArray{"DOMAIN,extra.invalid,DIRECT"}}}}};
+            const auto composed = quickclash::infra::composeOverlay(source, overlay);
+            check(std::holds_alternative<QByteArray>(composed), "bounded overlay composes");
+            const auto checked =
+                quickclash::infra::preflightConfig(std::get<QByteArray>(composed), {});
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(checked),
+                  "overlay remains valid policy YAML");
+            const auto semantic =
+                std::get<quickclash::infra::PreflightConfig>(checked).semanticYaml;
+            check(semantic.contains("debug") &&
+                      semantic.indexOf("DOMAIN,extra.invalid") <
+                          semantic.indexOf("DOMAIN-SUFFIX,example.invalid"),
+                  "scalar merge and prepend preserve rule ordering");
+            for (const auto& invalid :
+                 {QJsonObject{{"set", QJsonObject{{"tun", QJsonObject{{"enable", true}}}}}},
+                  QJsonObject{{"set", QJsonObject{{"dns", QJsonValue::Null}}}},
+                  QJsonObject{{"remove", QJsonArray{"secret"}}},
+                  QJsonObject{{"rules", QJsonObject{{"mode", "guess"}, {"items", QJsonArray{}}}}},
+                  QJsonObject{{"arbitrary", true}}})
+                check(std::holds_alternative<Error>(
+                          quickclash::infra::composeOverlay(source, invalid)),
+                      "reserved, null and unknown overlay operations reject");
+            check(std::get<QByteArray>(quickclash::infra::composeOverlay(source, {})) == source,
+                  "no overlay preserves source bytes including comments");
+        }
+        {
+            const auto counters = [](quint64 value) {
+                return QJsonObject{{"privateWorkingSet", QString::number(value)},
+                                   {"workingSet", QString::number(value + 1)},
+                                   {"privateCommit", QString::number(value + 2)}};
+            };
+            const auto host = counters(100), service = counters(200), core = counters(1000);
+            const auto snapshot = quickclash::domain::resourceSnapshot(
+                host, {{"service", service}, {"complete", true}}, core, true, counters(3000), true);
+            const auto memory = snapshot.value("memory").toObject();
+            check(snapshot.value("memoryComplete").toBool() &&
+                      memory.value("client").toObject().value("workingSet") == "302" &&
+                      memory.value("core").toObject().value("workingSet") == "1001" &&
+                      memory.value("validator").toObject().value("workingSet") == "3001",
+                  "client includes service; core and temporary validator remain separate");
+            const auto partial =
+                quickclash::domain::resourceSnapshot(host, {}, {}, true, {}, false);
+            check(!partial.value("memoryComplete").toBool() &&
+                      partial.value("memory").toObject().value("client").toObject() == host &&
+                      !partial.value("memory").toObject().contains("core"),
+                  "missing service and core retain known host without inventing zeros");
+            auto bad = counters(1);
+            bad.insert("workingSet", "-1");
+            const auto rejected = quickclash::domain::resourceSnapshot(
+                host, {{"service", bad}, {"complete", true}}, core, true, {}, false);
+            check(!rejected.value("memoryComplete").toBool() &&
+                      !rejected.value("memory").toObject().contains("service"),
+                  "invalid resource counters cannot contribute to client total");
+            const auto missingValidator = quickclash::domain::resourceSnapshot(
+                host, {{"complete", true}, {"validatorExpected", true}}, {}, false, {}, false);
+            check(!missingValidator.value("memoryComplete").toBool(),
+                  "missing expected service validator makes the resource sample incomplete");
+        }
+        {
+            const auto safe =
+                redactedLogEntry(1, "time", "Core", "Warn",
+                                 "https://user:LEAK_URL@example.test/path?token=LEAK_QUERY "
+                                 "Authorization: Bearer LEAK_BEARER\n{\"password\":\"LEAK_JSON\"} "
+                                 "token LEAK_SPACE; private-key='LEAK_PRIVATE'; uuid=LEAK_UUID");
+            const auto bytes = QJsonDocument(safe).toJson();
+            check(!bytes.contains("LEAK"), "log credential variants are redacted before storage");
+            check(safe.value("level") == "warning" && safe.value("originalLevel") == "Warn",
+                  "log level normalization preserves safe original value");
+            LogBuffer countRing(3, 4096);
+            for (quint64 i = 0; i < 10; ++i)
+                countRing.append(redactedLogEntry(i, "time", "App", "info", "small"));
+            check(countRing.entries().size() == 3 &&
+                      countRing.entries().first().toObject().value("localSeq") == "7" &&
+                      countRing.status().value("droppedLogs") == "7",
+                  "log count budget drops oldest entries");
+            LogBuffer byteRing(2000, 4 * 1024 * 1024);
+            for (quint64 i = 0; i < 2100; ++i)
+                byteRing.append(
+                    redactedLogEntry(i, "time", "Core", "debug", QString(3000, QChar('\n'))));
+            check(byteRing.entries().size() < 2000 &&
+                      QJsonDocument(byteRing.entries()).toJson(QJsonDocument::Compact).size() <=
+                          4 * 1024 * 1024 &&
+                      byteRing.status().value("logBytes").toString().toLongLong() <=
+                          4 * 1024 * 1024 &&
+                      byteRing.status().value("truncatedLogs") == "2100",
+                  "escaped UTF-8 bytes bound log ring and truncation remains visible");
+            byteRing.markGap();
+            byteRing.addDropped(3);
+            check(byteRing.status().value("logGaps") == "1", "paused receive gap recorded");
+            byteRing.clear();
+            check(byteRing.entries().isEmpty() && byteRing.status().value("logBytes") == "2" &&
+                      byteRing.status().value("logGaps") == "0",
+                  "log release clears budget and counters");
+        }
+        {
+            QJsonArray entries;
+            for (int i = 0; i < 1000; ++i)
+                entries.append(QJsonObject{{"id", QString::number(i)},
+                                           {"metadata", QJsonObject{{"host", "example.test"}}},
+                                           {"upload", 100},
+                                           {"download", 200}});
+            const auto first = connectionSnapshot({{"connections", entries}}, {}, "one", 1000);
+            check(std::holds_alternative<QJsonArray>(first), "1000 connection snapshot accepted");
+            auto changed = entries[0].toObject();
+            changed.insert("download", 3200);
+            entries[0] = changed;
+            const auto next = std::get<QJsonArray>(connectionSnapshot(
+                {{"connections", entries}}, std::get<QJsonArray>(first), "one", 1500));
+            check(next[0].toObject().value("downloadRate").toDouble() == 2000 &&
+                      !std::get<QJsonArray>(first)[0].toObject().contains("downloadRate"),
+                  "rates use elapsed monotonic time, first rate unknown");
+            check(!std::get<QJsonArray>(
+                       connectionSnapshot({{"connections", entries}}, next, "two", 1000))[0]
+                       .toObject()
+                       .contains("downloadRate"),
+                  "old epoch never produces rates");
+            changed.insert("download", 1);
+            entries[0] = changed;
+            check(!std::get<QJsonArray>(
+                       connectionSnapshot({{"connections", entries}}, next, "one", 1000))[0]
+                       .toObject()
+                       .contains("downloadRate"),
+                  "counter reset stays unknown");
+            check(!std::get<QJsonArray>(
+                       connectionSnapshot({{"connections", entries}}, next, "one", 10001))[0]
+                       .toObject()
+                       .contains("downloadRate"),
+                  "stale interval stays unknown");
+            entries.append(entries[0]);
+            check(std::holds_alternative<Error>(
+                      connectionSnapshot({{"connections", entries}}, {}, "one", 0)),
+                  "duplicate ids reject entire snapshot");
+            check(std::holds_alternative<Error>(connectionSnapshot({}, {}, "one", 0)),
+                  "missing collection is not an empty snapshot");
+            check(std::get<QJsonArray>(
+                      connectionSnapshot({{"connections", QJsonValue::Null}}, {}, "one", 0))
+                      .isEmpty(),
+                  "official nil slice is an empty complete snapshot");
+        }
+        {
+            const auto now = QDateTime::fromSecsSinceEpoch(1800000000, QTimeZone::UTC);
+            const auto usage =
+                parseSubscriptionUsage("upload=10; download=80; total=100; expire=1800086400");
+            const auto status = subscriptionUsageStatus(usage, now);
+            check(status.value("used") == "90" && status.value("quotaState") == "Low" &&
+                      status.value("expiryState") == "Soon",
+                  "subscription warning thresholds");
+            check(subscriptionUsageStatus(parseSubscriptionUsage("download=90; total=100"), now)
+                          .value("quotaState") == "Unknown",
+                  "missing upload is unknown, never a zero counter");
+            check(parseSubscriptionUsage("upload=1; upload=2; download=-1; total=+12; expire=1e9")
+                      .isEmpty(),
+                  "ambiguous, signed and exponent fields are rejected");
+            check(parseSubscriptionUsage(
+                      "upload=9007199254740992; download=18446744073709551616; expire=253402300800")
+                      .isEmpty(),
+                  "unsafe integer, overflow and unrepresentable date rejected");
+            check(parseSubscriptionUsage(QByteArray(1025, '1')).isEmpty(), "usage header limit");
+            const auto exhausted = subscriptionUsageStatus(
+                parseSubscriptionUsage("upload = 10; download=90; total=100; expire=1800000000"),
+                now);
+            check(exhausted.value("quotaState") == "Exhausted" &&
+                      exhausted.value("expiryState") == "Expired",
+                  "exact quota and expiry boundaries");
+            check(subscriptionUsageStatus(
+                      parseSubscriptionUsage("upload=0;download=0;total=0;expire=0"), now)
+                          .value("quotaState") == "Unknown",
+                  "zero quota is not unlimited");
+            check(subscriptionUsageStatus({{"upload", "10;download=80;total=100"}}, now)
+                          .value("quotaState") == "Unknown",
+                  "saved fields cannot inject metadata");
+            const auto threshold =
+                parseSubscriptionUsage("upload=0;download=89;total=100;expire=1800604800");
+            check(subscriptionUsageStatus(threshold, now).value("expiryState") == "Soon" &&
+                      subscriptionUsageStatus(threshold, now.addSecs(-1)).value("expiryState") ==
+                          "Available" &&
+                      subscriptionUsageStatus(threshold, now).value("quotaState") == "Available",
+                  "seven-day boundary and below quota threshold");
+        }
         using quickclash::infra::subscriptionPayloadError;
         check(subscriptionPayloadError(fixture("inline_valid.yaml")).isEmpty(),
               "standard YAML subscription recognized independently of MIME");
@@ -115,6 +342,11 @@ int main(int argc, char* argv[]) {
             "Z-primary", "rule", true);
         check(balancing.value("balanced").toBool() && balancing.value("node").toString().isEmpty(),
               "load balancing does not claim every connection uses one node");
+        const auto balancedGroups =
+            quickclash::infra::orderedProxyGroups(routingConfig.value("groups").toArray(), live);
+        check(balancedGroups.last().toObject().value("current").isNull() &&
+                  !balancedGroups.last().toObject().value("canSelect").toBool(),
+              "balancing group never exposes one current member or manual selection");
         check(!preferences.tunDesired && !preferences.systemProxyDesired, "safe defaults");
         check(formatBytes(std::numeric_limits<std::uint64_t>::max()) ==
                   QStringLiteral("18446744073709551615"),
@@ -225,7 +457,9 @@ int main(int argc, char* argv[]) {
         invalidDns.replace("https://dns.example.invalid/dns-query", "file:///private/resolver");
         expectError(invalidDns, "InvalidConfigField");
         for (const auto* resolver :
-             {"https://127.0.0.1/dns-query", "tcp://[::ffff:127.0.0.1]:53", "udp://0.0.0.0:53"}) {
+             {"https://127.0.0.1/dns-query", "tcp://[::ffff:127.0.0.1]:53", "udp://0.0.0.0:53",
+              "udp://[0:0:0:0:0:0:0:1]:53", "tls://[::ffff:7f00:1]:853", "udp://[::ffff:0:0]:53",
+              "https://local.localhost/dns-query", "udp://[::]:53"}) {
             auto loopback = fixture("dns_supported.yaml");
             loopback.replace("https://dns.example.invalid/dns-query",
                              QByteArray("'") + resolver + '\'');
@@ -234,6 +468,40 @@ int main(int argc, char* argv[]) {
         invalidDns = fixture("dns_supported.yaml");
         invalidDns.replace("198.18.0.1/16", "10.0.0.1/8");
         expectError(invalidDns, "InvalidConfigField");
+        for (const auto* range :
+             {"198.18.999.1/16", "198.19.0.1/14", "198.18.0.1/31", "::ffff:198.18.0.1/112"}) {
+            auto invalid = fixture("dns_supported.yaml");
+            invalid.replace("198.18.0.1/16", range);
+            expectError(invalid, "InvalidConfigField");
+        }
+        for (const auto* range : {"198.18.0.1/15", "198.19.255.252/30"}) {
+            auto validRange = fixture("dns_supported.yaml");
+            validRange.replace("198.18.0.1/16", range);
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(
+                      quickclash::infra::preflightConfig(validRange, {})),
+                  "valid bounded fake-ip subnet");
+        }
+        invalidDns = fixture("dns_supported.yaml");
+        invalidDns.replace("default-nameserver: [1.1.1.1]",
+                           "default-nameserver: [https://needs-bootstrap.invalid/dns-query]");
+        expectError(invalidDns, "InvalidConfigField");
+        invalidDns = fixture("dns_supported.yaml");
+        invalidDns.replace("nameserver: [https://dns.example.invalid/dns-query]", "nameserver: []");
+        expectError(invalidDns, "InvalidConfigField");
+        for (const auto& mode : {QStringLiteral("fake-ip"), QStringLiteral("redir-host")}) {
+            quickclash::domain::RuntimePreferences dnsPreferences;
+            dnsPreferences.dnsMode = mode;
+            const auto configured = quickclash::infra::preflightConfig(
+                "proxies: []\nproxy-groups: []\nrules: ['MATCH,DIRECT']\n", dnsPreferences);
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(configured),
+                  "DNS preference supplies bounded defaults");
+            const auto semantic =
+                std::get<quickclash::infra::PreflightConfig>(configured).semanticYaml;
+            check(semantic.contains(mode.toUtf8()) &&
+                      semantic.contains("https://1.1.1.1/dns-query") &&
+                      semantic.contains("default-nameserver") && !semantic.contains("0.0.0.0:53"),
+                  "DNS override supplies IP bootstrap without external listener");
+        }
         expectError(fixture("invalid.yaml"), "InvalidYaml");
         expectError("proxies: []\nproxies: []", "DuplicateConfigKey");
         expectError("external-controller-pipe: arbitrary", "UnsupportedConfigFeature");
@@ -241,6 +509,60 @@ int main(int argc, char* argv[]) {
         expectError(QByteArray(40, '[') + "0" + QByteArray(40, ']'), "ConfigLimitExceeded");
         expectError(QByteArray(16 * 1024 * 1024 + 1, ' '), "ConfigLimitExceeded");
         const auto mainstreamBytes = fixture("mainstream_valid.yaml");
+        const auto advancedBytes = fixture("advanced_supported.yaml");
+        const auto advanced = quickclash::infra::preflightConfig(advancedBytes, {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(advanced),
+              "TUIC v4/v5 and all three load-balance strategies accepted");
+        const auto advancedSemantic =
+            std::get<quickclash::infra::PreflightConfig>(advanced).semanticYaml;
+        const auto advancedSummary = quickclash::infra::configurationSummary(advancedSemantic);
+        for (const auto& node : advancedSummary.value("nodes").toArray())
+            check(node.toObject().value("type") == "tuic" && node.toObject().value("udp").toBool(),
+                  "TUIC has native UDP regardless of absent optional flag");
+        for (const auto& group : advancedSummary.value("groups").toArray())
+            if (group.toObject().value("name") != "GLOBAL")
+                check(!group.toObject().value("canSelect").toBool() &&
+                          group.toObject().value("current").isNull(),
+                      "offline load balancing never invents a selected first member");
+        const auto advancedPreview = quickclash::infra::redactedConfig(advancedSemantic);
+        check(!advancedPreview.contains("public_fixture_password") &&
+                  !advancedPreview.contains("public_fixture_token") &&
+                  !advancedPreview.contains("00000000-0000"),
+              "TUIC authentication is redacted");
+        for (const auto& advancedReplacement :
+             {qMakePair(QByteArray("uuid: 00000000-0000-4000-8000-000000000001"),
+                        QByteArray("uuid: invalid")),
+              qMakePair(QByteArray("password: public_fixture_password"),
+                        QByteArray("password: ''")),
+              qMakePair(QByteArray("token: public_fixture_token"), QByteArray("token: ''")),
+              qMakePair(QByteArray("password: public_fixture_password"),
+                        QByteArray("token: public_fixture_token")),
+              qMakePair(QByteArray("uuid: 00000000-0000-4000-8000-000000000001"),
+                        QByteArray("token: public_fixture_token")),
+              qMakePair(QByteArray("congestion-controller: bbr"),
+                        QByteArray("congestion-controller: invalid")),
+              qMakePair(QByteArray("udp-relay-mode: native"),
+                        QByteArray("udp-relay-mode: invalid")),
+              qMakePair(QByteArray("udp: true"), QByteArray("udp: false")),
+              qMakePair(QByteArray("strategy: consistent-hashing"),
+                        QByteArray("strategy: invalid")),
+              qMakePair(QByteArray("port: 19877"), QByteArray("port: 0"))}) {
+            auto invalid = advancedBytes;
+            invalid.replace(advancedReplacement.first, advancedReplacement.second);
+            expectError(invalid, "InvalidConfigField");
+        }
+        for (const auto* field : {"request-timeout", "heartbeat-interval",
+                                  "max-udp-relay-packet-size", "max-open-streams"}) {
+            auto invalid = QString::fromUtf8(advancedBytes);
+            invalid.replace(QRegularExpression(QString::fromLatin1(field) + ": [0-9]+"),
+                            QString::fromLatin1(field) + ": 0");
+            expectError(invalid.toUtf8(), "InvalidConfigField");
+        }
+        for (const auto* field : {"disable-sni", "reduce-rtt", "fast-open", "skip-cert-verify"}) {
+            auto invalid = advancedBytes;
+            invalid.replace(QByteArray(field) + ": false", QByteArray(field) + ": [false]");
+            expectError(invalid, "InvalidConfigField");
+        }
         const auto mainstream = quickclash::infra::preflightConfig(mainstreamBytes, {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(mainstream),
               "mainstream protocols, transports and nested automatic groups accepted");
@@ -338,6 +660,68 @@ int main(int argc, char* argv[]) {
               "insecure provider rejected");
         check(std::holds_alternative<Error>(quickclash::infra::expandProviders(providerConfig, {})),
               "missing provider cannot silently drop rules");
+        const QSet<QString> allowedProviders{"proxies:node/a?b", "rules:domains"};
+        check(quickclash::infra::providerRefreshPath({{"kind", "proxies"}, {"name", "node/a?b"}},
+                                                     allowedProviders) ==
+                      QByteArray("/providers/proxies/node%2Fa%3Fb") &&
+                  !quickclash::infra::providerRefreshPath(
+                      {{"kind", "proxies"}, {"name", "unknown"}}, allowedProviders) &&
+                  !quickclash::infra::providerRefreshPath(
+                      {{"kind", "proxies"}, {"name", "node/a?b"}, {"url", "https://invalid"}},
+                      allowedProviders) &&
+                  !quickclash::infra::providerRefreshPath(
+                      {{"kind", "proxies:node/a?b"}, {"name", ""}}, allowedProviders),
+              "service provider refresh is an exact active identity with encoded fixed path");
+        const QJsonObject providerResponse{
+            {"providers", QJsonObject{{"domains", QJsonObject{{"vehicleType", "HTTP"},
+                                                              {"ruleCount", 2},
+                                                              {"updatedAt", "2026-10-29T00:00:00Z"},
+                                                              {"url", "https://secret.invalid"},
+                                                              {"path", "private/path"}}},
+                                      {"inline", QJsonObject{{"vehicleType", "Compatible"}}}}}};
+        const auto projectedProviders =
+            quickclash::domain::providerCategorySnapshot(providerResponse, {}, "rules");
+        check(projectedProviders.error.isEmpty() && projectedProviders.rows.size() == 1 &&
+                  projectedProviders.rows.first().toObject().value("count") == 2 &&
+                  !QJsonDocument(projectedProviders.rows).toJson().contains("secret.invalid") &&
+                  !QJsonDocument(projectedProviders.rows).toJson().contains("private/path"),
+              "provider projection excludes contents, URLs and paths");
+        const auto failedProviders = quickclash::domain::providerCategorySnapshot(
+            Error{QStringLiteral("CoreRequestTimeout")}, projectedProviders.rows, "rules");
+        check(!failedProviders.error.isEmpty() && failedProviders.rows.size() == 1 &&
+                  failedProviders.rows.first().toObject().value("count") == 2 &&
+                  failedProviders.rows.first().toObject().value("stale").toBool(),
+              "failed category retains count and marks stale");
+        const auto malformedProviders = quickclash::domain::providerCategorySnapshot(
+            QJsonObject{{"providers", QJsonArray{}}}, projectedProviders.rows, "rules");
+        check(!malformedProviders.error.isEmpty() && malformedProviders.rows.size() == 1,
+              "invalid provider response cannot erase prior category");
+        const auto emptyProviders = quickclash::domain::providerCategorySnapshot(
+            QJsonObject{{"providers", QJsonObject{}}}, projectedProviders.rows, "rules");
+        check(emptyProviders.error.isEmpty() && emptyProviders.rows.isEmpty(),
+              "successful empty provider category replaces prior rows");
+        const auto unknownCount = quickclash::domain::providerCategorySnapshot(
+            QJsonObject{
+                {"providers", QJsonObject{{"unknown", QJsonObject{{"vehicleType", "HTTP"}}}}}},
+            {}, "rules");
+        check(!unknownCount.rows.first().toObject().contains("count"),
+              "missing provider count remains unknown");
+        const auto projectedRules = quickclash::domain::ruleSnapshot(
+            {{"rules",
+              QJsonArray{
+                  QJsonObject{{"type", "RuleSet"}, {"payload", "domains"}, {"proxy", "Main"}},
+                  QJsonObject{{"type", "Match"}, {"payload", ""}, {"proxy", "DIRECT"}}}}},
+            projectedProviders.rows);
+        check(std::holds_alternative<QJsonArray>(projectedRules) &&
+                  std::get<QJsonArray>(projectedRules).last().toObject().value("position") == 2 &&
+                  std::get<QJsonArray>(projectedRules).first().toObject().value("count") == 2 &&
+                  std::get<QJsonArray>(projectedRules).first().toObject().value("providerName") ==
+                      "domains",
+              "rule order and provider reference metadata projected without invented hit counts");
+        check(std::holds_alternative<Error>(quickclash::domain::ruleSnapshot({})) &&
+                  std::holds_alternative<Error>(quickclash::domain::ruleSnapshot(
+                      {{"rules", QJsonArray{QJsonObject{{"type", "Match"}}}}})),
+              "malformed rules fail as a complete snapshot");
         std::cout << "PASS: domain defaults, stale contexts, operation transitions, config subset "
                      "and sessions\n";
         return 0;

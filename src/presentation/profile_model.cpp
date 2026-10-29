@@ -106,6 +106,8 @@ bool ProfileModel::apply(const QJsonArray& profiles) {
         QList<int> roles{Entry};
         for (const auto& field : {std::pair{"name", Name},
                                   {"usage", Usage},
+                                  {"usageStatus", Usage},
+                                  {"usageCollectedAt", Usage},
                                   {"updateIntervalMinutes", Schedule},
                                   {"autoApply", Schedule},
                                   {"nextUpdateAt", Schedule},

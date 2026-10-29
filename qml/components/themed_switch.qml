@@ -5,6 +5,7 @@ import QuickClash.Ui
 Switch {
     id: control
     required property ThemeTokens theme
+    Accessible.name: text
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: Math.max(theme.controlHeight, implicitContentHeight + topPadding + bottomPadding)

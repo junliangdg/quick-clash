@@ -1,19 +1,22 @@
 #pragma once
+#include "application/desktop_services.h"
 #include "application/runtime_update.h"
+#include "domain/log_buffer.h"
 #include "infra/config/config_preflight.h"
 #include "infra/core/engine_session.h"
 #include "infra/storage/config_repository.h"
 #include "infra/storage/provider_stage.h"
 #include "infra/storage/settings_repository.h"
-#include "platform/windows/credential_store.h"
-#include "platform/windows/system_proxy.h"
+#include "platform/proxy_settings.h"
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QJsonArray>
+#include <QMap>
 #include <QNetworkAccessManager>
 #include <QSet>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QUrl>
 #include <functional>
 #include <memory>
 
@@ -24,13 +27,18 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
   public:
     DesktopRuntime(infra::JsonStore& store, QObject* parent = nullptr,
                    platform::ProxySettings* proxySettings = nullptr,
-                   std::function<QDateTime()> clock = {});
+                   std::function<QDateTime()> clock = {}, const QUrl& geoSourceBase = {});
+    DesktopRuntime(infra::JsonStore& store, DesktopServices services, QObject* parent = nullptr,
+                   std::function<QDateTime()> clock = {}, const QUrl& geoSourceBase = {});
     ~DesktopRuntime() override;
     void initialize();
     // Enabled by the desktop host after storage and UI settings have loaded.
     void enableBackgroundManagement();
     void importFile(const QString& url, const QString& name);
-    void addSubscription(const QString& url, const QString& name);
+    void addSubscription(const QString& url, const QString& name,
+                         const QString& route = QStringLiteral("Direct"));
+    void setSubscriptionRoute(const QString& id, const QString& route);
+    void cancelGeo();
     void updateProfile(const QString& id);
     void configureSubscription(const QString& id, int intervalMinutes, bool autoApply);
     void changeProfileSource(const QString& id, const QString& url, const QString& headers);
@@ -72,7 +80,27 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void error(const QString& code);
     void configError(const domain::Error& failure);
     void download(const QString& url, const QString& name, const QString& id = {},
-                  const QJsonObject& headers = {});
+                  const QJsonObject& headers = {}, const QString& route = {},
+                  const QJsonObject& cache = {});
+    struct SubscriptionDownload {
+        QElapsedTimer timer;
+        quint64 generation = 0;
+        QString url, name, id, route, proxyEpoch;
+        QJsonObject headers, cache;
+        QSet<QUrl> visited;
+        QByteArray bytes;
+        qint64 received = 0;
+        int redirects = 0;
+        bool proxy = false;
+        bool fallback = false;
+        bool cacheRetry = false;
+        bool authorization = true;
+    };
+    void requestSubscription(const std::shared_ptr<SubscriptionDownload>& context, const QUrl& url);
+    void failSubscription(const QString& code);
+    void finishSubscription(const std::shared_ptr<SubscriptionDownload>& context,
+                            QNetworkReply* reply, int status);
+    void applyGeoSnapshot(const QJsonObject& snapshot);
     struct ConfigCandidates {
         explicit ConfigCandidates(infra::JsonStore& owner) : store(owner) {}
         ~ConfigCandidates();
@@ -92,6 +120,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         QString sourceHash;
         std::shared_ptr<ConfigCandidates> candidates;
         QJsonArray requests;
+        QJsonArray resources;
+        QJsonArray cachedResources;
+        QString refreshKey;
         qsizetype index = 0;
         QString name;
         QString secretRef;
@@ -100,6 +131,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         quint64 generation = 0;
     };
     void fetchProvider();
+    void refreshSnapshotProvider(const QString& kind, const QString& name);
     void validate(const QByteArray& semantic, std::function<void(bool)> completion);
     // Trust is worker-private, tied to one operation, exact persisted candidate and preferences.
     struct ConfigTransaction {
@@ -111,6 +143,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         QString artifactRef;
         std::shared_ptr<ConfigCandidates> candidates;
         bool validated = false;
+        bool previewOnly = false;
+        bool forceApply = false;
+        QString editorToken;
     };
     void finishImport(const std::shared_ptr<ConfigTransaction>& context);
     void discardConfigTransaction();
@@ -120,22 +155,65 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void failedApply(const QString& code);
     void cleanupSession();
     void collectGarbage();
+    void maintenanceCommand(const QString& command, const QStringList& arguments);
+    void clearMaintenancePreview();
     void restorePreferences();
     void loadOfflineGroups();
     void pollFeatures();
     void releaseFeature(const QString& stream);
     void requestPageData(const QString& stream);
+    void updateProvider(const QString& kind, const QString& name);
+    void finishSnapshotProviderRefresh();
+    void decorateProviderResults();
     [[nodiscard]] RuntimeRequest beginFeatureRequest(const QString& stream);
     [[nodiscard]] bool acceptFeatureRequest(const RuntimeRequest& request);
-    void appendLog(const QString& source, const QString& level, const QString& message);
-    void backupProfiles();
+    void appendLog(const QString& source, const QString& level, const QString& message,
+                   bool truncated = false);
+    void prepareLogExport(bool hideMessages, const QString& token = {});
+    void exportLogs(const QString& token);
+    void clearLogExport();
+    void sampleResources();
+    void editorCommand(const QString& command, const QStringList& arguments);
+    void openEditor(const QString& id, const QString& kind, bool discard = false);
+    bool saveEditorDraft(const QString& token, const QString& text);
+    void prepareEditor(bool copy, const QString& name = {});
+    void finishEditorPreview(const std::shared_ptr<ConfigTransaction>& context);
+    void restoreProfileVersion(const QString& id, int index, const QString& base = {});
+    [[nodiscard]] QString profileRevision(const QJsonObject& item) const;
+    void backupProfiles(bool originals);
+    struct BackupRestore {
+        QJsonArray entries;
+        QJsonObject preferences;
+        std::shared_ptr<ConfigCandidates> candidates;
+        QString token;
+        QString catalogHash;
+        quint64 generation = 0;
+        bool active = false;
+    };
+    void previewBackup(const QString& url);
+    void cancelBackupRestore();
     void closeNextConnection(const QJsonArray& targets, qsizetype index, const QString& epoch);
-    void startDelayTests(const QStringList& names, const QString& target);
+    void resetConnectionClose();
+    void closeConnectionTarget(const QString& id, const QString& epoch,
+                               std::function<void(const QString&)> completion);
+    void startDelayTests(const QStringList& names);
     void pumpDelayTests();
     void cancelDelayTests();
-    void restoreBackup(const QString& url);
-    void restoreNext(const QJsonArray& entries, qsizetype index, QJsonArray staged,
-                     quint64 generation);
+    struct WebsiteProbe {
+        QElapsedTimer timer;
+        QJsonObject context;
+        QSet<QUrl> visited;
+        qint64 received = 0;
+        quint64 generation = 0;
+        quint64 operationGeneration = 0;
+        int redirects = 0;
+    };
+    void requestWebsite(const std::shared_ptr<WebsiteProbe>& probe, const QUrl& url);
+    void finishWebsite(const std::shared_ptr<WebsiteProbe>& probe, const QString& outcome,
+                       int status);
+    void invalidateWebsiteTest();
+    void restoreBackup(const QString& token);
+    void restoreNext(const std::shared_ptr<BackupRestore>& context, qsizetype index);
     void updateGeo();
     void fetchGeo(int index, QJsonObject snapshot, quint64 generation);
     void scheduleSubscriptions();
@@ -147,14 +225,16 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     [[nodiscard]] domain::RuntimePreferences preferences() const;
     [[nodiscard]] QString coreExecutable() const;
     [[nodiscard]] QJsonObject profile(const QString& id) const;
+    [[nodiscard]] QJsonArray profileViews() const;
     [[nodiscard]] bool saveCatalog(const QJsonArray& profiles);
     infra::JsonStore& store_;
     infra::ConfigRepository repository_;
-    platform::CredentialStore credentials_;
-    platform::WindowsProxySettings defaultProxySettings_;
-    platform::ProxyLease proxyLease_;
+    std::unique_ptr<ICredentialStore> credentials_;
+    const DesktopPlatformInfo platformInfo_;
+    std::unique_ptr<IDesktopResources> resources_;
+    std::unique_ptr<ISystemProxyLease> proxyLease_;
     infra::EngineSession engine_;
-    platform::OwnedProcess validator_;
+    std::unique_ptr<IDesktopProcess> validator_;
     QNetworkAccessManager directNetwork_;
     QNetworkAccessManager testNetwork_;
     QTimer validationDeadline_;
@@ -173,6 +253,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool summaryReady_ = false;
     QJsonObject outbound_;
     QJsonArray summaryProfiles_;
+    QJsonArray profileViews_;
+    qint64 usageMinute_ = -1;
     QString summarySelectedId_;
     QJsonValue selectedName_;
     QSet<QString> featureDemands_;
@@ -182,22 +264,37 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QSet<QString> loadedFeatures_;
     QSet<QString> invalidatedChannels_;
     QJsonObject featureState_;
+    QJsonObject maintenancePreview_;
+    QString maintenanceToken_;
+    QString maintenanceKind_;
+    QString maintenanceFingerprint_;
+    bool recoveryArchived_ = false;
+    QJsonObject editor_;
     QJsonArray connections_;
     QJsonArray rules_;
     QJsonArray providers_;
     QJsonArray providerDraft_;
-    QJsonArray logs_;
-    QJsonArray appLogs_;
+    QJsonObject rulePageState_;
+    QJsonObject providerPageState_;
+    QJsonObject providerResults_;
+    // Only a small operation identity survives page release; results remain demand-scoped.
+    QJsonObject snapshotProviderRefresh_;
+    domain::LogBuffer logs_;
+    domain::LogBuffer appLogs_{100, 512 * 1024};
+    QJsonObject logExport_;
+    QJsonObject logExportFrozen_;
+    QString logExportToken_;
+    QTimer logPublicationTimer_;
     QJsonObject delays_;
+    QHash<QString, QDateTime> delayTimes_;
     bool delayRunning_ = false;
     QStringList delayQueue_;
     QSet<QString> activeDelays_;
-    QString delayTarget_;
+    QString delayTarget_ = QStringLiteral("https://www.gstatic.com/generate_204");
     quint64 delayGeneration_ = 0;
     bool closingConnections_ = false;
-    int droppedLogs_ = 0;
     quint64 logSequence_ = 0;
-    int resourceTick_ = 0;
+    QElapsedTimer resourceSampleClock_;
     int proxyTick_ = 0;
     qint64 connectionSampleMs_ = 0;
     QElapsedTimer coreUptime_;
@@ -209,8 +306,12 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     int recoveryFailures_ = 0;
     QList<qint64> crashTimes_;
     QPointer<QNetworkReply> downloadReply_;
+    QNetworkAccessManager subscriptionNetwork_;
+    QUrl geoSourceBase_;
+    bool geoOperationActive_ = false;
     std::shared_ptr<ProviderImport> providerImport_;
     std::shared_ptr<ConfigTransaction> configTransaction_;
+    std::shared_ptr<BackupRestore> backupRestore_;
     QPointer<QNetworkReply> testReply_;
     std::unique_ptr<QTemporaryDir> staging_;
     std::function<void(bool)> validationCompletion_;
@@ -221,6 +322,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QJsonArray errors_;
     QJsonArray configIssues_;
     QJsonObject runtimePreferences_;
+    QJsonObject savedPreferences_;
+    QJsonObject sessionPreferences_;
+    QJsonObject effectivePreferences_;
     QJsonObject candidate_;
     QJsonObject previous_;
     QJsonObject previousPreferences_;
@@ -230,6 +334,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     std::unique_ptr<domain::Operation> operation_;
     QString pendingGroup_;
     QString pendingMember_;
+    QMap<QString, QString> queuedSelections_;
     bool restoringNodes_ = false;
     QSet<QString> restoredGroups_;
     QString selectedId_;

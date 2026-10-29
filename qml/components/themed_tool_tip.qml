@@ -10,7 +10,7 @@ ToolTip {
     contentItem: Text {
         text: control.text
         color: control.theme.text
-        font.pixelSize: 12
+        font.pixelSize: control.theme.scaledSize(12)
         font.family: control.theme.fontFamily
         wrapMode: Text.WordWrap
     }

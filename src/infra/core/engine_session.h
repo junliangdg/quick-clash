@@ -1,7 +1,7 @@
 #pragma once
+#include "application/desktop_process.h"
 #include "application/ports.h"
 #include "infra/core/service_client.h"
-#include "platform/windows/owned_process.h"
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -9,6 +9,7 @@
 #include <QSet>
 #include <QTimer>
 #include <functional>
+#include <memory>
 #include <optional>
 
 namespace quickclash::infra {
@@ -56,7 +57,7 @@ class EngineSession final : public QObject {
              ApiHandler handler);
     void setStream(const QString& name, bool enabled);
     [[nodiscard]] bool running() const {
-        return process_.running() || serviceMode_;
+        return process_->running() || serviceMode_;
     }
     [[nodiscard]] bool ready() const {
         return ready_;
@@ -64,8 +65,14 @@ class EngineSession final : public QObject {
     [[nodiscard]] bool tunActive() const {
         return serviceMode_ && ready_;
     }
+    [[nodiscard]] bool usingService() const {
+        return serviceMode_;
+    }
     [[nodiscard]] quint32 pid() const {
-        return serviceMode_ ? servicePid_ : process_.pid();
+        return serviceMode_ ? servicePid_ : process_->pid();
+    }
+    [[nodiscard]] QJsonObject memory() const {
+        return serviceMode_ ? QJsonObject{} : process_->memory();
     }
   signals:
     void becameReady(const QString& version);
@@ -82,7 +89,7 @@ class EngineSession final : public QObject {
     void probe();
     void fail(const QString& code);
     void syncServiceLogs();
-    platform::OwnedProcess process_;
+    std::unique_ptr<application::IDesktopProcess> process_;
     ServiceClient service_;
     QTimer servicePoll_;
     QSet<QString> serviceStreams_;

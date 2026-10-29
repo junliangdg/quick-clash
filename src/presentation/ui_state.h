@@ -37,6 +37,7 @@ class UiState : public QObject {
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
+    Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
@@ -76,6 +77,9 @@ class UiState : public QObject {
     }
     [[nodiscard]] QVariantMap telemetry() const {
         return telemetry_;
+    }
+    [[nodiscard]] QVariantMap editor() const {
+        return appliedData_.value(QStringLiteral("editor")).toObject().toVariantMap();
     }
     [[nodiscard]] QVariantList groups() const {
         return groups_;
@@ -203,6 +207,7 @@ class UiState : public QObject {
     void runtimeChanged();
     void profilesChanged();
     void telemetryChanged();
+    void editorChanged();
     void groupsChanged();
     void nodesChanged();
     void delaysChanged();
@@ -212,6 +217,7 @@ class UiState : public QObject {
     void routeErrorChanged();
     void themeChanged();
     void uiVisibleChanged();
+    void uiAboutToHide();
     void replayChanged();
     void demandsChanged();
     void channelInvalidated(const QString& channel);

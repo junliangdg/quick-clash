@@ -62,8 +62,19 @@ int main(int argc, char* argv[]) {
         {
             auto writer = begin(store);
             check(feed(*writer, "abcdef"), "duplicate body");
-            check(!good(writer->finish("geoip.dat")), "immutable resource not overwritten");
+            check(good(writer->finish("geoip.dat")),
+                  "identical immutable resource verified and reused");
             check(std::get<QByteArray>(store.readBytes(original)) == "abcdef", "old resource kept");
+            clean(directory.path());
+        }
+        {
+            check(good(store.writeBytes(original, "broken")), "corrupt existing resource fixture");
+            auto writer = begin(store);
+            check(feed(*writer, "abcdef"), "original bytes downloaded again");
+            check(!good(writer->finish("geoip.dat")),
+                  "corrupt immutable target rejected without overwrite");
+            check(std::get<QByteArray>(store.readBytes(original)) == "broken",
+                  "corrupt target never overwritten in place");
             clean(directory.path());
         }
         {

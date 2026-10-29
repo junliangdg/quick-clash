@@ -29,6 +29,8 @@ bool needed(const QByteArray& semantic) {
         if (fields.geoRule)
             return true;
         const auto root = YAML::Load(fields.fieldsYaml.toStdString());
+        if (root["rule-providers"] && root["rule-providers"].size() > 0)
+            return true; // Future core refreshes may introduce GEOIP/GEOSITE rules.
         if (root["dns"] && root["dns"]["enable"] && root["dns"]["enable"].as<bool>())
             return true; // DNS fallback defaults can use GeoIP even without a GEOIP rule.
     } catch (const YAML::Exception&) {

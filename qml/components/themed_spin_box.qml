@@ -9,9 +9,9 @@ SpinBox {
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: theme.controlHeight
-    implicitWidth: 144
-    leftPadding: 36
-    rightPadding: 36
+    implicitWidth: theme.scaledSize(144)
+    leftPadding: theme.scaledSize(36)
+    rightPadding: theme.scaledSize(36)
     activeFocusOnTab: true
     contentItem: TextInput {
         text: control.displayText
@@ -29,7 +29,7 @@ SpinBox {
     up.indicator: StateSurface {
         theme: control.theme
         x: control.width - width
-        implicitWidth: 32
+        implicitWidth: control.theme.scaledSize(32)
         implicitHeight: control.theme.controlHeight
         hovered: control.up.hovered
         down: control.up.pressed
@@ -37,12 +37,12 @@ SpinBox {
             anchors.centerIn: parent
             text: "+"
             color: control.theme.text
-            font.pixelSize: 18
+            font.pixelSize: control.theme.scaledSize(18)
         }
     }
     down.indicator: StateSurface {
         theme: control.theme
-        implicitWidth: 32
+        implicitWidth: control.theme.scaledSize(32)
         implicitHeight: control.theme.controlHeight
         hovered: control.down.hovered
         down: control.down.pressed
@@ -50,7 +50,7 @@ SpinBox {
             anchors.centerIn: parent
             text: "−"
             color: control.theme.text
-            font.pixelSize: 18
+            font.pixelSize: control.theme.scaledSize(18)
         }
     }
     background: StateSurface {

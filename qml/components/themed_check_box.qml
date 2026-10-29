@@ -5,6 +5,7 @@ import QuickClash.Ui
 CheckBox {
     id: control
     required property ThemeTokens theme
+    Accessible.name: text
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: Math.max(theme.controlHeight, implicitContentHeight + topPadding + bottomPadding)
@@ -27,7 +28,7 @@ CheckBox {
             text: control.checkState === Qt.PartiallyChecked ? "−" : "✓"
             visible: control.checkState !== Qt.Unchecked
             color: control.enabled ? control.theme.accentForeground : control.theme.muted
-            font.pixelSize: 14
+            font.pixelSize: control.theme.scaledSize(14)
         }
     }
     contentItem: Text {

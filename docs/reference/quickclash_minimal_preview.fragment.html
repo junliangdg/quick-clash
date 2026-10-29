@@ -9,14 +9,14 @@
     <div class="app-body">
       <nav class="app-nav" aria-label="预览页面">
         <div class="nav-caption">工作空间</div>
-        <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true">▦</span><span>仪表盘</span></button>
-        <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true">◎</span><span>代理</span></button>
-        <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true">▤</span><span>订阅</span></button>
-        <button type="button" data-page="connections" aria-label="连接" title="连接"><span class="qc-symbol" aria-hidden="true">⇄</span><span>连接</span></button>
-        <button type="button" data-page="rules" aria-label="规则" title="规则"><span class="qc-symbol" aria-hidden="true">≡</span><span>规则</span></button>
-        <button type="button" data-page="logs" aria-label="日志" title="日志"><span class="qc-symbol" aria-hidden="true">›_</span><span>日志</span></button>
-        <button type="button" data-page="tests" aria-label="测试" title="测试"><span class="qc-symbol" aria-hidden="true">⌁</span><span>测试</span></button>
-        <button type="button" data-page="settings" aria-label="设置" title="设置" class="settings-nav"><span class="qc-symbol" aria-hidden="true">⚙</span><span>设置</span></button>
+        <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:home --></span><span>仪表盘</span></button>
+        <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:proxies --></span><span>代理</span></button>
+        <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:subscriptions --></span><span>订阅</span></button>
+        <button type="button" data-page="connections" aria-label="连接" title="连接"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:connections --></span><span>连接</span></button>
+        <button type="button" data-page="rules" aria-label="规则" title="规则"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:rules --></span><span>规则</span></button>
+        <button type="button" data-page="logs" aria-label="日志" title="日志"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:logs --></span><span>日志</span></button>
+        <button type="button" data-page="tests" aria-label="测试" title="测试"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:tests --></span><span>测试</span></button>
+        <button type="button" data-page="settings" aria-label="设置" title="设置" class="settings-nav"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:settings --></span><span>设置</span></button>
         <div class="nav-footer"><span class="status-dot"></span><span>内核运行中</span></div>
       </nav>
       <main class="app-main">
@@ -239,7 +239,9 @@
 #qc-style-review h2 {line-height:32px;}
 #qc-style-review h3 {font-size:14px;line-height:20px;}
 #qc-style-review .subscription-panel h3 {font-size:20px;line-height:28px;}
-#qc-style-review .app-nav button {gap:8px;}
+#qc-style-review .app-nav button {gap:16px;}
+#qc-style-review .app-nav .qc-symbol {width:20px;height:20px;}
+#qc-style-review .app-nav .qc-symbol svg {width:20px;height:20px;}
 #qc-style-review .traffic-values {align-items:center;gap:12px;flex-wrap:wrap;}
 #qc-style-review .traffic-values .traffic-labels {gap:6px;}
 #qc-style-review .switch {height:20px;width:36px;}

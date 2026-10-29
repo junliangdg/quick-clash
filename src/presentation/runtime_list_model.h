@@ -97,11 +97,14 @@ class RuntimeListModel : public QSortFilterProxyModel {
     void release();
     // Capture only the bounded destructive-command target set, not a JS copy of all rows.
     Q_INVOKABLE QStringList captureIds(int limit = 500) const;
+    // Resolve a selected connection independently of current filtering and row order.
+    Q_INVOKABLE QVariantMap connection(const QString& epoch, const QString& id) const;
   signals:
     void countChanged();
     void queryChanged();
     void sortModeChanged();
     void filtersChanged();
+    void entriesChanged();
 
   protected:
     [[nodiscard]] bool filterAcceptsRow(int row, const QModelIndex& parent) const override;

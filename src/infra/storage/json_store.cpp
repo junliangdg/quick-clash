@@ -1,6 +1,7 @@
 #include "infra/storage/json_store.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/geo_resource_writer.h"
+#include "infra/storage/storage_maintenance.h"
 #include <QCryptographicHash>
 #include <QDir>
 #include <QDirIterator>
@@ -10,6 +11,8 @@
 #include <QJsonParseError>
 #include <QSaveFile>
 #include <QTemporaryFile>
+#include <QUuid>
+#include <algorithm>
 #include <utility>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -109,6 +112,28 @@ domain::CommandResult JsonStore::open() {
         return storageError("RepositoryBusy");
     }
     opened_ = true;
+    const auto pending = path(QStringLiteral("recovery_pending.json"));
+    if (!std::holds_alternative<QString>(pending)) {
+        freeze();
+        return std::monostate{};
+    }
+    if (QFileInfo::exists(std::get<QString>(pending))) {
+        const auto loaded = readBytes(QStringLiteral("recovery_pending.json"), 4096);
+        const auto* bytes = std::get_if<QByteArray>(&loaded);
+        const auto marker = bytes ? QJsonDocument::fromJson(*bytes).object() : QJsonObject{};
+        const auto archive = marker.value("archive").toString();
+        const auto id = archive.mid(9);
+        const auto resolvedArchive = path(archive);
+        const bool complete = marker.value("schemaVersion") == 1 &&
+                              marker.value("complete") == true && archive.startsWith("recovery/") &&
+                              !QUuid(id).isNull() &&
+                              QUuid(id).toString(QUuid::WithoutBraces) == id &&
+                              std::holds_alternative<QString>(resolvedArchive) &&
+                              QFileInfo(std::get<QString>(resolvedArchive)).isDir();
+        // A crash during multi-directory archival must never expose a partial catalog as normal.
+        if (!complete || !QFile::remove(std::get<QString>(pending)))
+            freeze();
+    }
     return std::monostate{};
 }
 domain::Result<QString> JsonStore::path(const QString& reference) const {
@@ -147,6 +172,125 @@ domain::Result<QString> JsonStore::path(const QString& reference) const {
         }
     }
     return current;
+}
+
+domain::Result<QString> JsonStore::writeSupport(const QJsonObject& report) {
+    if (!opened_ || !lock_ || !lock_->isLocked())
+        return storageError("RepositoryReadOnly");
+    const auto bytes = QJsonDocument(report).toJson(QJsonDocument::Indented);
+    if (bytes.size() > 256 * 1024)
+        return storageError("MetadataLimitExceeded");
+    const auto inventory = inspectStorage(*this);
+    if (const auto* failure = std::get_if<domain::Error>(&inventory))
+        return *failure;
+    const auto& usage = std::get<StorageInventory>(inventory);
+    QList<StorageFile> exports;
+    for (const auto& file : usage.files)
+        if (file.reference.startsWith(QStringLiteral("logs/support_")))
+            exports.append(file);
+    if (usage.logs + bytes.size() > kLogBudget)
+        return storageError("StorageBudgetExceeded");
+    const auto ref = QStringLiteral("logs/support_%1.json")
+                         .arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    auto resolved = path(ref);
+    if (const auto* failure = std::get_if<domain::Error>(&resolved))
+        return *failure;
+    const auto parent = QFileInfo(std::get<QString>(resolved)).absolutePath();
+    if (!QDir().mkpath(parent))
+        return storageError("DataWriteFailed");
+    const auto secured = restrictToCurrentUser(parent, true);
+    if (const auto* failure = std::get_if<domain::Error>(&secured))
+        return *failure;
+    resolved = path(ref);
+    if (const auto* failure = std::get_if<domain::Error>(&resolved))
+        return *failure;
+    QSaveFile output(std::get<QString>(resolved));
+    output.setDirectWriteFallback(false);
+    if (!output.open(QIODevice::WriteOnly))
+        return storageError("DataWriteFailed");
+    if (output.write(bytes) != bytes.size() || !output.flush())
+        return storageError("DataWriteFailed");
+#ifdef Q_OS_WIN
+    if (!FlushFileBuffers(reinterpret_cast<HANDLE>(_get_osfhandle(output.handle()))))
+        return storageError("DataSyncFailed");
+#endif
+    if (!output.commit())
+        return storageError("DataCommitFailed");
+    std::sort(exports.begin(), exports.end(),
+              [](const auto& a, const auto& b) { return a.modified < b.modified; });
+    while (exports.size() >= 32) {
+        const auto old = path(exports.takeFirst().reference);
+        if (!std::holds_alternative<QString>(old) || !QFile::remove(std::get<QString>(old)))
+            return storageError("DataRemoveFailed");
+    }
+    return ref;
+}
+
+domain::Result<QString> JsonStore::archiveForRecovery(const QString& fingerprint) {
+    if (!opened_ || !readOnly_ || !lock_ || !lock_->isLocked())
+        return storageError("RepositoryRecoveryRequired");
+    const auto pending = path(QStringLiteral("recovery_pending.json"));
+    if (!std::holds_alternative<QString>(pending) || QFileInfo::exists(std::get<QString>(pending)))
+        return storageError("RecoveryArchiveIncomplete");
+    const auto inventory = inspectStorage(*this, true);
+    if (const auto* failure = std::get_if<domain::Error>(&inventory))
+        return *failure;
+    if (std::get<StorageInventory>(inventory).fingerprint != fingerprint)
+        return storageError("StoragePreviewStale");
+    const auto reference =
+        QStringLiteral("recovery/%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    const auto destination = path(reference);
+    if (const auto* failure = std::get_if<domain::Error>(&destination))
+        return *failure;
+    const auto target = std::get<QString>(destination);
+    if (!QDir().mkpath(target))
+        return storageError("DataWriteFailed");
+    const auto secured = restrictToCurrentUser(target, true);
+    if (const auto* failure = std::get_if<domain::Error>(&secured))
+        return *failure;
+    const auto mark = [&](bool complete) {
+        QSaveFile marker(std::get<QString>(pending));
+        marker.setDirectWriteFallback(false);
+        const auto bytes =
+            QJsonDocument(
+                QJsonObject{{"schemaVersion", 1}, {"archive", reference}, {"complete", complete}})
+                .toJson(QJsonDocument::Compact);
+        if (!marker.open(QIODevice::WriteOnly) || marker.write(bytes) != bytes.size() ||
+            !marker.flush())
+            return false;
+#ifdef Q_OS_WIN
+        if (!FlushFileBuffers(reinterpret_cast<HANDLE>(_get_osfhandle(marker.handle()))))
+            return false;
+#endif
+        return marker.commit();
+    };
+    if (!mark(false))
+        return storageError("DataWriteFailed");
+    const auto entries = QDir(root_).entryList(
+        QDir::AllEntries | QDir::Hidden | QDir::System | QDir::NoDotAndDotDot, QDir::Name);
+    QStringList moved;
+    for (const auto& entry : entries) {
+        if (entry == QStringLiteral("writer.lock") || entry == QStringLiteral("recovery") ||
+            entry == QStringLiteral("recovery_pending.json"))
+            continue;
+        // Validate again immediately before each move. No recursive removal is used.
+        const auto source = path(entry);
+        const auto archive = path(reference + '/' + entry);
+        const bool valid =
+            std::holds_alternative<QString>(source) && std::holds_alternative<QString>(archive);
+        if (!valid || !QDir().rename(std::get<QString>(source), std::get<QString>(archive))) {
+            bool restored = true;
+            for (auto it = moved.crbegin(); it != moved.crend(); ++it)
+                restored = QDir().rename(target + '/' + *it, root_ + '/' + *it) && restored;
+            if (restored)
+                restored = QFile::remove(std::get<QString>(pending));
+            return storageError(restored ? "RecoveryArchiveFailed" : "RecoveryArchiveIncomplete");
+        }
+        moved.append(entry);
+    }
+    if (!mark(true))
+        return storageError("RecoveryArchiveIncomplete");
+    return reference;
 }
 domain::Result<QByteArray> JsonStore::readBytes(const QString& reference, qsizetype limit) const {
     const auto resolved = path(reference);

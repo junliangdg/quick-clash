@@ -11,6 +11,7 @@ class SystemEvents final : public QObject, public QAbstractNativeEventFilter {
     bool nativeEventFilter(const QByteArray& type, void* message, qintptr* result) override;
   signals:
     void reconcileRequested();
+    void typographyChanged();
 
   private:
 #ifdef Q_OS_WIN

@@ -286,7 +286,8 @@ QJsonObject configurationSummary(const QByteArray& semantic) {
             nodes.append(QJsonObject{
                 {QStringLiteral("name"), name},
                 {QStringLiteral("type"), QString::fromStdString(node["type"].as<std::string>())},
-                {QStringLiteral("udp"), node["udp"] && node["udp"].as<bool>()}});
+                {QStringLiteral("udp"), node["type"].as<std::string>() == "tuic" ||
+                                            (node["udp"] && node["udp"].as<bool>())}});
         }
         for (const auto& group : root["proxy-groups"]) {
             QJsonArray members;
@@ -295,12 +296,15 @@ QJsonObject configurationSummary(const QByteArray& semantic) {
             const auto name = QString::fromStdString(group["name"].as<std::string>());
             const auto type = QString::fromStdString(group["type"].as<std::string>());
             all.append(name);
-            groups.append(QJsonObject{
-                {QStringLiteral("name"), name},
-                {QStringLiteral("type"), type},
-                {QStringLiteral("canSelect"), type == QStringLiteral("select")},
-                {QStringLiteral("current"), members.isEmpty() ? QJsonValue{} : members.first()},
-                {QStringLiteral("members"), members}});
+            groups.append(
+                QJsonObject{{QStringLiteral("name"), name},
+                            {QStringLiteral("type"), type},
+                            {QStringLiteral("canSelect"), type == QStringLiteral("select")},
+                            {QStringLiteral("current"), type == QStringLiteral("load-balance") ||
+                                                                members.isEmpty() || group["use"]
+                                                            ? QJsonValue{}
+                                                            : members.first()},
+                            {QStringLiteral("members"), members}});
         }
         groups.prepend(QJsonObject{{QStringLiteral("name"), QStringLiteral("GLOBAL")},
                                    {QStringLiteral("type"), QStringLiteral("select")},
@@ -325,11 +329,14 @@ QJsonArray orderedProxyGroups(const QJsonArray& configured, const QJsonObject& l
              type != QStringLiteral("Fallback") && type != QStringLiteral("LoadBalance")))
             return;
         added.insert(name);
-        result.append(QJsonObject{{QStringLiteral("name"), name},
-                                  {QStringLiteral("type"), type},
-                                  {QStringLiteral("canSelect"), type == QStringLiteral("Selector")},
-                                  {QStringLiteral("current"), value.value(QStringLiteral("now"))},
-                                  {QStringLiteral("members"), value.value(QStringLiteral("all"))}});
+        result.append(
+            QJsonObject{{QStringLiteral("name"), name},
+                        {QStringLiteral("type"), type},
+                        {QStringLiteral("canSelect"), type == QStringLiteral("Selector")},
+                        {QStringLiteral("current"), type == QStringLiteral("LoadBalance")
+                                                        ? QJsonValue{}
+                                                        : value.value(QStringLiteral("now"))},
+                        {QStringLiteral("members"), value.value(QStringLiteral("all"))}});
     };
     for (const auto& group : configured)
         append(group.toObject().value(QStringLiteral("name")).toString());
@@ -383,6 +390,15 @@ QString redactedConfig(const QByteArray& semantic) {
                     proxy[key] = "[redacted]";
             }
         }
+        for (const auto* kind : {"proxy-providers", "rule-providers"})
+            for (auto entry : root[kind]) {
+                auto provider = entry.second;
+                provider["url"] = "[redacted]";
+                provider.remove("path");
+                provider.remove("payload");
+                if (provider["health-check"])
+                    provider["health-check"] = "[redacted]";
+            }
         for (auto group : root["proxy-groups"])
             if (group["url"])
                 group["url"] = "[redacted]";

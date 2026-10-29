@@ -34,18 +34,23 @@ SettingsService::SettingsService(QString root, QObject* parent)
                 mailbox_.publisher(), Qt::DirectConnection);
         connect(state->runtime.get(), &application::DesktopRuntime::operationCompleted, this,
                 &SettingsService::operationCompleted);
-        state->runtime->initialize();
         SettingsRepository settings(*state->store);
         auto preferences = settings.load();
         if (const auto* error = std::get_if<domain::Error>(&preferences)) {
             emit failed(error->code);
+            // Recovery UI remains available, but no defaults are persisted and no core starts.
+            state->available = true;
+            state->runtime->initialize();
+            emit runtimeChanged(state->runtime->snapshot());
+            emit loaded(QStringLiteral("system"), false, false);
             return;
         }
         auto value = std::get<UiPreferences>(preferences);
+        state->runtime->initialize();
         // One-time P1 UI preference migration; source remains as a backup.
         const auto current = state->store->path(QStringLiteral("config/settings.json"));
         const auto legacy = root + QStringLiteral("/ui.ini");
-        if (std::holds_alternative<QString>(current) &&
+        if (!state->store->readOnly() && std::holds_alternative<QString>(current) &&
             !QFileInfo::exists(std::get<QString>(current)) && QFileInfo::exists(legacy)) {
             QSettings old(legacy, QSettings::IniFormat);
             value.theme = old.value(QStringLiteral("theme"), QStringLiteral("system")).toString();
@@ -60,7 +65,8 @@ SettingsService::SettingsService(QString root, QObject* parent)
             }
         }
         state->available = true;
-        state->runtime->enableBackgroundManagement();
+        if (!state->store->readOnly())
+            state->runtime->enableBackgroundManagement();
         emit loaded(value.theme, value.unloadWhenHidden, value.closeAcknowledged);
     });
     connect(
@@ -120,7 +126,10 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
         if (name == QStringLiteral("import")) {
             runtime.importFile(argument(0), argument(1));
         } else if (name == QStringLiteral("subscribe")) {
-            runtime.addSubscription(argument(0), argument(1));
+            runtime.addSubscription(argument(0), argument(1),
+                                    argument(2).isEmpty() ? QStringLiteral("Direct") : argument(2));
+        } else if (name == QStringLiteral("subscription_route")) {
+            runtime.setSubscriptionRoute(argument(0), argument(1));
         } else if (name == QStringLiteral("update")) {
             runtime.updateProfile(argument(0));
         } else if (name == QStringLiteral("subscription_policy")) {

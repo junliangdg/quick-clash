@@ -70,13 +70,17 @@ TUN 设置提供受支持栈、DNS、自动路由和绕过范围的基础选项�
 
 ## 6. 权限服务职责
 
-服务仅支持版本化固定协议。会话类：probeVersion/openSession/startCore/stopCore/querySession/closeSession/heartbeat；配置类：applyApprovedConfig；受限控制类：selectProxy/testLatency/closeConnections/refreshProvider；遥测类：setTelemetryDemand/queryMetrics；代理租约类：acquireProxyLease/queryProxyLease/releaseProxyLease；更新类：stageCoreUpdate/activateCoreVersion。安装/服务升级/卸载走平台授权机制。startSession/stopSession 仅为 03 的应用门面，映射 open/start 和 stop/close，不是额外 IPC。
+服务仅支持版本化固定协议。目标会话类：probeVersion/openSession/startCore/stopCore/querySession/closeSession/heartbeat；配置类：applyApprovedConfig；受限控制类：selectProxy/testLatency/closeConnections/refreshProvider；遥测类：setTelemetryDemand/queryMetrics；代理租约类：acquireProxyLease/queryProxyLease/releaseProxyLease；更新类：stageCoreUpdate/activateCoreVersion。实际开放命令由握手能力和平台版本约束，不以该目标列表隐含开放尚未实现的租约或更新操作。安装/服务升级/卸载走平台授权机制。startSession/stopSession 仅为 03 的应用门面，映射 open/start 和 stop/close，不是额外 IPC。
 
 每个请求固定 payload schema：资源用受管逻辑引用，组/节点校验当前 revision，关闭连接校验 epoch 与目标集合，提供者仅操作当前配置声明资源；更新只接受项目签名发行描述符和受限传输，不接受任意可执行路径。模式/TUN 经 applyApprovedConfig，不新增任意 PATCH 转发。禁止 shell、任意程序、任意路径写入及通用 HTTP/WS 隧道。
 
 IPC 包含 protocolVersion、requestId、sessionId、action、受限 payload；验证报文长度、字段、状态和请求速率，拒绝未知指令。客户端操作与服务内核所有权绑定，不接受仅凭猜测 sessionId 的控制。
 
-变更请求携带 operationId、expectedRevision 和 generation；服务保留有界操作结果和未完成意图，同一会话 requestId 重放返回原操作/查询状态，不重复应用。服务重启后查询持久化意图和事实再恢复，客户端超时不能靠换 requestId 盲重试。对端 OS 身份、会话和授权与每次请求绑定，不能只在握手时检查。
+支持跨连接恢复的平台变更请求携带operationId、expectedRevision和generation；服务保留有界操作结果和未完成意图，同一会话requestId重放返回原操作/查询状态，不重复应用。此类服务重启后查询持久化意图和事实再恢复，客户端超时不能靠换requestId盲重试。Windows首版采用下述终止旧会话策略，以连接sessionId/requestId及engineEpoch约束变更，不承诺持久化操作恢复。对端OS身份、会话和授权与每次请求绑定，不能只在握手时检查。
+
+Windows首版固定IPC以hello交换协议/能力并分配随机连接sessionId，与内核epoch分离；客户端将命名管道对端PID与SCM运行PID核对，并查询受管理员保护的服务注册，要求独立进程、LocalSystem及同目录固定程序路径（单个带引号程序、无参数）。普通用户不依赖查询LocalSystem进程/token的权限；服务逐次核对GUI路径、SID、活动控制台会话与进程创建时间。同一连接保留最多4个在途和32个已完成请求；相同requestId/报文返回缓存，改报文重用ID断开，淘汰后旧ID拒绝。断线或服务重启终止owned Job，不接管旧会话，不自动重试未确认变更；需要新握手并查询clean后再启动。首版不启用跨连接重放或在线服务升级，恢复能力proxyRecovery=NotAvailable时，当前用户代理仍由用户态租约处理，不能承诺GUI死亡后立即恢复。
+
+安装器提供普通权限ValidateOnly核对，实际安装/移除经管理员授权终端执行；GUI始终普通权限。安装只复制清单中允许目录的文件，拒绝未知schema、大小/摘要不符、重复/逃逸路径、未列出文件与重解析点；源文件用拒写/拒删除句柄保持到复制结束，目标逐文件复核并持久化后才注册服务。服务控制ACL仅SYSTEM/管理员可更改或启停，普通用户可查询。安装失败保留受保护目录和错误，不继续启动或递归删除；移除先停服务再注销，保留文件/用户数据供明确处理。清单核对属于已审阅本地包完整性，不提供尚未交付的发行签名信任链。
 
 | 平台 | 通道 | 身份与权限 |
 |---|---|---|
@@ -89,6 +93,8 @@ IPC 包含 protocolVersion、requestId、sessionId、action、受限 payload；�
 服务独占高权限内核 controller 的 secret 和 OS 受限本地端点，GUI 只能收到裁剪后的状态/数据。服务重新合成受管字段并执行版本化字段白名单和值域；订阅对 controller/附加监听、external-ui 下载、证书/路径、资源写入、TUN/路由等字段不能绕过检查，未知字段拒绝并定位原因。仅“复制到 staging”不构成配置安全。字段策略/端点 ACL 在锁定官方内核上核验；无法强制隔离时禁用该平台服务模式，保留普通代理。
 
 首版服务约定单个活动本地用户会话拥有 TUN；多用户并发争抢返回 Busy 并指出已有会话，不能互相覆盖机器路由。后续多会话支持需独立设计。
+
+Windows首版只接受当前活动控制台桌面会话，其他会话拒绝认证；已有owner连接时，其他连接返回ServiceSessionBusy。服务注册为手动启动，普通GUI无权启停服务，服务未运行时显示授权/服务不可用。服务进程启动先确认旧TUN路由清理并移除受保护的旧会话配置；失败则拒绝提供服务。clean和停止成功同时要求owned核心、校验核心、会话配置及目标TUN状态均已清理，不能仅因内存中的ready=false就返回clean。
 
 ## 7. 服务/客户端兼容与失败
 

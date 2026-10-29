@@ -18,7 +18,7 @@ FlatTile {
             font.family: root.theme.fontFamily
             text: root.heading
             color: root.theme.text
-            font.pixelSize: 22
+            font.pixelSize: root.theme.scaledSize(22)
             font.bold: true
             Layout.fillWidth: true
             wrapMode: Text.WordWrap

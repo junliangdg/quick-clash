@@ -8,7 +8,7 @@ namespace quickclash::presentation {
 struct FeatureDescriptor {
     QString id;
     QString title;
-    QString glyph;
+    QUrl icon;
     QUrl page;
     QString availability;
     QStringList contextKeys;

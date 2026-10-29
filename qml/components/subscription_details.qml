@@ -9,9 +9,10 @@ ColumnLayout {
     required property ThemeTokens theme
     property var profile: ({})
     property bool overview: false
-    readonly property var usage: profile.usage || ({})
-    readonly property real usedBytes: Number(usage.upload || 0) + Number(usage.download || 0)
-    readonly property real totalBytes: Number(usage.total || 0)
+    readonly property var status: profile.usageStatus || ({})
+    readonly property bool completeUsage: status.complete === true
+    readonly property real usedBytes: completeUsage ? Number(status.used) : 0
+    readonly property real totalBytes: Number(status.quota || 0)
     function dateText(value): string {
         const date = new Date(value);
         return isNaN(date.getTime()) ? qsTr("Unknown") : date.toLocaleString(Qt.locale());
@@ -32,7 +33,7 @@ ColumnLayout {
     }
     Label {
         visible: !root.overview
-        text: root.usage.upload !== undefined || root.usage.download !== undefined
+        text: root.completeUsage
             ? qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
             : qsTr("Usage not provided")
         color: root.theme.text
@@ -42,27 +43,54 @@ ColumnLayout {
     RowLayout {
         visible: root.overview
         Layout.fillWidth: true
-        Label { text: qsTr("Current usage"); color: root.theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
+        Label { text: qsTr("Current usage"); color: root.theme.muted; font.pixelSize: root.theme.scaledSize(12); Layout.fillWidth: true }
         Label {
-            text: root.usage.upload !== undefined || root.usage.download !== undefined
+            text: root.completeUsage
                 ? root.sizeText(root.usedBytes) + " / " + (root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
                 : qsTr("Usage not provided")
             color: root.theme.muted
-            font.pixelSize: 12
+            font.pixelSize: root.theme.scaledSize(12)
         }
     }
     ThemedProgress {
+        objectName: "subscription_usage_progress"
         theme: root.theme
         Layout.fillWidth: true
-        visible: root.totalBytes > 0
+        visible: root.completeUsage && root.totalBytes > 0
         from: 0
         to: 1
         value: Math.min(1, Math.max(0, root.usedBytes / root.totalBytes))
     }
     Label {
-        text: qsTr("Expires: %1").arg(Number(root.usage.expire || 0) > 0 ? root.dateText(Number(root.usage.expire) * 1000) : qsTr("Not provided"))
+        text: qsTr("Expires: %1").arg(root.status.expiresAt ? root.dateText(root.status.expiresAt) : qsTr("Not provided"))
         color: root.theme.muted
-        font.pixelSize: root.overview ? 12 : root.theme.bodySize
+        font.pixelSize: root.overview ? root.theme.scaledSize(12) : root.theme.bodySize
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+    }
+    Label {
+        objectName: "subscription_usage_alert"
+        visible: root.status.quotaState === "Low" || root.status.quotaState === "Exhausted" || root.status.expiryState === "Soon" || root.status.expiryState === "Expired"
+        text: [root.status.quotaState === "Exhausted" ? qsTr("Subscription quota exhausted") : root.status.quotaState === "Low" ? qsTr("10% quota remaining or less") : "",
+               root.status.expiryState === "Expired" ? qsTr("Subscription expired") : root.status.expiryState === "Soon" ? qsTr("Expires within 7 days") : ""].filter(value => value.length > 0).join(" · ")
+        color: root.status.quotaState === "Exhausted" || root.status.expiryState === "Expired" ? root.theme.error : root.theme.warning
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+    }
+    Label {
+        objectName: "subscription_usage_collected"
+        visible: !!root.profile.secretRef
+        text: qsTr("Usage collected: %1").arg(root.profile.usageCollectedAt ? root.dateText(root.profile.usageCollectedAt) : qsTr("Unknown"))
+        color: root.theme.muted
+        font.pixelSize: root.overview ? root.theme.scaledSize(12) : root.theme.supportingSize
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+    }
+    Label {
+        visible: !root.overview && !!root.profile.secretRef
+        text: qsTr("Provider totals may be delayed and include other devices.")
+        color: root.theme.muted
+        font.pixelSize: root.theme.supportingSize
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
     }
@@ -70,7 +98,7 @@ ColumnLayout {
         visible: root.overview
         text: qsTr("Updated: %1").arg(root.profile.updatedAt ? root.dateText(root.profile.updatedAt) : qsTr("Unknown"))
         color: root.theme.muted
-        font.pixelSize: 12
+        font.pixelSize: root.theme.scaledSize(12)
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText

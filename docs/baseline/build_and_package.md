@@ -42,11 +42,13 @@
 
 Windows使用windows-2022/Qt6.8.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞Windows发布。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
-Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev --exclude-regex '^runtime$'`；runtime集成测试依赖Windows官方内核和AppContainer，不能将非Windows占位适配当作已支持。其余单元/UI测试继续执行，headless构建及其全部测试另行执行。headless preset只要求Qt Core，不显式查找Network/Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
+Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核、AppContainer或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
-Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行22项现有测试，包括全部9项UI；`ci_slow`标签仅标记runtime、runtime_publication、recovery三项，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
+仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
-`v*`标签或手动勾选`full_validation`时，同次Windows运行改为完整25项CTest、独立headless构建/5项测试和官方内核API/监听归属/Job/AppContainer探针；不先重复运行22项快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签标记runtime、runtime_publication、recovery三项，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
+
+`v*`标签或手动勾选`full_validation`时，同次Windows运行改为全部CTest、独立headless构建/5项测试和官方内核API/监听归属/Job/AppContainer探针；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
 
 ### GitHub持续交付与干净发行包
 
@@ -83,6 +85,12 @@ P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildD
 安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
 
 停止先释放owned系统代理租约再终止owned Job；当前不发正常退出请求。无服务模式Job随宿主结束内核，但强杀时不能即时恢复系统代理，下次启动先按持久租约核对匹配值，外部变化不覆盖，手工说明见随包指南。系统代理意图独立持久化，退出保留、明确关闭清除；恢复完成后后台运行有效配置并按已确认意图申请代理，不注册系统开机启动。独立真实runtime worker强杀→Job退出/释放端口→下次WinINet租约与未提交事务恢复已通过；GUI进程整体强杀及干净环境另记，见[G2恢复报告](../progress/reports/windows_validation.md#恢复与本地包)。
+
+## Windows验收工具包
+
+测试构建离线包可运行tests/scripts/desktop_package_test.ps1 -PackageRoot '<完整包>' -Phase Package、Host、Flow或Proxy。Package核对全包摘要/x64和清开发Qt环境后的本地导入/Ready及缺核心修复；Host核对真实托盘隐藏卸载/转发、整GUI强杀与单实例重开。Flow覆盖GUI订阅/节点/模式、显式及WinINet客户端HTTPS转发与退出重开，会临时申请当前用户系统代理。Proxy会临时启用当前用户WinINet代理并用独立进程改绕过列表，核对冲突/新基线和原快照还原，仅在当前值仍属于本轮测试时恢复，不覆盖后续外部修改。原始证据默认写build/新目录，显式标记隔离数据，不使用个人配置；此探针仅BUILD_TESTING开启，不能代替干净机器、真实换网或TUN。包内metadata/release_matrix.json存在时核心只按随包路径解析，缺件不得回退开发缓存。
+
+将当前测试包准备成无需源码仓库的独立目录：pwsh -NoProfile -File scripts/create_windows_validation_kit.ps1 -PackageRoot '<完整测试包>' -Destination 'build/windows_validation_kit'。目标必须不存在且在源包目录之外；复制前核对原包摘要，保留原manifest，带上必要脚本、公开回环TLS证书/私钥及[工具包说明](../../resources/windows_validation_readme.md)，另生成validation_manifest.json用于发现搬运损坏，不构成签名。复制整个目录后在工具包根目录运行上述脚本，-PackageRoot使用'./package'。目标桌面需要Windows x64和PowerShell 7.2+（可用官方便携版），无需Qt SDK或VS；以普通用户运行，不安装权限服务。测试证书仅进程内信任；本机工具验证不等于干净机器验收。
 
 ## P1 原型的构建与边界
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "phase": "P3-11",
-  "status": "Managed bundled Geo and bounded internal fake-ip DNS; representative private subscription imported and VLESS HTTPS forwarding verified; full G2/G3 pending",
+  "phase": "P3-19",
+  "status": "Managed provider snapshot/runtime modes, Geo and internal DNS; full G2/G3 and installed-service integration pending",
   "core_tag": "v1.19.33",
   "subscription_updates": {
     "new_subscription_interval_minutes": 360,
@@ -9,7 +9,10 @@
     "legacy_default": "manual updates and manual apply",
     "interval_bounds_minutes": [15, 10080],
     "concurrency": 1,
-    "route": "direct HTTPS only, normal TLS, no redirects",
+    "route": "Direct by default; explicit RunningProxy or Auto; Auto retries one direct network failure through the ready owned core, never TLS/auth/content failures",
+    "redirects": "at most 5 HTTPS hops; reject downgrade, login details, fragments and loops; drop custom source headers across origins; no cookies",
+    "deadline": "15 seconds per transfer, 20 seconds total across redirects and fallback; aggregate decoded response bodies at most 16 MiB",
+    "conditional_cache": "ETag and Last-Modified in DPAPI envelope bound to source URL/headers and sourceHash; send only to matching final URL; 304 requires verified local raw source or one unconditional refetch",
     "network_backoff_minutes": [5, 10, 20, 40, 60],
     "other_failure_backoff": "at least 60 minutes and no shorter than configured interval",
     "activation": "changed selected profile with autoApply uses confirmed transaction and compensation; stopped updates never start core",
@@ -32,7 +35,8 @@
       "hysteria2",
       "trojan",
       "vless",
-      "vmess"
+      "vmess",
+      "tuic"
     ],
     "schema": "src/infra/config/config_schema.cpp; per-protocol fields, required credentials, types and bounds",
     "common": [
@@ -53,6 +57,20 @@
       "password",
       "cipher"
     ],
+    "tuic": [
+      "uuid", "password", "token", "sni", "alpn", "disable-sni", "reduce-rtt",
+      "request-timeout", "udp-relay-mode", "congestion-controller", "heartbeat-interval",
+      "skip-cert-verify", "max-udp-relay-packet-size", "fast-open", "max-open-streams"
+    ],
+    "tuic_constraints": {
+      "authentication": "exactly one: nonempty token (v4) OR valid UUID and nonempty password (v5)",
+      "udp": "native capability always true; explicit false rejected because pinned core ignores it",
+      "udp_relay_mode": ["native", "quic"],
+      "congestion_controller": ["cubic", "new_reno", "bbr"],
+      "positive_integers": "request-timeout and heartbeat-interval in milliseconds, max-udp-relay-packet-size in bytes, max-open-streams count; 1..1000000",
+      "alpn": "at most 16 nonempty entries, each at most 64 bytes",
+      "reference": "https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/tuic.go"
+    },
     "hysteria2": [
       "password",
       "sni",
@@ -124,12 +142,14 @@
     "types": [
       "select",
       "url-test",
-      "fallback"
+      "fallback",
+      "load-balance"
     ],
     "common": [
       "name",
       "type",
-      "proxies"
+      "proxies",
+      "use (managed runtime provider names)"
     ],
     "automatic": [
       "url",
@@ -141,9 +161,14 @@
     "url_test_only": [
       "tolerance"
     ],
+    "load_balance_only": {
+      "strategy": ["consistent-hashing", "round-robin", "sticky-sessions"],
+      "default": "consistent-hashing",
+      "current": "no single member for the group; individual connections retain their own chain"
+    },
     "max_reference_depth": 16,
     "reject_cycles_missing_members_duplicates": true,
-    "manual_selection": "Selector only; URLTest/Fallback display core-confirmed current member and members; explicit refresh, no client health-check loop"
+    "manual_selection": "Selector only; URLTest/Fallback display core-confirmed current member; LoadBalance exposes members without a single current member; explicit refresh, no client health-check loop"
   },
   "rules": [
     "DOMAIN",
@@ -153,7 +178,8 @@
     "IP-CIDR6",
     "MATCH",
     "GEOIP",
-    "GEOSITE"
+    "GEOSITE",
+    "RULE-SET (managed runtime references or expanded snapshot)"
   ],
   "passthrough": [
     "proxies",
@@ -193,9 +219,7 @@
     }
   },
   "rejected": [
-    "proxy-providers",
-    "rule-providers",
-    "RULE-SET",
+    "file/inline/MRS providers and unmanaged provider paths",
     "DNS hijack",
     "YAML aliases",
     "multi-document YAML",
@@ -217,11 +241,18 @@
       "use-hosts",
       "respect-rules",
       "proxy-server-nameserver",
-      "fallback-filter"
+      "fallback-filter",
+      "nameserver-policy",
+      "direct-nameserver",
+      "direct-nameserver-follow-policy",
+      "fake-ip-filter-mode",
+      "cache-algorithm",
+      "prefer-h3",
+      "use-system-hosts"
     ],
-    "resolvers": "udp/tcp/tls/https, <=256 entries per list; reject local files, userinfo and fragments",
+    "resolvers": "udp/tcp/tls/https, 1..256 entries per list; IP literal bootstrap; reject local files, userinfo, fragments, loopback/unspecified/IPv4-mapped loopback/localhost and scope identifiers",
     "respect_rules": "requires non-empty proxy-server-nameserver",
-    "validation": "official isolated -t plus Ready; private sample global VLESS HTTPS200/1MiB/TLS/node-chain proof; full DNS routing matrix pending P3-08"
+    "validation": "official isolated -t plus Ready; controlled internal DNS policy/filter/cache validation tracked in P3-08; external listener and OS DNS hijack tracked in P3-04"
   },
   "geo": {
     "supported": true,
@@ -229,10 +260,25 @@
       "geoip.dat",
       "geosite.dat"
     ],
-    "snapshot": "release_matrix.json geo",
-    "writer": "application copies verified bundled bytes atomically into isolated validator/core directories",
+    "snapshot": "release_matrix.json geo by default; managed immutable geoip/geosite pair after explicit update",
+    "writer": "application only; stream at most 64 KiB per read and 32 MiB per database; verify existing hash paths before reuse; isolated official dual-database validation and normal configuration transaction",
     "auto_update": false,
-    "next_task": "P3-02 dynamic updates/provider/RULE-SET"
+    "manual_update": "fixed MetaCubeX HTTPS sources; pair unchanged avoids restart; download/validation cancellation rejects late replies; previous pair and explicit bundled fallback retained",
+    "tun": "bundled resources only until managed service resource support",
+    "next_task": "installed-service/TUN resource integration P3-25"
+  },
+  "providers": {
+    "default_mode": "snapshot; explicit per-profile runtime opt-in downloads and validates all resources before the normal apply transaction",
+    "accepted": "HTTP type over HTTPS without userinfo/fragment; proxy YAML; rule YAML/text with classical/domain/ipcidr; use and RULE-SET references must resolve",
+    "snapshot_download": "application writer; no redirects; 10 seconds transfer/15 seconds total; 64 KiB chunks; 32 resources, 4 MiB each, 16 MiB total; immutable source/body SHA-256 binding",
+    "snapshot_refresh": "download selected resource only; verified cache for the rest; missing or corrupt cache requires full update; failed candidate preserves old state",
+    "runtime_config": "application generated cache identity from kind/name/URL/format/behavior; source path ignored; checked import fallback payload embedded; interval default 0, allowed 0..604800 seconds; size-limit 4194304",
+    "runtime_writer": "core only while running; application/service removes inactive or oversized generated files only while core stopped; refuse links, directories and unknown entries; at most 32 files/128 MiB body cache",
+    "runtime_network": "pinned core TLS/redirect/parser behavior; YAML rules require standard multiline payload; malformed individual rules can be ignored by core; read back actual ruleCount",
+    "runtime_refresh": "fixed PUT provider endpoint; service accepts only active allowlisted kind/name, no URL/path/extra fields; no core restart or snapshot mutation; timeout outcome uncertain, no automatic retry",
+    "selection": "provider-only nodes and static/dynamic name collisions are unverified; explicit live selection allowed, never persist or automatically restore; failed provider readback cannot authorize restore",
+    "history_backup": "history restores logical configuration/import fallback, not a frozen later runtime cache; both backup scopes export immutable import fallback, source scope also retains raw YAML/overlay; restore in snapshot mode",
+    "service_validation": "fixed command boundary tested; actual installed service and TUN integration tracked separately in P3-25"
   },
   "errors": [
     "InvalidYaml",

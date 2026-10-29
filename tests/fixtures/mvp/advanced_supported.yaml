@@ -9,11 +9,43 @@ proxies:
     alpn: [h3]
     congestion-controller: bbr
     udp-relay-mode: native
+    sni: proxy.example.invalid
+    disable-sni: false
+    reduce-rtt: false
+    request-timeout: 8000
+    heartbeat-interval: 10000
+    skip-cert-verify: false
+    max-udp-relay-packet-size: 1252
+    fast-open: false
+    max-open-streams: 100
+  - name: tuic_token_fixture
+    type: tuic
+    server: 127.0.0.1
+    port: 19878
+    token: public_fixture_token
+    alpn: [h3]
+    congestion-controller: cubic
+    udp-relay-mode: quic
+    udp: true
 proxy-groups:
   - name: Balanced
     type: load-balance
     proxies: [tuic_fixture, DIRECT]
     strategy: consistent-hashing
+    url: https://example.invalid/generate_204
+    interval: 3600
+    lazy: true
+  - name: RoundRobin
+    type: load-balance
+    proxies: [DIRECT, tuic_token_fixture]
+    strategy: round-robin
+    url: https://example.invalid/generate_204
+    interval: 3600
+    lazy: true
+  - name: StickySessions
+    type: load-balance
+    proxies: [DIRECT, tuic_fixture]
+    strategy: sticky-sessions
     url: https://example.invalid/generate_204
     interval: 3600
     lazy: true

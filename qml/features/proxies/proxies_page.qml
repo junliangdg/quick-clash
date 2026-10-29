@@ -19,16 +19,15 @@ Item {
     readonly property var progress: (runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
     readonly property bool active: ui.uiVisible && visible && !ui.replay
-    readonly property string delayTarget: runtime.delayTarget || "https://www.gstatic.com/generate_204"
     // O(1) lookups for per-node delegate bindings instead of linear scans.
     readonly property var nodeByName: {
-        const index = {};
+        const index = Object.create(null);
         for (let i = 0; i < nodes.length; ++i)
             index[nodes[i].name] = nodes[i];
         return index;
     }
     readonly property var groupNames: {
-        const names = {};
+        const names = Object.create(null);
         for (let i = 0; i < groups.length; ++i)
             names[groups[i].name] = true;
         return names;
@@ -43,9 +42,11 @@ Item {
     // Groups expand independently; the remembered set is per subscription.
     function restoreExpandedGroups(): void {
         const saved = ui.readState(stateKey).groups;
-        const remembered = Array.isArray(saved) ? saved.filter(name => typeof name === "string") : [];
+        // QStringList arrives as a QML sequence, which is not a JavaScript Array.
+        const hasSaved = saved !== undefined && saved !== null && typeof saved.length === "number";
+        const remembered = hasSaved ? Array.from(saved).filter(name => typeof name === "string") : [];
         const policy = (runtime.outbound || {}).policy;
-        expandedGroups = remembered.length > 0 ? remembered : policy ? [policy] : [];
+        expandedGroups = hasSaved ? remembered : policy ? [policy] : [];
     }
     function toggleGroup(name): void {
         expandedGroups = expandedGroups.includes(name) ? expandedGroups.filter(entry => entry !== name) : expandedGroups.concat([name]);
@@ -55,11 +56,11 @@ Item {
     }
     function delayText(name): string {
         const result = delays[name];
-        return result === "Testing" ? qsTr("Testing…") : result === "Failed" ? qsTr("Unavailable") : result === "Cancelled" ? qsTr("Cancelled") : result || "—";
+        return result === "Queued" ? qsTr("Queued") : result === "Testing" ? qsTr("Testing…") : result === "Timeout" ? qsTr("Timed out") : result === "Failed" ? qsTr("Unavailable") : result === "Cancelled" ? qsTr("Cancelled") : result === "Stale" ? qsTr("Expired") : result || "—";
     }
     function delayColor(name): color {
         const result = delays[name];
-        if (result === "Failed")
+        if (result === "Failed" || result === "Timeout")
             return theme.error;
         if (result === "Testing")
             return theme.warning;
@@ -130,8 +131,9 @@ Item {
                         spacing: 10
                         ItemDelegate {
                             id: groupToggle
+                            objectName: "proxy_group_" + groupTile.modelData.name
                             Layout.fillWidth: true
-                            implicitHeight: 54
+                            implicitHeight: root.theme.scaledSize(54)
                             activeFocusOnTab: true
                             Accessible.name: groupTile.modelData.name
                             onClicked: root.toggleGroup(groupTile.modelData.name)
@@ -146,7 +148,7 @@ Item {
                                 Label {
                                     text: groupTile.expanded ? "▾" : "▸"
                                     color: root.theme.accent
-                                    font.pixelSize: 18
+                                    font.pixelSize: root.theme.scaledSize(18)
                                 }
                                 ColumnLayout {
                                     Layout.fillWidth: true
@@ -156,7 +158,7 @@ Item {
                                         text: groupTile.modelData.name
                                         color: root.theme.text
                                         font.weight: Font.DemiBold
-                                        font.pixelSize: 16
+                                        font.pixelSize: root.theme.scaledSize(16)
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
                                         textFormat: Text.PlainText
@@ -169,7 +171,7 @@ Item {
                                     }
                                 }
                                 Label {
-                                    visible: !!groupTile.modelData.current
+                                    visible: !!groupTile.modelData.current && groupToggle.width >= root.theme.scaledSize(420)
                                     text: groupTile.modelData.current || ""
                                     color: root.theme.accent
                                     Layout.maximumWidth: Math.max(80, groupToggle.width * 0.38)
@@ -182,15 +184,23 @@ Item {
                                     objectName: "test_group"
                                     theme: root.theme
                                     text: "⚡"
-                                    implicitWidth: 40
-                                    implicitHeight: 32
-                                    font.pixelSize: 16
+                                    implicitWidth: root.theme.scaledSize(40)
+                                    implicitHeight: root.theme.compactHeight
+                                    font.pixelSize: root.theme.scaledSize(16)
                                     Accessible.name: qsTr("Test this group")
                                     ThemedToolTip { theme: root.theme; visible: testGroup.hovered; text: qsTr("Test this group") }
                                     enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
-                                    onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name, root.delayTarget])
+                                    onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name])
                                 }
                             }
+                        }
+                        Label {
+                            visible: !!groupTile.modelData.current && groupToggle.width < root.theme.scaledSize(420)
+                            text: groupTile.modelData.current || ""
+                            color: root.theme.accent
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                            textFormat: Text.PlainText
                         }
                         RowLayout {
                             // Always visible while expanded so starting or finishing
@@ -216,33 +226,69 @@ Item {
                                 onClicked: root.ui.runtimeCommand("cancel_delays")
                             }
                         }
-                        // Single page-level scrollbar: nodes are fully laid out in the
-                        // group card and never scroll internally.
-                        Flow {
+                        // Reserve the full grid extent, but only create visible rows
+                        // and one extra row on either side. There is no nested scroller.
+                        Item {
+                            id: nodeGrid
+                            objectName: "proxy_node_grid"
+                            readonly property var members: groupTile.modelData.members || []
+                            readonly property int rowHeight: root.theme.scaledSize(64) + 8
+                            readonly property int rows: Math.ceil(members.length / groupTile.nodeColumns)
+                            readonly property real pageY: groupTile.y + groupContent.y + y
+                            readonly property int firstRow: Math.min(rows, Math.max(0, Math.floor((groupList.contentY - pageY) / rowHeight) - 1))
+                            readonly property int endRow: Math.min(rows, Math.max(0, Math.ceil((groupList.contentY + groupList.height - pageY) / rowHeight) + 1))
+                            readonly property int firstIndex: firstRow * groupTile.nodeColumns
+                            readonly property int endIndex: Math.min(members.length, endRow * groupTile.nodeColumns)
+                            function focusMember(member): void {
+                                const target = Math.max(0, Math.min(members.length - 1, member));
+                                const top = pageY + Math.floor(target / groupTile.nodeColumns) * rowHeight;
+                                groupList.contentY = Math.max(0, Math.min(groupList.contentHeight - groupList.height,
+                                    top < groupList.contentY ? top : top + rowHeight > groupList.contentY + groupList.height ? top + rowHeight - groupList.height : groupList.contentY));
+                                Qt.callLater(() => {
+                                    const item = nodeCards.itemAt(target - firstIndex);
+                                    if (item)
+                                        item.forceActiveFocus(Qt.TabFocusReason);
+                                });
+                            }
                             visible: groupTile.expanded && (groupTile.modelData.members || []).length > 0
                             Layout.fillWidth: true
-                            spacing: 8
+                            implicitHeight: rows * rowHeight - (rows > 0 ? 8 : 0)
                             Repeater {
-                                // Only the expanded group instantiates node cards;
-                                // collapsing the group releases them.
-                                model: groupTile.expanded ? (groupTile.modelData.members || []) : []
+                                id: nodeCards
+                                model: groupTile.expanded ? Math.max(0, nodeGrid.endIndex - nodeGrid.firstIndex) : 0
                                 // Compact card: clicking selects; info, latency and the
                                 // test action share one row.
                                 ItemDelegate {
                                     id: nodeTile
-                                    required property string modelData
+                                    objectName: "proxy_member_" + groupTile.modelData.name + "_" + modelData
+                                    required property int index
+                                    readonly property int memberIndex: nodeGrid.firstIndex + index
+                                    readonly property string modelData: nodeGrid.members[memberIndex] || ""
                                     readonly property bool current: groupTile.modelData.current === modelData
                                     readonly property bool testable: !(modelData in root.groupNames) && !["DIRECT", "REJECT"].includes(modelData)
                                     width: groupTile.nodeCardWidth
+                                    height: root.theme.scaledSize(64)
+                                    x: (memberIndex % groupTile.nodeColumns) * (width + 8)
+                                    y: Math.floor(memberIndex / groupTile.nodeColumns) * nodeGrid.rowHeight
                                     // Compact single-line card: tight padding and one
                                     // name line keep the node grid dense.
                                     padding: 8
-                                    enabled: !root.runtime.busy
+                                    enabled: !root.runtime.busy || !!root.runtime.selectingProxy
                                     activeFocusOnTab: true
                                     Accessible.name: modelData
                                     ThemedToolTip { theme: root.theme; visible: nodeTile.hovered && !!groupTile.modelData.canSelect && !nodeTile.current; text: qsTr("Click to select") }
-                                    onClicked: if (groupTile.modelData.canSelect && !current)
+                                    onClicked: if (groupTile.modelData.canSelect && (!current || root.runtime.selectingProxy))
                                         root.ui.runtimeCommand("proxy", [groupTile.modelData.name, modelData])
+                                    Keys.onUpPressed: nodeGrid.focusMember(memberIndex - groupTile.nodeColumns)
+                                    Keys.onDownPressed: nodeGrid.focusMember(memberIndex + groupTile.nodeColumns)
+                                    Keys.onLeftPressed: nodeGrid.focusMember(memberIndex - 1)
+                                    Keys.onRightPressed: nodeGrid.focusMember(memberIndex + 1)
+                                    Keys.onPressed: event => {
+                                        if (event.key === Qt.Key_Home || event.key === Qt.Key_End) {
+                                            nodeGrid.focusMember(event.key === Qt.Key_Home ? 0 : nodeGrid.members.length - 1);
+                                            event.accepted = true;
+                                        }
+                                    }
                                     background: StateSurface {
                                         theme: root.theme
                                         selected: nodeTile.current
@@ -289,12 +335,12 @@ Item {
                                                 implicitHeight: root.theme.compactHeight
                                                 leftPadding: 4
                                                 rightPadding: 4
-                                                font.pixelSize: 12
+                                                font.pixelSize: root.theme.scaledSize(12)
                                                 visible: nodeTile.testable
                                                 enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
                                                 Accessible.name: qsTr("Test delay")
                                                 ThemedToolTip { theme: root.theme; visible: testNode.hovered; text: qsTr("Test delay") }
-                                                onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData, root.delayTarget])
+                                                onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData])
                                             }
                                         }
                                     }

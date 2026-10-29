@@ -1,7 +1,9 @@
 #include "application_host.h"
+#include "ui_font.h"
 #include <QAction>
 #include <QApplication>
 #include <QCursor>
+#include <QEvent>
 #include <QIcon>
 #include <QPainter>
 #include <QPixmap>
@@ -44,6 +46,10 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
         state_.setSystemDark(scheme == Qt::ColorScheme::Dark);
     });
     setupTray(noTray);
+    connect(
+        &systemEvents_, &SystemEvents::typographyChanged, this,
+        [] { QApplication::setFont(platformUiFont()); }, Qt::QueuedConnection);
+    qApp->installEventFilter(this);
     connect(&systemEvents_, &SystemEvents::reconcileRequested, this,
             [this] { state_.runtimeCommand(QStringLiteral("reconcile")); });
     connect(&state_, &presentation::UiState::storageChanged, this, [this] {
@@ -92,6 +98,11 @@ ApplicationHost::~ApplicationHost() {
     state_.setUiVisible(false);
     engine_.reset();
 }
+bool ApplicationHost::eventFilter(QObject* watched, QEvent* event) {
+    if (watched == qApp && event->type() == QEvent::ApplicationFontChange && window_)
+        window_->setProperty("uiFont", QGuiApplication::font());
+    return QObject::eventFilter(watched, event);
+}
 void ApplicationHost::setupTray(bool noTray) {
     if (noTray || !QSystemTrayIcon::isSystemTrayAvailable()) {
         return;
@@ -117,8 +128,11 @@ void ApplicationHost::setupTray(bool noTray) {
         const bool enabled = !runtime.value(QStringLiteral("selectedId")).toString().isEmpty() &&
                              !runtime.value(QStringLiteral("busy")).toBool() &&
                              !runtime.value(QStringLiteral("readOnly")).toBool();
-        systemProxy->setEnabled(enabled);
-        tun->setEnabled(enabled);
+        const auto capabilities = runtime.value(QStringLiteral("capabilities")).toMap();
+        systemProxy->setEnabled(enabled && capabilities.value(QStringLiteral("systemProxy")) !=
+                                               QStringLiteral("Unsupported"));
+        tun->setEnabled(enabled &&
+                        capabilities.value(QStringLiteral("tun")) != QStringLiteral("Unsupported"));
         systemProxy->setChecked(runtime.value(QStringLiteral("systemProxy")).toBool() ||
                                 preferences.value(QStringLiteral("systemProxyDesired")).toBool());
         tun->setChecked(runtime.value(QStringLiteral("tunState")).toString() ==

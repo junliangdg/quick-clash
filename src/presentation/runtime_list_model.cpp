@@ -91,7 +91,8 @@ QString RuntimeRows::key(const QJsonObject& value) const {
 QString RuntimeRows::searchable(const QJsonObject& value) const {
     QStringList text;
     for (const auto* field : {"name", "kind", "type", "payload", "proxy", "rule", "rulePayload",
-                              "start", "time", "source", "level", "message", "updatedAt"})
+                              "start", "time", "source", "level", "message", "updatedAt",
+                              "providerName", "mode", "behavior", "lastResult", "lastError"})
         text.append(value.value(QLatin1String(field)).toString());
     const auto metadata = value.value(QStringLiteral("metadata")).toObject();
     for (auto it = metadata.constBegin(); it != metadata.constEnd(); ++it) {
@@ -180,7 +181,8 @@ void RuntimeRows::apply(const QJsonArray& entries) {
                 roles.contains(RulePayload) || roles.contains(Start) || roles.contains(Time) ||
                 roles.contains(Source) || roles.contains(Level) || roles.contains(Message) ||
                 roles.contains(Type) || roles.contains(Payload) || roles.contains(Proxy) ||
-                roles.contains(Name) || roles.contains(KindRole) || roles.contains(UpdatedAt);
+                roles.contains(Name) || roles.contains(KindRole) || roles.contains(UpdatedAt) ||
+                kind_ == Kind::Rules || kind_ == Kind::Providers;
             incoming.search = textChanged ? searchable(incoming.value) : row.search;
             if (row.search != incoming.search) {
                 row.search = incoming.search;
@@ -223,8 +225,7 @@ void RuntimeRows::apply(const QJsonArray& entries) {
         endInsertRows();
         structural = true;
     }
-    if (structural || filtering || ordering || speed)
-        emit batchFinished(structural || filtering, structural || ordering, speed);
+    emit batchFinished(structural || filtering, structural || ordering, speed);
 }
 RuntimeListModel::RuntimeListModel(RuntimeRows* rows, bool connections, QObject* parent)
     : QSortFilterProxyModel(parent), connections_(connections) {
@@ -314,6 +315,7 @@ bool RuntimeListModel::lessThan(const QModelIndex& left, const QModelIndex& righ
            right.data(RuntimeRows::SourceOrder).toInt();
 }
 void RuntimeListModel::finishBatch(bool filtering, bool ordering, bool speed) {
+    emit entriesChanged();
     if (filtering && (!query_.isEmpty() || !sourceFilter_.isEmpty() || !levelFilter_.isEmpty()))
         refilter();
     if (ordering)
@@ -330,5 +332,16 @@ QStringList RuntimeListModel::captureIds(int limit) const {
         ids.append(index(i, 0).data(RuntimeRows::Identifier).toString());
     }
     return ids;
+}
+QVariantMap RuntimeListModel::connection(const QString& epoch, const QString& id) const {
+    if (!connections_ || epoch.isEmpty() || id.isEmpty())
+        return {};
+    for (int i = 0; i < sourceModel()->rowCount(); ++i) {
+        const auto item = sourceModel()->index(i, 0);
+        if (item.data(RuntimeRows::Epoch).toString() == epoch &&
+            item.data(RuntimeRows::Identifier).toString() == id)
+            return item.data(RuntimeRows::Entry).toMap();
+    }
+    return {};
 }
 } // namespace quickclash::presentation

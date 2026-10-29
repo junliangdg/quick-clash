@@ -13,6 +13,10 @@ ListView {
     property string managedId: ""
     property var managedProfile: ({})
     property string importName: ""
+    property int historyIndex: 0
+    property string historyBase: ""
+    readonly property var downloadRoutes: ["Direct", "RunningProxy", "Auto"]
+    readonly property var downloadRouteLabels: [qsTr("Direct download"), qsTr("Running proxy"), qsTr("Auto: direct, then running proxy")]
     readonly property real availableWidth: Math.max(0, width - (scrollBar.visible ? scrollBar.width : 0))
     readonly property int cardColumns: availableWidth >= 900 ? 3 : availableWidth >= 580 ? 2 : 1
     function scrollToRow(row) {
@@ -72,19 +76,25 @@ ListView {
         nameFilters: [qsTr("YAML profiles (*.yaml *.yml)"), qsTr("All files (*)")]
         onAccepted: root.ui.runtimeCommand("import", [selectedFile.toString(), root.importName])
     }
-    ThemedDialog {
-        theme: root.theme
-        id: rollbackConfirmation
+    ProfileEditor {
+        id: editor
         parent: Overlay.overlay
-        title: qsTr("Restore the previous subscription version?")
+        ui: root.ui
+        theme: root.theme
+    }
+    ThemedDialog {
+        id: rollbackConfirmation
+        theme: root.theme
+        parent: Overlay.overlay
+        title: qsTr("Restore the selected profile version?")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: root.ui.runtimeCommand("rollback_profile", [root.managedId, "confirmed"])
+        onAccepted: root.ui.runtimeCommand("rollback_profile", [root.managedId, "confirmed", root.historyIndex.toString(), root.historyBase])
     }
     ThemedDialog {
-        theme: root.theme
         id: deleteConfirmation
+        theme: root.theme
         parent: Overlay.overlay
         title: qsTr("Delete this subscription?")
         modal: true
@@ -101,8 +111,8 @@ ListView {
         }
     }
     ThemedDialog {
-        theme: root.theme
         id: management
+        theme: root.theme
         parent: Overlay.overlay
         objectName: "subscription_management"
         title: qsTr("Subscription settings")
@@ -122,8 +132,8 @@ ListView {
                 width: parent.availableWidth
                 spacing: 12
                 ThemedField {
-                    theme: root.theme
                     id: itemName
+                    theme: root.theme
                     objectName: "subscription_name"
                     Layout.fillWidth: true
                     maximumLength: 80
@@ -136,8 +146,9 @@ ListView {
                     onClicked: root.ui.runtimeCommand("rename", [root.managedId, itemName.text])
                 }
                 ThemedComboBox {
-                    theme: root.theme
                     id: updateInterval
+                    Accessible.name: qsTr("Update interval")
+                    theme: root.theme
                     visible: !!root.managedProfile.secretRef
                     Layout.fillWidth: true
                     enabled: !root.ui.runtime.busy
@@ -155,9 +166,49 @@ ListView {
                     palette.windowText: root.theme.text
                     onClicked: root.ui.runtimeCommand("subscription_policy", [root.managedId, (root.managedProfile.updateIntervalMinutes || 0).toString(), checked ? "true" : "false"])
                 }
-                ThemedField {
+                Label {
+                    text: qsTr("Download path")
+                    color: root.theme.muted
+                }
+                ThemedComboBox {
                     theme: root.theme
+                    objectName: "subscription_provider_mode"
+                    visible: (root.managedProfile.managedProviders || []).length > 0
+                    Layout.fillWidth: true
+                    enabled: !root.ui.runtime.busy
+                    model: [qsTr("Provider mode: import snapshot"), qsTr("Provider mode: core runtime")]
+                    currentIndex: root.managedProfile.providerMode === "runtime" ? 1 : 0
+                    onActivated: root.ui.runtimeCommand("provider_mode", [root.managedId, currentIndex === 1 ? "runtime" : "snapshot"])
+                    Accessible.name: qsTr("Provider mode")
+                }
+                Label {
+                    visible: (root.managedProfile.managedProviders || []).length > 0
+                    text: qsTr("Switching provider mode downloads and validates all resources. Runtime refresh uses the core cache; history restores the configuration and fallback, not past remote content. Dynamic node selections are not restored automatically.")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                ThemedComboBox {
+                    theme: root.theme
+                    objectName: "subscription_download_route"
+                    visible: !!root.managedProfile.secretRef
+                    Layout.fillWidth: true
+                    enabled: !root.ui.runtime.busy
+                    model: root.downloadRouteLabels
+                    currentIndex: Math.max(0, root.downloadRoutes.indexOf(root.managedProfile.downloadRoute || "Direct"))
+                    onActivated: root.ui.runtimeCommand("subscription_route", [root.managedId, root.downloadRoutes[currentIndex]])
+                    Accessible.name: qsTr("Download path")
+                }
+                Label {
+                    visible: !!root.managedProfile.lastDownloadPath
+                    text: root.managedProfile.lastDownloadPath === "RunningProxy" ? qsTr("Last download: running proxy") : qsTr("Last download: direct")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                }
+                ThemedField {
                     id: sourceUrl
+                    theme: root.theme
                     objectName: "subscription_source_url"
                     Layout.fillWidth: true
                     placeholderText: qsTr("New HTTPS URL (leave blank to keep source)")
@@ -165,8 +216,8 @@ ListView {
                     maximumLength: 8192
                 }
                 ThemedField {
-                    theme: root.theme
                     id: sourceHeaders
+                    theme: root.theme
                     objectName: "subscription_source_headers"
                     Layout.fillWidth: true
                     placeholderText: qsTr("Headers as JSON: Authorization, User-Agent, Accept")
@@ -185,10 +236,36 @@ ListView {
                 }
                 ActionButton {
                     theme: root.theme
-                    text: qsTr("Restore previous version…")
+                    text: qsTr("Edit original YAML…")
+                    enabled: !root.ui.runtime.busy
+                    onClicked: editor.edit(root.managedId, "source")
+                }
+                ActionButton {
+                    theme: root.theme
+                    text: qsTr("Edit profile overrides…")
+                    enabled: !root.ui.runtime.busy
+                    onClicked: editor.edit(root.managedId, "overlay")
+                }
+                ThemedComboBox {
+                    id: versions
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    visible: (root.managedProfile.history || []).length > 0
+                    model: (root.managedProfile.history || []).map(function (version, index) {
+                        return qsTr("Version %1 · %2").arg(index + 1).arg(version.updatedAt || "—");
+                    })
+                    Accessible.name: qsTr("Retained versions")
+                }
+                ActionButton {
+                    theme: root.theme
+                    text: qsTr("Restore selected version…")
                     visible: (root.managedProfile.history || []).length > 0
                     enabled: !root.ui.runtime.busy
-                    onClicked: rollbackConfirmation.open()
+                    onClicked: {
+                        root.historyIndex = versions.currentIndex;
+                        root.historyBase = root.managedProfile.revision || "";
+                        rollbackConfirmation.open();
+                    }
                 }
                 ActionButton {
                     theme: root.theme
@@ -219,8 +296,8 @@ ListView {
                     font.weight: Font.DemiBold
                 }
                 ThemedField {
-                    theme: root.theme
                     id: profileName
+                    theme: root.theme
                     objectName: "import_profile_name"
                     placeholderText: qsTr("Name (optional)")
                     Layout.fillWidth: true
@@ -228,8 +305,8 @@ ListView {
                     onTextChanged: root.importName = text
                 }
                 ThemedField {
-                    theme: root.theme
                     id: subscriptionUrl
+                    theme: root.theme
                     objectName: "subscription_url"
                     placeholderText: qsTr("HTTPS subscription URL")
                     Layout.fillWidth: true
@@ -240,13 +317,14 @@ ListView {
                     Layout.fillWidth: true
                     spacing: 8
                     ActionButton {
+                        objectName: "add_subscription"
                         theme: root.theme
                         text: root.ui.runtime.busy ? qsTr("Working…") : qsTr("Add subscription")
                         pending: !!root.ui.runtime.busy
                         enabled: !root.ui.runtime.busy && root.ui.settingsReady && subscriptionUrl.text.length > 0
                         prominent: true
                         onClicked: {
-                            root.ui.runtimeCommand("subscribe", [subscriptionUrl.text, profileName.text]);
+                            root.ui.runtimeCommand("subscribe", [subscriptionUrl.text, profileName.text, root.downloadRoutes[importRoute.currentIndex]]);
                             subscriptionUrl.clear();
                         }
                     }
@@ -256,6 +334,15 @@ ListView {
                         enabled: !root.ui.runtime.busy && root.ui.settingsReady
                         onClicked: fileDialog.open()
                     }
+                }
+                ThemedComboBox {
+                    id: importRoute
+                    theme: root.theme
+                    objectName: "subscription_import_route"
+                    Layout.fillWidth: true
+                    enabled: !root.ui.runtime.busy
+                    model: root.downloadRouteLabels
+                    Accessible.name: qsTr("Download path")
                 }
                 Label {
                     text: qsTr("Standard HTTPS subscriptions request Clash Meta (mihomo) YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.")

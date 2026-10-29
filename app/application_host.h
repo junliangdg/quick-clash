@@ -41,6 +41,9 @@ class ApplicationHost final : public QObject {
         return qmlErrorCount_;
     }
 
+  protected:
+    bool eventFilter(QObject* watched, QEvent* event) override;
+
   private:
     void setupTray(bool noTray);
     [[nodiscard]] bool recoverableFromTray() const;

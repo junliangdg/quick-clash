@@ -6,6 +6,8 @@ TextField {
     id: control
     required property ThemeTokens theme
     property bool invalid: false
+    Accessible.name: placeholderText
+    activeFocusOnTab: true
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: theme.controlHeight

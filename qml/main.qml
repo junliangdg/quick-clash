@@ -39,7 +39,7 @@ ApplicationWindow {
     palette.dark: tokens.muted
     palette.toolTipBase: tokens.surface
     palette.toolTipText: tokens.text
-    ThemeTokens { id: tokens; dark: window.ui.dark; fontFamily: window.uiFont.family }
+    ThemeTokens { id: tokens; objectName: "theme_tokens"; dark: window.ui.dark; fontFamily: window.uiFont.family; fontPixelSize: window.uiFont.pixelSize }
     onClosing: function(close) { close.accepted = false; ui.requestClose(); }
     Shortcut { sequences: [StandardKey.Close]; onActivated: window.ui.requestClose() }
     Shortcut { sequences: [StandardKey.Quit]; onActivated: window.ui.requestQuit() }
@@ -71,7 +71,7 @@ ApplicationWindow {
                         theme: tokens
                         text: "Q"
                         prominent: true
-                        implicitWidth: 36
+                        implicitWidth: tokens.scaledSize(36)
                         font.weight: Font.DemiBold
                         onClicked: window.expandedRail = !window.expandedRail
                         Accessible.name: qsTr("Expand or collapse navigation")
@@ -80,7 +80,7 @@ ApplicationWindow {
                         visible: window.wideNavigation
                         Layout.fillWidth: true
                         text: "QuickClash"
-                        font.pixelSize: 17
+                        font.pixelSize: tokens.scaledSize(17)
                         font.weight: Font.DemiBold
                         color: tokens.text
                         elide: Text.ElideRight
@@ -97,7 +97,7 @@ ApplicationWindow {
                 }
                 ListView {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 40
+                    Layout.preferredHeight: tokens.rowHeight
                     interactive: false
                     model: window.ui.navigation.filter(entry => entry.pageId === "settings")
                     delegate: navigationDelegate
@@ -106,7 +106,9 @@ ApplicationWindow {
                     visible: window.wideNavigation
                     Layout.leftMargin: 10
                     Layout.bottomMargin: 6
+                    Layout.fillWidth: true
                     text: "QuickClash · 0.1"
+                    elide: Text.ElideRight
                     color: tokens.muted
                     font.pixelSize: tokens.supportingSize
                 }
@@ -121,31 +123,24 @@ ApplicationWindow {
                 width: ListView.view.width
                 height: tokens.rowHeight
                 padding: 10
+                spacing: 16
+                text: modelData.title
+                display: window.wideNavigation ? AbstractButton.TextBesideIcon : AbstractButton.IconOnly
+                icon.source: modelData.icon
+                icon.width: tokens.scaledSize(20)
+                icon.height: tokens.scaledSize(20)
+                icon.color: highlighted ? tokens.onSelection : tokens.muted
+                palette.text: highlighted ? tokens.onSelection : tokens.muted
+                palette.highlightedText: tokens.onSelection
+                font.family: tokens.fontFamily
+                font.pixelSize: tokens.bodySize
+                font.weight: highlighted ? Font.DemiBold : Font.Normal
                 highlighted: window.ui.currentPage === modelData.pageId
                 activeFocusOnTab: true
                 Accessible.name: modelData.title
                 onClicked: window.ui.navigate(modelData.pageId)
                 ThemedToolTip { theme: tokens; visible: entry.hovered && !window.wideNavigation; text: entry.modelData.title }
                 background: StateSurface { theme: tokens; selected: entry.highlighted; hovered: entry.hovered; down: entry.down; focused: entry.activeFocus }
-                contentItem: RowLayout {
-                    spacing: 12
-                    Label {
-                        Layout.preferredWidth: 24
-                        text: entry.modelData.glyph
-                        color: entry.highlighted ? tokens.onSelection : tokens.muted
-                        font.pixelSize: 20
-                        horizontalAlignment: Text.AlignHCenter
-                    }
-                    Label {
-                        visible: window.wideNavigation
-                        Layout.fillWidth: true
-                        text: entry.modelData.title
-                        color: entry.highlighted ? tokens.onSelection : tokens.muted
-                        font.weight: entry.highlighted ? Font.DemiBold : Font.Normal
-                        font.pixelSize: tokens.bodySize
-                        elide: Text.ElideRight
-                    }
-                }
             }
         }
         Item {
@@ -164,7 +159,7 @@ ApplicationWindow {
                 spacing: tokens.gap
                 RowLayout {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 36
+                    Layout.preferredHeight: tokens.controlHeight
                     ActionButton {
                         theme: tokens
                         visible: window.narrow && !["home", "proxies", "subscriptions", "settings"].includes(window.ui.currentPage)
@@ -175,7 +170,7 @@ ApplicationWindow {
                     }
                     Label {
                         text: window.ui.pageTitle
-                        font.pixelSize: window.narrow ? 22 : tokens.titleSize
+                        font.pixelSize: window.narrow ? tokens.scaledSize(22) : tokens.titleSize
                         font.weight: Font.DemiBold
                         color: tokens.text
                         Layout.fillWidth: true
@@ -195,7 +190,7 @@ ApplicationWindow {
                     Rectangle {
                         objectName: "runtime_status_badge"
                         Layout.preferredWidth: runtimeBadgeContent.implicitWidth + 18
-                        Layout.preferredHeight: 28
+                        Layout.preferredHeight: Math.max(28, runtimeBadgeContent.implicitHeight + 8)
                         radius: 14
                         color: window.runtimeFailed ? tokens.errorSurface : window.runtimeHealthy ? tokens.successSurface : tokens.inset
                         Accessible.role: Accessible.StaticText
@@ -256,7 +251,7 @@ ApplicationWindow {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             visible: window.narrow
-            height: visible ? 56 : 0
+            height: visible ? tokens.scaledSize(56) : 0
             color: tokens.sidebar
             Row {
                 id: bottomRow
@@ -273,19 +268,18 @@ ApplicationWindow {
                         width: (bottomRow.width - bottomRow.spacing * (bottomEntries.count - 1)) / Math.max(1, bottomEntries.count)
                         height: bottomRow.height
                         implicitWidth: 0
+                        text: modelData.title
+                        display: AbstractButton.IconOnly
+                        icon.source: modelData.icon
+                        icon.width: tokens.scaledSize(20)
+                        icon.height: tokens.scaledSize(20)
+                        icon.color: highlighted ? tokens.onSelection : tokens.muted
                         highlighted: window.ui.currentPage === modelData.pageId
                         activeFocusOnTab: true
                         Accessible.name: modelData.title
                         ThemedToolTip { theme: tokens; visible: bottomEntry.hovered; text: bottomEntry.modelData.title }
                         onClicked: window.ui.navigate(modelData.pageId)
                         background: StateSurface { theme: tokens; selected: bottomEntry.highlighted; hovered: bottomEntry.hovered; down: bottomEntry.down; focused: bottomEntry.activeFocus }
-                        contentItem: Label {
-                            text: bottomEntry.modelData.glyph
-                            color: bottomEntry.highlighted ? tokens.onSelection : tokens.muted
-                            font.pixelSize: 20
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
                     }
                 }
             }
@@ -301,6 +295,7 @@ ApplicationWindow {
         title: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Tray unavailable")
         modal: true
         closePolicy: Popup.CloseOnEscape
+        initialFocusItem: closeCancel
         contentItem: ColumnLayout {
             spacing: tokens.gap
             Label {
@@ -310,7 +305,7 @@ ApplicationWindow {
                 wrapMode: Text.WordWrap
             }
             RowLayout {
-                ActionButton { theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
+                ActionButton { id: closeCancel; objectName: "close_cancel"; theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
                 Item { Layout.fillWidth: true }
                 ActionButton { theme: tokens; text: qsTr("Quit"); destructive: true; onClicked: { closeDialog.close(); window.ui.requestQuit(); } }
                 ActionButton {

@@ -1,9 +1,12 @@
 #include "infra/core/service_client.h"
+#include "infra/core/service_protocol.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
+#include "platform/process_memory.h"
 #include <QCoreApplication>
 #include <QDir>
 #include <QJsonDocument>
+#include <QUuid>
 #include <utility>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -29,38 +32,20 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
             fail("ServiceIdentityRejected");
             return;
         }
-        const auto process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-        if (!process) {
-            fail("ServiceIdentityRejected");
-            return;
-        }
-        wchar_t path[32768]{};
-        DWORD length = 32768;
-        HANDLE token = nullptr;
-        const bool queried = QueryFullProcessImageNameW(process, 0, path, &length) &&
-                             OpenProcessToken(process, TOKEN_QUERY, &token);
-        QByteArray data(256, Qt::Uninitialized);
-        DWORD size = 0;
-        const bool system =
-            queried &&
-            GetTokenInformation(token, TokenUser, data.data(), static_cast<DWORD>(data.size()),
-                                &size) &&
-            IsWellKnownSid(reinterpret_cast<TOKEN_USER*>(data.data())->User.Sid, WinLocalSystemSid);
-        if (token)
-            CloseHandle(token);
-        CloseHandle(process);
-        const auto expected = QDir(QCoreApplication::applicationDirPath())
-                                  .filePath(QStringLiteral("quickclash_service.exe"));
-        if (!system || QDir::cleanPath(QString::fromWCharArray(path, static_cast<int>(length)))
-                               .compare(expected, Qt::CaseInsensitive) != 0) {
+        if (!platform::installedServiceMatches(pid)) {
             fail("ServiceIdentityRejected");
             return;
         }
 #endif
-        for (const auto& bytes : pendingWrites_)
-            socket_.write(bytes);
-        pendingWrites_.clear();
-        heartbeat_.start();
+        handshakeId_ = QString::number(++nextId_);
+        socket_.write(QJsonDocument(QJsonObject{{QStringLiteral("protocolVersion"), 1},
+                                                {QStringLiteral("requestId"), handshakeId_},
+                                                {QStringLiteral("sessionId"), QString{}},
+                                                {QStringLiteral("engineEpoch"), QString{}},
+                                                {QStringLiteral("action"), QStringLiteral("hello")},
+                                                {QStringLiteral("payload"), QJsonObject{}}})
+                          .toJson(QJsonDocument::Compact) +
+                      '\n');
     });
     connect(&socket_, &QLocalSocket::disconnected, this, [this] { fail("ServiceDisconnected"); });
     connect(&socket_, &QLocalSocket::errorOccurred, this,
@@ -74,6 +59,35 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
         while ((newline = input_.indexOf('\n')) >= 0) {
             const auto result = QJsonDocument::fromJson(input_.first(newline)).object();
             input_.remove(0, newline + 1);
+            if (!ServiceProtocol::validResponse(result)) {
+                fail("ServiceProtocolMismatch");
+                return;
+            }
+            if (!verified_) {
+                if (result.value(QStringLiteral("requestId")) == handshakeId_ &&
+                    result.value(QStringLiteral("error")) == QStringLiteral("ServiceSessionBusy")) {
+                    fail("ServiceSessionBusy");
+                    return;
+                }
+                auto capabilities = result.value(QStringLiteral("result")).toObject();
+                const auto session = capabilities.take(QStringLiteral("sessionId")).toString();
+                if (result.value(QStringLiteral("requestId")) != handshakeId_ ||
+                    QUuid(session).isNull() || capabilities != ServiceProtocol::capabilities()) {
+                    fail("ServiceProtocolMismatch");
+                    return;
+                }
+                verified_ = true;
+                sessionId_ = session;
+                handshakeId_.clear();
+                for (const auto& bytes : pendingWrites_) {
+                    auto message = QJsonDocument::fromJson(bytes).object();
+                    message.insert(QStringLiteral("sessionId"), sessionId_);
+                    socket_.write(QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n');
+                }
+                pendingWrites_.clear();
+                heartbeat_.start();
+                continue;
+            }
             auto handler = handlers_.take(result.value(QStringLiteral("requestId")).toString());
             if (!handler)
                 continue;
@@ -91,7 +105,7 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
     });
 }
 bool ServiceClient::connected() const {
-    return socket_.state() == QLocalSocket::ConnectedState;
+    return verified_ && socket_.state() == QLocalSocket::ConnectedState;
 }
 void ServiceClient::command(const QString& action, const QJsonObject& payload, Handler handler) {
     if (handlers_.size() >= 4) {
@@ -99,11 +113,10 @@ void ServiceClient::command(const QString& action, const QJsonObject& payload, H
         return;
     }
     const auto id = QString::number(++nextId_);
-    const QJsonObject message{{QStringLiteral("protocolVersion"), 1},
-                              {QStringLiteral("requestId"), id},
-                              {QStringLiteral("sessionId"), epoch_},
-                              {QStringLiteral("action"), action},
-                              {QStringLiteral("payload"), payload}};
+    const QJsonObject message{
+        {QStringLiteral("protocolVersion"), 1},    {QStringLiteral("requestId"), id},
+        {QStringLiteral("sessionId"), sessionId_}, {QStringLiteral("engineEpoch"), epoch_},
+        {QStringLiteral("action"), action},        {QStringLiteral("payload"), payload}};
     const auto bytes = QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n';
     if (bytes.size() > 24 * 1024 * 1024) {
         handler(storageError("ServiceRequestLimit"));
@@ -128,7 +141,10 @@ void ServiceClient::fail(const char* code) {
     heartbeat_.stop();
     pendingWrites_.clear();
     input_.clear();
+    sessionId_.clear();
     epoch_.clear();
+    verified_ = false;
+    handshakeId_.clear();
     auto handlers = std::move(handlers_);
     handlers_.clear();
     const bool active = socket_.state() != QLocalSocket::UnconnectedState;
@@ -140,7 +156,10 @@ void ServiceClient::fail(const char* code) {
     failing_ = false;
 }
 void ServiceClient::close() {
+    sessionId_.clear();
     epoch_.clear();
+    verified_ = false;
+    handshakeId_.clear();
     failing_ = true;
     heartbeat_.stop();
     deadline_.stop();

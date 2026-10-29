@@ -33,6 +33,10 @@ class JsonStore final {
     [[nodiscard]] domain::Result<std::unique_ptr<QTemporaryFile>> beginConfigTemporary();
     [[nodiscard]] domain::CommandResult remove(const QString& reference);
     [[nodiscard]] domain::Result<QStringList> files(const QString& directory) const;
+    // Recovery only: preserves all bytes, stays read-only until the next process starts.
+    [[nodiscard]] domain::Result<QString> archiveForRecovery(const QString& fingerprint);
+    // Only allowlisted support JSON, including in recovery mode; never writes user metadata.
+    [[nodiscard]] domain::Result<QString> writeSupport(const QJsonObject& report);
     void freeze() {
         readOnly_ = true;
     }

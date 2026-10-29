@@ -1,4 +1,5 @@
 #include "platform/windows/credential_store.h"
+#include "platform/desktop_services.h"
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -9,6 +10,9 @@
 #endif
 
 namespace quickclash::platform {
+std::unique_ptr<application::ICredentialStore> makeCredentialStore(infra::JsonStore& store) {
+    return std::make_unique<CredentialStore>(store);
+}
 domain::Result<QString> CredentialStore::referencePath(const QString& reference) const {
     const QUuid id(reference);
     if (id.isNull() || reference != id.toString(QUuid::WithoutBraces)) {

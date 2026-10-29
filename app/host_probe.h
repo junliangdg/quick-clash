@@ -6,6 +6,7 @@ int runHostProbe(ApplicationHost& host);
 int runTrayProbe(ApplicationHost& host);
 #ifdef QUICKCLASH_TEST_PROBES
 int runKeyboardProbe(ApplicationHost& host);
+int runAccessibilityProbe(ApplicationHost& host);
 int runResponsiveProbe(ApplicationHost& host);
 int runVisualProbe(ApplicationHost& host);
 #endif

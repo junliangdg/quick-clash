@@ -50,8 +50,9 @@ jobs:
           cmake --build --preset dev --parallel 3
           cmake --build build/dev --target quickclash_qmllint
       - name: Native tests
-        # The runtime test requires the Windows official core and AppContainer.
-        run: ctest --preset dev --exclude-regex '^runtime$' --output-junit native_tests.xml
+        # Windows-specific core/lease tests are registered only on Windows by CMake.
+        # Unsupported adapters and shared unit/UI contracts still run here.
+        run: ctest --preset dev --output-junit native_tests.xml
       - name: Headless boundary
         run: |
           cmake --preset headless

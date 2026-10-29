@@ -5,6 +5,7 @@ import QuickClash.Ui
 Button {
     id: control
     required property ThemeTokens theme
+    Accessible.name: text
     property bool prominent: false
     property bool selected: false
     property bool destructive: false
@@ -33,6 +34,16 @@ Button {
     leftPadding: 12
     rightPadding: 12
     activeFocusOnTab: true
+    Keys.onReturnPressed: event => {
+        if (!event.isAutoRepeat)
+            control.click();
+        event.accepted = true;
+    }
+    Keys.onEnterPressed: event => {
+        if (!event.isAutoRepeat)
+            control.click();
+        event.accepted = true;
+    }
     hoverEnabled: true
     contentItem: Text {
         text: control.text

@@ -2,15 +2,15 @@
 
 本文件只维护阶段门、验收条件、实际结果、证据和待补项；开发及修改过程见[开发日志](DEVLOG.md)，命令和历史证据见[报告索引](reports/README.md)。
 
-当前内存优化各切片实现Review，产品验证NotRun；MVP-05/06为Stale，MVP Pass=0/16，G2/G3为NotRun。[专项验证矩阵](reports/20261026_client_memory_optimization.md#验证范围)不替代产品验收。阶段范围见[设计01](../design/01-目标范围与阶段计划.md)，MVP条件见[设计19](../design/19-网络测试与信息采集.md)。
+当前内存优化各切片实现Review，专项产品验证NotRun；本机MVP Pass=16/16，G2-A—E证据齐全，G1仍Stale，因此G2/G3整门为NotRun。[逐项验收](reports/windows_validation.md#g2本机mvp逐项验收)不关闭[内存优化专项](reports/20261026_client_memory_optimization.md#验证范围)；阶段范围见[设计01](../design/01-目标范围与阶段计划.md)，MVP条件见[设计19](../design/19-网络测试与信息采集.md)。
 
 ## 1. 阶段门状态
 
 | ID | 阶段 | 状态 | 证据 | 下一步/阻塞原因 |
 |---|---|---|---|---|
 | G0 | P0 | Pass | [当前验证](reports/windows_validation.md#工程与内核) | Windows 本地 Release/启动/QML/headless、官方内核关键契约和部署通过；跨平台原生与 CI run 后置 P4-06 |
-| G1 | P1 | Stale | [当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准)、[产品迁移](reports/20261027_unified_visual_implementation.md) | P3-16已完成双主题/八页面及本机125%DPI代表检查；全字体缩放/多屏与完整状态组合未运行，尚未汇总重验整个阶段；原版本生命周期/资源证据按边界保留 |
-| G2 | P2 | NotRun | [1.9范围复核](reports/windows_validation.md#阶段范围与待补项) | 本机最小闭环待逐项证据核对；仍须实际GUI主链路及必要定向反例，不因范围调整Pass |
+| G1 | P1 | Stale | [当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准)、[P3补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验) | P3-27字体注入/名称/键盘和125%DPI原生检查已通过并进入Review；实际OS文本设置、高DPI/多屏迁移及读屏NotRun，保留原生命周期/资源边界，不提升整门Pass |
+| G2 | P2 | NotRun | [16项逐条件验收](reports/windows_validation.md#g2本机mvp逐项验收) | MVP16/16及G2-A—E通过，P2全部Done；前一门G1 Stale，待P3-27补实际OS可访问性后才能提升整门 |
 | G3 | P3 | NotRun | [Windows方案](reports/windows_validation.md#阶段范围与待补项)、[补证分期](reports/windows_validation.md#阶段范围与待补项) | 八页面/真实转发、TUN/服务、静态兼容及P3-14干净普通用户环境与有限OS/GUI宿主证据；其他平台后置 |
 | G4 | P4 | NotRun | — | 三平台支持/更新/安装/恢复矩阵 |
 | G5 | P5 | NotRun | — | 长稳、性能与稳定候选最终门 |
@@ -28,7 +28,7 @@
 ### G1：UI 与资源路线
 
 - [x] G1-A：桌面左侧八模块入口/路由/嵌入复用独立，导航常驻不创建全部页面，移动只验边界。[当前验证](reports/windows_validation.md#工程与内核)
-- [ ] G1-B：方案C共享控件/八页面、Light/Dark、键盘/草稿/菜单/确认/错误态及本机125%DPI原生截图已通过；完整状态组合、字体缩放/多屏迁移未运行，G1汇总未完成，旧视觉证据Stale。[产品迁移与边界](reports/20261027_unified_visual_implementation.md)
+- [ ] G1-B：P3-16方案C八页面/双主题/草稿/菜单/确认/错误态历史证据保留；P3-27正文14/21/32px×宽窄窗八路由、中英文名称/键盘、标准Cancel/返回及卸载字体重建、原生D3D11/125%DPI补验通过。实际OS文本设置、高DPI/多屏迁移与读屏NotRun，不能用注入字号替代；本项及G1保持未关闭。[逐项补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验)
 - [x] G1-C：单实例/托盘/无托盘退路及100次句柄历史证据保留；Qt6.8 Actions的共享列表绑定/重建回归已本机复现修复，当前host_lifecycle和其余8项UI测试通过；远端修复版重跑NotRun。[当前验证](reports/windows_validation.md#工程与内核)、[Qt6.8回归](reports/20261027_github_release.md#ci故障与修复)
 - [x] G1-D：Release环境、三项内存原始数据具备，六场景双主题单轮短测12/12通过，专用工作集49.7—54.9 MB；按1.6无需长时/帧/GPU矩阵。[范围重评](reports/windows_validation.md#原型生命周期与资源)
 - [x] G1-E：已记录原型实测及未来解析、仓库日志、服务更新的资源风险；固定MB分项预留不再作为当前要求，真实组件随交付测量，不将估算称为实测。[原型历史](reports/windows_validation.md#原型生命周期与资源)、[当前资源策略](reports/20261027_unified_visual_implementation.md)
@@ -37,12 +37,17 @@
 
 | 范围 | 结果 | 证据/下一步 |
 |---|---|---|
-| 方案C设计、静态概念图与离线预览 | Pass | [设计与预览报告](reports/20261027_unified_visual_implementation.md#设计基准)；文档/离线交互及48项响应式、74组对比度检查通过，不替代产品验收 |
-| 方案C Qt Quick共享组件、八页面与代表状态 | Pass | P3-16 Windows构建/10项测试及最终布局3项回归通过；原生GPU/125%DPI八页面双主题、菜单/确认/错误态、360/800/1000/1200宽度26张截图核对；过程资源短测具备三指标，取消固定MB门槛，不表示内存优化或全功能验收通过。[实施报告](reports/20261027_unified_visual_implementation.md) |
+| 导航圆角线性图标替换 | Pass | 用户采用第一套，八个本地SVG统一侧栏/图标轨/底栏；Windows Qt6.8增量构建/lint及6/6回归通过，独立部署清Qt PATH启动、D3D11/125%DPI原生双主题与宽窄导航核对通过。[记录](DEVLOG.md#2026-10-30--导航圆角线性图标) |
+| 方案C设计、静态概念图与离线预览 | Pass | 导航与产品同源SVG，Light/Dark静态图已重建，1200/800/360宽×双主题六组合无溢出/缺图；未受影响的历史48项响应式/74组对比度证据保留。浏览器预览不替代产品验收。[记录](DEVLOG.md#2026-10-30--导航圆角线性图标) |
+| 方案C Qt Quick共享组件、八页面与代表状态 | Pass | 当前导航补验构建/lint、6/6回归及独立部署26张原生截图通过，覆盖八页面双主题、菜单/确认/错误态和360/800/1000/1200宽；另补两张明暗图标轨。旧符号截图仅作历史，当前SVG取代该部分证据；其余P3-16有效证据保留。[实施报告](reports/20261027_unified_visual_implementation.md)、[本轮记录](DEVLOG.md#2026-10-30--导航圆角线性图标) |
+| P3-27字体与键盘产品补验 | Pass | Windows Qt6.8增量构建/lint、最终13/13回归28.51秒；原生D3D11/125%DPI单屏、14/21/32px×360/1000宽八路由、711条控件名称记录、默认取消/焦点返回、只读预览和字体重建通过；仅上述有限范围。[记录](DEVLOG.md#2026-10-29--p3字体与可访问性) |
+| 实际Windows文本大小/高DPI多屏迁移/读屏 | NotRun | 单屏DPR1.25；本轮真实设置窗口应用授权超时，未改系统值或运行读屏。用户暂无额外环境，P3-27 Review/G1 Stale保持；字体注入和QAccessible名称不能替代。 |
 
 ### G2：Windows MVP
 
 追加功能检查（不替代下列G2-A—E或16项MVP）：
+
+- [x] P3-24：支持包固定字段/未知字符串拒绝、冻结预览/确认/隐藏取消、无内核与只读导出；损坏/新版schema原字节归档、重开空仓库不启动、中断标记/文件占用失败回退、旧确认/未处理租约拒绝通过。总量1GiB/缓存64MiB/导出日志15MiB软预算保留配置/历史/事务/草稿/核心缓存/备份/归档，超额提示而不删保护数据；测速凭据及草稿保留有回归。Windows增量构建/lint、最终9/9回归及完整runtime114.03秒Pass，10秒162轮预览/取消三指标与释放核对通过；无GUI短测不代表长期/GPU结论，真实服务/TUN仍未验收。[验收记录](DEVLOG.md#2026-10-29--p3支持包与存储修复)
 
 - [ ] 本机Qt6.8更新/切页内存异常调查：真实GPU EX2专用175.68MB/工作集768.73MB；Qt软件129.34—131.44MB/690.97—693.07MB，字体驻留504→491MB仍存在；当前不设固定MB门槛，异常调查仍未关闭。可选--software-rendering构建与3项UI测试通过，隔离切页确认旧页面/节点控件销毁；保留原符号/Qt字体，实际异常修复未关闭。[调查报告](reports/20261026_subscription_memory_investigation.md)
 
@@ -53,31 +58,78 @@
 - [x] P2-23：最多32项具体协议/传输/组/规则/DNS/外部资源原因、安全路径、脱敏和中英文词表通过。[协议交付](reports/windows_validation.md#订阅与代理功能)
 - [x] P2-24：默认Windows D3D11连续跨1000/600断点无原秒级等待；首页/代理各80步保持页面实例、引擎和需求，4/4 UI检查通过；最终包10秒Ready首页专用工作集60.75MB，非完整帧/转发组合验收。[缩放修复](reports/windows_validation.md#订阅与代理功能)
 
-- [ ] G2-A：按设计19/1.9的本机条件，MVP-01—16全部Pass，逐项范围/版本/证据齐全，无占位结果；不新增Deferred/N/A绕过状态。
-- [ ] G2-B：订阅/本地导入→选择→官方内核→节点/模式→系统代理→真实转发→停止/重启。旧开发机门面证据保留于[P2交付](reports/windows_validation.md#订阅与代理功能)；2026-10-26共享读取补丁未编译/回归，当前补丁Stale，不能当新代码已通过，见[内存优化](reports/20261026_client_memory_optimization.md)。
-- [ ] G2-C：首次关键失败、运行补偿、manifest前后中断、崩溃退避/停止优先、生产runtime worker强杀/下次恢复及租约冲突有代表性证据；取消/迟到不复活、失败不删数据有定向证据，不要求故障全排列。[恢复报告](reports/windows_validation.md#恢复与本地包)
-- [ ] G2-D：本机完整离线包的依赖/摘要、清开发Qt PATH后的本地导入/Ready、秘密保护、无内核基本修复及手工说明已核对；干净普通用户环境由P3-14在G3前关闭。
-- [ ] G2-E：有效真实配置Ready首页单场景10—30秒三项客户端内存指标及内核记录齐全，以同环境基线和有界生命周期评价；实际GUI主路径无同步阻塞/重复内核，不要求全操作性能矩阵，不设固定MB门槛。
+- [x] G2-A：MVP-01—16按设计19/1.9逐条件Pass，版本/证据/限制齐全；不使用N/A。[逐项验收](reports/windows_validation.md#g2本机mvp逐项验收)
+- [x] G2-B：真实GUI HTTPS订阅/第二本地导入→官方核心→代理页节点选择/首页模式→系统代理→独立显式及PRECONFIG客户端受控HTTPS→正常退出/同目录重开通过。[主链路](reports/windows_validation.md#g2本机mvp逐项验收)
+- [x] G2-C：首次关键失败/运行补偿/manifest前后/退避停止及生产worker强杀恢复、冲突/迟到/失败不删数据均有代表性证据；当前6/6定向回归及原生WinINet恢复Pass。[恢复映射](reports/windows_validation.md#g2本机mvp逐项验收)
+- [x] G2-D：当前完整187项离线包摘要/依赖、清Qt环境本地导入Ready、缺core修复及秘密保护/手工说明通过；干净普通用户环境仍归P3-14。[本机包](reports/windows_validation.md#g2本机mvp逐项验收)
+- [x] G2-E：真实Ready首页10秒93样本客户端三指标/内核单列，记录同轮首末/峰及退出清理；幂等/异步worker路径核对，不宣称长期或字体问题关闭。[资源范围](reports/windows_validation.md#g2本机mvp逐项验收)
+
+上述本机条件通过不提升G2整门：G1仍Stale，须P3-27补实际OS环境验收。
 
 ### G3：Windows 日常使用交付
 
-设计1.8明确Windows日常使用及共享静态兼容，1.9增设P3-14集中有限环境/宿主补证；Linux/macOS原生和移动后置。P3-12方案Done不等于P3-13静态兼容通过，见[静态缺口](reports/windows_validation.md#阶段范围与待补项)与[G2范围复核](reports/windows_validation.md#阶段范围与待补项)。
+- [ ] P3-14 Review：最终包普通Medium令牌/清开发Qt环境/中文空格路径及缺核心修复、真实托盘五秒卸载/转发/单次重建、整GUI强杀→Job回收→同目录单实例重开，以及独立进程WinINet外部冲突/显式新基线释放/原快照精确还原均Pass；独立验收工具包Package/Flow本机Pass，用户暂无额外环境，干净普通用户机器和一次真实换网或唤醒仍NotRun。[逐项结论](reports/windows_validation.md#p3普通用户宿主补证)
+
+- [ ] P3-25 Review：实际UAC安装及普通用户握手/SCM身份、固定命令、核心控制器/配置隔离、start重放、客户端强杀和服务强杀重启清理通过；跨用户桌面争用未运行，不能以同用户第二连接Busy代替。服务恢复能力明确NotAvailable，TUN/代理即时恢复未获Pass。[验收记录](DEVLOG.md#2026-10-29--p3权限服务)
+
+| P3-25条件 | 结果 | 证据范围与限制 |
+|---|---|---|
+| SVC-01 | Pass | 普通PowerShell身份被断开；保护路径GUI可握手；普通用户停止服务AccessDenied |
+| SVC-02 | Pass | 清单逃逸/重复/坏摘要/缺文件/未知schema/未列出DLL/联接拒绝，锁定源拒绝写替换，复制摘要复核；未做持续竞态压力 |
+| SVC-03 | Pass | 实际强杀本轮普通客户端探针后旧owned核心消失、查询clean；服务强杀重启旧核心回收/清理旧配置；不代表完整GUI宿主P3-14或TUN |
+| SVC-04 | Pass | 协议99及无握手请求拒绝；能力不匹配不进入权限操作，普通模式runtime113.24秒通过 |
+| SVC-05 | NotRun | 同用户第二连接Busy通过；缺第二活动用户桌面/切换的真实证据，RDP不受支持 |
+| SVC-06 | Pass | 普通GUI无法打开真实核心pipe或读取服务配置；危险external-controller-pipe字段拒绝，固定组读取/选择通过 |
+| SVC-07 | Pass | 实际start同ID精确返回相同PID/epoch，改报文复用ID断开；单测覆盖在途重复/淘汰ID拒绝 |
+| SYS-05 | Pass | 仅能力降级分支：proxyRecovery=NotAvailable，不跨用户写HKCU，继续用户态租约/下次恢复；可信移交与即时恢复未实现 |
+
+- [x] P3-21：Core/App/Service来源、2000条/4MiB双预算/截断/丢弃、暂停缺口与跟随区分、冻结脱敏预览/默认隐藏正文/令牌失效完成；Windows主程序/服务构建、8项回归及最终4项UI/筛选、headless5项Pass。默认GPU2000条页面短测模型/页面释放通过；真实服务安装联验仍P3-25，未关闭字体驻留专项。[验收记录](DEVLOG.md#2026-10-28--p3日志与导出)
+- [x] P3-23：schema2原文/覆盖与离线展开备份、schema1兼容、固定预检副本/确认令牌及整批官方校验完成；摘要/路径拒绝、晚项失败清理、取消和空仓库不启动通过。Windows增量构建/lint、5项定向及完整runtime Pass，10秒66次预览/取消短测候选均释放；不包含密码加密。[验收记录](DEVLOG.md#2026-10-28--p3配置备份恢复)
+- [x] P3-26：客户端/已核验服务三指标聚合、内核与临时校验核心单列、PID/创建时间及SCM身份核对、缺失/异步失败清旧值与部分状态完成；共享5—6秒采样/多消费者及释放通过，Windows构建/lint、7项回归、最终真实内核和headless5项Pass。10秒进程短测有界，真实安装服务联验仍P3-25，不代表TUN或长期资源验收。[验收记录](DEVLOG.md#2026-10-28--p3资源采样)
+
+- [x] P3-20：双库完整下载/官方隔离校验/配置事务切换、严格同摘要复用且不重启、第二项失败与坏资源保留、下载/校验取消及迟到拒绝、候选启动失败补偿、随包离线恢复/历史回退及重开引用通过；Windows构建/lint与最终4/4定向测试Pass，headless5/5含写入器完整性Pass。使用受控HTTPS和真实冻结Geo资源，公网可用性与TUN动态Geo未宣称。[验收记录](DEVLOG.md#2026-10-28--p3受管geo更新)
+
+- [x] P3-06：NET-01—05三路径、无直连回退、TLS/跳转拒绝/循环/整链截止与超限、Cookie隔离、取消迟到/历史失效及8项批量/32历史淘汰完成；Windows构建/lint、13项回归与最终runtime100.84秒Pass。系统DNS可能返回NetworkError，保留真实分类；IP未配置隐藏，未宣称公网网站验证节点转发。[验收记录](DEVLOG.md#2026-10-28--p3网站测试)
+
+- [x] P3-05：设置请求/保存/当前生效区分，停止无生效端口；网络模式/端口/DNS一次确认并捕获epoch/选择代次，真实内核事务和端口失败补偿Pass。状态重开、过期确认拒绝与有界滚动弹层通过，最终4项UI回归Pass；沿用主题/托盘偏好证据，备份/诊断另验。[验收记录](DEVLOG.md#2026-10-28--p3设置生效状态)
+
+- [x] P3-03：完整有界连接快照/速率边界、稳定详情和结束保留、超限暂停重试、捕获目标关闭计数/超时只核对完成；真实Mihomo关闭保留新连接、旧epoch拒绝及停止清理结果，Windows构建/lint与6项最终定向测试Pass；1000连接默认GPU短测/离页释放Pass。[验收记录](DEVLOG.md#2026-10-28--p3连接详情与关闭)
+
+设计1.8明确Windows日常使用及共享静态兼容，1.9增设P3-14集中有限环境/宿主补证；Linux/macOS原生和移动后置。P3-12方案与P3-13静态核对分别留证，见[静态边界](reports/windows_validation.md#跨平台静态边界)与[G2范围复核](reports/windows_validation.md#阶段范围与待补项)；静态通过不等于非Windows支持。
 
 - [x] P3-10最小切片：代表订阅成功导入/选择、官方owned核心Ready、真实VLESS TLS HTTPS转发及连接链，固定Geo离线验证与内部DNS，资源异常拒绝；不代表下列G3整阶段通过。[订阅闭环](reports/windows_validation.md#订阅与代理功能)
 
-- [ ] G3-A：Windows订阅导入/解析/计划更新/失败保留、卡片选中自动应用、首页用量/到期、当前订阅分组、节点选择及单独/批量测速可用；模式与实际状态读回，受管资源按声明范围交付。首页订阅卡不重复内核状态、上下行同卡，代理页为各组独立展开/收起的组卡与多列节点卡（展开集合按订阅持久化），测速进度行展开期间常驻，测速目标由设置持久化。
-- [ ] G3-B：Windows八页面按设计17采用统一方案C、共享组件和完整Light/Dark状态（P3-16），并具备真实功能，连接/规则/日志/提供者、设置/备份/诊断、网站/系统资源按声明范围通过；后台内核自动运行及崩溃退避恢复，IP未启用则隐藏。
-- [ ] G3-C：Windows系统代理/TUN到真实节点转发、服务授权/固定IPC/控制器隔离、迁移和退出清理有实测；P3-14的干净普通用户包/代表路径/基本修复、一次真实换网或唤醒、GUI整体强杀/下次恢复、运行会话隐藏重建及一次外部代理变更有记录；复用底层证据，只补差异，不覆盖用户后续修改。
-- [ ] G3-D：后台无页面专属连接/日志大流，资源敏感交付选单个代表场景10—30秒短测或复用有效证据；必要服务计入客户端，三项内存指标及内核另记，核对同环境变化和有界生命周期；不设固定MB门槛，不要求全场景/长时/帧/GPU矩阵。
-- [ ] G3-E：P3-13静态兼容逐项有证据且已知违规修正，Windows包/说明/限制、受影响功能与恢复结果齐全；非Windows原生构建/真实功能分别保持实际状态，不作为G3前置，也不因静态通过宣称支持。
+- [x] P3-01：独立展开/空集合恢复、真实选择读回/最新意图、设置目标及两项并发/500队列、取消迟到/10分钟过期、配置切换失效；500节点视口及键盘末尾定位、折叠/离页释放完成。沿用PX-01/03/08能力及身份恢复证据，Windows增量构建/lint与12项定向测试Pass；默认GPU短测仅证明对象有界，不关闭字体/缓存内存专项，动态provider身份归P3-19。[验收记录](DEVLOG.md#2026-10-28--p3代理与测速)
+
+- [x] P3-02：严格用量解析及采集时间、未知不归零、90%/耗尽/7天/已过期提示；同内容更新替换元数据、重开恢复、本地调度边界无额外下载。Windows构建/lint及15项定向测试Pass，复核计划合并/失败保留/自动应用及双语响应式卡片。[验收记录](DEVLOG.md#2026-10-28--p3订阅用量与告警)
+
+- [x] P3-08内部DNS：fake-ip子网、IPv6/映射回环及bootstrap校验，policy/filter/缓存字段与模式覆盖；官方受控UDP解析、缓存命中/清理重查及redir-host覆盖通过。Windows增量构建/lint和6项定向测试、headless构建与5项测试Pass；外部DNS接管留P3-04。[验收记录](DEVLOG.md#2026-10-28--p3内部dns)
+
+- [x] P3-09：TUIC字段与v4/v5认证互斥、原生UDP能力，TCP/WS/gRPC/Reality声明矩阵及三种load-balance策略；负载均衡不虚构当前节点、不允许手选，停机不恢复自动组选择。Windows构建/lint和4项测试、headless5项Pass，官方加载与能力读回通过；未声称所有远端协议握手。[验收记录](DEVLOG.md#2026-10-28--p3协议与负载均衡)
+
+- [x] P3-18：主源显式Direct/RunningProxy/Auto及上次实际路径、最多5次HTTPS跳转与跨站认证/Cookie隔离完成；DPAPI来源绑定ETag/Last-Modified、304缺失/坏源单次重取、整链20秒/单跳15秒及16MiB、停止/删除迟到通过。Windows构建/lint及真实runtime、最终专项与双语UI回归Pass；provider下载策略独立，worker三指标短测不代表Qt字体问题关闭。[验收记录](DEVLOG.md#2026-10-28--p3订阅下载兼容)
+
+- [x] P3-19：快照单项更新不重取主源/其他资源，缓存来源/摘要匹配、坏更新及停止迟到保留；显式运行时模式的use/RULE-SET、代理/规则热刷新不重启、坏载荷保留核心缓存、动态身份不保存/恢复、导入fallback备份实际恢复和停止后GC通过。固定服务kind/name白名单拒绝额外URL/未知身份；Windows构建/lint、完整runtime与专项/双语UI、headless5项及10秒worker短测Pass。运行时使用冻结内核解析/网络策略，真实安装服务/TUN仍P3-25 NotRun，完整规则页面由P3-22交付。[验收记录](DEVLOG.md#2026-10-28--p3提供者生命周期)
+
+- [x] P3-22：有效序号/来源、RULE-SET计数/时间及未知/有限信息，所选快照/当前内核区分、逐项结果/待应用/失败/不确定、分类读取失败保留、串行刷新及覆盖编辑入口完成。Windows主程序/服务构建及lint、定向11/11与完整runtime110.75秒Pass；目录候选变化自动重读补丁后最后5/5 Pass，10秒43次刷新/最后需求释放清列表/状态/结果通过。API不能恢复快照展开前来源或可靠命中数，真实安装服务/TUN及G3不在本项结论内。[验收记录](DEVLOG.md#2026-10-29--p3规则与提供者页面)
+
+- [ ] G3-A：P3-01/02/11的Windows订阅计划/失败保留、卡片自动应用、用量/到期/告警、组/节点及单独/批量测速可用；P3-18显式下载路径/安全重定向/304缓存，P3-19/20的provider/RULE-SET与Geo，P3-08/09的DNS/声明协议分别有证据。模式与选择读回；首页订阅卡不重复内核状态、上下行同卡，代理组独立展开并按订阅记忆，测速目标来自设置，测速行高度稳定。
+- [ ] G3-B：八页面具备真实功能及设计17的方案C共享控件/完整Light/Dark状态；P3-17原文/覆盖编辑、草稿冲突/脱敏来源差异/历史回退，P3-03/21/22连接/日志/规则/提供者，P3-05/23/24设置/备份/诊断，P3-06/26网站/系统资源按条件通过。备份预览及恢复不接管旧会话，存储配额清理保护引用；后台内核/崩溃恢复可用，IP未启用则隐藏。
+- [ ] G3-C：P3-25权限服务安装/身份/固定IPC/隔离/可信租约与P3-04 TUN授权、迁移和清理有实测；系统代理及未显式配置代理的TUN客户端分别验证真实节点转发。P3-14干净普通用户包/代表路径/基本修复、真实换网或唤醒、GUI强杀/下次恢复、运行会话隐藏重建及外部代理变更有记录；只补差异，不覆盖后续用户修改。
+- [ ] G3-D：后台无页面专属连接/日志大流；P3-26按RES-01—03核对客户端/必要服务聚合、内核单列、PID复用/权限不足及共享需求释放。资源敏感交付选一个10—30秒短测或复用有效证据，记录三项内存及同环境变化/有界生命周期，不设固定MB或全场景矩阵。
+- [ ] G3-E：P3-13静态兼容已知违规修正，P3-27补字体/DPI/键盘/代表状态并恢复G1有效结论；G2须实际通过，P3-07逐项汇总G3、Windows包/说明/限制和恢复证据。非Windows原生仍按实际状态记录，不作为G3前置，正式签名/在线更新归P4。
+
+- [x] P3-17：1MiB原文/独立JSON覆盖、注释保留/持久草稿、新订阅冲突拒覆盖、另存/重载、脱敏双预览及来源层次、历史选择与摘要校验完成；Windows构建/lint、8项回归、真实provider回退及编辑候选启动失败补偿/重开草稿、headless5项Pass。24秒GPU短测仅证明隐藏/关闭释放文本及通道，Qt大文本内存峰值/缓存仍高，不代表低内存专项通过。[验收记录](DEVLOG.md#2026-10-28--p3配置编辑)
+
+P3任务拆分和遗漏映射复核见[2026-10-28记录](DEVLOG.md#2026-10-28--p3任务范围与依赖复核)；P3-17—27承接独立交付，不表示产品能力已验证。G1仍Stale、G2/G3仍NotRun，MVP结果不变。
 
 P3-13执行清单（均为静态或已有接口核对，不要求其他平台设备）：
 
-- [ ] 共享层/公开头不引用Windows具体凭据、代理、SCM/WinINet/DPAPI/资源采样或进程实现；由host/infra组装职责接口。
-- [ ] CMake按平台选择源/系统库，PUBLIC依赖不泄漏平台SDK；未实现平台明确Unsupported。
-- [ ] 路径/凭据/资源引用不绑定盘符、注册表、PID或桌面IPC；能力与错误不把空实现当成功。
-- [ ] 功能模块/导航投影/嵌入、英文翻译及异步取消/会话生命周期保留移动宿主替换点；实际VPN/后台/触摸另验。
-- [ ] 核对位置、修正和未运行项写报告；静态、原生构建、真实系统验收分层记录。
+- [x] 共享层/公开头不引用Windows具体凭据、代理、SCM/WinINet/DPAPI/资源采样或进程实现；DesktopServices职责接口由infra组装，include检查及人工核对通过。
+- [x] CMake按平台选择源/PRIVATE系统库，公开头不泄漏平台SDK；Unsupported真实实现契约在Windows编译/测试通过，非Windows原生NotRun。
+- [x] Qt路径/逻辑资源不固定盘符/注册表，PID仅桌面诊断/所有权；凭据/进程/代理拒绝变更且递归目录不新增，服务不打开IPC、缺失采样不报零。
+- [x] 注册表投影/独立嵌入、英文源与中文原因、QObject context/generation及停止销毁保留替换点；中英文禁用控件/键盘与host生命周期Pass，移动VPN/后台/触摸NotRun。
+- [x] 核对位置、修正、Windows14项/真实核心/headless5项回归及10秒采样写入[静态边界验收](reports/windows_validation.md#跨平台静态边界)，Linux/macOS原生/系统验收明确NotRun归P4。
 
 ### G4：后续逐平台扩展并汇总桌面三平台 Beta
 
@@ -103,22 +155,22 @@ Windows正式安装/更新先行，Linux/macOS各自补齐原生构建与实际�
 
 | ID | 通过条件摘要 | 关联任务 | 结果 | 证据 | 下一步/失败原因 |
 |---|---|---|---|---|---|
-| MVP-01 | 本机完整离线包、依赖/摘要、清Qt PATH后本地导入/Ready | P2-03, P2-16 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包)、[范围复核](reports/windows_validation.md#阶段范围与待补项) | 186文件摘要/清Qt PATH smoke已测；核对同包本地导入/Ready及修复说明证据；干净普通用户环境归P3-14 |
-| MVP-02 | HTTPS/本地导入、限额/TLS/坏候选保留 | P2-04, P2-07, P2-20 | NotRun | [响应式/语言/链接适配交付](reports/windows_validation.md#订阅与代理功能) | UA/MIME/头/HTML/Base64/空坏更新保留已测；核对一次超限和一次TLS拒绝的证据，缺失才补，不要求完整矩阵 |
-| MVP-03 | owned单会话、认证/回环/PID/端口归属与幂等 | P2-03, P2-09 | NotRun | [P2交付](reports/windows_validation.md#订阅与代理功能) | 认证Ready/owned端口与占用补偿已测，错误认证证据可复用；补代表GUI主链路无双会话，运行重建另归P3-14 |
-| MVP-04 | 代理页分组/节点可见可选、自动组能力与模式读回 | P2-06, P2-21, P2-22 | NotRun | [协议交付](reports/windows_validation.md#订阅与代理功能) | 官方加载/选择重启、自动组健康检查与中文界面已有证据；核对当前GUI主路径及实际读回，不要求全部协议/节点公网握手 |
-| MVP-05 | Ready 后写代理、独立系统客户端验证 | P2-08, P2-09, P2-14 | Stale | [G2恢复开发](reports/windows_validation.md#恢复与本地包)、[内存优化](reports/20261026_client_memory_optimization.md) | 旧版原生PRECONFIG/租约/迁移/恢复事实保留；共享API/存储读取变更后未编译/回归，当前补丁NotRun，不冒用旧Pass；2026-10-26冲突重开基线修复后 proxy_lease/recovery 退出0，原生转发未复测 |
-| MVP-06 | 显式本地入口与受控远端请求证据、域名 CONNECT | P2-13 | Stale | [日常链路](reports/windows_validation.md#订阅与代理功能)、[内存优化](reports/20261026_client_memory_optimization.md) | 旧版显式入口/域名CONNECT/TLS及单节点公网事实保留；当前读取路径补丁未编译/转发回归，不能继承旧Pass |
-| MVP-07 | 停止/退出恢复owned状态、冲突不覆盖、端口修复 | P2-08, P2-09, P2-10, P2-15 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 原生恢复/适配器外部冲突/显式接管新快照、端口修复/退出已测，待逐条件核对；实际外部变更归P3-14，不做清理故障全组合 |
-| MVP-08 | 真实首页/错误、Ready首页三项内存短测及有界生命周期 | P2-06, P2-10, P2-17 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 当前包10秒Ready首页峰63.50MB，三指标/内核单列及退出清理已测；核对有效范围后复用，真实会话隐藏重建归P3-14 |
-| MVP-09 | 两配置/偏好重开/可靠身份恢复及失效保护 | P2-02, P2-04, P2-06, P2-07 | NotRun | [P2交付](reports/windows_validation.md#订阅与代理功能)、[协议交付](reports/windows_validation.md#订阅与代理功能) | 两配置/模式/节点重开及凭据变更身份失效已有分项证据；核对同名变内容/成员删除定向证据，不穷举属性 |
-| MVP-10 | 来源/名称/更新/删除、迟到不复活/失败不删数据 | P2-07, P2-15 | NotRun | [P2交付](reports/windows_validation.md#订阅与代理功能) | 名称/来源头/坏更新/最后项删除已测；映射一次取消/过期和停止失败保留的定向证据，缺失才补 |
-| MVP-11 | 声明协议/组/基础规则预检/官方加载及脱敏诊断 | P2-04, P2-07, P2-13, P2-21, P2-22, P2-23, P3-10 | NotRun | [协议交付](reports/windows_validation.md#订阅与代理功能)、[订阅闭环](reports/windows_validation.md#订阅与代理功能) | 字段/官方加载/诊断及固定Geo/内部DNS已有证据，待按1.9映射；动态规则/高级DNS随P3功能交付，不以全协议握手阻塞 |
-| MVP-12 | 首次关键失败/运行回退/manifest前后恢复 | P2-05, P2-09, P2-15 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 首次端口/平台/代理写后落盘失败、受管平台部分失败、运行补偿及manifest前后已测；逐条件核对，不补首次/复用全排列 |
-| MVP-13 | 崩溃退避/停止优先、生产worker强杀/Job/下次恢复 | P2-03, P2-09, P2-10, P2-15 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 连续四次恢复、停止打断、真实worker强杀→Job/端口释放→下次WinINet租约/事务恢复已有证据；待映射，GUI整体强杀转P3-14 |
-| MVP-14 | 幂等租约/端口迁移/PAC/外部冲突/新快照恢复 | P2-08, P2-14 | NotRun | [P2交付](reports/windows_validation.md#订阅与代理功能)、[G2恢复开发](reports/windows_validation.md#恢复与本地包) | 原生幂等/迁移/原值恢复及适配器PAC/冲突/重开已测，待核对范围；一次实际外部变更转P3-14 |
-| MVP-15 | Windows通知接入/受控合并核对、离线有界 | P2-11 | NotRun | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 接口/IP/连通性/唤醒已接，20→1/PID不变/立即取消旧测试已测，待映射其余离线条件；真实事件转P3-14 |
-| MVP-16 | 无内核基本修复/元数据/DPAPI/秘密保护/自设目标 | P2-02, P2-10, P2-12, P2-16 | NotRun | [P2交付](reports/windows_validation.md#订阅与代理功能) | 复用DPAPI/损坏只读/自设目标和修复入口证据，核对默认日志无秘密；干净包UI修复归P3-14，完整诊断备份归P3-05 |
+| MVP-01 | 本机完整离线包、依赖/摘要、清Qt PATH后本地导入/Ready | P2-03, P2-16 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 当前187项包hash/x64/CRT/官方核心/Qt/QML/Schannel、中文空格路径导入Ready及缺核心修复通过；干净机器归P3-14 |
+| MVP-02 | HTTPS/本地导入、限额/TLS/坏候选保留 | P2-04, P2-07, P2-20 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | GUI HTTPS订阅及第二本地导入通过；HTML/空坏更新、16MiB+1与TLS名称拒绝保留sourceHash/PID/Ready |
+| MVP-03 | owned单会话、认证/回环/PID/端口归属与幂等 | P2-03, P2-09 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 错secret拒绝/owned回环端口、占用补偿有效；GUI重复当前卡/非活动导入PID不变，模式事务先停后启 |
+| MVP-04 | 代理页分组/节点可见可选、自动组能力与模式读回 | P2-06, P2-21, P2-22 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 真实代理页键盘选fixture/读回、首页Direct→Rule通过；声明协议加载与url-test/fallback能力证据有效 |
+| MVP-05 | Ready 后写代理、独立系统客户端验证 | P2-08, P2-09, P2-14 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 独立WinINet PRECONFIG客户端经当前系统设置访问受控HTTPS，上游CONNECT/站点请求及完整原快照恢复通过 |
+| MVP-06 | 显式本地入口与受控远端请求证据、域名 CONNECT | P2-13 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 独立显式客户端经本地入口访问受控HTTPS，域名CONNECT及远端GET核对排除DIRECT；真实重开再次通过 |
+| MVP-07 | 停止/退出恢复owned状态、冲突不覆盖、端口修复 | P2-08, P2-09, P2-10, P2-15 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | GUI/原生worker恢复、实际外部冲突/新基线、坏更新/端口补偿与修复入口通过 |
+| MVP-08 | 真实首页/错误、Ready首页三项内存短测及有界生命周期 | P2-06, P2-10, P2-17 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 10秒93样本三指标及内核单列、同轮首末/峰和正常退出清理具备；不关闭字体专项或宣称长期性能 |
+| MVP-09 | 两配置/偏好重开/可靠身份恢复及失效保护 | P2-02, P2-04, P2-06, P2-07 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 两配置/选择代次/节点/主题/模式/端口真实重开一致；同名端点变化、已选成员删除和凭据变化不恢复旧身份 |
+| MVP-10 | 来源/名称/更新/删除、迟到不复活/失败不删数据 | P2-07, P2-15 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 名称/URL头/更新/最后项删除、停止删除迟到、来源校验器及停止释放失败保留配置/代次通过 |
+| MVP-11 | 声明协议/组/基础规则预检/官方加载及脱敏诊断 | P2-04, P2-07, P2-13, P2-21, P2-22, P2-23, P3-10 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 声明字段/官方加载/危险项拒绝/脱敏、固定Geo及内部DNS证据有效；不扩张全协议公网矩阵 |
+| MVP-12 | 首次关键失败/运行回退/manifest前后恢复 | P2-05, P2-09, P2-15 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 首次配置/端口/平台/代理写后落盘、后台平台部分失败、运行补偿及manifest提交前后权威恢复通过 |
+| MVP-13 | 崩溃退避/停止优先、生产worker强杀/Job/下次恢复 | P2-03, P2-09, P2-10, P2-15 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 连续四次恢复/停止打断；当前原生worker强杀、Job/端口清理及下次WinINet租约/事务恢复16.702秒Pass |
+| MVP-14 | 幂等租约/端口迁移/PAC/外部冲突/新快照恢复 | P2-08, P2-14 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 原before幂等、迁移/PAC/自动发现/绕过、冲突/显式新before及原生恢复通过 |
+| MVP-15 | Windows通知接入/受控合并核对、离线有界 | P2-11 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 通知/析构取消、20→1/PID不变/即时Stale/退出忽略及离线有界通过；真实OS事件归P3-14 |
+| MVP-16 | 无内核基本修复/元数据/DPAPI/秘密保护/自设目标 | P2-02, P2-10, P2-12, P2-16 | Pass | [逐条件证据](reports/windows_validation.md#g2本机mvp逐项验收) | 缺core修复、坏/过新元数据只读、DPAPI失败拒绝、日志/诊断脱敏及自设HTTPS当前入口无直连回退通过 |
 
 ## 3. 失效与重跑
 

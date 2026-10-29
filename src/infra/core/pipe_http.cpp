@@ -64,7 +64,7 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
     socket->setReadBufferSize(kReadChunkSize);
     auto* deadline = new QTimer(socket);
     deadline->setSingleShot(true);
-    deadline->start(3500);
+    deadline->start(method == "PUT" && path.startsWith("/providers/") ? 12500 : 3500);
     auto bytes = std::make_shared<QByteArray>();
     auto done = std::make_shared<bool>(false);
     auto finish = [socket, done, handler = std::move(handler)](domain::Result<QJsonObject> value) {
@@ -97,7 +97,7 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
         }
         const auto status = bytes->left(bytes->indexOf("\r\n")).split(' ').value(1).toInt();
         if (status < 200 || status >= 300) {
-            finish(storageError("CoreRequestFailed"));
+            finish(storageError(status == 404 ? "CoreTargetNotFound" : "CoreRequestFailed"));
             return;
         }
         const auto payload = bytes->mid(headerEnd + 4);

@@ -1,5 +1,7 @@
 #pragma once
+#include "domain/log_buffer.h"
 #include "infra/core/pipe_http.h"
+#include "infra/core/service_protocol.h"
 #include "infra/storage/json_store.h"
 #include "platform/windows/owned_process.h"
 #include <QElapsedTimer>
@@ -19,7 +21,7 @@ class ServiceHost final : public QObject {
     void shutdown();
 
   private:
-    [[nodiscard]] bool authenticated(QLocalSocket* socket) const;
+    [[nodiscard]] bool authenticated(QLocalSocket* socket);
     void receive(QLocalSocket* socket);
     void dispatch(QLocalSocket* socket, const QString& id, const QString& action,
                   const QJsonObject& payload);
@@ -35,11 +37,9 @@ class ServiceHost final : public QObject {
     QLocalServer server_;
     QPointer<QLocalSocket> owner_;
     QHash<QLocalSocket*, QByteArray> buffers_;
-    QHash<QLocalSocket*, quint64> ids_;
-    QHash<QString, QJsonObject> results_;
-    QHash<QString, QByteArray> requests_;
-    QStringList resultOrder_;
-    QSet<QString> pending_;
+    QHash<QLocalSocket*, QByteArray> identities_;
+    QHash<QLocalSocket*, QString> sessions_;
+    infra::ServiceProtocol protocol_;
     infra::JsonStore store_;
     OwnedProcess core_;
     OwnedProcess validator_;
@@ -54,12 +54,16 @@ class ServiceHost final : public QObject {
     QString directory_;
     QString pipe_;
     QJsonObject groups_;
+    QSet<QString> providers_;
+    bool providerRefreshPending_ = false;
     quint16 mixedPort_ = 0;
     bool busy_ = false;
     bool ready_ = false;
+    bool tunDesired_ = false;
+    bool configClean_ = false;
     QPointer<QObject> logStream_;
-    QJsonArray logBuffer_;
-    int droppedLogs_ = 0;
+    domain::LogBuffer logBuffer_{200, 512 * 1024};
+    quint64 logSequence_ = 0;
     QMetaObject::Connection validationConnection_;
 };
 } // namespace quickclash::platform

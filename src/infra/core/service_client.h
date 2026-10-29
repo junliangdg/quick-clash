@@ -27,7 +27,11 @@ class ServiceClient final : public QObject {
     QList<QByteArray> pendingWrites_;
     QHash<QString, Handler> handlers_;
     quint64 nextId_ = 0;
+    quint64 closeGeneration_ = 0;
+    QString sessionId_;
     QString epoch_;
+    QString handshakeId_;
+    bool verified_ = false;
     bool failing_ = false;
 };
 } // namespace quickclash::infra

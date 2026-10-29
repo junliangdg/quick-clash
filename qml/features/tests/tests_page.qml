@@ -10,6 +10,25 @@ ScrollView {
     required property ThemeTokens theme
     contentWidth: availableWidth
     clip: true
+    function outcomeText(result): string {
+        const states = {Running: qsTr("Testing"), Reachable: qsTr("Entry reachable"),
+            HttpError: qsTr("HTTP error"), DnsError: qsTr("DNS error"),
+            TlsError: qsTr("TLS error"), ProxyUnavailable: qsTr("Proxy unavailable"),
+            Timeout: qsTr("Timed out"), ResponseLimit: qsTr("Response exceeds 64 KiB"),
+            NetworkError: qsTr("Network error"), Cancelled: qsTr("Cancelled"),
+            Stale: qsTr("Stale"), RedirectBlocked: qsTr("Unsafe redirect blocked"),
+            RedirectLimit: qsTr("Redirect limit or loop")};
+        return (result.stale ? qsTr("Stale") + " · " : "") + (states[result.state] || result.state || "");
+    }
+    function resultDetails(result): string {
+        return outcomeText(result) + " · HTTP " + (result.status || "—")
+            + " · " + (result.elapsedMs === undefined ? "—" : result.elapsedMs) + " ms · "
+            + (result.resolved || result.path || "") + " · " + (result.mode || "")
+            + "\n" + (result.finalOrigin || "") + " · " + (result.time || "")
+            + "\n" + Object.keys(result.selections || {}).map(function (name) {
+                return name + ": " + result.selections[name];
+            }).join(" · ");
+    }
     Connections {
         target: root.ui
         function onUiVisibleChanged(): void { if (!root.ui.uiVisible) root.ui.runtimeCommand("cancel_test"); }
@@ -34,6 +53,8 @@ ScrollView {
             ThemedComboBox {
                 theme: root.theme
                 id: route
+                objectName: "website_route"
+                Accessible.name: qsTr("Request path")
                 Layout.fillWidth: true
                 model: [{key: "CurrentProxy", label: qsTr("Current proxy")}, {key: "Direct", label: qsTr("Direct (system routes still apply)")}, {key: "SystemDefault", label: qsTr("System proxy settings")}]
                 textRole: "label"
@@ -41,6 +62,8 @@ ScrollView {
             ThemedTextArea {
                 theme: root.theme
                 id: target
+                objectName: "website_targets"
+                Accessible.name: qsTr("HTTPS website targets")
                 Layout.fillWidth: true
                 placeholderText: qsTr("https://your-website.example")
                 wrapMode: TextEdit.Wrap
@@ -48,7 +71,7 @@ ScrollView {
                 text: root.ui.runtime.testTarget || ""
             }
             Label {
-                text: qsTr("Enter up to 8 HTTPS URLs, one per line. Requests run one at a time, with a 64 KiB and 12 second limit. Redirects are reported. Direct requests still follow TUN and system routes.")
+                text: qsTr("Enter up to 8 HTTPS URLs, one per line. Each request follows up to 3 HTTPS redirects within one 64 KiB and 12 second limit. Requests run one at a time without cookies. Direct requests still follow TUN and system routes. A reachable entry does not prove node forwarding.")
                 color: root.theme.muted
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -78,8 +101,7 @@ ScrollView {
             Label {
                 text: {
                     const result = (root.ui.runtime.features || {}).websiteTest || {};
-                    const states = {Running: qsTr("Testing"), Reachable: qsTr("Reachable"), Redirect: qsTr("Redirect"), HttpError: qsTr("HTTP error"), TlsError: qsTr("TLS error"), Timeout: qsTr("Timed out"), ResponseLimit: qsTr("Response exceeds 64 KiB"), NetworkError: qsTr("Network error"), Cancelled: qsTr("Cancelled")};
-                    return result.state ? (states[result.state] || result.state) + " · HTTP " + (result.status || "—") + " · " + (result.elapsedMs || "—") + " ms · " + (result.resolved || result.path || "") + " · " + (result.time || "") : "";
+                    return result.state ? root.resultDetails(result) : "";
                 }
                 color: root.theme.muted
                 Layout.fillWidth: true
@@ -93,7 +115,7 @@ ScrollView {
                 model: ((root.ui.runtime.features || {}).testHistory || []).slice().reverse()
                 delegate: Label {
                     required property var modelData
-                    text: (modelData.target || "") + "\n" + modelData.time + " · " + modelData.path + " · HTTP " + (modelData.status || "—") + " · " + modelData.elapsedMs + " ms"
+                    text: (modelData.target || "") + "\n" + root.resultDetails(modelData)
                     color: root.theme.text
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

@@ -100,10 +100,13 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
         if (it.key() == QStringLiteral("samples") || it.key() == QStringLiteral("traffic") ||
             it.key() == QStringLiteral("resources") ||
             it.key() == QStringLiteral("connection_status") ||
-            it.key() == QStringLiteral("log_status")) {
+            it.key() == QStringLiteral("log_status") || it.key() == QStringLiteral("rule_status") ||
+            it.key() == QStringLiteral("provider_status")) {
             telemetryChanged = true;
         } else if (it.key() == QStringLiteral("profiles")) {
             emit profilesChanged();
+        } else if (it.key() == QStringLiteral("editor")) {
+            emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
             groups_ = it.value().toArray().toVariantList();
             emit groupsChanged();
@@ -130,6 +133,8 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
 }
 void UiState::clearChannel(const QString& channel) {
     appliedData_.remove(channel);
+    if (channel == QStringLiteral("editor"))
+        emit editorChanged();
     if (channel == QStringLiteral("connections"))
         liveConnections_.release();
     else if (channel == QStringLiteral("rules"))
@@ -162,7 +167,8 @@ void UiState::clearTrafficHistory() {
 }
 void UiState::refreshTelemetry() {
     QJsonObject combined = appliedData_.value(QStringLiteral("samples")).toObject();
-    for (const auto* key : {"traffic", "resources", "connection_status", "log_status"}) {
+    for (const auto* key : {"traffic", "resources", "connection_status", "log_status",
+                            "rule_status", "provider_status"}) {
         const auto fields = appliedData_.value(QLatin1String(key)).toObject();
         for (auto it = fields.constBegin(); it != fields.constEnd(); ++it)
             combined.insert(it.key(), it.value());
@@ -211,7 +217,8 @@ QJsonObject UiState::diagnosticSnapshot() const {
         if (it.key() != QStringLiteral("samples") && it.key() != QStringLiteral("nodes") &&
             it.key() != QStringLiteral("traffic") && it.key() != QStringLiteral("resources") &&
             it.key() != QStringLiteral("connection_status") &&
-            it.key() != QStringLiteral("log_status"))
+            it.key() != QStringLiteral("log_status") && it.key() != QStringLiteral("rule_status") &&
+            it.key() != QStringLiteral("provider_status") && it.key() != QStringLiteral("editor"))
             result.insert(it.key(), it.value());
     result.insert(
         QStringLiteral("dataLifecycle"),
@@ -227,7 +234,7 @@ QVariantList UiState::navigation() const {
                                                   "rules", "logs", "tests", "settings"})) {
         items.append(QVariantMap{{QStringLiteral("pageId"), feature.id},
                                  {QStringLiteral("title"), feature.title},
-                                 {QStringLiteral("glyph"), feature.glyph},
+                                 {QStringLiteral("icon"), feature.icon},
                                  {QStringLiteral("availability"), feature.availability}});
     }
     return items;
@@ -254,7 +261,7 @@ QVariantList UiState::compactNavigation() const {
          registry_.project({"home", "proxies", "subscriptions", "settings"})) {
         items.append(QVariantMap{{QStringLiteral("pageId"), feature.id},
                                  {QStringLiteral("title"), feature.title},
-                                 {QStringLiteral("glyph"), feature.glyph}});
+                                 {QStringLiteral("icon"), feature.icon}});
     }
     return items;
 }
@@ -278,6 +285,60 @@ QString UiState::runtimeStatus() const {
 }
 QString UiState::runtimeError() const {
     const auto code = runtime_.value(QStringLiteral("error")).toString();
+    if (code == QStringLiteral("CorePlatformUnsupported") ||
+        code == QStringLiteral("CredentialStoreUnsupported") ||
+        code == QStringLiteral("SystemProxyUnsupported") ||
+        code == QStringLiteral("ServicePlatformUnsupported"))
+        return tr("This feature is not available on this platform yet.");
+    if (code == QStringLiteral("ServiceSessionBusy"))
+        return tr("The Windows service is in use by another client. Close that session first.");
+    if (code == QStringLiteral("ServiceProtocolMismatch") ||
+        code == QStringLiteral("ServiceHandshakeRequired"))
+        return tr(
+            "The Windows service is incompatible. Install the service from the same package.");
+    if (code == QStringLiteral("ServiceIdentityRejected"))
+        return tr("The Windows service identity could not be verified. Check the protected "
+                  "installation.");
+    if (code == QStringLiteral("StoragePreviewStale"))
+        return tr("Data changed or the confirmation expired. Preview the operation again.");
+    if (code == QStringLiteral("MaintenanceUnavailable"))
+        return tr("Finish active operations, stop the core and resolve the system proxy lease "
+                  "before repairing data.");
+    if (code == QStringLiteral("StorageBudgetExceeded"))
+        return tr("The log storage budget is full. Review storage cleanup before exporting again.");
+    if (code == QStringLiteral("RecoveryArchiveIncomplete"))
+        return tr("Data archival was interrupted. Keep the data and recovery folders, and follow "
+                  "the recovery guide before restarting normally.");
+    if (code == QStringLiteral("RecoveryArchiveFailed"))
+        return tr("Data could not be archived. Original data was restored; check folder access and "
+                  "try again.");
+    if (code == QStringLiteral("SchemaTooNew"))
+        return tr("These data require a newer QuickClash version. Keep the originals or archive "
+                  "them before importing compatible data.");
+    if (code == QStringLiteral("InvalidBackup"))
+        return tr(
+            "The backup format, size or checksum is invalid. Existing profiles are preserved.");
+    if (code == QStringLiteral("BackupPreviewRequired"))
+        return tr("Preview this backup again before confirming the restore.");
+    if (code == QStringLiteral("BackupValidationFailed"))
+        return tr("Core validation failed. No profiles were restored.");
+    if (code == QStringLiteral("BackupLimitExceeded"))
+        return tr("The backup exceeds the supported size limit.");
+    if (code == QStringLiteral("BackupLocalFileRequired"))
+        return tr("Choose a readable local backup file.");
+    if (code == QStringLiteral("EditorConflict"))
+        return tr(
+            "The profile changed. Compare the draft, save a copy, or load the latest version.");
+    if (code == QStringLiteral("InvalidOverlay"))
+        return tr("Invalid override operations or managed fields. Check set, remove and rules.");
+    if (code == QStringLiteral("EditorPreviewRequired"))
+        return tr("Validate and review a fresh preview before saving and applying.");
+    if (code == QStringLiteral("EditorLimitExceeded"))
+        return tr("The editor supports up to 1 MiB. Import larger profiles from a file.");
+    if (code == QStringLiteral("EditorUtf8Required"))
+        return tr("The editor requires UTF-8. Convert the source file before editing.");
+    if (code == QStringLiteral("InvalidEditorDraft"))
+        return tr("The saved draft is invalid. Load the latest version to replace it.");
     const auto issues = runtime_.value(QStringLiteral("configIssues")).toList();
     if (!issues.isEmpty()) {
         QStringList lines;
@@ -315,6 +376,27 @@ QString UiState::runtimeError() const {
     if (code == QStringLiteral("GeoResourceIntegrityFailed"))
         return tr("The bundled Geo data is missing or damaged. Restore the complete application "
                   "package.");
+    if (code == QStringLiteral("GeoResourceDownloadFailed"))
+        return tr("Unable to download both Geo databases. The previous snapshot is kept.");
+    if (code == QStringLiteral("ProviderCacheUnavailable"))
+        return tr("A saved provider resource is missing or damaged. Update the full subscription "
+                  "to repair it.");
+    if (code == QStringLiteral("ProviderModeMismatch"))
+        return tr("This provider uses core runtime mode. Refresh it from the providers page.");
+    if (code == QStringLiteral("ProviderRefreshUncertain"))
+        return tr("The provider refresh response timed out. The core may still complete it. Check "
+                  "the provider state before retrying.");
+    if (code == QStringLiteral("ProviderDownloadFailed") ||
+        code == QStringLiteral("InvalidProviderPayload") ||
+        code == QStringLiteral("InvalidProviderConfig"))
+        return tr(
+            "The provider could not be downloaded or validated. The previous version is kept.");
+    if (code == QStringLiteral("ProviderLimitExceeded") ||
+        code == QStringLiteral("ProviderHttpsRequired") ||
+        code == QStringLiteral("UnsupportedProviderField") ||
+        code == QStringLiteral("UnsupportedProviderFormat"))
+        return tr("Use at most 32 HTTPS providers, 4 MiB each and 16 MiB total, with supported "
+                  "YAML or text payloads.");
     if (code == QStringLiteral("ProxyGroupAutomatic"))
         return tr("Clash Meta (mihomo) manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))
@@ -322,9 +404,15 @@ QString UiState::runtimeError() const {
     if (code == QStringLiteral("InvalidSubscriptionSchedule"))
         return tr("Choose a subscription update interval between 15 minutes and 7 days, or manual "
                   "updates.");
-    if (code == QStringLiteral("SubscriptionRedirectUnsupported"))
+    if (code == QStringLiteral("SubscriptionRedirectBlocked"))
+        return tr("The subscription redirect is unsafe, loops or exceeds five redirects.");
+    if (code == QStringLiteral("SubscriptionProxyUnavailable"))
+        return tr("Start the core before downloading through the running proxy, or choose Direct.");
+    if (code == QStringLiteral("InvalidSubscriptionRoute"))
+        return tr("Choose Direct, Running proxy or Auto for subscription downloads.");
+    if (code == QStringLiteral("SubscriptionCacheInvalid"))
         return tr(
-            "The subscription redirected to another URL. Enter the final HTTPS subscription URL.");
+            "The server returned no content after an unconditional request. Try again later.");
     if (code == QStringLiteral("SubscriptionDownloadFailed"))
         return tr("Unable to download the subscription. Check the network, HTTPS certificate and "
                   "subscription validity.");
@@ -336,6 +424,10 @@ QString UiState::runtimeError() const {
             "Enter a valid HTTPS subscription URL without embedded login details or a fragment.");
     if (code == QStringLiteral("InvalidDelayTarget"))
         return tr("Enter a valid HTTPS node delay target without login details or a fragment.");
+    if (code == QStringLiteral("InvalidNetworkSettings"))
+        return tr(
+            "Choose different proxy and controller ports from 1024 to 65535, a supported mode "
+            "and DNS policy.");
     return code;
 }
 QUrl UiState::pageSource() const {
@@ -387,6 +479,8 @@ void UiState::setUiVisible(bool visible) {
     if (uiVisible_ == visible) {
         return;
     }
+    if (!visible)
+        emit uiAboutToHide();
     uiVisible_ = visible;
     if (!visible) {
         demands_.clear();

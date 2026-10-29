@@ -7,13 +7,56 @@ import QuickClash.Ui
 
 ScrollView {
     id: root
+    objectName: "settings_page"
     required property UiState ui
     required property ThemeTokens theme
     contentWidth: availableWidth
     clip: true
+    property var pendingNetworkArgs: []
+    property var pendingBackupPreview: ({})
+    property var pendingMaintenancePreview: ({})
+    readonly property var settingsState: ui.runtime.settingsState || ({})
+    function requestNetworkSettings(): void {
+        pendingNetworkArgs = [outboundMode.model[outboundMode.currentIndex].key, mixedPort.value.toString(), controllerPort.value.toString(), dnsMode.model[dnsMode.currentIndex].key, ui.runtime.epoch || "", ui.runtime.selectionGeneration || "0"];
+        networkConfirmation.open();
+    }
+    function networkSummary(value): string {
+        return qsTr("Mode %1 · proxy port %2 · controller port %3 · DNS %4").arg(value.mode || "—").arg(value.mixedPort || "—").arg(value.controllerPort || "—").arg(value.dnsMode || "profile");
+    }
     ThemedDialog {
+        id: networkConfirmation
+        objectName: "network_settings_confirmation"
         theme: root.theme
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(560, parent.width - 32)
+        height: Math.min(360, parent.height - 32)
+        implicitHeight: height
+        title: qsTr("Apply network settings?")
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: ScrollView {
+            id: networkConfirmationBody
+            contentWidth: availableWidth
+            clip: true
+            Label {
+                width: networkConfirmationBody.availableWidth
+                wrapMode: Text.WordWrap
+                color: root.theme.text
+                text: root.networkSummary({
+                    mode: root.pendingNetworkArgs[0],
+                    mixedPort: root.pendingNetworkArgs[1],
+                    controllerPort: root.pendingNetworkArgs[2],
+                    dnsMode: root.pendingNetworkArgs[3]
+                }) + "\n" + (root.ui.runtime.ready ? qsTr("The core restarts once and active connections are interrupted. If applying fails, QuickClash restores the confirmed settings.") : qsTr("These settings are saved for the next core session. They are not active while the core is stopped."))
+            }
+        }
+        onAccepted: root.ui.runtimeCommand("network_settings", root.pendingNetworkArgs)
+        onClosed: root.pendingNetworkArgs = []
+    }
+    ThemedDialog {
         id: geoConfirmation
+        theme: root.theme
         title: qsTr("Download and apply Geo databases?")
         modal: true
         anchors.centerIn: parent
@@ -26,47 +69,175 @@ ScrollView {
         onAccepted: root.ui.runtimeCommand("update_geo")
     }
     ThemedDialog {
-        theme: root.theme
         id: geoRollback
+        theme: root.theme
         title: qsTr("Restore the previous Geo snapshot?")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.ui.runtimeCommand("rollback_geo", ["confirmed"])
     }
+    ThemedDialog {
+        id: geoBundled
+        theme: root.theme
+        title: qsTr("Use the bundled Geo databases?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        Label {
+            width: Math.min(360, root.availableWidth - 40)
+            wrapMode: Text.WordWrap
+            text: qsTr("Validates the offline databases from the application package and applies them together. The current snapshot remains available for rollback.")
+        }
+        onAccepted: root.ui.runtimeCommand("bundled_geo", ["confirmed"])
+    }
     FileDialog {
         id: restoreFile
         title: qsTr("Restore offline profiles")
         nameFilters: [qsTr("QuickClash backup (*.json)")]
-        onAccepted: restoreConfirmation.open()
+        onAccepted: root.ui.runtimeCommand("preview_backup", [selectedFile.toString()])
+    }
+    Connections {
+        target: root.ui
+        function onRuntimeChanged() {
+            const maintenance = (root.ui.runtime.features || {}).maintenancePreview;
+            if (root.ui.uiVisible && maintenance && !maintenanceConfirmation.visible) {
+                root.pendingMaintenancePreview = maintenance;
+                maintenanceConfirmation.open();
+            }
+            const preview = (root.ui.runtime.features || {}).backupPreview;
+            if (root.ui.uiVisible && preview && !restoreConfirmation.visible) {
+                root.pendingBackupPreview = preview;
+                restoreConfirmation.open();
+            }
+        }
+        function onUiAboutToHide() {
+            maintenanceConfirmation.close();
+            root.ui.runtimeCommand("cancel_maintenance");
+            restoreConfirmation.close();
+            root.ui.runtimeCommand("cancel_backup_restore");
+        }
+    }
+    Component.onDestruction: {
+        root.ui.runtimeCommand("cancel_backup_restore");
+        root.ui.runtimeCommand("cancel_maintenance");
     }
     ThemedDialog {
+        id: maintenanceConfirmation
+        objectName: "maintenance_confirmation"
         theme: root.theme
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(560, parent.width - 32)
+        height: Math.min(540, parent.height - 32)
+        implicitHeight: height
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        title: root.pendingMaintenancePreview.kind === "diagnostics" ? qsTr("Export this support package?") : root.pendingMaintenancePreview.kind === "repair_preview" ? qsTr("Archive data and start fresh?") : qsTr("Review storage cleanup")
+        contentItem: ScrollView {
+            id: maintenanceBody
+            contentWidth: availableWidth
+            clip: true
+            ColumnLayout {
+                width: maintenanceBody.availableWidth
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: root.pendingMaintenancePreview.kind === "diagnostics" ? qsTr("Includes version, fixed settings, state and log counts. Excludes log messages, names, addresses, paths, URLs, credentials and connection targets. Nothing is uploaded.") : root.pendingMaintenancePreview.kind === "repair_preview" ? qsTr("Preserves all current data in a private recovery folder. Restart QuickClash to use an empty store, then import a compatible backup or configuration. Newer schemas are not converted. Recovery archives may contain plain text credentials; keep them private.") : qsTr("Budgets: 1 GiB total, 64 MiB temporary cache, 15 MiB exported logs. Removes old disposable files only when over budget. Referenced configurations, history, drafts, transactions, core caches, backups and recovery archives are retained. Protected data can keep usage above budget.")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WrapAnywhere
+                    textFormat: Text.PlainText
+                    text: root.pendingMaintenancePreview.text || ""
+                }
+            }
+        }
+        onAccepted: root.ui.runtimeCommand("confirm_maintenance", [root.pendingMaintenancePreview.token, root.pendingMaintenancePreview.kind])
+        onRejected: root.ui.runtimeCommand("cancel_maintenance")
+        onClosed: root.pendingMaintenancePreview = ({})
+    }
+    ThemedDialog {
         id: backupConfirmation
+        objectName: "backup_confirmation"
+        theme: root.theme
+        parent: Overlay.overlay
         title: qsTr("Create sensitive local backup?")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Label {
-            width: Math.min(360, root.availableWidth - 40)
-            wrapMode: Text.WordWrap
-            text: qsTr("The backup contains node credentials as plain text. It excludes subscription URLs, session secrets and system proxy leases. Keep it private.")
+        width: Math.min(560, parent.width - 32)
+        height: Math.min(440, parent.height - 32)
+        implicitHeight: height
+        contentItem: ScrollView {
+            id: backupBody
+            contentWidth: availableWidth
+            clip: true
+            ColumnLayout {
+                width: backupBody.availableWidth
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("The backup contains node credentials as plain text. It excludes saved subscription credentials, generated session secrets and system proxy leases. Original YAML may contain resource URLs. Keep it private.")
+                }
+                ThemedComboBox {
+                    id: backupScope
+                    Accessible.name: qsTr("Backup content")
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    model: [qsTr("Offline expanded profiles"), qsTr("Original YAML and overrides (includes resource URLs)")]
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Excludes drafts, history, settings and Geo files. Limit: 10 MiB of decoded content; stored JSON up to 16 MiB. Source backups include a saved provider snapshot for offline restoration.")
+                }
+            }
         }
-        onAccepted: root.ui.runtimeCommand("backup", ["confirmed"])
+        onAccepted: root.ui.runtimeCommand("backup", ["confirmed", backupScope.currentIndex === 1 ? "source" : "offline"])
     }
     ThemedDialog {
-        theme: root.theme
         id: restoreConfirmation
+        objectName: "backup_restore_confirmation"
+        theme: root.theme
+        parent: Overlay.overlay
         title: qsTr("Import profiles from this backup?")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
-        Label {
-            width: Math.min(360, root.availableWidth - 40)
-            wrapMode: Text.WordWrap
-            text: qsTr("Verified profiles are added as new offline profiles. Existing profiles, running sessions and proxy settings are preserved.")
+        width: Math.min(560, parent.width - 32)
+        height: Math.min(550, parent.height - 32)
+        implicitHeight: height
+        contentItem: ScrollView {
+            id: restoreBody
+            contentWidth: availableWidth
+            clip: true
+            ColumnLayout {
+                width: restoreBody.availableWidth
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Verified profiles are added as new offline profiles. Existing profiles, running sessions and proxy settings are preserved.")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Contains node credentials. Scope: %1 · Decoded bytes: %2. Original YAML may include provider URLs. No history, drafts, Geo files, settings or old sessions are restored.").arg(root.pendingBackupPreview.scope === "source" ? qsTr("Original YAML and overrides") : qsTr("Offline expanded profiles")).arg(root.pendingBackupPreview.decodedBytes || "—")
+                }
+                Repeater {
+                    model: root.pendingBackupPreview.profiles || []
+                    delegate: Label {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAnywhere
+                        text: qsTr("%1 · Overrides: %2 · Provider snapshot: %3").arg(modelData.name).arg(modelData.overrides ? qsTr("Yes") : qsTr("No")).arg(modelData.snapshot ? qsTr("Yes") : qsTr("No"))
+                    }
+                }
+            }
         }
-        onAccepted: root.ui.runtimeCommand("restore_backup", [restoreFile.selectedFile.toString(), "confirmed"])
+        onRejected: root.ui.runtimeCommand("cancel_backup_restore")
+        onAccepted: root.ui.runtimeCommand("restore_backup", [root.pendingBackupPreview.token || "", "confirmed"])
+        onClosed: root.pendingBackupPreview = ({})
     }
     ColumnLayout {
         width: root.availableWidth
@@ -185,8 +356,8 @@ ScrollView {
                     wrapMode: Text.WordWrap
                 }
                 ThemedField {
-                    theme: root.theme
                     id: delayTarget
+                    theme: root.theme
                     objectName: "delay_target"
                     Layout.fillWidth: true
                     text: root.ui.runtime.delayTarget || "https://www.gstatic.com/generate_204"
@@ -228,32 +399,72 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
+                Label {
+                    objectName: "network_settings_state"
+                    text: qsTr("Saved: %1").arg(root.networkSummary(root.settingsState.saved || {})) + "\n" + (root.settingsState.running ? qsTr("Active: %1").arg(root.networkSummary(root.settingsState.effective || {})) : qsTr("Core stopped · saved settings are not active")) + (root.settingsState.pending ? "\n" + qsTr("Applying requested settings: %1").arg(root.networkSummary(root.settingsState.requested || {})) : "")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    text: qsTr("System proxy · requested %1 · active %2; TUN · requested %3 · active %4").arg((root.ui.runtime.preferences || {}).systemProxyDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.systemProxy ? qsTr("On") : qsTr("Off")).arg((root.ui.runtime.preferences || {}).tunDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.tunState === "On" ? qsTr("On") : qsTr("Off"))
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
                 ThemedSwitch {
                     theme: root.theme
                     text: qsTr("System proxy")
-                    checked: !!root.ui.runtime.systemProxy || !!(root.ui.runtime.preferences || {}).systemProxyDesired
-                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                    objectName: "settings_system_proxy"
+                    checked: !!root.ui.runtime.systemProxy
+                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly && (root.ui.runtime.capabilities || {}).systemProxy !== "Unsupported"
                     onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                     palette.windowText: root.theme.text
                 }
                 ThemedSwitch {
                     theme: root.theme
                     text: qsTr("Virtual network adapter (TUN)")
-                    checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
-                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                    objectName: "settings_tun"
+                    checked: root.ui.runtime.tunState === "On"
+                    enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly && (root.ui.runtime.capabilities || {}).tun !== "Unsupported"
                     onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
                     palette.windowText: root.theme.text
                 }
+                ThemedComboBox {
+                    id: outboundMode
+                    Accessible.name: qsTr("Routing mode")
+                    objectName: "settings_outbound_mode"
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    textRole: "label"
+                    model: [
+                        {
+                            key: "rule",
+                            label: qsTr("Rule")
+                        },
+                        {
+                            key: "global",
+                            label: qsTr("Global")
+                        },
+                        {
+                            key: "direct",
+                            label: qsTr("Direct")
+                        }
+                    ]
+                    currentIndex: Math.max(0, model.findIndex(entry => entry.key === ((root.ui.runtime.preferences || {}).mode || "rule")))
+                    enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                }
                 GridLayout {
-                    columns: root.availableWidth >= 600 ? 4 : 2
+                    columns: root.availableWidth >= root.theme.scaledSize(600) ? 4 : root.availableWidth >= root.theme.scaledSize(360) ? 2 : 1
                     Layout.fillWidth: true
                     Label {
                         text: qsTr("Proxy port")
                         color: root.theme.text
                     }
                     ThemedSpinBox {
-                        theme: root.theme
                         id: mixedPort
+                        Accessible.name: qsTr("Proxy port")
+                        theme: root.theme
                         objectName: "mixed_port"
                         from: 1024
                         to: 65535
@@ -266,8 +477,9 @@ ScrollView {
                         color: root.theme.text
                     }
                     ThemedSpinBox {
-                        theme: root.theme
                         id: controllerPort
+                        Accessible.name: qsTr("Controller port")
+                        theme: root.theme
                         objectName: "controller_port"
                         from: 1024
                         to: 65535
@@ -281,9 +493,10 @@ ScrollView {
                     spacing: 8
                     ActionButton {
                         theme: root.theme
-                        text: qsTr("Apply ports")
+                        text: qsTr("Apply network settings…")
+                        objectName: "apply_network_settings"
                         enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
-                        onClicked: root.ui.runtimeCommand("ports", [mixedPort.value.toString(), controllerPort.value.toString()])
+                        onClicked: root.requestNetworkSettings()
                     }
                     ActionButton {
                         theme: root.theme
@@ -326,6 +539,7 @@ ScrollView {
                     theme: root.theme
                     visible: !!root.ui.runtime.effectivePreview
                     text: root.ui.runtime.effectivePreview || ""
+                    Accessible.name: qsTr("Effective profile preview")
                     readOnly: true
                     selectByMouse: true
                     wrapMode: TextEdit.Wrap
@@ -357,14 +571,15 @@ ScrollView {
                     font.weight: Font.DemiBold
                 }
                 Label {
-                    text: qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
+                    text: (root.ui.runtime.capabilities || {}).tun === "Unsupported" ? qsTr("System proxy and TUN are not available on this platform yet.") : qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
                 ThemedComboBox {
-                    theme: root.theme
                     id: dnsMode
+                    Accessible.name: qsTr("DNS mode")
+                    theme: root.theme
                     Layout.fillWidth: true
                     model: [
                         {
@@ -388,14 +603,14 @@ ScrollView {
                     spacing: 8
                     ActionButton {
                         theme: root.theme
-                        text: qsTr("Apply DNS mode")
-                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy
-                        onClicked: root.ui.runtimeCommand("dns_mode", [dnsMode.model[dnsMode.currentIndex].key])
+                        text: qsTr("Review and apply network settings…")
+                        enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onClicked: root.requestNetworkSettings()
                     }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Clear DNS cache")
-                        enabled: !!root.ui.runtime.ready && !root.ui.runtime.busy
+                        enabled: !!root.ui.runtime.ready && !root.ui.runtime.busy && (root.ui.runtime.features || {}).dnsResult !== "Clearing"
                         onClicked: root.ui.runtimeCommand("flush_dns")
                     }
                     ActionButton {
@@ -407,8 +622,20 @@ ScrollView {
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Roll back Geo databases…")
-                        enabled: !!(root.ui.runtime.preferences || {}).geoSnapshot && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        enabled: !!root.ui.runtime.selectedId && (root.ui.runtime.preferences || {}).previousGeoSnapshot !== undefined && !root.ui.runtime.busy && !root.ui.runtime.readOnly && root.ui.runtime.tunState !== "On"
                         onClicked: geoRollback.open()
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Use bundled Geo databases…")
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        onClicked: geoBundled.open()
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Cancel Geo update")
+                        visible: ["Downloading", "Validating"].indexOf((root.ui.runtime.features || {}).geoResult || "") >= 0
+                        onClicked: root.ui.runtimeCommand("cancel_geo")
                     }
                     ActionButton {
                         theme: root.theme
@@ -420,6 +647,25 @@ ScrollView {
                         text: qsTr("Open diagnostics")
                         visible: !!(root.ui.runtime.features || {}).exportUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.features.exportUrl)
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Review storage cleanup")
+                        enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onClicked: root.ui.runtimeCommand("storage_preview")
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Archive damaged data…")
+                        visible: !!root.ui.runtime.readOnly
+                        enabled: !root.ui.runtime.ready && !root.ui.runtime.busy && !(root.ui.runtime.features || {}).recoveryArchiveUrl
+                        onClicked: root.ui.runtimeCommand("repair_preview")
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Open recovery archive")
+                        visible: !!(root.ui.runtime.features || {}).recoveryArchiveUrl
+                        onClicked: Qt.openUrlExternally(root.ui.runtime.features.recoveryArchiveUrl)
                     }
                     ActionButton {
                         theme: root.theme
@@ -439,9 +685,51 @@ ScrollView {
                         visible: !!(root.ui.runtime.features || {}).backupUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.dataUrl + "/backups")
                     }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Cancel profile restore")
+                        visible: (root.ui.runtime.features || {}).backupResult === "Restoring"
+                        onClicked: root.ui.runtimeCommand("cancel_backup_restore")
+                    }
                 }
                 Label {
-                    text: ((root.ui.runtime.features || {}).dnsResult || "") + " · " + ((root.ui.runtime.features || {}).backupResult || "") + " · " + ((root.ui.runtime.features || {}).geoResult || "")
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: {
+                        const features = root.ui.runtime.features || {};
+                        if (features.maintenanceResult === "RestartRequired")
+                            return qsTr("Data archived. Restart QuickClash to finish recovery. The archive is never removed automatically.");
+                        const result = features.storageCleanup;
+                        return result ? qsTr("Removed %1 files · Reclaimed %2 bytes").arg(result.removedFiles).arg(result.reclaimedBytes) + (result.budgetSatisfied ? "" : " · " + qsTr("Protected data still exceeds the storage budget.")) : "";
+                    }
+                }
+                Label {
+                    text: {
+                        const status = (root.ui.runtime.features || {}).dnsResult || "";
+                        const labels = {
+                            Clearing: qsTr("Clearing DNS cache…"),
+                            Cleared: qsTr("DNS cache cleared"),
+                            Failed: qsTr("DNS cache could not be cleared")
+                        };
+                        const geoLabels = {
+                            Downloading: qsTr("Downloading both Geo databases…"),
+                            Validating: qsTr("Validating Geo databases…"),
+                            Applying: qsTr("Applying Geo databases…"),
+                            Applied: qsTr("Geo snapshot saved"),
+                            Unchanged: qsTr("Geo databases are unchanged"),
+                            Failed: qsTr("Geo update failed; previous snapshot kept"),
+                            Cancelled: qsTr("Geo update cancelled")
+                        };
+                        const backupLabels = {
+                            Saved: qsTr("Sensitive backup saved"),
+                            Preview: qsTr("Review the backup before importing"),
+                            Restoring: qsTr("Validating profiles for restore…"),
+                            Restored: qsTr("Profiles restored"),
+                            Failed: qsTr("Profile restore failed; existing profiles kept"),
+                            Cancelled: qsTr("Profile restore cancelled")
+                        };
+                        return (labels[status] || "") + " · " + (backupLabels[(root.ui.runtime.features || {}).backupResult] || "") + " · " + (geoLabels[(root.ui.runtime.features || {}).geoResult] || "");
+                    }
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -472,8 +760,8 @@ ScrollView {
                     Layout.fillWidth: true
                 }
                 ThemedCheckBox {
-                    theme: root.theme
                     id: unloadOption
+                    theme: root.theme
                     font.family: root.theme.fontFamily
                     text: qsTr("Low memory: unload after 5 seconds hidden or minimized (experimental)")
                     Layout.fillWidth: true

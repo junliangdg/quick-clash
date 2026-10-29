@@ -54,22 +54,37 @@ ScrollView {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Label { text: "▤"; color: root.theme.muted; font.pixelSize: 17 }
-                        Label { text: qsTr("Current subscription"); color: root.theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                        Label {
+                            text: "▤"
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(17)
+                        }
+                        Label {
+                            text: qsTr("Current subscription")
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(12)
+                            Layout.fillWidth: true
+                        }
                         Rectangle {
                             visible: !!root.selectedId
                             implicitWidth: activeProfileText.implicitWidth + 12
                             implicitHeight: 22
                             radius: 4
                             color: root.theme.accentSurface
-                            Label { id: activeProfileText; anchors.centerIn: parent; text: qsTr("Active"); color: root.theme.onSelection; font.pixelSize: 12 }
+                            Label {
+                                id: activeProfileText
+                                anchors.centerIn: parent
+                                text: qsTr("Active")
+                                color: root.theme.onSelection
+                                font.pixelSize: root.theme.scaledSize(12)
+                            }
                         }
                     }
                     Label {
                         text: root.ui.runtime.selectedName || qsTr("Start with a subscription")
                         textFormat: Text.PlainText
                         color: root.theme.text
-                        font.pixelSize: 20
+                        font.pixelSize: root.theme.scaledSize(20)
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                         elide: Text.ElideRight
@@ -77,12 +92,20 @@ ScrollView {
                     Label {
                         text: qsTr("%1 proxy groups · %2 nodes").arg(root.ui.groups.length).arg(root.ui.nodes.length)
                         color: root.theme.muted
-                        font.pixelSize: 12
+                        font.pixelSize: root.theme.scaledSize(12)
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
-                    SubscriptionDetails { visible: !!root.selectedId; Layout.fillWidth: true; theme: root.theme; profile: root.selectedProfile; overview: true }
-                    Item { Layout.fillHeight: true }
+                    SubscriptionDetails {
+                        visible: !!root.selectedId
+                        Layout.fillWidth: true
+                        theme: root.theme
+                        profile: root.selectedProfile
+                        overview: true
+                    }
+                    Item {
+                        Layout.fillHeight: true
+                    }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Add subscription")
@@ -107,9 +130,22 @@ ScrollView {
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 8
-                        Label { text: "⌁"; color: root.theme.muted; font.pixelSize: 17 }
-                        Label { text: qsTr("Network traffic"); color: root.theme.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                        Label { text: qsTr("Last 60 seconds"); color: root.theme.muted; font.pixelSize: 12 }
+                        Label {
+                            text: "⌁"
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(17)
+                        }
+                        Label {
+                            text: qsTr("Network traffic")
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(12)
+                            Layout.fillWidth: true
+                        }
+                        Label {
+                            text: qsTr("Last 60 seconds")
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(12)
+                        }
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -118,13 +154,31 @@ ScrollView {
                             spacing: 4
                             RowLayout {
                                 spacing: 6
-                                Rectangle { implicitWidth: 6; implicitHeight: 6; radius: 3; color: root.theme.download }
-                                Label { text: qsTr("Download"); color: root.theme.muted; font.pixelSize: 12 }
+                                Rectangle {
+                                    implicitWidth: 6
+                                    implicitHeight: 6
+                                    radius: 3
+                                    color: root.theme.download
+                                }
+                                Label {
+                                    text: qsTr("Download")
+                                    color: root.theme.muted
+                                    font.pixelSize: root.theme.scaledSize(12)
+                                }
                             }
                             RowLayout {
                                 spacing: 6
-                                Rectangle { implicitWidth: 6; implicitHeight: 6; radius: 3; color: root.theme.upload }
-                                Label { text: qsTr("Upload"); color: root.theme.muted; font.pixelSize: 12 }
+                                Rectangle {
+                                    implicitWidth: 6
+                                    implicitHeight: 6
+                                    radius: 3
+                                    color: root.theme.upload
+                                }
+                                Label {
+                                    text: qsTr("Upload")
+                                    color: root.theme.muted
+                                    font.pixelSize: root.theme.scaledSize(12)
+                                }
                             }
                         }
                         Repeater {
@@ -136,11 +190,13 @@ ScrollView {
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 spacing: 4
-                                Item { Layout.fillWidth: true }
+                                Item {
+                                    Layout.fillWidth: true
+                                }
                                 Label {
                                     text: rateMetric.unitOffset < 0 ? rateMetric.modelData : rateMetric.modelData.slice(0, rateMetric.unitOffset)
                                     color: root.theme.text
-                                    font.pixelSize: 24
+                                    font.pixelSize: root.theme.scaledSize(24)
                                     font.weight: Font.DemiBold
                                     Layout.minimumWidth: 0
                                     elide: Text.ElideRight
@@ -148,7 +204,7 @@ ScrollView {
                                 Label {
                                     text: rateMetric.unitOffset < 0 ? "" : rateMetric.modelData.slice(rateMetric.unitOffset + 1)
                                     color: root.theme.muted
-                                    font.pixelSize: 12
+                                    font.pixelSize: root.theme.scaledSize(12)
                                     Layout.alignment: Qt.AlignBottom
                                     Layout.bottomMargin: 4
                                 }
@@ -176,14 +232,24 @@ ScrollView {
                             visible: !root.ui.replay && !root.ui.telemetry.traffic
                             text: qsTr("Waiting for core data")
                             color: root.theme.muted
-                            font.pixelSize: 12
+                            font.pixelSize: root.theme.scaledSize(12)
                         }
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Label { text: qsTr("60 s ago"); color: root.theme.muted; font.pixelSize: 12 }
-                        Item { Layout.fillWidth: true }
-                        Label { text: qsTr("Now"); color: root.theme.muted; font.pixelSize: 12 }
+                        Label {
+                            text: qsTr("60 s ago")
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(12)
+                        }
+                        Item {
+                            Layout.fillWidth: true
+                        }
+                        Label {
+                            text: qsTr("Now")
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.scaledSize(12)
+                        }
                     }
                 }
             }
@@ -202,17 +268,35 @@ ScrollView {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
-                    Label { text: qsTr("Outbound mode"); color: root.theme.text; font.weight: Font.DemiBold }
+                    Label {
+                        text: qsTr("Outbound mode")
+                        color: root.theme.text
+                        font.weight: Font.DemiBold
+                    }
                     RowLayout {
                         spacing: 4
                         Repeater {
-                            model: [{label: qsTr("Rule"), key: "rule"}, {label: qsTr("Global"), key: "global"}, {label: qsTr("Direct"), key: "direct"}]
+                            model: [
+                                {
+                                    label: qsTr("Rule"),
+                                    key: "rule"
+                                },
+                                {
+                                    label: qsTr("Global"),
+                                    key: "global"
+                                },
+                                {
+                                    label: qsTr("Direct"),
+                                    key: "direct"
+                                }
+                            ]
                             delegate: ActionButton {
                                 required property var modelData
+                                objectName: "home_mode_" + modelData.key
                                 theme: root.theme
                                 text: modelData.label
                                 enabled: !!root.selectedId && !root.ui.runtime.busy
-                                selected: !!root.ui.runtime.preferences && root.ui.runtime.preferences.mode === modelData.key
+                                selected: ((root.ui.runtime.settingsState || {}).running ? ((root.ui.runtime.settingsState || {}).effective || {}) : (root.ui.runtime.preferences || {})).mode === modelData.key
                                 onClicked: root.ui.runtimeCommand("mode", [modelData.key])
                             }
                         }
@@ -222,17 +306,26 @@ ScrollView {
                     theme: root.theme
                     Layout.fillWidth: true
                     text: qsTr("System proxy")
-                    enabled: !!root.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
-                    checked: !!root.ui.runtime.systemProxy || !!(root.ui.runtime.preferences || {}).systemProxyDesired
+                    objectName: "home_system_proxy"
+                    enabled: !!root.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly && (root.ui.runtime.capabilities || {}).systemProxy !== "Unsupported"
+                    checked: !!root.ui.runtime.systemProxy
                     onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                 }
                 ThemedSwitch {
                     theme: root.theme
                     Layout.fillWidth: true
                     text: qsTr("Virtual network adapter (TUN)") + " · " + (root.ui.runtime.tunState === "On" ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : qsTr("Off"))
-                    checked: root.ui.runtime.tunState === "On" || !!(root.ui.runtime.preferences || {}).tunDesired
-                    enabled: !root.ui.runtime.busy && !!root.selectedId
+                    objectName: "home_tun"
+                    checked: root.ui.runtime.tunState === "On"
+                    enabled: !root.ui.runtime.busy && !!root.selectedId && (root.ui.runtime.capabilities || {}).tun !== "Unsupported"
                     onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
+                }
+                Label {
+                    visible: (root.ui.runtime.capabilities || {}).systemProxy === "Unsupported" || (root.ui.runtime.capabilities || {}).tun === "Unsupported"
+                    text: qsTr("System proxy and TUN are not available on this platform yet.")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
             }
         }
@@ -255,13 +348,23 @@ ScrollView {
                 spacing: 8
                 RowLayout {
                     Layout.fillWidth: true
-                    Label { text: qsTr("Network tools"); font.weight: Font.DemiBold; color: root.theme.text; Layout.fillWidth: true }
-                    ActionButton { theme: root.theme; ghost: true; text: qsTr("Website test"); onClicked: root.ui.navigate("tests") }
+                    Label {
+                        text: qsTr("Network tools")
+                        font.weight: Font.DemiBold
+                        color: root.theme.text
+                        Layout.fillWidth: true
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        ghost: true
+                        text: qsTr("Website test")
+                        onClicked: root.ui.navigate("tests")
+                    }
                 }
                 Label {
                     text: qsTr("IP information not queried. Choose a website and run a test manually.")
                     color: root.theme.muted
-                    font.pixelSize: 12
+                    font.pixelSize: root.theme.scaledSize(12)
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
@@ -303,7 +406,7 @@ ScrollView {
                     columnSpacing: 24
                     rowSpacing: 12
                     Repeater {
-                        model: ["client", "core"]
+                        model: ["client", "core", "validator", "serviceValidator"]
                         delegate: ColumnLayout {
                             id: memoryColumn
                             required property string modelData
@@ -312,8 +415,9 @@ ScrollView {
                                 return value !== undefined ? (Number(value) / 1000000).toFixed(1) : "—";
                             }
                             Layout.fillWidth: true
+                            visible: modelData === "client" || modelData === "core" || Object.keys(counters).length > 0
                             Label {
-                                text: memoryColumn.modelData === "client" ? qsTr("QuickClash · Client") : qsTr("Clash Meta (mihomo) · Core")
+                                text: memoryColumn.modelData === "client" ? qsTr("QuickClash · Client") : memoryColumn.modelData === "validator" || memoryColumn.modelData === "serviceValidator" ? qsTr("Clash Meta (mihomo) · Configuration validator") : qsTr("Clash Meta (mihomo) · Core")
                                 color: root.theme.text
                                 font.weight: Font.DemiBold
                             }

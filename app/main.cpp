@@ -1,16 +1,21 @@
 #include "application_host.h"
 #include "presentation/localization.h"
 #include "single_instance.h"
+#include "ui_font.h"
 #ifdef QUICKCLASH_TEST_PROBES
+#include "desktop_flow_probe.h"
+#include "desktop_probe.h"
+#include "desktop_proxy_probe.h"
 #include "host_probe.h"
 #include "runtime_ui_probe.h"
+#include "service_probe.h"
 #include "subscription_memory_probe.h"
 #include "subscription_ui_probe.h"
 #endif
 #include <QApplication>
 #include <QDir>
 #include <QEvent>
-#include <QFontDatabase>
+#include <QFileInfo>
 #include <QFontInfo>
 #include <QImage>
 #include <QJsonArray>
@@ -39,6 +44,35 @@
 #endif
 
 int main(int argc, char* argv[]) {
+#ifdef QUICKCLASH_TEST_PROBES
+    if (std::any_of(argv + 1, argv + argc, [](const char* argument) {
+            return std::string_view(argument).starts_with("--desktop-flow-client=") ||
+                   std::string_view(argument).starts_with("--desktop-flow-native=");
+        })) {
+        QCoreApplication probe(argc, argv);
+        return quickclash::test::desktopFlowClient();
+    }
+    for (int index = 1; index < argc; ++index) {
+        const std::string_view argument(argv[index]);
+        if (argument.starts_with("--desktop-flow-server=")) {
+            QCoreApplication probe(argc, argv);
+            return quickclash::test::desktopFlowServer(
+                QString::fromUtf8(argument.substr(22).data()));
+        }
+    }
+    if (std::any_of(argv + 1, argv + argc, [](const char* argument) {
+            return std::string_view(argument) == "--desktop-proxy-external";
+        })) {
+        QCoreApplication probe(argc, argv);
+        return quickclash::test::desktopExternalProxyMutation();
+    }
+    if (std::any_of(argv + 1, argv + argc, [](const char* argument) {
+            return std::string_view(argument) == "--service-test";
+        })) {
+        QCoreApplication probe(argc, argv);
+        return quickclash::test::serviceProbe();
+    }
+#endif
     const bool softwareRendering = std::any_of(argv + 1, argv + argc, [](const char* argument) {
         return std::string_view(argument) == "--software-rendering";
     });
@@ -72,33 +106,26 @@ int main(int argc, char* argv[]) {
     QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
     QApplication::setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle(QStringLiteral("Basic"));
-    auto uiFont = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
-#ifdef Q_OS_WIN
-    // The UI alias resolves to Arial on the reference system. Use the installed
-    // family directly; loading the full TTC as an application font copies it.
-    if (QFontDatabase::hasFamily(QStringLiteral("Microsoft YaHei"))) {
-        uiFont.setFamily(QStringLiteral("Microsoft YaHei"));
-        uiFont.setStyleName(QString{});
-        uiFont.setStyleHint(QFont::SansSerif);
-    }
-#endif
-    uiFont.setPixelSize(14);
-    QApplication::setFont(uiFont);
+    QApplication::setFont(quickclash::platformUiFont());
     const auto arguments = app.arguments();
+    bool desktopTest = false;
 #ifdef QUICKCLASH_TEST_PROBES
+    desktopTest = arguments.contains(QStringLiteral("--desktop-test"));
     const bool smoke = arguments.contains(QStringLiteral("--smoke-test"));
     const bool prototype = arguments.contains(QStringLiteral("--prototype-test"));
     const bool hostTest = arguments.contains(QStringLiteral("--host-test"));
     const bool trayTest = arguments.contains(QStringLiteral("--tray-test"));
     const bool keyboardTest = arguments.contains(QStringLiteral("--keyboard-test"));
+    const bool accessibilityTest = arguments.contains(QStringLiteral("--accessibility-test"));
     const bool responsiveTest = arguments.contains(QStringLiteral("--responsive-test"));
     const bool visualTest = arguments.contains(QStringLiteral("--visual-test"));
     const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
     const bool pageMemoryTest = arguments.contains(QStringLiteral("--page-memory-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
-    const bool isolated = smoke || prototype || hostTest || trayTest || keyboardTest ||
-                          responsiveTest || visualTest || runtimeListTest || subscriptionUiTest ||
-                          pageMemoryTest || arguments.contains(QStringLiteral("--isolated")) ||
+    const bool isolated = desktopTest || smoke || prototype || hostTest || trayTest ||
+                          keyboardTest || accessibilityTest || responsiveTest || visualTest ||
+                          runtimeListTest || subscriptionUiTest || pageMemoryTest ||
+                          arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
 #else
     const bool isolated = arguments.contains(QStringLiteral("--isolated"));
@@ -120,8 +147,13 @@ int main(int argc, char* argv[]) {
         return 16;
     }
     const auto runtimeProbe = option(QStringLiteral("--runtime-probe"));
-    if (isolated && (!runtimeProbe.isEmpty() ||
-                     arguments.contains(QStringLiteral("--subscription-memory-test")))) {
+    if (desktopTest) {
+        probeSettings =
+            quickclash::test::desktopProbeSettings(option(QStringLiteral("--desktop-root")));
+        if (probeSettings.isEmpty())
+            return 15;
+    } else if (isolated && (!runtimeProbe.isEmpty() ||
+                            arguments.contains(QStringLiteral("--subscription-memory-test")))) {
         probeDirectory = std::make_unique<QTemporaryDir>();
         if (!probeDirectory->isValid())
             return 15;
@@ -129,11 +161,12 @@ int main(int argc, char* argv[]) {
     }
 #endif
     const auto dataDirectory =
-        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+        desktopTest ? QFileInfo(probeSettings).absolutePath()
+                    : QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
     const auto configDirectory =
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     quickclash::SingleInstance instance(dataDirectory);
-    if (!isolated) {
+    if (!isolated || desktopTest) {
         switch (instance.start()) {
         case quickclash::SingleInstance::Result::Activated:
             return 0;
@@ -143,14 +176,14 @@ int main(int argc, char* argv[]) {
         case quickclash::SingleInstance::Result::Primary:
             break;
         }
-        if (!QDir().mkpath(configDirectory)) {
+        if (!desktopTest && !QDir().mkpath(configDirectory)) {
             return 3;
         }
     }
     quickclash::ApplicationHost host(
         isolated ? probeSettings : QDir(configDirectory).filePath(QStringLiteral("ui.ini")),
 #ifdef QUICKCLASH_TEST_PROBES
-        (isolated && !trayTest) || arguments.contains(QStringLiteral("--no-tray")));
+        (isolated && !trayTest && !desktopTest) || arguments.contains(QStringLiteral("--no-tray")));
 #else
         isolated || arguments.contains(QStringLiteral("--no-tray")));
 #endif
@@ -286,6 +319,9 @@ int main(int argc, char* argv[]) {
         host.resizeWindow(QSize(dimensions[0].toInt(), dimensions[1].toInt()));
     }
 #ifdef QUICKCLASH_TEST_PROBES
+    if (desktopTest) {
+        return quickclash::test::runDesktopProbe(host);
+    }
     if (hostTest) {
         return quickclash::runHostProbe(host);
     }
@@ -309,6 +345,9 @@ int main(int argc, char* argv[]) {
     }
     if (keyboardTest) {
         return quickclash::runKeyboardProbe(host);
+    }
+    if (accessibilityTest) {
+        return quickclash::runAccessibilityProbe(host);
     }
 #endif
     const auto capture = option(QStringLiteral("--capture"));

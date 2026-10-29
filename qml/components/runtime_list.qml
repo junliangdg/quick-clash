@@ -11,7 +11,10 @@ Item {
     required property ThemeTokens theme
     required property RuntimeListModel listModel
     property string heading: ""
+    property string filterName: qsTr("Filter list")
     property string actionText: ""
+    property string secondaryActionText: ""
+    property bool actionsEnabled: true
     property var describe: function(entry) { return JSON.stringify(entry); }
     readonly property string query: listModel.query
     property bool followTail: false
@@ -20,6 +23,7 @@ Item {
     onListModelChanged: { if (debounce && search) { debounce.stop(); search.text = listModel.query; } }
     Component.onCompleted: { if (followTail) tail.restart(); }
     signal invoked(var entry)
+    signal secondaryInvoked(var entry)
     Timer { id: debounce; interval: 150; onTriggered: root.listModel.query = search.text }
     Timer { id: tail; interval: 0; onTriggered: { if (root.followTail && root.userFollowing) list.positionViewAtEnd(); } }
     Connections {
@@ -48,6 +52,7 @@ Item {
             theme: root.theme
             id: search
             objectName: "runtime_filter"
+            Accessible.name: root.filterName
             text: root.listModel.query
             placeholderText: qsTr("Filter")
             maximumLength: 128
@@ -91,13 +96,26 @@ Item {
                         wrapMode: Text.WrapAnywhere
                         textFormat: Text.PlainText
                     }
-                    ActionButton {
-                        theme: root.theme
-                        text: root.actionText
-                        ghost: true
-                        destructive: root.actionText.length > 0 && root.actionText === qsTr("Close connection")
-                        visible: text.length > 0
-                        onClicked: root.invoked(tile.entry)
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ActionButton {
+                            theme: root.theme
+                            text: root.actionText
+                            ghost: true
+                            destructive: root.actionText.length > 0 && root.actionText === qsTr("Close connection")
+                            visible: text.length > 0
+                            enabled: root.actionsEnabled
+                            onClicked: root.invoked(tile.entry)
+                        }
+                        ActionButton {
+                            theme: root.theme
+                            text: root.secondaryActionText
+                            enabled: root.actionsEnabled
+                            ghost: true
+                            visible: text.length > 0
+                            onClicked: root.secondaryInvoked(tile.entry)
+                        }
                     }
                 }
             }

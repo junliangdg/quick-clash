@@ -100,6 +100,7 @@ domain::CommandResult WindowsProxySettings::write(const QJsonObject& snapshot) {
 }
 ProxyLease::ProxyLease(infra::JsonStore& store, ProxySettings& settings)
     : store_(store), settings_(settings) {}
+ProxyLease::ProxyLease(infra::JsonStore& store) : store_(store), settings_(defaultSettings_) {}
 domain::CommandResult ProxyLease::acquire(quint16 port, const QString& owner) {
     if (port < 1024 || owner.isEmpty())
         return infra::storageError("InvalidProxyTarget");
@@ -263,6 +264,24 @@ domain::CommandResult ProxyLease::release() {
     lease.insert(QStringLiteral("status"), QStringLiteral("Released"));
     conflict_ = false;
     return store_.write(kLease, lease);
+}
+domain::Result<bool> ProxyLease::safeToArchive() {
+    if (active_ || conflict_)
+        return false;
+    const auto loaded = store_.read(kLease);
+    if (const auto* failure = std::get_if<domain::Error>(&loaded))
+        return *failure;
+    const auto lease = std::get<std::optional<QJsonObject>>(loaded);
+    if (!lease)
+        return true;
+    if (!validLease(*lease))
+        return infra::storageError("ProxyLeaseRecoveryRequired");
+    if (lease->value(QStringLiteral("status")) == QStringLiteral("Released"))
+        return true;
+    const auto observed = settings_.read();
+    if (const auto* failure = std::get_if<domain::Error>(&observed))
+        return *failure;
+    return std::get<QJsonObject>(observed) == lease->value(QStringLiteral("before")).toObject();
 }
 domain::Result<bool> ProxyLease::matches() {
     if (!active_)

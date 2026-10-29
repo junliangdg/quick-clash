@@ -25,7 +25,7 @@ try {
     $env:QT_QPA_PLATFORM = 'windows'
     $env:QT_QUICK_BACKEND = 'software'
     $env:QT_FORCE_STDERR_LOGGING = '1'
-    $taskSmokeArguments = if ($taskTesting) { @('--smoke-test') } else { @('--isolated', '--quit-after-ms=1500') }
+    [string[]]$taskSmokeArguments = if ($taskTesting) { @('--smoke-test') } else { @('--isolated', '--quit-after-ms=1500') }
     $taskSmokeArguments += "--diagnostics=$taskLogs/smoke.json"
     Invoke-NativeStep -Executable (Join-Path $taskDestination 'bin/quickclash.exe') -Arguments $taskSmokeArguments -WorkingDirectory $taskDestination -LogPath (Join-Path $taskLogs 'smoke.log') -TimeoutSeconds 15
     $taskSmoke = Get-Content -LiteralPath (Join-Path $taskLogs 'smoke.json') -Raw | ConvertFrom-Json

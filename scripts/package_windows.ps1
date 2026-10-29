@@ -46,6 +46,7 @@ Copy-Item -LiteralPath $taskMatrixPath -Destination (Join-Path $taskDestination 
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/config_policy.json') -Destination (Join-Path $taskDestination 'metadata/config_policy.json')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/windows_user_guide.md') -Destination (Join-Path $taskDestination 'readme.md')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/install_service_windows.ps1') -Destination (Join-Path $taskDestination 'install_service_windows.ps1')
+Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/service_package.ps1') -Destination $taskDestination
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/licenses.md') -Destination (Join-Path $taskDestination 'licenses/source_obligations.md')
 $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | ForEach-Object {
     [ordered]@{ path = [IO.Path]::GetRelativePath($taskDestination, $_.FullName).Replace('\', '/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }

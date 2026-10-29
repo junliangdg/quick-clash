@@ -1,11 +1,52 @@
 #include "network_fixture.h"
 #include <QFile>
+#include <QJsonObject>
+#include <QNetworkInterface>
 #include <QSslConfiguration>
 #include <QSslSocket>
 #include <QTcpSocket>
 #include <QTimer>
 
 namespace quickclash::test {
+DnsFixture::DnsFixture(QObject* parent) : QUdpSocket(parent) {
+    connect(this, &QUdpSocket::readyRead, this, [this] {
+        while (hasPendingDatagrams()) {
+            QByteArray query(4096, Qt::Uninitialized);
+            QHostAddress sender;
+            quint16 port = 0;
+            const auto size = readDatagram(query.data(), query.size(), &sender, &port);
+            if (size < 17 || size > 4096)
+                continue;
+            query.resize(size);
+            ++requests;
+            QByteArray response = query.left(2) + QByteArray::fromHex("81800001000100000000");
+            qsizetype end = 12;
+            while (end < query.size() && static_cast<unsigned char>(query[end]) > 0) {
+                const auto length = static_cast<unsigned char>(query[end]);
+                if (length > 63)
+                    break;
+                end += 1 + length;
+            }
+            if (end + 5 > query.size())
+                continue;
+            response += query.mid(12, end + 5 - 12);
+            response += QByteArray::fromHex("c00c000100010000003c0004cb007107");
+            writeDatagram(response, sender, port);
+        }
+    });
+}
+bool DnsFixture::initialize() {
+    for (const auto& address : QNetworkInterface::allAddresses()) {
+        if (address.protocol() != QAbstractSocket::IPv4Protocol || address.isLoopback() ||
+            address == QHostAddress::AnyIPv4)
+            continue;
+        if (bind(address, 0)) {
+            resolver = QStringLiteral("udp://%1:%2").arg(address.toString()).arg(localPort());
+            return true;
+        }
+    }
+    return false;
+}
 TlsFixture::TlsFixture(QObject* parent) : QTcpServer(parent) {}
 bool TlsFixture::initialize() {
     QFile cert(QStringLiteral("tests/fixtures/network/server_cert.pem"));
@@ -49,6 +90,18 @@ void TlsFixture::incomingConnection(qintptr descriptor) {
         }
         const auto path = parts[1].split('?').first();
         requests.append(QString::fromLatin1(parts[0] + ' ' + path));
+        QJsonObject received{{QStringLiteral("path"), QString::fromLatin1(path)}};
+        for (const auto& line : buffer->split('\n')) {
+            const auto separator = line.indexOf(':');
+            if (separator > 0)
+                received.insert(QString::fromLatin1(line.left(separator).trimmed().toLower()),
+                                QString::fromLatin1(line.mid(separator + 1).trimmed()));
+        }
+        requestHeaders.append(received);
+        lastCookie.clear();
+        for (const auto& line : buffer->split('\n'))
+            if (line.toLower().startsWith("cookie:"))
+                lastCookie = line.mid(7).trimmed();
         const bool isSubscription = path == "/subscription";
         if (isSubscription) {
             lastUserAgent.clear();
@@ -62,19 +115,43 @@ void TlsFixture::incomingConnection(qintptr descriptor) {
                     lastAccept = line.mid(separator + 1).trimmed();
             }
         }
-        const auto body =
-            isSubscription
-                ? (invalidSubscription ? QByteArrayLiteral("proxy-providers: {}")
-                   : !lastUserAgent.startsWith(requiredUserAgent)
-                       ? QByteArrayLiteral("c3M6Ly9wdWJsaWMtZml4dHVyZQ==")
-                       : subscription)
-                : payloads.value(path, QByteArrayLiteral("quickclash-controlled-origin"));
-        socket->write("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=UTF-8\r\nConnection: "
-                      "close\r\nContent-Length: " +
-                      QByteArray::number(body.size()) + "\r\n\r\n");
-        if (parts[0] != "HEAD")
-            socket->write(body);
-        socket->disconnectFromHost();
+        auto body = isSubscription
+                        ? (invalidSubscription ? QByteArrayLiteral("proxy-providers: {}")
+                           : !lastUserAgent.startsWith(requiredUserAgent)
+                               ? QByteArrayLiteral("c3M6Ly9wdWJsaWMtZml4dHVyZQ==")
+                               : subscription)
+                        : payloads.value(path, QByteArrayLiteral("quickclash-controlled-origin"));
+        const auto redirect = redirects.value(path);
+        const auto etag = entityTags.value(path);
+        const auto modified = lastModified.value(path);
+        int status = responseStatuses.value(path, redirect.isEmpty() ? 200 : 302);
+        if (status == 200 &&
+            ((!etag.isEmpty() && received.value("if-none-match") == QString::fromLatin1(etag)) ||
+             (etag.isEmpty() && !modified.isEmpty() &&
+              received.value("if-modified-since") == QString::fromLatin1(modified))))
+            status = 304;
+        if (status == 304)
+            body.clear();
+        const auto header =
+            QByteArray("HTTP/1.1 ") + QByteArray::number(status) + " Fixture\r\n" +
+            (redirect.isEmpty() ? QByteArray{} : QByteArray("Location: ") + redirect + "\r\n") +
+            (etag.isEmpty() ? QByteArray{} : QByteArray("ETag: ") + etag + "\r\n") +
+            (modified.isEmpty() ? QByteArray{}
+                                : QByteArray("Last-Modified: ") + modified + "\r\n") +
+            (isSubscription && !subscriptionUsage.isEmpty()
+                 ? QByteArray("subscription-userinfo: ") + subscriptionUsage + "\r\n"
+                 : QByteArray{}) +
+            "Content-Type: text/html; charset=UTF-8\r\nConnection: "
+            "close\r\nContent-Length: " +
+            QByteArray::number(body.size()) +
+            "\r\nSet-Cookie: fixture_cookie=private; Secure; Path=/\r\n\r\n";
+        const auto send = [socket, header, body, head = parts[0] == "HEAD"] {
+            socket->write(header);
+            if (!head)
+                socket->write(body);
+            socket->disconnectFromHost();
+        };
+        QTimer::singleShot(responseDelays.value(path), socket, send);
     });
     connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
     QTimer::singleShot(15000, socket, [socket] {

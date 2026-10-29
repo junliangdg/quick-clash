@@ -3,6 +3,9 @@ import QtQuick
 QtObject {
     required property bool dark
     property string fontFamily: "sans-serif"
+    property real fontPixelSize: 14
+    readonly property real textScale: Math.max(1, Math.min(225 / 100, fontPixelSize / 14))
+    function scaledSize(size: real): int { return Math.round(size * textScale); }
     readonly property color background: dark ? "#101114" : "#FAFAFB"
     readonly property color sidebar: dark ? "#15161A" : "#F4F4F6"
     readonly property color surface: dark ? "#191A20" : "#FFFFFF"
@@ -36,12 +39,12 @@ QtObject {
     readonly property int controlRadius: 7
     readonly property int panelPadding: 16
     readonly property int gap: 16
-    readonly property int controlHeight: 36
-    readonly property int compactHeight: 32
-    readonly property int rowHeight: 40
-    readonly property int bodySize: 14
-    readonly property int supportingSize: 12
-    readonly property int titleSize: 24
+    readonly property int controlHeight: scaledSize(36)
+    readonly property int compactHeight: scaledSize(32)
+    readonly property int rowHeight: scaledSize(40)
+    readonly property int bodySize: scaledSize(14)
+    readonly property int supportingSize: scaledSize(12)
+    readonly property int titleSize: scaledSize(24)
     readonly property int focusWidth: 2
     readonly property int focusGap: 2
     function stateColor(selected, hovered, down): color {

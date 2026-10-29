@@ -23,31 +23,33 @@ bool validContext(const QVariantMap& context, const QStringList& keys) {
 }
 } // namespace
 FeatureRegistry::FeatureRegistry() {
-    const auto add = [this](const char* id, const char* title, const char* glyph, const char* path,
+    const auto add = [this](const char* id, const char* title, const char* path,
                             const char* availability, QStringList keys = {}) {
         features_.append(
             {QString::fromUtf8(id), QCoreApplication::translate("FeatureRegistry", title),
-             QString::fromUtf8(glyph), factory(QString::fromUtf8(path)),
+             QUrl(QStringLiteral("qrc:/icons/navigation/") + QString::fromUtf8(id) +
+                  QStringLiteral(".svg")),
+             factory(QString::fromUtf8(path)),
              QCoreApplication::translate("FeatureRegistry", availability), std::move(keys)});
     };
-    add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "▦",
-        "features/home/home_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"), "◎",
+    add("home", QT_TRANSLATE_NOOP("FeatureRegistry", "Dashboard"), "features/home/home_page.qml",
+        QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
+    add("proxies", QT_TRANSLATE_NOOP("FeatureRegistry", "Proxies"),
         "features/proxies/proxies_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"group"});
-    add("subscriptions", QT_TRANSLATE_NOOP("FeatureRegistry", "Subscriptions"), "▤",
+    add("subscriptions", QT_TRANSLATE_NOOP("FeatureRegistry", "Subscriptions"),
         "features/subscriptions/subscriptions_page.qml",
         QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"), "⇄",
+    add("connections", QT_TRANSLATE_NOOP("FeatureRegistry", "Connections"),
         "features/connections/connections_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"),
         {"filter"});
-    add("rules", QT_TRANSLATE_NOOP("FeatureRegistry", "Rules"), "≡",
-        "features/rules/rules_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "›_", "features/logs/logs_page.qml",
+    add("rules", QT_TRANSLATE_NOOP("FeatureRegistry", "Rules"), "features/rules/rules_page.qml",
         QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("tests", QT_TRANSLATE_NOOP("FeatureRegistry", "Tests"), "⌁",
-        "features/tests/tests_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
-    add("settings", QT_TRANSLATE_NOOP("FeatureRegistry", "Settings"), "⚙",
+    add("logs", QT_TRANSLATE_NOOP("FeatureRegistry", "Logs"), "features/logs/logs_page.qml",
+        QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
+    add("tests", QT_TRANSLATE_NOOP("FeatureRegistry", "Tests"), "features/tests/tests_page.qml",
+        QT_TRANSLATE_NOOP("FeatureRegistry", "Live"));
+    add("settings", QT_TRANSLATE_NOOP("FeatureRegistry", "Settings"),
         "features/settings/settings_page.qml", QT_TRANSLATE_NOOP("FeatureRegistry", "Preferences"));
     embedded_.append({QStringLiteral("proxy_summary"),
                       QStringLiteral("proxies"),
