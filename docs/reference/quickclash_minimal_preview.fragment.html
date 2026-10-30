@@ -5,10 +5,10 @@
     <button type="button" id="qc-show-components">控件与状态</button><span class="review-note">概念预览 · 全部为演示数据</span>
   </div>
   <section class="qc-window" aria-label="QuickClash 界面方案预览">
-    <header class="window-bar"><span class="app-mark">Q</span><span>QuickClash</span><span class="window-label">CONCEPT PREVIEW</span><span class="window-chrome" aria-hidden="true"><span class="qc-symbol" aria-hidden="true">−</span><span class="qc-symbol" aria-hidden="true">□</span><span class="qc-symbol" aria-hidden="true">×</span></span></header>
+    <header class="window-bar"><span class="app-mark"><!-- brand_icon --></span><span>QuickClash</span><span class="window-label">CONCEPT PREVIEW</span><span class="window-chrome" aria-hidden="true"><span class="qc-symbol" aria-hidden="true">−</span><span class="qc-symbol" aria-hidden="true">□</span><span class="qc-symbol" aria-hidden="true">×</span></span></header>
     <div class="app-body">
       <nav class="app-nav" aria-label="预览页面">
-        <div class="nav-caption">工作空间</div>
+        <div class="nav-brand"><span class="brand-image"><!-- brand_icon --></span><strong>QuickClash</strong><button type="button" id="qc-nav-toggle" aria-label="收起导航" title="收起导航" aria-expanded="true"><span class="nav-close qc-symbol"><!-- navigation_icon:panel_left_close --></span><span class="nav-open qc-symbol"><!-- navigation_icon:panel_left_open --></span></button></div>
         <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:home --></span><span>仪表盘</span></button>
         <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:proxies --></span><span>代理</span></button>
         <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:subscriptions --></span><span>订阅</span></button>
@@ -76,7 +76,7 @@
 #qc-style-review .review-note {font-size:12px;margin-left:auto;color:light-dark(#656573,#BABAC6);}
 #qc-style-review .qc-window {background:var(--qc-bg);border:1px solid var(--qc-line);border-radius:12px;overflow:hidden;isolation:isolate;}
 #qc-style-review .window-bar {display:flex;gap:9px;align-items:center;padding:10px 14px;background:var(--qc-nav);font-size:12px;min-height:42px;}
-#qc-style-review .app-mark {font-weight:600;background:var(--qc-accent);color:var(--qc-on-accent);border-radius:6px;width:23px;height:23px;display:grid;place-items:center;}
+#qc-style-review .app-mark {width:24px;height:24px;display:grid;place-items:center;}
 #qc-style-review .window-label {font-size:12px;letter-spacing:1.8px;margin-left:7px;color:var(--qc-muted);}
 #qc-style-review .window-chrome {display:flex;gap:24px;margin-left:auto;color:var(--qc-muted);}
 #qc-style-review svg:not(.traffic-chart) {width:17px;height:17px;flex-shrink:0;stroke-width:1.7;}
@@ -272,11 +272,49 @@
 @media(width < 600px) {#qc-style-review .app-main {padding:12px;}#qc-style-review .app-body {min-height:0;}#qc-style-review .app-nav {position:sticky;bottom:0;z-index:3;}#qc-style-review .app-status {display:none;}#qc-style-review .settings-nav {margin-top:0;}#qc-style-review .qc-window {overflow:clip;}#qc-style-review h2 {font-size:22px;line-height:30px;}#qc-style-review .panel {padding:16px;}#qc-style-review .data-panel {padding:0;}}
 @media(pointer:coarse) {#qc-style-review .ghost-action,#qc-style-review .danger-action,#qc-style-review .state-sample,#qc-style-review .sample-input {min-height:44px;}}
 #qc-style-review[data-page="home"] .mobile-back,#qc-style-review[data-page="proxies"] .mobile-back,#qc-style-review[data-page="subscriptions"] .mobile-back,#qc-style-review[data-page="settings"] .mobile-back {display:none;}
+#qc-style-review .nav-brand {display:flex;align-items:center;gap:8px;min-height:36px;margin:6px 0 16px;}
+#qc-style-review .nav-brand .brand-image {display:flex;flex:none;}
+#qc-style-review .nav-brand strong {font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;flex:1;}
+#qc-style-review .nav-brand #qc-nav-toggle {display:flex;width:32px;min-height:36px;padding:6px!important;flex:none;justify-content:center;}
+#qc-style-review .nav-brand #qc-nav-toggle .qc-symbol {display:inline-flex;}
+#qc-style-review .nav-brand #qc-nav-toggle .nav-open {display:none;}
+@media(width >= 600px) {
+  #qc-style-review[data-nav-wide="false"] .app-body {display:grid;grid-template-columns:64px minmax(0,1fr);}
+  #qc-style-review[data-nav-wide="false"] .app-nav {padding:16px 7px;align-items:center;}
+  #qc-style-review[data-nav-wide="false"] .app-nav button[data-page] {justify-content:center;padding:10px!important;}
+  #qc-style-review[data-nav-wide="false"] .app-nav button[data-page]>span:not(.qc-symbol),#qc-style-review[data-nav-wide="false"] .nav-footer,#qc-style-review[data-nav-wide="false"] .nav-brand .brand-image,#qc-style-review[data-nav-wide="false"] .nav-brand strong {display:none;}
+  #qc-style-review[data-nav-wide="false"] .nav-brand #qc-nav-toggle .nav-close {display:none;}
+  #qc-style-review[data-nav-wide="false"] .nav-brand #qc-nav-toggle .nav-open {display:inline-flex;}
+  #qc-style-review[data-nav-wide="true"] .app-body {display:grid;grid-template-columns:192px minmax(0,1fr);}
+  #qc-style-review[data-nav-wide="true"] .app-nav {align-items:stretch;padding:18px 10px 14px;}
+  #qc-style-review[data-nav-wide="true"] .app-nav button[data-page] {justify-content:flex-start;padding:8px 12px!important;}
+  #qc-style-review[data-nav-wide="true"] .app-nav button[data-page]>span:not(.qc-symbol) {display:inline;}
+  #qc-style-review[data-nav-wide="true"] .nav-footer {display:flex;}
+}
+@media(width >= 1200px) {#qc-style-review[data-nav-wide="true"] .app-body {grid-template-columns:208px minmax(0,1fr);}}
+@media(width < 600px) {#qc-style-review .nav-brand {display:none;}}
 </style>
 <script>
 (() => {
   const root = document.getElementById('qc-style-review');
   const state = { design:'minimal', appearance:'light', page:'home' };
+  const navigationState = {collapsedSidebar:false, expandedRail:false};
+  const compactWidth = window.matchMedia('(width < 1000px)');
+  function renderNavigation() {
+    const wide = compactWidth.matches ? navigationState.expandedRail : !navigationState.collapsedSidebar;
+    root.dataset.navWide = String(wide);
+    const toggle = root.querySelector('#qc-nav-toggle');
+    const label = wide ? '收起导航' : '展开导航';
+    toggle.setAttribute('aria-expanded', String(wide));
+    toggle.setAttribute('aria-label', label); toggle.title = label;
+  }
+  root.querySelector('#qc-nav-toggle').addEventListener('click',()=>{
+    if(compactWidth.matches) navigationState.expandedRail = !navigationState.expandedRail;
+    else navigationState.collapsedSidebar = !navigationState.collapsedSidebar;
+    renderNavigation();
+  });
+  compactWidth.addEventListener('change',renderNavigation);
+  renderNavigation();
   const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
   const titles = {home:'仪表盘',proxies:'代理',subscriptions:'订阅',connections:'连接',rules:'规则',logs:'日志',tests:'测试',settings:'设置',components:'控件与状态'};
   const appearance = root.querySelector('#qc-appearance');
@@ -299,7 +337,7 @@
     root.querySelector('#qc-style-label').textContent = '方案 C · 极简桌面工具风';
     root.querySelector('#qc-page-title').textContent = titles[state.page];
     root.querySelector('#qc-breadcrumb').textContent = '工作空间 / ' + (state.page === 'home' ? '概览' : titles[state.page]);
-    root.querySelectorAll('.app-nav button').forEach(b=> {if(b.dataset.page===state.page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+    root.querySelectorAll('.app-nav button[data-page]').forEach(b=> {if(b.dataset.page===state.page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
     ['home','proxies','settings','components','data'].forEach(p=>root.querySelector('#qc-'+p).hidden = p !== (['home','proxies','settings','components'].includes(state.page) ? state.page : 'data'));
     if (tables[state.page]) {
       const rows = tables[state.page];

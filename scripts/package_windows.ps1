@@ -19,7 +19,7 @@ $taskCore = Join-Path $taskRepo '.cache/mihomo/mihomo.exe'
 if ((Get-FileHash -LiteralPath $taskCore -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskMatrix.mihomo.windows.executable_sha256) { throw 'Official Mihomo hash mismatch.' }
 if (-not (Test-Path -LiteralPath $MihomoLicense)) { throw 'Provide the frozen official Mihomo license text.' }
 & (Join-Path $PSScriptRoot 'deploy_windows.ps1') -BuildDirectory $BuildDirectory -Destination $taskDestination -CMake $CMake
-New-Item -ItemType Directory -Path (Join-Path $taskDestination 'core'), (Join-Path $taskDestination 'licenses'), (Join-Path $taskDestination 'metadata') | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $taskDestination 'core'), (Join-Path $taskDestination 'licenses'), (Join-Path $taskDestination 'metadata') -Force | Out-Null
 Copy-Item -LiteralPath $taskCore -Destination (Join-Path $taskDestination 'core/mihomo.exe')
 New-Item -ItemType Directory -Path (Join-Path $taskDestination 'geo') | Out-Null
 foreach ($taskAsset in @($taskMatrix.geo.geoip, $taskMatrix.geo.geosite)) {

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <linearGradient id="background" x1="18" y1="17" x2="86" y2="87" gradientUnits="userSpaceOnUse"><stop stop-color="#142a42"/><stop offset="1" stop-color="#0c1327"/></linearGradient>
+    <linearGradient id="cat" x1="18" y1="17" x2="86" y2="87" gradientUnits="userSpaceOnUse"><stop stop-color="#61ebd8"/><stop offset="1" stop-color="#73a9ff"/></linearGradient>
+  </defs>
+  <rect x="1" y="1" width="98" height="98" rx="23" fill="url(#background)" stroke="#b1e5ff" stroke-opacity=".17" stroke-width=".8"/>
+  <path d="M22 43 20 22Q19 16 25 19L40 30Q50 27 60 30L75 19Q81 16 80 22L78 43Q85 53 79 65 74 75 64 78L79 88Q82 90 79 93 77 95 73 92L56 82Q35 84 24 71 14 58 22 43Z" fill="url(#cat)"/>
+  <path d="M32 44Q39 38 50 38 62 38 69 46 75 54 68 65 62 73 50 73 37 73 31 64 25 54 32 44Z" fill="#11283d"/>
+  <rect x="36" y="51" width="6" height="9" rx="3" fill="#e7ffff"/>
+  <rect x="58" y="51" width="6" height="9" rx="3" fill="#e7ffff"/>
+  <g id="ear_details"><path d="m27 28 9 6-8 4Z" fill="#c5fff5"/><path d="m73 28-9 6 8 4Z" fill="#c5f2ff"/></g>
+</svg>

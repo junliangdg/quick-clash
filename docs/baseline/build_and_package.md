@@ -64,6 +64,8 @@ Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版�
 
 ## 质量命令
 
+Windows UI目标通过resources/quickclash.rc编译嵌入灵猫Q图标，资源管理器及快捷方式直接使用EXE内的ICO；运行时窗口使用同一ICO，托盘使用同源明暗单色SVG。resources/icons/brand/quickclash.ico包含16至256像素九档尺寸，随源码保存，常规CMake构建无需Node。修改品牌SVG后，以安装sharp的开发环境运行node scripts/build_brand_icon.cjs，再运行同命令--check；该生成工具及sharp不进入运行包。导航和收展使用本地Lucide SVG，QtSvg解码器及许可随包部署。
+
     cmake --build build/dev --target quickclash_qmllint
     ctest --preset dev
     pwsh -NoProfile -File scripts/probe_mihomo.ps1 -BuildDirectory build/dev

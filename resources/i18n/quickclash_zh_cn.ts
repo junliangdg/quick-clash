@@ -660,9 +660,10 @@
     <message><source>Follow system</source><translation>跟随系统</translation></message>
     <message>
       <location filename="../../qml/main.qml" line="85" />
-      <source>Expand or collapse navigation</source>
-      <translation>展开或收起导航</translation>
+      <source>Collapse navigation</source>
+      <translation>收起导航</translation>
     </message>
+    <message><source>Expand navigation</source><translation>展开导航</translation></message>
     <message>
       <location filename="../../qml/main.qml" line="193" />
       <source>Replay data</source>

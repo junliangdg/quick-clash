@@ -6,6 +6,7 @@
 #include <QTest>
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstdio>
 
 namespace quickclash {
@@ -90,6 +91,29 @@ int runResponsiveProbe(ApplicationHost& host) {
     if (!side || !bottom)
         return 20;
     host.state().saveState(QStringLiteral("proxies"), {{QStringLiteral("filter"), "retained"}});
+    // Collapsing the desktop sidebar must not replace the active page or its demands.
+    for (const int width : {1160, 800}) {
+        window->resize(width, 780);
+        QTest::qWait(30);
+        auto* loader = window->findChild<QQuickItem*>(QStringLiteral("active_page_host"));
+        auto* toggle = window->findChild<QQuickItem*>(QStringLiteral("navigation_toggle"));
+        if (!loader || !toggle || !tabTo(window, QStringLiteral("navigation_toggle")))
+            return 30;
+        const QPointer<QObject> content = loader->property("item").value<QObject*>();
+        const auto demandCount = host.state().activeDemandCount();
+        const auto streamCount = host.state().activeStreamCount();
+        for (const bool expanded : {width < 1000, width >= 1000}) {
+            QTest::keyClick(window, Qt::Key_Space);
+            QTest::qWait(30);
+            if (window->property("wideNavigation").toBool() != expanded ||
+                std::abs(side->width() - (expanded ? 192.0 : 64.0)) > 0.5 || !content ||
+                loader->property("item").value<QObject*>() != content.data() ||
+                host.state().activeDemandCount() != demandCount ||
+                host.state().activeStreamCount() != streamCount ||
+                host.engineGeneration() != generation)
+                return 31;
+        }
+    }
     for (const auto width : {1160, 600, 599, 360, 1160}) {
         std::printf("Checking navigation width %d\n", width);
         const auto previousPage = host.state().currentPage();

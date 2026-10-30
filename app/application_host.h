@@ -46,6 +46,7 @@ class ApplicationHost final : public QObject {
 
   private:
     void setupTray(bool noTray);
+    void updateTrayIcon();
     [[nodiscard]] bool recoverableFromTray() const;
     [[nodiscard]] bool backgroundWindow() const;
     void updateDeferredUnload();

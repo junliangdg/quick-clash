@@ -18,6 +18,8 @@
 
 Qt Quick承载八页面/双主题、路由与独立摘要嵌入，Widgets仅用于托盘菜单。单实例、首次关闭确认、无托盘退路、隐藏释放需求、卸载恢复及键盘检查通过；移动只验接口边界。
 
+2026-10-30补验限制：品牌任务额外运行原生回放--tray-test，首次关闭/隐藏/恢复通过后，实验性卸载阶段出现proxy_summary/theme销毁期QML错误、累计错误导致重建断言exit11；修改前导航包及当前品牌包均同样复现。当前host_lifecycle自动回归仍Pass，历史生产会话Host有限证据保留，但回放卸载整体结论Stale/G1-C重新待验，不能以旧版本或图标替换覆盖本次失败。详见[品牌补验记录](../DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展)。
+
 D3D11 threaded下100次重建句柄755→953，basic对照稳定；Windows未指定循环时采用basic，保留GPU。最终部署版100次句柄779→779、窗口QObject133、引擎generation101、QML错误0，同步创建20—29ms，见[生命周期数据](evidence/prototype_lifecycle.json)。不是首帧/可交互时延，外部覆盖渲染循环需重测。
 
 加载整份msyh.ttc额外占约40—50MB专用工作集；直接选择已安装Microsoft YaHei并按系统字体回退后，参考部署版双主题六场景各一次（3秒预热/10秒采样/100ms、500节点/1000连接、DPR1.25）专用峰49,672,192—54,849,536B。[12场景原摘要](evidence/prototype_resources.json)仅证明当时原型。部署exe SHA256=f2019bd7ca1927c9980fd964ac5858db3de37749e016953793e1e3a5b48a27ca。

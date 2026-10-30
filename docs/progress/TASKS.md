@@ -8,6 +8,7 @@
 
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
+| 灵猫Q品牌与侧栏收展 | Done | Codex | Pass | [实施记录](DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展)；程序/窗口/托盘同源品牌、独立收展及EXE九档图标资源完成；Windows构建/lint、7项回归及居中修正4项、原生截图和188项完整包核对通过。额外tray回放卸载失败在修改前后均可复现，单列G1-C Stale，不冒充完整生命周期Pass |
 | 导航圆角线性图标替换 | Done | Codex | Pass | [实施记录](DEVLOG.md#2026-10-30--导航圆角线性图标)；八个本地SVG统一侧栏/图标轨/底栏，Windows增量构建/lint、6/6回归、独立部署与原生双主题/宽窄截图通过；单轮10秒资源采样完成 |
 | 订阅更新后内存异常调查 | Review | Codex | NotRun | [调查报告](reports/20261026_subscription_memory_investigation.md)；可选--software-rendering构建/3项UI测试通过，旧页面已销毁；真实GPU专用175.68MB，Qt软件129.34—131.44MB；当前不设固定MB门槛，字体驻留504→491MB仍存在；继续定位Qt字体触发/私有分配，异常修复未关闭 |
 | 内存优化P0/P1-A/P1-B/P2/P3 | Review | Zoo | NotRun | [跨批次审查与验证矩阵](reports/20261026_client_memory_optimization.md#验证范围)；另获构建授权后补新源码定向验证 |

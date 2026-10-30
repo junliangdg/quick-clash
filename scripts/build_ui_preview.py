@@ -1,6 +1,7 @@
 """Build the self-contained UI concept preview using only Python's standard library."""
 
 import argparse
+import base64
 import re
 from pathlib import Path
 
@@ -22,6 +23,9 @@ def main():
         )
 
     fragment = re.sub(r"<!-- navigation_icon:([a-z_]+) -->", navigation_icon, fragment)
+    brand = (icons.parent / "brand" / "qcat.svg").read_bytes()
+    brand_uri = "data:image/svg+xml;base64," + base64.b64encode(brand).decode("ascii")
+    fragment = fragment.replace("<!-- brand_icon -->", f'<img src="{brand_uri}" alt="" width="24" height="24">')
     header = '''<!doctype html>
 <html lang="zh-CN">
 <head>

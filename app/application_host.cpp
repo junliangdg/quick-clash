@@ -5,34 +5,30 @@
 #include <QCursor>
 #include <QEvent>
 #include <QIcon>
-#include <QPainter>
-#include <QPixmap>
 #include <QQmlEngine>
 #include <QQmlError>
 #include <QScopedValueRollback>
 #include <QScreen>
 #include <QStyleHints>
+#ifdef Q_OS_WIN
+#include <QSettings>
+#endif
 #include <utility>
 
 namespace quickclash {
 namespace {
-// Shared brand mark for the tray and the top-level window icon.
-QIcon buildApplicationIcon() {
-    QPixmap pixmap(32, 32);
-    pixmap.fill(Qt::transparent);
-    QPainter painter(&pixmap);
-    painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(Qt::NoPen);
-    painter.setBrush(QColor(QStringLiteral("#5b4bc4")));
-    painter.drawRoundedRect(1, 1, 30, 30, 10, 10);
-    painter.setPen(Qt::white);
-    auto font = painter.font();
-    font.setPixelSize(21);
-    font.setBold(true);
-    painter.setFont(font);
-    painter.drawText(pixmap.rect(), Qt::AlignCenter, QStringLiteral("Q"));
-    painter.end();
-    return QIcon(pixmap);
+bool darkTrayBackground() {
+#ifdef Q_OS_WIN
+    // Windows can use different appearances for applications and the taskbar.
+    const QSettings personalization(
+        QStringLiteral(
+            "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Themes\\Personalize"),
+        QSettings::NativeFormat);
+    const auto light = personalization.value(QStringLiteral("SystemUsesLightTheme"));
+    if (light.isValid())
+        return light.toInt() == 0;
+#endif
+    return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 }
 } // namespace
 ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* parent)
@@ -41,11 +37,15 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
     QQmlEngine::setObjectOwnership(state_.proxyModel(), QQmlEngine::CppOwnership);
     QQmlEngine::setObjectOwnership(state_.connectionModel(), QQmlEngine::CppOwnership);
     auto* hints = QGuiApplication::styleHints();
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/brand/quickclash.ico")));
     state_.setSystemDark(hints->colorScheme() == Qt::ColorScheme::Dark);
     connect(hints, &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme scheme) {
         state_.setSystemDark(scheme == Qt::ColorScheme::Dark);
+        updateTrayIcon();
     });
     setupTray(noTray);
+    connect(&systemEvents_, &SystemEvents::typographyChanged, this,
+            &ApplicationHost::updateTrayIcon, Qt::QueuedConnection);
     connect(
         &systemEvents_, &SystemEvents::typographyChanged, this,
         [] { QApplication::setFont(platformUiFont()); }, Qt::QueuedConnection);
@@ -155,7 +155,8 @@ void ApplicationHost::setupTray(bool noTray) {
         (void)showWindow();
     });
     trayMenu_->addAction(tr("Quit"), this, &ApplicationHost::quit);
-    tray_ = std::make_unique<QSystemTrayIcon>(buildApplicationIcon());
+    tray_ = std::make_unique<QSystemTrayIcon>();
+    updateTrayIcon();
     tray_->setToolTip(QStringLiteral("QuickClash"));
     tray_->setContextMenu(trayMenu_.get());
     connect(tray_.get(), &QSystemTrayIcon::activated, this,
@@ -166,6 +167,13 @@ void ApplicationHost::setupTray(bool noTray) {
             });
     tray_->show();
     state_.setTrayAvailable(true);
+}
+void ApplicationHost::updateTrayIcon() {
+    if (tray_) {
+        tray_->setIcon(QIcon(darkTrayBackground()
+                                 ? QStringLiteral(":/icons/brand/qcat_tray_light.svg")
+                                 : QStringLiteral(":/icons/brand/qcat_tray_dark.svg")));
+    }
 }
 bool ApplicationHost::showWindow() {
     deferredUnload_.cancel();
@@ -211,7 +219,7 @@ bool ApplicationHost::showWindow() {
             return false;
         }
         ++generation_;
-        window_->setIcon(buildApplicationIcon());
+        window_->setIcon(QApplication::windowIcon());
         window_->setPersistentGraphics(false);
         window_->setPersistentSceneGraph(false);
         if (geometry_.isValid()) {

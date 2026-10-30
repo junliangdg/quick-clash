@@ -20,4 +20,4 @@ python scripts/build_ui_preview.py --check
 
 预览使用公开假数据和本地交互。节点、域名、用量、时间及测试结果均为演示；不访问网络，不读取用户配置，不修改系统代理/端口/文件，不作为产品默认值、真实功能或资源验收证据。菜单复制仅显示反馈，不改写系统剪贴板。预览默认浅色，产品默认跟随系统，两者用途不同。
 
-页面使用自有结构、CSS和脚本、系统字体及Unicode辅助符号；导航使用与产品同源的八个Lucide圆角线性SVG，由生成脚本直接嵌入离线页，无UI框架、图标字体、远程CDN或下载字体依赖，CSP禁止网络连接。图标版本与许可见[许可台账](../baseline/licenses.md)。Linear与shadcn/ui仅提供理念参考，未复制其代码、品牌或素材。产品落地仍为C++20与Qt Quick，导航通过本地SVG及Qt图标着色实现。
+页面使用自有结构、CSS和脚本、系统字体及Unicode辅助符号；导航及独立收展按钮使用与产品同源的十个Lucide圆角线性SVG，窗口和侧栏使用灵猫Q品牌。生成脚本直接嵌入SVG及品牌data URI，预览支持宽窗收窄/图标轨展开；无UI框架、图标字体、远程CDN或下载字体依赖，CSP禁止网络连接。图标版本与许可见[许可台账](../baseline/licenses.md)。Linear与shadcn/ui仅提供理念参考，未复制其代码、品牌或素材。产品落地仍为C++20与Qt Quick，导航通过本地SVG及Qt图标着色实现；Windows多尺寸ICO生成说明见[构建基线](../baseline/build_and_package.md)。

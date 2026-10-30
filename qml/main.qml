@@ -11,7 +11,8 @@ ApplicationWindow {
     readonly property bool compact: width < 1000
     readonly property bool narrow: width < 600
     property bool expandedRail: false
-    readonly property bool wideNavigation: !compact || expandedRail
+    property bool collapsedSidebar: false
+    readonly property bool wideNavigation: compact ? expandedRail : !collapsedSidebar
     readonly property int navigationWidth: narrow ? 0 : (wideNavigation ? (width >= 1200 ? 208 : 192) : 64)
     readonly property int pageMargin: narrow ? 12 : (compact ? 16 : 24)
     readonly property bool pageReady: pageHost.status === Loader.Ready
@@ -64,17 +65,19 @@ ApplicationWindow {
                 anchors.margins: 10
                 spacing: 16
                 RowLayout {
-                    Layout.fillWidth: true
+                    Layout.fillWidth: window.wideNavigation
+                    Layout.alignment: window.wideNavigation ? Qt.AlignLeft : Qt.AlignHCenter
                     Layout.topMargin: 8
                     spacing: 10
-                    ActionButton {
-                        theme: tokens
-                        text: "Q"
-                        prominent: true
-                        implicitWidth: tokens.scaledSize(36)
-                        font.weight: Font.DemiBold
-                        onClicked: window.expandedRail = !window.expandedRail
-                        Accessible.name: qsTr("Expand or collapse navigation")
+                    Image {
+                        objectName: "brand_mark"
+                        visible: window.wideNavigation
+                        source: "qrc:/icons/brand/qcat.svg"
+                        Layout.preferredWidth: tokens.scaledSize(24)
+                        Layout.preferredHeight: tokens.scaledSize(24)
+                        sourceSize.width: width
+                        sourceSize.height: height
+                        Accessible.ignored: true
                     }
                     Label {
                         visible: window.wideNavigation
@@ -84,6 +87,28 @@ ApplicationWindow {
                         font.weight: Font.DemiBold
                         color: tokens.text
                         elide: Text.ElideRight
+                    }
+                    ToolButton {
+                        id: navigationToggle
+                        objectName: "navigation_toggle"
+                        Layout.preferredWidth: tokens.scaledSize(32)
+                        Layout.preferredHeight: tokens.scaledSize(36)
+                        text: window.wideNavigation ? qsTr("Collapse navigation") : qsTr("Expand navigation")
+                        display: AbstractButton.IconOnly
+                        icon.source: window.wideNavigation ? "qrc:/icons/navigation/panel_left_close.svg" : "qrc:/icons/navigation/panel_left_open.svg"
+                        icon.width: tokens.scaledSize(20)
+                        icon.height: tokens.scaledSize(20)
+                        icon.color: tokens.muted
+                        activeFocusOnTab: true
+                        Accessible.name: text
+                        onClicked: {
+                            if (window.compact)
+                                window.expandedRail = !window.expandedRail;
+                            else
+                                window.collapsedSidebar = !window.collapsedSidebar;
+                        }
+                        ThemedToolTip { theme: tokens; visible: navigationToggle.hovered; text: navigationToggle.text }
+                        background: StateSurface { theme: tokens; hovered: navigationToggle.hovered; down: navigationToggle.down; focused: navigationToggle.activeFocus }
                     }
                 }
                 ListView {

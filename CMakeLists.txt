@@ -174,9 +174,19 @@ if(QUICKCLASH_BUILD_UI)
         FILES resources/icons/navigation/home.svg resources/icons/navigation/proxies.svg
               resources/icons/navigation/subscriptions.svg resources/icons/navigation/connections.svg
               resources/icons/navigation/rules.svg resources/icons/navigation/logs.svg
-              resources/icons/navigation/tests.svg resources/icons/navigation/settings.svg)
+              resources/icons/navigation/tests.svg resources/icons/navigation/settings.svg
+              resources/icons/navigation/panel_left_close.svg resources/icons/navigation/panel_left_open.svg)
+    qt_add_resources(quickclash quickclash_brand_icons
+        PREFIX /icons/brand BASE resources/icons/brand
+        FILES resources/icons/brand/qcat.svg resources/icons/brand/quickclash.ico
+              resources/icons/brand/qcat_tray_dark.svg resources/icons/brand/qcat_tray_light.svg)
     install(FILES resources/licenses/lucide_isc.txt DESTINATION licenses)
     if(WIN32)
+        enable_language(RC)
+        target_sources(quickclash PRIVATE resources/quickclash.rc)
+        target_include_directories(quickclash PRIVATE resources)
+        set_source_files_properties(resources/quickclash.rc PROPERTIES
+            OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/resources/icons/brand/quickclash.ico")
         target_link_libraries(quickclash PRIVATE iphlpapi ws2_32)
     endif()
     target_include_directories(quickclash PRIVATE src/presentation)
