@@ -94,6 +94,7 @@ Item {
     }
     Flickable {
         id: groupList
+        objectName: "proxy_group_list"
         visible: !root.ui.replay
         anchors.fill: parent
         clip: true
@@ -239,15 +240,37 @@ Item {
                             readonly property int endRow: Math.min(rows, Math.max(0, Math.ceil((groupList.contentY + groupList.height - pageY) / rowHeight) + 1))
                             readonly property int firstIndex: firstRow * groupTile.nodeColumns
                             readonly property int endIndex: Math.min(members.length, endRow * groupTile.nodeColumns)
+                            // A fixed control pool is mapped onto a ring of grid rows.
+                            // Changing the visible range therefore rebinds at most the
+                            // rows entering/leaving the viewport instead of destroying
+                            // and rebuilding the complete visible delegate set.
+                            readonly property int poolRows: Math.ceil(groupList.height / rowHeight) + 3
+                            readonly property int poolSize: Math.max(0, poolRows * groupTile.nodeColumns)
+                            readonly property bool viewportActive: groupTile.expanded && pageY < groupList.contentY + groupList.height + rowHeight && pageY + implicitHeight > groupList.contentY - rowHeight
+                            property int rowShift: 0
+                            property int lastFirstRow: 0
+                            onFirstRowChanged: {
+                                const delta = firstRow - lastFirstRow;
+                                lastFirstRow = firstRow;
+                                rowShift = Math.abs(delta) < poolRows ? ((rowShift - delta) % poolRows + poolRows) % poolRows : 0;
+                            }
+                            onPoolRowsChanged: {
+                                rowShift = 0;
+                                lastFirstRow = firstRow;
+                            }
                             function focusMember(member): void {
                                 const target = Math.max(0, Math.min(members.length - 1, member));
                                 const top = pageY + Math.floor(target / groupTile.nodeColumns) * rowHeight;
                                 groupList.contentY = Math.max(0, Math.min(groupList.contentHeight - groupList.height,
                                     top < groupList.contentY ? top : top + rowHeight > groupList.contentY + groupList.height ? top + rowHeight - groupList.height : groupList.contentY));
                                 Qt.callLater(() => {
-                                    const item = nodeCards.itemAt(target - firstIndex);
-                                    if (item)
-                                        item.forceActiveFocus(Qt.TabFocusReason);
+                                    for (let i = 0; i < nodeCards.count; ++i) {
+                                        const item = nodeCards.itemAt(i);
+                                        if (item && item.memberIndex === target) {
+                                            item.forceActiveFocus(Qt.TabFocusReason);
+                                            return;
+                                        }
+                                    }
                                 });
                             }
                             visible: groupTile.expanded && (groupTile.modelData.members || []).length > 0
@@ -255,17 +278,20 @@ Item {
                             implicitHeight: rows * rowHeight - (rows > 0 ? 8 : 0)
                             Repeater {
                                 id: nodeCards
-                                model: groupTile.expanded ? Math.max(0, nodeGrid.endIndex - nodeGrid.firstIndex) : 0
+                                model: nodeGrid.viewportActive && nodeGrid.members.length > 0 ? Math.min(nodeGrid.members.length, nodeGrid.poolSize) : 0
                                 // Compact card: clicking selects; info, latency and the
                                 // test action share one row.
                                 ItemDelegate {
                                     id: nodeTile
                                     objectName: "proxy_member_" + groupTile.modelData.name + "_" + modelData
                                     required property int index
-                                    readonly property int memberIndex: nodeGrid.firstIndex + index
+                                    readonly property int slotRow: Math.floor(index / groupTile.nodeColumns)
+                                    readonly property int memberIndex: (nodeGrid.firstRow + (slotRow + nodeGrid.rowShift) % nodeGrid.poolRows) * groupTile.nodeColumns + index % groupTile.nodeColumns
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
                                     readonly property bool current: groupTile.modelData.current === modelData
                                     readonly property bool testable: !(modelData in root.groupNames) && !["DIRECT", "REJECT"].includes(modelData)
+                                    readonly property bool inWindow: memberIndex >= nodeGrid.firstIndex && memberIndex < nodeGrid.endIndex
+                                    visible: inWindow
                                     width: groupTile.nodeCardWidth
                                     height: root.theme.scaledSize(64)
                                     x: (memberIndex % groupTile.nodeColumns) * (width + 8)
@@ -276,7 +302,6 @@ Item {
                                     enabled: !root.runtime.busy || !!root.runtime.selectingProxy
                                     activeFocusOnTab: true
                                     Accessible.name: modelData
-                                    ThemedToolTip { theme: root.theme; visible: nodeTile.hovered && !!groupTile.modelData.canSelect && !nodeTile.current; text: qsTr("Click to select") }
                                     onClicked: if (groupTile.modelData.canSelect && (!current || root.runtime.selectingProxy))
                                         root.ui.runtimeCommand("proxy", [groupTile.modelData.name, modelData])
                                     Keys.onUpPressed: nodeGrid.focusMember(memberIndex - groupTile.nodeColumns)

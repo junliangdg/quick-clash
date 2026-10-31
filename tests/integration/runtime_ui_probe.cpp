@@ -13,6 +13,7 @@
 #include <QSet>
 #include <QTest>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -556,6 +557,10 @@ int runPageMemoryProbe(ApplicationHost& host) {
     };
     QElapsedTimer elapsed;
     elapsed.start();
+    // Diagnostic-only smooth scroll: a manual run can set QUICKCLASH_PROBE_SCROLL=smooth
+    // to separate per-frame rendering cost from the row-jump cost of the default probe.
+    const bool smoothScroll = qEnvironmentVariable("QUICKCLASH_PROBE_SCROLL") == "smooth";
+    const bool traceScroll = qEnvironmentVariableIsSet("QUICKCLASH_PROBE_TRACE");
     const auto stage = [&](const char* name, int milliseconds, bool scroll = false) {
         Sample before, endpoint, peak;
         if (!read(before))
@@ -563,25 +568,87 @@ int runPageMemoryProbe(ApplicationHost& host) {
         QElapsedTimer clock;
         clock.start();
         int samples = 0;
-        while (clock.elapsed() < milliseconds) {
+        QElapsedTimer frameClock;
+        frameClock.start();
+        QVector<qint64> frameTimes;
+        QMetaObject::Connection frameConnection;
+        if (scroll) {
+            frameConnection =
+                QObject::connect(host.window(), &QQuickWindow::frameSwapped, host.window(),
+                                 [&] { frameTimes.append(frameClock.nsecsElapsed()); });
+        }
+        const int smoothMilliseconds = qEnvironmentVariableIntValue("QUICKCLASH_PROBE_SCROLL_MS");
+        const int duration =
+            scroll && smoothScroll
+                ? std::max(milliseconds, smoothMilliseconds > 0 ? smoothMilliseconds : 6000)
+                : milliseconds;
+        qint64 nextTrace = 0;
+        qint64 nextSample = 0;
+        while (clock.elapsed() < duration) {
             if (scroll && page()) {
-                for (auto* object : objects(page())) {
-                    auto* item = qobject_cast<QQuickItem*>(object);
-                    if (item && item->property("contentY").isValid()) {
-                        const auto extent = std::max(
-                            0.0, item->property("contentHeight").toDouble() - item->height());
-                        item->setProperty("contentY", extent * ((clock.elapsed() / 400) % 5) / 4);
-                        break;
+                auto* target =
+                    host.window()->findChild<QQuickItem*>(QStringLiteral("proxy_group_list"));
+                if (!target)
+                    for (auto* object : objects(page())) {
+                        auto* candidate = qobject_cast<QQuickItem*>(object);
+                        if (candidate && candidate->property("contentY").isValid()) {
+                            target = candidate;
+                            break;
+                        }
+                    }
+                if (target) {
+                    const auto extent = std::max(0.0, target->property("contentHeight").toDouble() -
+                                                          target->height());
+                    if (smoothScroll) {
+                        const double phase = std::fmod(clock.elapsed() / 6000.0, 2.0);
+                        target->setProperty("contentY",
+                                            extent * (phase < 1.0 ? phase : 2.0 - phase));
+                    } else {
+                        target->setProperty("contentY", extent * ((clock.elapsed() / 400) % 5) / 4);
                     }
                 }
             }
-            QTest::qWait(20);
+            QTest::qWait(scroll ? 4 : 20);
+            if (scroll && clock.elapsed() < nextSample)
+                continue;
+            nextSample = clock.elapsed() + 20;
             if (!read(endpoint))
                 return false;
+            if (traceScroll && scroll && clock.elapsed() >= nextTrace) {
+                std::printf("Page memory trace: stage=%s elapsedMs=%lld pws=%llu commit=%llu\n",
+                            name, static_cast<long long>(clock.elapsed()),
+                            static_cast<unsigned long long>(endpoint.privateWorkingSet),
+                            static_cast<unsigned long long>(endpoint.privateCommit));
+                nextTrace = clock.elapsed() + 2000;
+            }
             peak.privateWorkingSet = std::max(peak.privateWorkingSet, endpoint.privateWorkingSet);
             peak.workingSet = std::max(peak.workingSet, endpoint.workingSet);
             peak.privateCommit = std::max(peak.privateCommit, endpoint.privateCommit);
             ++samples;
+        }
+        if (frameConnection)
+            QObject::disconnect(frameConnection);
+        QJsonObject frameStats;
+        if (frameTimes.size() > 1) {
+            QVector<qint64> intervals;
+            intervals.reserve(frameTimes.size() - 1);
+            for (qsizetype i = 1; i < frameTimes.size(); ++i)
+                intervals.append(frameTimes[i] - frameTimes[i - 1]);
+            std::sort(intervals.begin(), intervals.end());
+            const auto percentile = [&](double fraction) {
+                return intervals[std::min(intervals.size() - 1,
+                                          static_cast<qsizetype>(intervals.size() * fraction))] /
+                       1.0e6;
+            };
+            const double median = percentile(0.5);
+            int slowFrames = 0;
+            for (const auto interval : intervals)
+                slowFrames += interval > std::max<qint64>(1, static_cast<qint64>(median * 1.75e6));
+            frameStats = {{"count", static_cast<int>(intervals.size())},
+                          {"medianMs", median},
+                          {"p95Ms", percentile(0.95)},
+                          {"maxMs", static_cast<double>(intervals.last()) / 1.0e6},
+                          {"slowFrames", slowFrames}};
         }
         const QJsonObject result{
             {"stage", QString::fromLatin1(name)},
@@ -594,6 +661,7 @@ int runPageMemoryProbe(ApplicationHost& host) {
             {"windowObjects", objects(host.window()).size()},
             {"pageObjects", objects(page()).size()},
             {"nodeControls", nodeControls()},
+            {"frames", frameStats},
             {"modelGroups", host.state().groups().size()},
             {"modelNodes", host.state().nodes().size()}};
         std::printf("Page memory: %s\n",

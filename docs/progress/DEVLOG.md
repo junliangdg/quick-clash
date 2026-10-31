@@ -897,3 +897,14 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 部署/服务Pass：build/window_startup/deployed_final清开发PATH启动page_ready=true/qml_errors=0，未携带bin/qt6.conf，包bin/qt.conf为Prefix=..；部署日志为build/dev/logs/deploy_20261031T065149094Z。普通--service-test status确认自动启动注册服务、clean=true/coreRunning=false/tun=false/passed=true，服务Running；不触发UAC或TUN。此前误用--service-probe被普通单实例处理，没有生成验收证据，已改用正确入口重验。
 - 状态/下一步：专项Done/启动范围Pass；现有G1-C实验回放与实际OS可访问性、真实TUN/跨用户/系统重启仍按原任务边界待验。第三方TUN未切换。GUI SHA256=0E7FC7770343BB171EAA804792B8180262122C61DF07F7B3C15AAF4E01499E3B，服务=1C200B85970E7478E045E26B711484E51F50C1D980666B22EEC4032F3B498BAA。保留全部已有修改，未提交。
 - 交付检查：check_progress.ps1、check_source_layout.ps1、check_platform_boundaries.ps1及git diff --check均通过；仅构建配置/说明及台账变更，未修改设计分册或C++/QML源码，不重跑无关全矩阵。
+
+## 2026-10-31 / 代理页节点滚动性能修复
+
+- 关联：P3-01、PX-07；用户反馈代理页滚动时内存、CPU/GPU占用明显上升并卡顿。保留既有工作区修改，未提交。
+- 根因：展开组节点网格的 Repeater 模型取“可视行范围”的大小。每次滚动跨行，模型尺寸变化导致全部可视节点委托销毁重建，卡片 Label/Layout/按钮及逐节点 ThemedToolTip 一并反复分配；500节点时形成持续 QML/布局对象抖动，帧间隔被拉长。
+- 实现：`qml/features/proxies/proxies_page.qml` 改为按组建立固定行数控件池，并以环形行槽把池位重映射到当前首行；普通滚动只改 memberIndex/位置，不重建控件，大幅跳转重置映射，折叠或离开视口释放池。键盘 Home/End 与方向键改为按 memberIndex 在池中查找目标。移除每个节点卡的 ThemedToolTip，组按钮提示保留。新增 `objectName: "proxy_group_list"` 供探针定位真实页面。
+- 探针：`tests/integration/runtime_ui_probe.cpp` 增加 `QUICKCLASH_PROBE_SCROLL=smooth`、`QUICKCLASH_PROBE_SCROLL_MS` 与 `QUICKCLASH_PROBE_TRACE`，采样 frameSwapped 间隔输出 count/median/p95/max/slowFrames，并可按 2 秒打印专用工作集/私有提交。
+- 对照（Qt 6.8.0 Release、Windows D3D11、1000×640、DPR1.25、500节点×3组、6秒）：单组 CPU 5203→1406ms，中位帧132.1→15.2ms，p95 141.4→20.6ms；三组 CPU 5016→2172ms，中位帧82.4→15.5ms，p95 226.4→20.7ms。单组专用工作集94.2→87.0MB，三组峰值103.2→92.1MB。18秒重复滚动：单组1174帧/中位15.44ms，三组重入1180帧/中位17.77ms，节点控件保持33个。
+- 验证：Windows Qt6.8增量构建通过；QML lint退出0（只含既存无关文件警告）；`ui_runtime_lists` 5/5（qml_smoke、ui_keyboard、ui_accessibility、ui_responsive、500节点视口）、`ui_runtime_lists_zh`/`deferred_ui_unload`/`host_lifecycle` 3/3；默认 `--page-memory-test` 退出0，节点控件33个、离页归零，无核心/设置IO；clang-format与`git diff --check`通过。
+- 限制：以上为合成 Qt6.8 D3D11 窗口的短时滚动对照，GPU利用率未单独仪器化，未覆盖真实用户长时滚动、不同显卡驱动、多屏缩放与G5长稳；页面其余字体/Qt缓存驻留问题不属于本修复结论。
+- 下一步：按G3/G5范围复用本证据，不在每次页面改动重跑长时矩阵。
