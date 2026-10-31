@@ -228,7 +228,7 @@ ApplicationWindow {
                             Label {
                                 id: runtimeBadgeText
                                 objectName: "runtime_status_text"
-                                text: window.runtimeFailed ? qsTr("Runtime error") : window.runtimeHealthy ? qsTr("Running normally") : window.ui.runtimeStatus
+                                text: window.runtimeFailed ? qsTr("Runtime error") : window.runtimeHealthy ? qsTr("Core ready") : window.ui.runtimeStatus
                                 color: window.runtimeColor
                                 font.pixelSize: tokens.supportingSize
                             }

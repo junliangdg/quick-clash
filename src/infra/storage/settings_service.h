@@ -17,8 +17,8 @@ class SettingsService final : public QObject {
     void setDemands(const application::RuntimeDemands& demands);
     void command(const QString& name, const QStringList& arguments = {});
   signals:
-    void loaded(const QString& theme, bool unload, bool acknowledged);
-    void saved(const QString& theme, bool unload, bool acknowledged);
+    void loaded(const QString& theme, bool unload, bool acknowledged, const QJsonObject& dashboard);
+    void saved(const QString& theme, bool unload, bool acknowledged, const QJsonObject& dashboard);
     void failed(const QString& code);
     void runtimeChanged(const QJsonObject& state);
     void dataChanged(const quickclash::application::RuntimeUpdate& update);

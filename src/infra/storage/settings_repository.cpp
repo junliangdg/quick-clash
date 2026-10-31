@@ -23,9 +23,26 @@ domain::Result<UiPreferences> SettingsRepository::load() {
         store_.freeze();
         return storageError("SettingsRecoveryRequired");
     }
-    return UiPreferences{object->value(QStringLiteral("theme")).toString(),
-                         object->value(QStringLiteral("unloadWhenHidden")).toBool(),
-                         object->value(QStringLiteral("closeAcknowledged")).toBool()};
+    UiPreferences preferences{object->value(QStringLiteral("theme")).toString(),
+                              object->value(QStringLiteral("unloadWhenHidden")).toBool(),
+                              object->value(QStringLiteral("closeAcknowledged")).toBool()};
+    const auto dashboard = object->value(QStringLiteral("dashboard"));
+    if (!dashboard.isUndefined() && !dashboard.isObject()) {
+        store_.freeze();
+        return storageError("SettingsRecoveryRequired");
+    }
+    const auto options = dashboard.toObject();
+    for (auto it = preferences.dashboard.begin(); it != preferences.dashboard.end(); ++it) {
+        const auto value = options.value(it.key());
+        if (value.isUndefined())
+            continue;
+        if (!value.isBool()) {
+            store_.freeze();
+            return storageError("SettingsRecoveryRequired");
+        }
+        it.value() = value;
+    }
+    return preferences;
 }
 domain::CommandResult SettingsRepository::save(const UiPreferences& preferences) {
     if (!validTheme(preferences.theme)) {
@@ -34,7 +51,8 @@ domain::CommandResult SettingsRepository::save(const UiPreferences& preferences)
     return store_.write(kSettings,
                         {{QStringLiteral("theme"), preferences.theme},
                          {QStringLiteral("unloadWhenHidden"), preferences.unloadWhenHidden},
-                         {QStringLiteral("closeAcknowledged"), preferences.closeAcknowledged}});
+                         {QStringLiteral("closeAcknowledged"), preferences.closeAcknowledged},
+                         {QStringLiteral("dashboard"), preferences.dashboard}});
 }
 QJsonObject SettingsRepository::runtimeDefaults() {
     return {{QStringLiteral("mode"), QStringLiteral("rule")},

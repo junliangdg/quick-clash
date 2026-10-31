@@ -263,6 +263,15 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command == QStringLiteral("query_ip")) {
+        queryIp(args.value(0));
+        return;
+    }
+    if (command == QStringLiteral("cancel_ip")) {
+        cancelIpQueries(false);
+        publish();
+        return;
+    }
     if (command == QStringLiteral("refresh_groups")) {
         if (!busy_ && engine_.ready())
             engine_.refreshGroups();

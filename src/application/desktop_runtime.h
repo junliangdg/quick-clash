@@ -57,6 +57,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void setPorts(int mixed, int controller);
     void setTun(bool desired);
     void testWebsite(const QString& target, const QString& path = QStringLiteral("CurrentProxy"));
+    void queryIp(const QString& family, const QUrl& source = {});
     void refresh();
     void previewConfiguration();
     void reapplySystemProxy();
@@ -217,6 +218,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void finishWebsite(const std::shared_ptr<WebsiteProbe>& probe, const QString& outcome,
                        int status);
     void invalidateWebsiteTest();
+    void cancelIpQueries(bool stale);
     void restoreBackup(const QString& token);
     void restoreNext(const std::shared_ptr<BackupRestore>& context, qsizetype index);
     void updateGeo();
@@ -243,6 +245,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     std::unique_ptr<IDesktopProcess> validator_;
     QNetworkAccessManager directNetwork_;
     QNetworkAccessManager testNetwork_;
+    QNetworkAccessManager ipDirectNetwork_;
+    QNetworkAccessManager ipProxyNetwork_;
+    QList<QPointer<QNetworkReply>> ipReplies_;
+    quint64 ipGeneration_ = 0;
     QTimer validationDeadline_;
     QTimer recoveryTimer_;
     QTimer reconcileTimer_;

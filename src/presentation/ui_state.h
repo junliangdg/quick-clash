@@ -35,6 +35,7 @@ class UiState : public QObject {
     Q_PROPERTY(bool replayRunning READ replayRunning NOTIFY demandsChanged)
     Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
+    Q_PROPERTY(QVariantMap dashboard READ dashboard NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
@@ -111,6 +112,11 @@ class UiState : public QObject {
     [[nodiscard]] QJsonObject diagnosticSnapshot() const;
     Q_INVOKABLE void setLogsPaused(bool paused);
     Q_INVOKABLE void runtimeCommand(const QString& command, const QStringList& arguments = {});
+    Q_INVOKABLE void copyText(const QString& text);
+    Q_INVOKABLE void setDashboardOption(const QString& key, bool value);
+    [[nodiscard]] QVariantMap dashboard() const {
+        return dashboard_.toVariantMap();
+    }
     [[nodiscard]] QString storageError() const {
         return storageError_;
     }
@@ -237,7 +243,8 @@ class UiState : public QObject {
     void refreshTelemetry();
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
-    void applyPreferences(const QString& theme, bool unload, bool acknowledged);
+    void applyPreferences(const QString& theme, bool unload, bool acknowledged,
+                          const QJsonObject& dashboard);
     FeatureRegistry registry_;
     QString currentPage_ = QStringLiteral("home");
     QString routeError_;
@@ -249,6 +256,7 @@ class UiState : public QObject {
     bool trayAvailable_ = false;
     bool unloadWhenHidden_ = false;
     bool closeAcknowledged_ = false;
+    QJsonObject dashboard_ = infra::UiPreferences{}.dashboard;
     QString hostState_ = QStringLiteral("Unloaded");
     QHash<QString, QString> demands_;
     application::RuntimeDemands dataDemands_;

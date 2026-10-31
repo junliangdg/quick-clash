@@ -1,8 +1,12 @@
 #include "presentation/ui_state.h"
+#include <QClipboard>
+#include <QDateTime>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QSet>
 #include <QThread>
 #include <QUuid>
+#include <algorithm>
 #include <cmath>
 
 namespace quickclash::presentation {
@@ -17,10 +21,8 @@ double replayRate(int sample, bool upload) {
 }
 } // namespace
 UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
-    // Start with a full zero ring so the sparkline scale is stable from the
-    // first sample; real samples overwrite the oldest zeros as they arrive.
-    liveUpload_.fill(0.0, kTrafficHistoryLimit);
-    liveDownload_.fill(0.0, kTrafficHistoryLimit);
+    liveUpload_.fill(QVariant{}, kTrafficHistoryLimit);
+    liveDownload_.fill(QVariant{}, kTrafficHistoryLimit);
     if (!settingsFile.isEmpty()) {
         settings_ =
             std::make_unique<infra::SettingsService>(QFileInfo(settingsFile).absolutePath());
@@ -154,13 +156,9 @@ void UiState::clearChannel(const QString& channel) {
     emit channelInvalidated(channel);
 }
 void UiState::clearTrafficHistory() {
-    // Only a ring with real samples counts as history; the pre-filled zero
-    // ring is the initial state and must not notify on its own reset.
     const bool hadHistory = !trafficSample_.isEmpty();
-    // Pre-fill the ring with zero samples so the plot starts at a fixed
-    // width/scale instead of re-layouting as real samples trickle in.
-    liveUpload_.fill(0.0, kTrafficHistoryLimit);
-    liveDownload_.fill(0.0, kTrafficHistoryLimit);
+    liveUpload_.fill(QVariant{}, kTrafficHistoryLimit);
+    liveDownload_.fill(QVariant{}, kTrafficHistoryLimit);
     trafficSample_.clear();
     if (hadHistory)
         emit sampleChanged();
@@ -181,6 +179,16 @@ void UiState::refreshTelemetry() {
     const auto sample = telemetry_.value(QStringLiteral("traffic")).toMap();
     const auto timestamp = sample.value(QStringLiteral("time")).toString();
     if (!timestamp.isEmpty() && timestamp != trafficSample_) {
+        const auto previousTime = trafficSample_.toLongLong();
+        const auto nextTime = timestamp.toLongLong();
+        const auto gap = previousTime > 0 && nextTime > previousTime
+                             ? std::clamp<qint64>(qRound64((nextTime - previousTime) / 1000.0) - 1,
+                                                  0, kTrafficHistoryLimit)
+                             : 0;
+        for (qint64 i = 0; i < gap; ++i) {
+            liveUpload_.append(QVariant{});
+            liveDownload_.append(QVariant{});
+        }
         trafficSample_ = timestamp;
         // Bounded ring: 60 samples at ~1 Hz cover 60 seconds; the list stays
         // at a fixed size so the history never grows with uptime.
@@ -637,17 +645,19 @@ QString UiState::upload() const {
     const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
     if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
-    return replay_ ? QStringLiteral("%1 KiB/s").arg(replayRate(sample_, true), 0, 'f', 1)
-                   : QStringLiteral("%1 KiB/s")
-                         .arg(traffic.value(QStringLiteral("up")).toDouble() / 1024.0, 0, 'f', 1);
+    const double bytes = replay_ ? replayRate(sample_, true) * 1024.0
+                                 : traffic.value(QStringLiteral("up")).toDouble();
+    return bytes >= 1048576 ? QStringLiteral("%1 MiB/s").arg(bytes / 1048576.0, 0, 'f', 2)
+                            : QStringLiteral("%1 KiB/s").arg(bytes / 1024.0, 0, 'f', 1);
 }
 QString UiState::download() const {
     const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
     if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
-    return replay_ ? QStringLiteral("%1 MiB/s").arg(replayRate(sample_, false), 0, 'f', 1)
-                   : QStringLiteral("%1 KiB/s")
-                         .arg(traffic.value(QStringLiteral("down")).toDouble() / 1024.0, 0, 'f', 1);
+    const double bytes = replay_ ? replayRate(sample_, false) * 1048576.0
+                                 : traffic.value(QStringLiteral("down")).toDouble();
+    return bytes >= 1048576 ? QStringLiteral("%1 MiB/s").arg(bytes / 1048576.0, 0, 'f', 2)
+                            : QStringLiteral("%1 KiB/s").arg(bytes / 1024.0, 0, 'f', 1);
 }
 QVariantList UiState::uploadHistory() const {
     return history(true);
@@ -736,7 +746,9 @@ void UiState::persist(const QString& key, const QVariant& value) {
     if (!settingsReady_) {
         return;
     }
-    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_};
+    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_, dashboard_};
+    if (key == QStringLiteral("dashboard"))
+        preferences.dashboard = QJsonObject::fromVariantMap(value.toMap());
     if (key == QStringLiteral("theme")) {
         preferences.theme = value.toString();
     }
@@ -752,13 +764,15 @@ void UiState::persist(const QString& key, const QVariant& value) {
         settings_->save(preferences);
     } else {
         applyPreferences(preferences.theme, preferences.unloadWhenHidden,
-                         preferences.closeAcknowledged);
+                         preferences.closeAcknowledged, preferences.dashboard);
     }
 }
-void UiState::applyPreferences(const QString& theme, bool unload, bool acknowledged) {
+void UiState::applyPreferences(const QString& theme, bool unload, bool acknowledged,
+                               const QJsonObject& dashboard) {
     themeMode_ = theme;
     unloadWhenHidden_ = unload;
     closeAcknowledged_ = acknowledged;
+    dashboard_ = dashboard;
     storageError_.clear();
     settingsReady_ = true;
     emit themeChanged();
@@ -777,5 +791,17 @@ void UiState::runtimeCommand(const QString& command, const QStringList& argument
     if (settings_) {
         settings_->command(command, arguments);
     }
+}
+void UiState::copyText(const QString& text) {
+    if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) && text.size() <= 8192 &&
+        QGuiApplication::clipboard())
+        QGuiApplication::clipboard()->setText(text);
+}
+void UiState::setDashboardOption(const QString& key, bool value) {
+    if (!dashboard_.contains(key) || dashboard_.value(key).toBool() == value)
+        return;
+    auto options = dashboard_;
+    options.insert(key, value);
+    persist(QStringLiteral("dashboard"), options.toVariantMap());
 }
 } // namespace quickclash::presentation

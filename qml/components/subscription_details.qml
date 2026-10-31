@@ -33,9 +33,7 @@ ColumnLayout {
     }
     Label {
         visible: !root.overview
-        text: root.completeUsage
-            ? qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
-            : qsTr("Usage not provided")
+        text: root.completeUsage ? qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided")) : qsTr("Usage not provided")
         color: root.theme.text
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
@@ -43,13 +41,17 @@ ColumnLayout {
     RowLayout {
         visible: root.overview
         Layout.fillWidth: true
-        Label { text: qsTr("Current usage"); color: root.theme.muted; font.pixelSize: root.theme.scaledSize(12); Layout.fillWidth: true }
         Label {
-            text: root.completeUsage
-                ? root.sizeText(root.usedBytes) + " / " + (root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
-                : qsTr("Usage not provided")
+            text: qsTr("Remaining")
             color: root.theme.muted
             font.pixelSize: root.theme.scaledSize(12)
+            Layout.fillWidth: true
+        }
+        Label {
+            text: root.completeUsage ? (root.totalBytes > 0 ? root.sizeText(Math.max(0, root.totalBytes - root.usedBytes)) : qsTr("Not provided")) : qsTr("Usage not provided")
+            color: root.completeUsage && root.totalBytes > 0 ? (root.status.quotaState === "Exhausted" ? root.theme.error : root.status.quotaState === "Low" ? root.theme.warning : root.theme.text) : root.theme.muted
+            font.pixelSize: root.theme.scaledSize(19)
+            font.weight: Font.DemiBold
         }
     }
     ThemedProgress {
@@ -62,6 +64,14 @@ ColumnLayout {
         value: Math.min(1, Math.max(0, root.usedBytes / root.totalBytes))
     }
     Label {
+        visible: root.overview && root.completeUsage
+        text: qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided"))
+        color: root.theme.muted
+        font.pixelSize: root.theme.supportingSize
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+    }
+    Label {
         text: qsTr("Expires: %1").arg(root.status.expiresAt ? root.dateText(root.status.expiresAt) : qsTr("Not provided"))
         color: root.theme.muted
         font.pixelSize: root.overview ? root.theme.scaledSize(12) : root.theme.bodySize
@@ -71,8 +81,7 @@ ColumnLayout {
     Label {
         objectName: "subscription_usage_alert"
         visible: root.status.quotaState === "Low" || root.status.quotaState === "Exhausted" || root.status.expiryState === "Soon" || root.status.expiryState === "Expired"
-        text: [root.status.quotaState === "Exhausted" ? qsTr("Subscription quota exhausted") : root.status.quotaState === "Low" ? qsTr("10% quota remaining or less") : "",
-               root.status.expiryState === "Expired" ? qsTr("Subscription expired") : root.status.expiryState === "Soon" ? qsTr("Expires within 7 days") : ""].filter(value => value.length > 0).join(" · ")
+        text: [root.status.quotaState === "Exhausted" ? qsTr("Subscription quota exhausted") : root.status.quotaState === "Low" ? qsTr("10% quota remaining or less") : "", root.status.expiryState === "Expired" ? qsTr("Subscription expired") : root.status.expiryState === "Soon" ? qsTr("Expires within 7 days") : ""].filter(value => value.length > 0).join(" · ")
         color: root.status.quotaState === "Exhausted" || root.status.expiryState === "Expired" ? root.theme.error : root.theme.warning
         Layout.fillWidth: true
         wrapMode: Text.WordWrap

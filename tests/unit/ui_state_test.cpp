@@ -107,8 +107,21 @@ int main(int argc, char* argv[]) {
                   "reacquiring traffic continues the same bounded window");
             traffic.setUiVisible(false);
             check(traffic.uploadHistory().size() == 60 &&
-                      traffic.uploadHistory().constLast().toDouble() == 0.0,
+                      !traffic.uploadHistory().constLast().isValid(),
                   "hide resets the 60-point window");
+            traffic.setUiVisible(true);
+            traffic.setDemand("chart", "traffic", true);
+            deliver(100000);
+            deliver(104000);
+            const auto gaps = traffic.uploadHistory();
+            check(gaps.size() == 60 && !gaps.at(58).isValid() && !gaps.at(57).isValid() &&
+                      !gaps.at(56).isValid() && gaps.at(55).toDouble() == 100000,
+                  "missed seconds remain gaps rather than zero traffic");
+            traffic.setDashboardOption("resources", true);
+            traffic.setDashboardOption("unknown", true);
+            check(traffic.dashboard().value("resources").toBool() &&
+                      !traffic.dashboard().contains("unknown"),
+                  "bounded dashboard preferences");
         }
         {
             UiState live;
@@ -174,9 +187,8 @@ int main(int argc, char* argv[]) {
             live.applyControl(control);
             check(live.liveConnections()->captureIds() == QStringList{"new"},
                   "old generation cannot revive old connections");
-            check(live.uploadHistory().size() == 60 &&
-                      live.uploadHistory().constFirst().toDouble() == 0.0,
-                  "epoch resets traffic history to a full zero ring");
+            check(live.uploadHistory().size() == 60 && !live.uploadHistory().constFirst().isValid(),
+                  "epoch resets traffic history to empty samples");
             check(profileChanges == 1 && groupChanges == 1,
                   "epoch alone does not notify unrelated profiles/groups");
         }

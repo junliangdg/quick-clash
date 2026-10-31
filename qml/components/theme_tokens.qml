@@ -5,7 +5,9 @@ QtObject {
     property string fontFamily: "sans-serif"
     property real fontPixelSize: 14
     readonly property real textScale: Math.max(1, Math.min(225 / 100, fontPixelSize / 14))
-    function scaledSize(size: real): int { return Math.round(size * textScale); }
+    function scaledSize(size: real): int {
+        return Math.round(size * textScale);
+    }
     readonly property color background: dark ? "#101114" : "#FAFAFB"
     readonly property color sidebar: dark ? "#15161A" : "#F4F4F6"
     readonly property color surface: dark ? "#191A20" : "#FFFFFF"
@@ -17,6 +19,7 @@ QtObject {
     readonly property color accentSurface: dark ? "#312A4F" : "#EEEBFD"
     readonly property color onSelection: dark ? "#C9BFFF" : "#5340AB"
     readonly property color upload: dark ? "#D5AE72" : "#936025"
+    readonly property color info: dark ? "#8CC8F5" : "#28618E"
     readonly property color download: accent
     readonly property color border: dark ? "#323440" : "#E5E5EA"
     readonly property color controlOutline: dark ? "#818496" : "#858591"
@@ -47,8 +50,17 @@ QtObject {
     readonly property int titleSize: scaledSize(24)
     readonly property int focusWidth: 2
     readonly property int focusGap: 2
+    function delayColor(result): color {
+        if (result === "Failed" || result === "Timeout")
+            return error;
+        if (result === "Testing" || result === "Queued")
+            return warning;
+        const value = parseInt(result);
+        if (isNaN(value) || value < 0)
+            return muted;
+        return value < 300 ? success : value < 800 ? warning : error;
+    }
     function stateColor(selected, hovered, down): color {
-        return selected ? (down ? selectedPressed : hovered ? selectedHover : accentSurface)
-                        : (down ? pressed : hovered ? hover : "transparent");
+        return selected ? (down ? selectedPressed : hovered ? selectedHover : accentSurface) : (down ? pressed : hovered ? hover : "transparent");
     }
 }

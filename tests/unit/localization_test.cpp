@@ -51,5 +51,14 @@ int main(int argc, char* argv[]) {
             "Low memory: unload after 5 seconds hidden or minimized (experimental)") ==
             "Low memory: unload after 5 seconds hidden or minimized (experimental)")
         return 8;
+    if (QCoreApplication::translate("home_proxy_controls", "Proxy and network") != "代理与网络" ||
+        QCoreApplication::translate("network_tools", "IP comparison") != "IP 对照" ||
+        QCoreApplication::translate("home_page", "Current core session totals") !=
+            "本次内核运行累计")
+        return 10;
+    if (QCoreApplication::translate("runtime_overview", "Runtime overview") != "运行概况" ||
+        QCoreApplication::translate("runtime_overview", "Client memory") != "客户端内存" ||
+        QCoreApplication::translate("runtime_overview", "Copy address") != "复制地址")
+        return 11;
     std::cout << "Locale preference, Chinese catalog, English and unsupported fallback passed\n";
 }

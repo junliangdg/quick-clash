@@ -2295,4 +2295,131 @@
   <context><name>settings_page</name>
     <message><source>TUN adapter: %1</source><translation>TUN 网卡：%1</translation></message>
   </context>
+  <context><name>home_page</name>
+    <message><source>Applying</source><translation>应用中</translation></message>
+    <message><source>Applied</source><translation>已应用</translation></message>
+    <message><source>Selected</source><translation>已选中</translation></message>
+    <message><source>Update subscription</source><translation>更新订阅</translation></message>
+    <message><source>The last confirmed session is retained. See the error details above.</source><translation>保留上次确认的会话，详情见上方错误提示。</translation></message>
+    <message><source>Hide chart</source><translation>收起曲线</translation></message>
+    <message><source>Show chart</source><translation>显示曲线</translation></message>
+    <message><source>Scale: %1 KiB/s</source><translation>刻度上限：%1 KiB/s</translation></message>
+    <message><source>Traffic data is stale</source><translation>流量数据已过期</translation></message>
+    <message><source>Current core session totals</source><translation>本次内核运行累计</translation></message>
+    <message><source>View logs</source><translation>查看日志</translation></message>
+    <message><source>Resource and version details</source><translation>资源与版本详情</translation></message>
+    <message><source>Core uptime: %1 h %2 min</source><translation>内核已运行：%1 小时 %2 分钟</translation></message>
+  </context>
+  <context><name>home_proxy_controls</name>
+    <message><source>Timed out</source><translation>超时</translation></message>
+    <message><source>Testing…</source><translation>测速中…</translation></message>
+    <message><source>Queued</source><translation>排队中</translation></message>
+    <message><source>Cancelled</source><translation>已取消</translation></message>
+    <message><source>Expired</source><translation>已过期</translation></message>
+    <message><source>Proxy and network</source><translation>代理与网络</translation></message>
+    <message><source>View proxies</source><translation>查看代理</translation></message>
+    <message><source>Outbound mode</source><translation>代理模式</translation></message>
+    <message><source>Rule</source><translation>规则</translation></message>
+    <message><source>Global</source><translation>全局</translation></message>
+    <message><source>Direct</source><translation>直连</translation></message>
+    <message><source>System proxy</source><translation>系统代理</translation></message>
+    <message><source>On</source><translation>开启</translation></message>
+    <message><source>Off</source><translation>关闭</translation></message>
+    <message><source>Starting</source><translation>正在启动</translation></message>
+    <message><source>Stopping</source><translation>正在关闭</translation></message>
+    <message><source>Service required</source><translation>需要安装服务</translation></message>
+    <message><source>Unavailable</source><translation>不可用</translation></message>
+    <message><source>TUN handles traffic according to system routes.</source><translation>TUN 根据系统路由接管流量。</translation></message>
+    <message><source>System proxy handles applications that follow system proxy settings.</source><translation>系统代理接管遵循系统代理设置的应用。</translation></message>
+    <message><source>Network takeover is off. The local proxy port remains available when the core is ready.</source><translation>网络接管已关闭；内核就绪时，本地代理端口仍可使用。</translation></message>
+    <message><source>System proxy and TUN are not available on this platform yet.</source><translation>当前平台暂不支持系统代理和 TUN。</translation></message>
+    <message><source>Primary group member</source><translation>主策略组成员</translation></message>
+    <message><source>Not tested</source><translation>未测速</translation></message>
+    <message><source>Test current node</source><translation>测试当前节点</translation></message>
+    <message><source>Refresh groups</source><translation>刷新策略组</translation></message>
+    <message><source>Last confirmed policy · waiting for refresh</source><translation>上次确认的策略 · 等待刷新</translation></message>
+    <message><source>Other rules and existing connections may use different outbound nodes.</source><translation>其他规则和已有连接可能使用不同的出口节点。</translation></message>
+  </context>
+  <context><name>network_tools</name>
+    <message><source>Fetched</source><translation>已获取</translation></message>
+    <message><source>Reachable</source><translation>入口可达</translation></message>
+    <message><source>Testing</source><translation>测试中</translation></message>
+    <message><source>Timed out</source><translation>超时</translation></message>
+    <message><source>TLS error</source><translation>TLS 错误</translation></message>
+    <message><source>DNS error</source><translation>DNS 解析错误</translation></message>
+    <message><source>HTTP error</source><translation>HTTP 错误</translation></message>
+    <message><source>Proxy unavailable</source><translation>代理不可用</translation></message>
+    <message><source>Cancelled</source><translation>已取消</translation></message>
+    <message><source>Stale</source><translation>已过期</translation></message>
+    <message><source>Response too large</source><translation>响应超限</translation></message>
+    <message><source>Invalid response</source><translation>响应无效</translation></message>
+    <message><source>Redirect blocked</source><translation>已拒绝重定向</translation></message>
+    <message><source>Too many redirects</source><translation>重定向过多</translation></message>
+    <message><source>Network error</source><translation>网络错误</translation></message>
+    <message><source>Not queried</source><translation>未查询</translation></message>
+    <message><source>Network tools</source><translation>网络工具</translation></message>
+    <message><source>Detailed tests</source><translation>详细测试</translation></message>
+    <message><source>IP comparison</source><translation>IP 对照</translation></message>
+    <message><source>Common websites</source><translation>常用网站</translation></message>
+    <message><source>IP address family</source><translation>IP 地址类型</translation></message>
+    <message><source>Cancel query</source><translation>取消查询</translation></message>
+    <message><source>Query / refresh IP</source><translation>查询 / 刷新 IP</translation></message>
+    <message><source>Show addresses</source><translation>显示地址</translation></message>
+    <message><source>Hide addresses</source><translation>隐藏地址</translation></message>
+    <message><source>Manual queries contact IP.SB using each path. No automatic requests. System routes, TUN and other VPNs still apply.</source><translation>点击查询后，两条路径分别请求 IP.SB；不会自动查询。系统路由、TUN 和其他 VPN 仍可能影响结果。</translation></message>
+    <message><source>Current proxy entry exit</source><translation>当前代理入口出口 IP</translation></message>
+    <message><source>Exit without application proxy</source><translation>无应用层代理的出口 IP</translation></message>
+    <message><source>Local public IP</source><translation>本机公网 IP</translation></message>
+    <message><source>ISP: %1</source><translation>服务商：%1</translation></message>
+    <message><source>Not provided</source><translation>未提供</translation></message>
+    <message><source>Organization: %1</source><translation>组织：%1</translation></message>
+    <message><source>Location: %1</source><translation>位置：%1</translation></message>
+    <message><source>Stale · refresh required</source><translation>已过期 · 请刷新</translation></message>
+    <message><source>Copy IP</source><translation>复制 IP</translation></message>
+    <message><source>Location is IP database attribution. Rules may select DIRECT; identical IPs do not prove proxy failure.</source><translation>位置来自 IP 数据库。规则可能选择直连；两侧 IP 相同不代表代理失效。</translation></message>
+    <message><source>More IP and local network details</source><translation>更多 IP 与本地网络信息</translation></message>
+    <message><source>Cancel test</source><translation>取消测试</translation></message>
+    <message><source>Test all</source><translation>测试全部</translation></message>
+    <message><source>Not tested</source><translation>未测速</translation></message>
+    <message><source>Current proxy entry · follows rules · total HTTPS request time, not bandwidth or streaming availability.</source><translation>经当前代理入口并遵循规则；耗时为 HTTPS 请求总耗时，不代表带宽或流媒体解锁。</translation></message>
+  </context>
+  <context><name>subscription_details</name>
+    <message><source>Remaining</source><translation>剩余流量</translation></message>
+  </context>
+  <context><name>main</name>
+    <message><source>Core ready</source><translation>内核就绪</translation></message>
+  </context>
+  <context><name>runtime_overview</name>
+    <message><source>Runtime overview</source><translation>运行概况</translation></message>
+    <message><source>Core</source><translation>内核</translation></message>
+    <message><source>Client memory</source><translation>客户端内存</translation></message>
+    <message><source>Core memory</source><translation>内核内存</translation></message>
+    <message><source>Current core session</source><translation>本次内核运行</translation></message>
+    <message><source>Not running</source><translation>未运行</translation></message>
+    <message><source>Less than a minute</source><translation>不足 1 分钟</translation></message>
+    <message><source>%1 min</source><translation>%1 分钟</translation></message>
+    <message><source>%1 h %2 min</source><translation>%1 小时 %2 分钟</translation></message>
+    <message><source>Private working set</source><translation>专用工作集</translation></message>
+    <message><source>Resource data is stale</source><translation>资源数据已过期</translation></message>
+    <message><source>Partial statistics</source><translation>部分统计</translation></message>
+    <message><source>Updated %1</source><translation>采样于 %1</translation></message>
+    <message><source>Waiting for resource data</source><translation>等待资源数据</translation></message>
+    <message><source>Private working set is resident memory that is not shared. Client memory includes the helper service when running; core memory is separate.</source><translation>专用工作集是当前驻留且不共享的物理内存。客户端包含运行中的必要辅助服务；内核单独统计。</translation></message>
+    <message><source>Local proxy</source><translation>本地代理</translation></message>
+    <message><source>Unavailable</source><translation>不可用</translation></message>
+    <message><source>Copy address</source><translation>复制地址</translation></message>
+    <message><source>Copied</source><translation>已复制</translation></message>
+    <message><source>HTTP and SOCKS5 share this local proxy address.</source><translation>HTTP 和 SOCKS5 共用此本地代理地址。</translation></message>
+    <message><source>Details</source><translation>详细信息</translation></message>
+    <message><source>Client total</source><translation>客户端合计</translation></message>
+    <message><source>Helper service</source><translation>辅助服务</translation></message>
+    <message><source>Configuration validator</source><translation>配置校验器</translation></message>
+    <message><source>Service configuration validator</source><translation>服务配置校验器</translation></message>
+    <message><source>Private working set: %1</source><translation>专用工作集：%1</translation></message>
+    <message><source>Working set: %1</source><translation>总工作集：%1</translation></message>
+    <message><source>Private commit: %1</source><translation>私有提交：%1</translation></message>
+    <message><source>Client total includes the application and helper service when running. Core and temporary validators are counted separately.</source><translation>客户端合计包含应用及运行中的必要辅助服务。内核和临时校验器单独统计。</translation></message>
+    <message><source>Execution: %1</source><translation>运行方式：%1</translation></message>
+    <message><source>Local process</source><translation>本地进程</translation></message>
+  </context>
 </TS>

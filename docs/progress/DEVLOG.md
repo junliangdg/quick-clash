@@ -926,3 +926,48 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 验证：Windows Qt6.12.0 Release、Ninja、BUILD_TESTING=ON增量构建通过；contracts_test、localization_test、runtime_test、engine_startup_test及quickclash_qmllint退出0。runtime覆盖离线自动组current为空、选择自动组后的实时读取、嵌套出口链解析及停止/重启恢复。qmllint另有subscriptions_page.qml第32/405/419行3条既存类型推断警告，与本次改动无关，未写成零警告。
 - 限制/未运行：未用真实provider远端更新验证成员变化，未用真实健康检查故障制造自动切换，未做GUI目视确认等待态/来源/刷新入口的实际视觉；上述均NotRun。自动化测试中的自动组切换为受控夹具，不证明公网节点健康判定或provider刷新时延。
 - 状态/下一步：P2-25 Done（自动化与离线/恢复范围）；P2-22保持Done，新增结论不改变MVP-04已有Pass。后续按G3在真实订阅上补provider更新、健康检查故障转移与GUI目视核对，再决定是否调整刷新频率或提示。交付检查见本次文档重建与台账脚本结果；未自动提交。
+
+## 2026-10-31 / 仪表盘五卡与网络工具
+
+- 范围/变更：按用户确认方案交付当前订阅、实时流量、代理与网络、网络工具、连接与系统五卡。内容宽度600起顶部两卡等宽等高，合并卡内容宽度960起内部两栏、普通窗上下排列；订阅增加切换/更新/管理及剩余量，流量60点双曲线留缺采样断档并显示官方本次累计。资源默认折叠，展开且可见才采样；曲线、IP/网站区、详情与隐藏地址偏好写本地设置。设计08/17/19、合并版及Windows指南同步，未提交。
+- IP/网络：新增`desktop_network_info.cpp`，手动以NoProxy与当前回环HTTP代理分别查询IP.SB，IPv4/IPv6独立，不回退直连；HTTPS、拒重定向、16KiB响应和12秒总截止，取消/配置节点网络变化通过generation阻止迟到覆盖。IP/服务商/组织/位置/ASN/接口仅会话缓存，不进支持包或日志。Google/YouTube/GitHub使用轻量HTTPS端点，可单项/全部测试及取消，不自动探测；显示HTTP、耗时、时刻和stale，明确不代表带宽或流媒体解锁。
+- 构建Pass：Windows Qt6.12.0/MSVC Release、`build/delay_concurrency`增量构建与`quickclash_qmllint`成功；lint仅有subscriptions_page.qml第32/405/419行3条既存类型推断警告。原始构建日志`dashboard_build.log`、`dashboard_visual_build.log`与最终探针构建`dashboard_final_build.log`位于该忽略目录。
+- 定向回归Pass：storage/localization/ui_state 3/3（2.17秒），contracts/qml_smoke/ui_visual/ui_responsive/ui_runtime_lists双语/ui_subscriptions双语8/8（15.24秒），runtime 1/1（118.97秒），合计12项；最终视觉夹具补全后单独ui_visual再次Pass（4.60秒）。日志`dashboard_unit.log`、`dashboard_ui.log`、`dashboard_runtime.log`、`dashboard_visual_ctest_final.log`。覆盖IP两路径/双族、错误族保留旧值、取消迟到、17KB拒绝、支持包排除IP、设置重开、真实毫秒时间断档和中文标签。
+- 原生视觉Pass（限定范围）：D3D11/graphicsApi4、DPR1.25、中文双主题八页面及菜单/确认/错误态，31张截图在`build/dashboard_visual_final`；360/800/1000/1200/1440宽度无新增首页溢出，顶部等宽等高、1440内部两栏和较窄窗上下排列通过；工具区使用文档专用IP夹具核对成功/超时展示，未向公网发请求。默认无resources/connections需求，展开/折叠资源时申领/释放通过。Qt6.12跨其他页面仍出现此前记录的8条颜色undefined警告；诊断定位在代理/订阅/连接切换阶段，首页/工具截图无此警告，未写成全UI零警告。
+- 资源短测Pass（单场景）：`bench/measure_runtime_windows.ps1 -Executable build/delay_concurrency/quickclash.exe -OutputDirectory build/dashboard_memory -Seconds 10`，真实Qt Quick首页/存储worker/官方owned Ready核心，92样本；无辅助客户端进程，系统代理未改，正常退出0且owned核心已回收，stderr为空。专用工作集/总工作集/私有提交（MiB）客户端65.20/158.84/198.72→60.98/154.74/194.30，峰66.29/160.03/199.61；核心7.54/26.54/61.28→7.34/26.34/60.97，峰7.54/26.54/61.28。`summary.json`记录采样EXE SHA256 877d0be7aa2067739734133ae0e83d90b6f5623f7bbd30f1389bf40f8063495e；之后只修订视觉探针/验收objectName，无产品资源路径变动，复用短测。没有相同环境改动前对照，不给出节省百分比；短测不代替持续流量/CPU/帧/GPU/长稳。
+- 失败修复与限制：首次ui_state_test缺QtGui链接、qBound类型歧义和QML空状态bool赋值已修复；沙箱构建停在glob核验、storage临时目录ACL拒绝后改为授权环境验证。首轮IP代理夹具被原CONNECT白名单拒绝，在测试夹具中只增加精确loopback源端口后runtime通过。公开端点定向请求IPv4 IP.SB与三站成功；当前环境IPv6公网TLS失败，受控IPv6解析通过不代表真实公网IPv6成功。旧仪表盘布局/资源视觉证据Stale，由本轮限定证据替代；G1/G2/G3整门不变。
+- 交付检查Pass：`build_design_docs.ps1`生成及`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、全部本轮C++的clang-format `--dry-run --Werror`与`git diff --check`通过；最终原生探针再次exit0（`dashboard_native_final.log`），保留上述既存颜色警告。普通代理隔离短测未使用权限服务，存储worker为客户端线程。原始日志/CSV/截图均在忽略的build目录，未新增日常report或提交。
+- 状态/下一步：专项Done（定向范围）；后续有可用IPv6环境时补公网双路径与真实订阅/节点切换目视，长期资源与既存Qt颜色警告按原专项处理，不阻塞本次功能交付。
+
+## 2026-10-31 / 仪表盘运行概况紧凑卡
+
+- 范围：用户要求执行已讨论方案；默认展示客户端/内核专用工作集和本次运行时长、实际就绪本地代理地址及复制，移除连接/日志跳转；完整三项内存、组成、时间/完整性及系统信息放详情。
+- 实现：新增小写QML组件`runtime_overview.qml`，默认三指标在540内容宽度起横排，窄窗纵排；版本附标题，地址与复制/详情同一操作行，窄窗自然换行。完整指标/组成及运行方式置于详情，客户端含服务、内核和校验器独列；缺失采样时间/缺失数值/15秒过期显示破折号，停止显示未运行，部分统计/时间常显。地址来自Ready运行的settingsState.effective.mixedPort，缺失不可复制；后端仅补coreExecutionMode实际运行方式投影。设计04/08/17/19、Windows指南及中文翻译同步。
+- 生命周期：首页可见时复用约5秒资源采样，详情开关仅改变展示，离页/隐藏释放需求，不打开连接流；已有采集器与约1秒共享刷新不增加逐指标Timer。
+- 构建/功能Pass：Windows Qt6.12/MSVC Release增量构建及quickclash_qmllint完成（`build/delay_concurrency/overview_build.log`、`overview_build_final.log`）；受影响CTest `localization/ui_state/qml_smoke/ui_keyboard/ui_visual/ui_responsive` 6项通过，最终native探针再次exit0。ui_state首次沙箱运行因异步存储偏好不可用失败，授权环境重跑通过。资源生命周期 `runtime_publication_test.exe resourceSamplingIsSharedAndReleased -o build/delay_concurrency/overview_sampling.txt,txt` 通过：重复20次申领不刷新、约5秒刷新、释放后等待5.1秒无采样、重入恢复。
+- 界面/状态Pass：`build/overview_visual`保留39张原生D3D11/DPR1.25中文截图，涵盖原双主题页面/菜单/错误态、360/800/1000/1200/1440窗口及新增运行概况和详情；宽屏/窄窗、深浅主题已目视核对。新增断言验证Ready指标、effective端口与保存端口分离、缺失effective禁复制、部分/过期/无时间样本显示不可用、内核未就绪禁复制及内核内存不可用、详情开关不改变资源generation、隐藏/离页释放。窄窗探针离页后补填新generation夹具，避免把测试夹具失效误作产品数据缺失；`overview_native_final.log`退出0。
+- 资源短测Pass（单场景）：`bench/measure_runtime_windows.ps1 -Executable build/delay_concurrency/quickclash.exe -OutputDirectory build/overview_memory -Seconds 10`，92样本，真实Ready首页/存储worker/官方owned内核；无辅助客户端进程、未改系统代理，正常退出0且owned核心回收，stderr为空。专用工作集/总工作集/私有提交（MiB）客户端67.42/161.97/202.00→65.06/159.66/196.93，峰69.07/163.67/203.03；核心7.16/26.09/60.24→7.26/26.23/60.23，峰7.26/26.23/60.24。同环境上一轮`dashboard_memory`客户端峰66.29/160.03/199.61，本轮高2.78/3.64/3.42MiB；这是单轮观测，不能隔离归因或代表长稳/CPU/帧/GPU通过。采样EXE SHA256 `c17d82c7ed670a4a0d780c6ba22ad7682cf42d7a35cc90a523e4ebabc064181c`；之后只修正视觉探针夹具，无产品资源路径变更，复用短测。
+- 交付检查Pass：设计合并版生成及`-Check`、check_progress/source_layout/platform_boundaries、本轮全部C++ clang-format `--dry-run --Werror`及`git diff --check`通过。保留subscriptions_page.qml三条既存qmllint警告、proxies_page/Refresh既存重复翻译提示，以及Qt6.12其他页面切换时8条既存颜色undefined警告；本卡未新增绑定/类型警告。原连接与系统布局/折叠不采样证据Stale，其他原五卡有效证据保留；不提升G1/G2/G3整门。真实权限服务模式及长期资源本轮未重验，既存专项继续。
+- 状态/下一步：专项Done（定向范围）；保留全部既有工作区修改，未提交。后续公网IPv6、真实服务模式或长期资源按原专项补验；本次运行概况无剩余阻断。
+
+## 2026-10-31 / 运行概况内核信息与详情去重
+
+- 范围：按用户反馈，将内核名称及版本与客户端内存、内核内存、运行时长并列，移除右上角无标签版本；详情删除QuickClash进程重复项，保留客户端合计和必要的独立服务/内核/校验器信息。
+- 实现：运行概况并列内核（名称+版本）、客户端内存、内核内存与时长，内容宽度800起四列、480—799两列、其余单列。移除标题版本角标与host详情项；客户端合计/服务/内核/临时校验器保留，说明改为应用与服务合计。后端投影coreName，QML不写死品牌，当前仍采用锁定官方mihomo；视觉夹具补名称与实际格式版本。设计04/08/17/19、使用指南与翻译同步。
+- 构建/回归Pass：Windows Qt6.12/MSVC Release增量构建quickclash/localization_test及quickclash_qmllint完成，日志`build/delay_concurrency/overview_identity_build.log`；CTest localization/qml_smoke/ui_visual/ui_responsive 4/4（9.70秒）通过，日志`overview_identity_ctest.log`。本轮为低风险布局/信息去重，沿用现有视觉探针并更新夹具，不新增镜像测试。
+- 原生界面Pass：`overview_identity_native.log`退出0，`build/overview_identity_visual`39张中文D3D11/DPR1.25截图；已目视核对1440宽四项同层横排、800宽两列、360宽单列以及深浅主题/详情，名称版本为`mihomo v1.19.33`，无右上角版本或QuickClash进程重复详情。旧三指标布局截图Stale，本轮替代。既存8条跨其他页面颜色undefined、订阅页3条qmllint警告及Refresh重复翻译提示保留，无本卡新增绑定/类型警告。
+- 文档/检查Pass：设计04/08/17/19及Windows指南同步，设计合并生成及`-Check`、check_progress/source_layout/platform_boundaries、修改C++的clang-format `--dry-run --Werror`和`git diff --check`通过。采样路径、周期及生命周期不变，复用上一轮`overview_memory`10秒三指标短测和`overview_sampling.txt`生命周期结果，不把本轮视作新资源测量。当前后端仍锁定官方mihomo，名称投影仅解耦展示，不代表已交付内核替换功能。
+- 状态/下一步：专项Done（定向范围）；保留全部既有工作区改动，未提交。本次反馈无剩余阻断；公网IPv6、真实服务模式及长期资源继续归原专项。
+
+## 2026-10-31 / 仪表盘视觉层级与图标
+
+- 范围：用户要求增强五卡的信息层级和适量图形/色彩，尤其延迟语义色、Google/YouTube/GitHub图标。沿用主题和统一组件，图标离线嵌入；保持实际数据和手动测试行为。
+- 状态：Done（视觉定向范围）；旧五卡视觉截图Stale，采样与功能证据保留，保留全部工作区修改。
+- 实现：五卡统一图标标题、关键值与辅助信息分层；延迟沿用300/800ms阈值，IP/内核身份信息蓝、测试结果独立语义色，时间/HTTP另行弱化。ActionButton使用Qt图标文字布局，新增轻量UiIcon与DashboardHeading；Lucide 1.8.0仪表盘子集14个与Simple Icons 16.0.0三站SVG离线嵌入，许可随安装分发。设计08/17、使用指南及许可台账同步；现有视觉探针补充深浅主题网站区截图。
+- 下一步：实现具备，验证中/NotRun；Windows增量构建、现有UI回归、原生宽窄/深浅主题核验与交付检查。
+- 首轮验证：构建/lint通过（既存三条订阅页lint警告），CTest中localization通过、10项UI因UiIcon直接赋值IconImage只读implicitHeight而失败；改用Item管理尺寸并内嵌IconImage，修复后重新构建/验证，首轮日志保留于dashboard_hierarchy_ctest.log。
+- 修复后定向结果：localization及8项UI（qml_smoke/keyboard/visual/responsive/runtime_lists双语/subscriptions双语）通过；共享按钮前景色统一为单一绑定后再次8/8（18.55秒），新增颜色警告已消除，最终native探针恢复为既存8条跨其他页面undefined警告。两项全页可访问性检查Fail，停在未修改的订阅页subscription_url密码输入框名称为空；原生D3D11同样exit154，未将其标Pass。原生45张截图已生成并核对宽窄主题及站点图标，资源短测与最终台账检查待补。
+- 最终构建/视觉Pass：`dashboard_hierarchy_build_color.log`为Qt6.12/MSVC Release最终增量构建与lint；`dashboard_hierarchy_ctest_verified.log`为8/8，localization在前轮通过；`dashboard_hierarchy_native_final.log`退出0，`build/dashboard_hierarchy_visual_final`45张D3D11/DPR1.25中文截图涵盖双主题、360/800/1000/1200/1440、网站区、运行概况及详情，目视核对标题/图标、延迟与站点状态及窄窗换行。info/error/success/warning/muted在surface/inset/hover/pressed组合最低对比度分别4.98/4.65/5.00/4.81/4.55，标题图标前景/底色最低6.67；上传固定色仅用于surface上的数值及图标，不叠加pressed面。
+- 资源短测Pass（单场景）：`bench/measure_runtime_windows.ps1 -Executable build/delay_concurrency/quickclash.exe -OutputDirectory build/dashboard_hierarchy_memory -Seconds 10`，92样本；客户端专用工作集/总工作集/私有提交MiB首77.15/174.34/220.20→末66.89/164.11/198.76，峰77.64/174.85/220.25；内核首7.43/26.52/60.73→末7.50/26.59/60.77，峰同末。与上一轮overview_memory客户端末值相比+1.83/+4.45/+1.83MiB，峰+8.57/+11.18/+17.22MiB；单轮含加载波动，不能隔离归因或证明长期资源通过。EXE SHA256 `6561a761aa98ab079975cb44f4192e29bb46b9888b32e1362815f9d7ac33131a`，退出0、owned核心回收、stderr为空；无额外客户端进程。既有共享采样生命周期证据保留，未新增Timer、网络请求或离屏特效。
+- 限制与后续：全页可访问性双语Fail及原生exit154记录于`dashboard_hierarchy_ctest_final.log`/`dashboard_hierarchy_accessibility_native.log`，失败控件是未修改的订阅URL密码输入框，尚未建立当前Qt6.12修复前同构对照，不断言为本次回归或已排除回归；归原P3-27后续核对，不将本次视觉交付提升为全页可访问性Pass。Qt6.8旧部署包不支持探针参数，已结束本轮所启旧包进程，未用其证明前后行为。真实公网IPv6、实际OS字体/读屏及长期性能仍按原专项补验。原始日志/截图/采样留build，无新增日常report或提交。
+- 交付检查Pass：设计合并版重新生成及`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、本工作区全部修改/新增C++的clang-format `--dry-run --Werror`及`git diff --check`通过。最终EXE摘要与短测一致；本次视觉范围无剩余阻断，后续可访问性问题按上一条继续核对。

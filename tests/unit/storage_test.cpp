@@ -251,6 +251,15 @@ int main(int argc, char* argv[]) {
             check(!std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
                   "low-memory unload remains off by default");
             check(good(settings.save({"dark", true, true})), "preferences committed");
+            auto dashboard = std::get<infra::UiPreferences>(settings.load());
+            check(!dashboard.dashboard.value("resources").toBool() &&
+                      dashboard.dashboard.value("ip").toBool(),
+                  "dashboard safe defaults");
+            dashboard.dashboard.insert("hideAddresses", true);
+            check(good(settings.save(dashboard)) && std::get<infra::UiPreferences>(settings.load())
+                                                        .dashboard.value("hideAddresses")
+                                                        .toBool(),
+                  "dashboard display options survive reload");
             check(std::get<infra::UiPreferences>(settings.load()).theme == "dark",
                   "preferences reload");
             check(std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,

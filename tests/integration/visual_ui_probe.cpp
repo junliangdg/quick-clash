@@ -1,6 +1,7 @@
 #include "application_host.h"
 #include "host_probe.h"
 #include <QColor>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QImage>
@@ -117,9 +118,46 @@ int runVisualProbe(ApplicationHost& host) {
          {"status", "Ready"},
          {"selectedId", "visual"},
          {"selectedName", "日常订阅 · Everyday"},
-         {"coreVersion", "fixture"},
+         {"coreName", "mihomo"},
+         {"coreVersion", "v1.19.33"},
+         {"coreExecutionMode", "Local"},
+         {"settingsState",
+          QJsonObject{{"running", true}, {"effective", QJsonObject{{"mixedPort", 7890}}}}},
          {"systemProxy", false},
          {"tunState", "Off"},
+         {"features",
+          QJsonObject{
+              {"ipInfo",
+               QJsonObject{
+                   {"v4",
+                    QJsonObject{{"local", QJsonObject{{"state", "Ready"},
+                                                      {"ip", "192.0.2.10"},
+                                                      {"isp", "Example ISP"},
+                                                      {"organization", "Documentation Network"},
+                                                      {"country", "中国"},
+                                                      {"city", "上海"},
+                                                      {"source", "visual fixture"},
+                                                      {"time", "2026-10-31T06:00:00Z"}}},
+                                {"proxy", QJsonObject{{"state", "Ready"},
+                                                      {"ip", "198.51.100.20"},
+                                                      {"isp", "Example Transit"},
+                                                      {"organization", "Documentation Exit"},
+                                                      {"country", "日本"},
+                                                      {"city", "东京"},
+                                                      {"source", "visual fixture"},
+                                                      {"time", "2026-10-31T06:00:00Z"}}}}}}},
+              {"testHistory",
+               QJsonArray{QJsonObject{{"target", "https://www.google.com/generate_204"},
+                                      {"path", "CurrentProxy"},
+                                      {"state", "Reachable"},
+                                      {"elapsedMs", 182},
+                                      {"status", 204},
+                                      {"time", "2026-10-31T06:00:00Z"}},
+                          QJsonObject{{"target", "https://www.youtube.com/generate_204"},
+                                      {"path", "CurrentProxy"},
+                                      {"state", "Timeout"},
+                                      {"elapsedMs", 5000},
+                                      {"time", "2026-10-31T06:00:00Z"}}}}}},
          {"preferences",
           QJsonObject{{"mode", "rule"}, {"mixedPort", 7890}, {"controllerPort", 9090}}},
          {"outbound", QJsonObject{{"policy", "节点选择"},
@@ -133,49 +171,78 @@ int runVisualProbe(ApplicationHost& host) {
         {"secretRef", "fixture"},
         {"updatedAt", "2026-10-27T06:00:00Z"},
         {"autoApply", true},
+        {"usageStatus", QJsonObject{{"complete", true},
+                                    {"used", 21474836480.0},
+                                    {"quota", 107374182400.0},
+                                    {"expiresAt", "2026-12-31T06:00:00Z"}}},
         {"usage", QJsonObject{{"total", 107374182400.0}, {"download", 21474836480.0}}}};
     const auto populate = [&] {
-        ui.applyData({1,
-                      "visual-fixture",
-                      {{"profiles", QJsonArray{profile}},
-                       {"groups", groups},
-                       {"nodes", nodes},
-                       {"delays", QJsonObject{{members.first().toString(), "38 ms"},
-                                              {members[1].toString(), "Failed"}}},
-                       {"connections",
-                        QJsonArray{QJsonObject{{"id", "one"},
-                                               {"epoch", "visual-fixture"},
-                                               {"metadata", QJsonObject{{"host", "example.com"},
-                                                                        {"destinationPort", 443},
-                                                                        {"network", "tcp"}}},
-                                               {"chains", QJsonArray{"节点选择", members.first()}},
-                                               {"rule", "DOMAIN"}}}},
-                       {"rules", QJsonArray{QJsonObject{{"type", "DOMAIN-SUFFIX"},
-                                                        {"payload", "example.com"},
-                                                        {"proxy", "节点选择"}}}},
-                       {"traffic",
-                        QJsonObject{{"traffic",
-                                     QJsonObject{{"time", "60"}, {"up", 9300}, {"down", 45500}}}}},
-                       {"logs", QJsonArray{QJsonObject{
-                                    {"localSeq", "1"},
-                                    {"time", "14:00:00"},
-                                    {"source", "App"},
-                                    {"level", "info"},
-                                    {"message", "Synthetic visual fixture · 界面验证数据"}}}}},
-                      ui.dataDemands().generations});
-    };
-    host.resizeWindow({1000, 640});
-    populate();
-    for (int second = 1; second <= 60; ++second) {
-        const double rate = 1024 * (20 + 12 * std::sin(second * 0.4));
         ui.applyData(
             {1,
              "visual-fixture",
-             {{"traffic", QJsonObject{{"traffic", QJsonObject{{"time", QString::number(second)},
-                                                              {"up", rate},
-                                                              {"down", rate * 4 + 8192}}}}}},
+             {{"profiles", QJsonArray{profile}},
+              {"groups", groups},
+              {"nodes", nodes},
+              {"samples", QJsonObject{{"coreUptimeSeconds", 9300}}},
+              {"resources",
+               QJsonObject{
+                   {"memory", QJsonObject{{"client", QJsonObject{{"privateWorkingSet", "62400000"},
+                                                                 {"workingSet", "92000000"},
+                                                                 {"privateCommit", "120000000"}}},
+                                          {"host", QJsonObject{{"privateWorkingSet", "62400000"},
+                                                               {"workingSet", "92000000"},
+                                                               {"privateCommit", "120000000"}}},
+                                          {"core", QJsonObject{{"privateWorkingSet", "28100000"},
+                                                               {"workingSet", "40000000"},
+                                                               {"privateCommit", "60000000"}}}}},
+                   {"memoryComplete", true},
+                   {"memorySample", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}}},
+              {"delays", QJsonObject{{members.first().toString(), "38 ms"},
+                                     {members[1].toString(), "Failed"}}},
+              {"connections",
+               QJsonArray{QJsonObject{{"id", "one"},
+                                      {"epoch", "visual-fixture"},
+                                      {"metadata", QJsonObject{{"host", "example.com"},
+                                                               {"destinationPort", 443},
+                                                               {"network", "tcp"}}},
+                                      {"chains", QJsonArray{"节点选择", members.first()}},
+                                      {"rule", "DOMAIN"}}}},
+              {"rules",
+               QJsonArray{QJsonObject{
+                   {"type", "DOMAIN-SUFFIX"}, {"payload", "example.com"}, {"proxy", "节点选择"}}}},
+              {"traffic",
+               QJsonObject{
+                   {"traffic",
+                    QJsonObject{{"time", QString::number(QDateTime::currentMSecsSinceEpoch())},
+                                {"up", 9300},
+                                {"down", 45500},
+                                {"upTotal", 1048576},
+                                {"downTotal", 104857600}}}}},
+              {"logs",
+               QJsonArray{QJsonObject{{"localSeq", "1"},
+                                      {"time", "14:00:00"},
+                                      {"source", "App"},
+                                      {"level", "info"},
+                                      {"message", "Synthetic visual fixture · 界面验证数据"}}}}},
              ui.dataDemands().generations});
-    }
+        const auto now = QDateTime::currentMSecsSinceEpoch();
+        for (int second = 1; second <= 60; ++second) {
+            const double rate = 1024 * (20 + 12 * std::sin(second * 0.4));
+            ui.applyData(
+                {1,
+                 "visual-fixture",
+                 {{"traffic",
+                   QJsonObject{{"traffic",
+                                QJsonObject{{"time", QString::number(now - (60 - second) * 1000)},
+                                            {"up", rate},
+                                            {"down", rate * 4 + 8192},
+                                            {"upTotal", 1048576},
+                                            {"downTotal", 104857600}}}}}},
+                 ui.dataDemands().generations});
+        }
+    };
+    host.resizeWindow({1000, 640});
+    populate();
     const auto generation = host.engineGeneration();
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
         ui.setThemeMode(theme);
@@ -192,10 +259,90 @@ int runVisualProbe(ApplicationHost& host) {
         const auto subscription = objects("current_subscription_card");
         const auto traffic = objects("traffic_card");
         if (subscription.size() != 1 || traffic.size() != 1 ||
-            std::abs(subscription.first()->height() - traffic.first()->height()) > 1)
+            std::abs(subscription.first()->height() - traffic.first()->height()) > 1 ||
+            std::abs(subscription.first()->width() - traffic.first()->width()) > 1 ||
+            objects("home_proxy_card").size() != 1 || objects("home_tools_card").size() != 1 ||
+            objects("home_system_card").size() != 1 ||
+            !ui.dataDemands().active.contains("resources") ||
+            ui.dataDemands().active.contains("connections"))
             return 113;
+        const auto selector = objects("home_proxy_selector");
+        if (selector.size() != 1 || !selector.first()->isVisible())
+            return 125;
+        const auto resourceGeneration = ui.dataDemands().generations.value("resources");
+        ui.setDashboardOption("resources", true);
+        QTest::qWait(20);
+        if (!ui.dataDemands().active.contains("resources"))
+            return 126;
+        ui.setDashboardOption("resources", false);
+        QTest::qWait(20);
+        if (!ui.dataDemands().active.contains("resources") ||
+            ui.dataDemands().generations.value("resources") != resourceGeneration)
+            return 126;
+        populate();
+        QTest::qWait(20);
+        const auto memory = objects("home_runtime_client");
+        const auto copy = objects("home_copy_proxy_address");
+        if (memory.size() != 1 || memory.first()->property("text") != "62.4 MB" ||
+            copy.size() != 1 || !copy.first()->isEnabled())
+            return 129;
+        const auto overviewText = [&](const QString& name) {
+            const auto labels = objects(name);
+            return labels.size() == 1 ? labels.first()->property("text").toString() : QString{};
+        };
+        const auto confirmed = QJsonObject::fromVariantMap(ui.runtime());
+        auto pending = confirmed;
+        pending.insert("preferences", QJsonObject{{"mixedPort", 17999}});
+        ui.applyControl(pending);
+        QTest::qWait(20);
+        if (!overviewText("home_proxy_address").endsWith("127.0.0.1:7890"))
+            return 130;
+        pending.insert("settingsState", QJsonObject{{"running", true}});
+        ui.applyControl(pending);
+        QTest::qWait(20);
+        if (copy.first()->isEnabled() || overviewText("home_proxy_address").contains("17999"))
+            return 130;
+        ui.applyControl(confirmed);
+        const auto applyResources = [&](const QJsonObject& resources) {
+            ui.applyData(
+                {1, "visual-fixture", {{"resources", resources}}, ui.dataDemands().generations});
+            QTest::qWait(20);
+        };
+        QJsonObject partial{
+            {"memory", QJsonObject{{"client", QJsonObject{}},
+                                   {"core", QJsonObject{{"privateWorkingSet", "28100000"}}}}},
+            {"memoryComplete", false},
+            {"memorySample", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+        applyResources(partial);
+        if (overviewText("home_runtime_client") != "—" ||
+            overviewText("home_runtime_core") != "28.1 MB" ||
+            !overviewText("home_resource_status")
+                 .contains(QCoreApplication::translate("runtime_overview", "Partial statistics")))
+            return 131;
+        partial.insert("memorySample",
+                       QDateTime::currentDateTimeUtc().addSecs(-60).toString(Qt::ISODateWithMs));
+        applyResources(partial);
+        if (overviewText("home_runtime_core") != "—" ||
+            !overviewText("home_resource_status")
+                 .contains(
+                     QCoreApplication::translate("runtime_overview", "Resource data is stale")))
+            return 131;
+        partial.remove("memorySample");
+        applyResources(partial);
+        if (overviewText("home_runtime_core") != "—")
+            return 131;
+        populate();
+        ui.setUiVisible(false);
+        if (ui.dataDemands().active.contains("resources"))
+            return 129;
+        ui.setUiVisible(true);
+        QTest::qWait(20);
+        if (!ui.dataDemands().active.contains("resources"))
+            return 129;
         ui.navigate("settings");
         QTest::qWait(50);
+        if (ui.dataDemands().active.contains("resources"))
+            return 129;
         const auto fields = objects("delay_target");
         if (fields.size() != 1 || !fields.first()->setProperty("text", "https://draft.example/"))
             return 114;
@@ -244,6 +391,9 @@ int runVisualProbe(ApplicationHost& host) {
         ui.navigate("home");
         if (!capture(theme + "_runtime_error"))
             return 123;
+        if (objects("home_copy_proxy_address").first()->isEnabled() ||
+            objects("home_runtime_core").first()->property("text") != "—")
+            return 129;
         const auto details = objects("runtime_error_detail");
         if (!host.window()->property("runtimeFailed").toBool() || details.size() != 1 ||
             !details.first()->isVisible())
@@ -255,16 +405,64 @@ int runVisualProbe(ApplicationHost& host) {
         if (!host.window()->property("runtimeHealthy").toBool())
             return 124;
     }
-    for (const auto width : {1200, 800, 360}) {
+    for (const auto width : {1440, 1200, 800, 360}) {
         host.resizeWindow({width, 640});
         ui.navigate("home");
         populate();
         if (!capture(QStringLiteral("dark_home_%1").arg(width)))
             return 118;
+        const auto sections = objects("home_proxy_sections");
+        if (sections.size() != 1 ||
+            sections.first()->property("columns").toInt() != (width == 1440 ? 2 : 1))
+            return 128;
         if (width == 360) {
             ui.navigate("settings");
             if (!capture("dark_settings_360"))
                 return 119;
+        }
+        ui.navigate("home");
+        QTest::qWait(50);
+        populate();
+        const auto panels = objects("home_tools_card");
+        if (panels.size() != 1)
+            return 127;
+        QQuickItem* viewport = panels.first()->parentItem();
+        while (viewport && !viewport->inherits("QQuickFlickable"))
+            viewport = viewport->parentItem();
+        if (!viewport)
+            return 127;
+        viewport->setProperty("contentY", panels.first()->y());
+        if (!capture(QStringLiteral("dark_tools_%1").arg(width)))
+            return 127;
+        if (width == 1440 || width == 360) {
+            ui.setThemeMode("light");
+            if (!capture(QStringLiteral("light_tools_%1").arg(width)))
+                return 127;
+            const auto sites = objects("home_sites_section");
+            if (sites.size() != 1)
+                return 127;
+            viewport->setProperty("contentY", panels.first()->y() + sites.first()->y());
+            if (!capture(QStringLiteral("light_sites_%1").arg(width)))
+                return 127;
+            ui.setThemeMode("dark");
+            if (!capture(QStringLiteral("dark_sites_%1").arg(width)))
+                return 127;
+        }
+        const auto overview = objects("home_system_card");
+        if (overview.size() != 1)
+            return 129;
+        viewport->setProperty("contentY", overview.first()->y());
+        if (!capture(QStringLiteral("dark_overview_%1").arg(width)))
+            return 129;
+        if (width == 1440 || width == 360) {
+            ui.setThemeMode("light");
+            if (!capture(QStringLiteral("light_overview_%1").arg(width)))
+                return 129;
+            ui.setThemeMode("dark");
+            ui.setDashboardOption("resources", true);
+            if (!capture(QStringLiteral("dark_overview_details_%1").arg(width)))
+                return 129;
+            ui.setDashboardOption("resources", false);
         }
     }
     if (host.qmlErrorCount() || host.engineGeneration() != generation ||
@@ -277,7 +475,7 @@ int runVisualProbe(ApplicationHost& host) {
         evidence.write(QJsonDocument(captures).toJson());
     }
     std::puts("Visual UI: eight pages, both themes, retained draft, equal cards, menu/dialog, "
-              "360/800/1000/1200 passed");
+              "360/800/1000/1200/1440 passed");
     return 0;
 }
 } // namespace quickclash

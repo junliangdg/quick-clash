@@ -137,6 +137,7 @@ add_library(quickclash_runtime
 target_sources(quickclash_runtime PRIVATE src/application/desktop_features.cpp src/application/desktop_providers.cpp src/application/desktop_backup.cpp src/application/desktop_resources.cpp src/application/desktop_subscription.cpp src/application/desktop_logs.cpp)
 set_target_properties(quickclash_runtime PROPERTIES AUTOMOC ON)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_telemetry.cpp)
+target_sources(quickclash_runtime PRIVATE src/application/desktop_network_info.cpp)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_editor.cpp)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_rules.cpp)
   target_sources(quickclash_runtime PRIVATE src/application/desktop_maintenance.cpp)
@@ -191,7 +192,21 @@ if(QUICKCLASH_BUILD_UI)
         PREFIX /icons/brand BASE resources/icons/brand
         FILES resources/icons/brand/qcat.svg resources/icons/brand/quickclash.ico
               resources/icons/brand/qcat_tray_dark.svg resources/icons/brand/qcat_tray_light.svg)
+    qt_add_resources(quickclash quickclash_dashboard_icons
+        PREFIX /icons/dashboard BASE resources/icons/dashboard
+        FILES resources/icons/dashboard/cpu.svg resources/icons/dashboard/globe.svg
+              resources/icons/dashboard/memory_stick.svg resources/icons/dashboard/clock.svg
+              resources/icons/dashboard/gauge.svg resources/icons/dashboard/refresh_cw.svg
+              resources/icons/dashboard/copy.svg resources/icons/dashboard/eye.svg
+              resources/icons/dashboard/eye_off.svg resources/icons/dashboard/chevron_right.svg
+              resources/icons/dashboard/chevron_down.svg resources/icons/dashboard/arrow_down.svg
+              resources/icons/dashboard/arrow_up.svg resources/icons/dashboard/wrench.svg)
+    qt_add_resources(quickclash quickclash_site_icons
+        PREFIX /icons/sites BASE resources/icons/sites
+        FILES resources/icons/sites/google.svg resources/icons/sites/youtube.svg
+              resources/icons/sites/github.svg)
     install(FILES resources/licenses/lucide_isc.txt DESTINATION licenses)
+    install(FILES resources/licenses/simple_icons_cc0.txt DESTINATION licenses)
     if(WIN32)
         enable_language(RC)
         target_sources(quickclash PRIVATE resources/quickclash.rc)
@@ -209,6 +224,8 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/flat_tile.qml
         qml/components/theme_tokens.qml
         qml/components/action_button.qml
+        qml/components/ui_icon.qml
+        qml/features/home/dashboard_heading.qml
         qml/components/state_surface.qml
         qml/components/focus_ring.qml
         qml/components/themed_field.qml
@@ -231,6 +248,9 @@ if(QUICKCLASH_BUILD_UI)
         qml/shell/page_host.qml
         qml/shell/embedded_host.qml
         qml/features/home/home_page.qml
+        qml/features/home/home_proxy_controls.qml
+        qml/features/home/network_tools.qml
+        qml/features/home/runtime_overview.qml
         qml/features/proxies/proxies_page.qml
         qml/features/proxies/proxy_summary.qml
         qml/features/subscriptions/subscriptions_page.qml
@@ -476,7 +496,7 @@ if(BUILD_TESTING)
             src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
             src/presentation/feature_registry.cpp src/presentation/ui_state.cpp src/presentation/ui_state.h
             src/presentation/replay_model.cpp src/presentation/replay_model.h)
-        target_link_libraries(ui_state_test PRIVATE quickclash_application quickclash_runtime Qt6::Qml)
+        target_link_libraries(ui_state_test PRIVATE quickclash_application quickclash_runtime Qt6::Qml Qt6::Gui)
         quickclash_warnings(ui_state_test)
         add_test(NAME ui_state COMMAND ui_state_test)
         set_tests_properties(ui_state PROPERTIES TIMEOUT 30)

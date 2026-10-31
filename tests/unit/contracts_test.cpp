@@ -76,15 +76,19 @@ int main(int argc, char* argv[]) {
                                                 {"time", secret},
                                                 {"message", secret},
                                                 {"unknown", secret}}}},
-                {"features",
-                 QJsonObject{{"memory", QJsonObject{{"path", secret}}}, {"unknown", secret}}},
+                {"features", QJsonObject{{"memory", QJsonObject{{"path", secret}}},
+                                         {"unknown", secret},
+                                         {"ipInfo", QJsonObject{{"ip", "203.0.113.24"},
+                                                                {"organization", "Private Org"},
+                                                                {"interfaces", secret}}}}},
                 {"settingsState", QJsonObject{{"saved", QJsonObject{{"mode", secret},
                                                                     {"dnsMode", secret},
                                                                     {"proxy", secret}}}}}};
             const auto report = supportReport(hostile);
             const auto encoded = QJsonDocument(report).toJson();
-            for (const auto* forbidden : {"private-marker", "internal.test", "password",
-                                          "Authorization", "Bearer", "C:/Users", "secretRef"})
+            for (const auto* forbidden :
+                 {"private-marker", "internal.test", "password", "Authorization", "Bearer",
+                  "C:/Users", "secretRef", "203.0.113.24", "Private Org", "ipInfo"})
                 check(!encoded.contains(forbidden),
                       "support report excludes malicious arbitrary fields");
             check(report.value("status") == "Unknown" && report.value("profileCount") == 1 &&

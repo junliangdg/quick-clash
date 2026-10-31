@@ -182,7 +182,10 @@ ConnectFixture::ConnectFixture(quint16 originPort, QObject* parent)
                         if (!buffer->contains("\r\n\r\n"))
                             return;
                         const auto firstLine = buffer->left(buffer->indexOf("\r\n"));
-                        if (!firstLine.startsWith("CONNECT fixture.quickclash.invalid:")) {
+                        const auto localTarget = QByteArrayLiteral("CONNECT 127.0.0.1:") +
+                                                 QByteArray::number(originPort_) + ' ';
+                        if (!firstLine.startsWith("CONNECT fixture.quickclash.invalid:") &&
+                            !firstLine.startsWith(localTarget)) {
                             client->abort();
                             return;
                         }

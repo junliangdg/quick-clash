@@ -421,6 +421,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             });
 }
 DesktopRuntime::~DesktopRuntime() {
+    cancelIpQueries(false);
     stop(domain::StopReason::AppExit);
 }
 void DesktopRuntime::initialize() {
@@ -634,6 +635,10 @@ QJsonObject DesktopRuntime::controlState() const {
     effective.insert(QStringLiteral("systemProxy"), proxyLease_->active());
     effective.insert(QStringLiteral("tun"), engine_.tunActive());
     auto features = featureState_;
+    QJsonObject delayTimes;
+    for (auto it = delayTimes_.cbegin(); it != delayTimes_.cend(); ++it)
+        delayTimes.insert(it.key(), it.value().toString(Qt::ISODate));
+    features.insert(QStringLiteral("delayTimes"), delayTimes);
     for (const auto* key :
          {"nodes", "traffic", "memory", "memorySample", "memoryComplete", "connectionSample",
           "connectionsStale", "connectionsPaused", "connectionError"})
@@ -647,6 +652,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("capabilities"), platformInfo_.capabilities},
         {QStringLiteral("outbound"), outbound_},
         {QStringLiteral("selectedId"), selectedId_},
+        {QStringLiteral("applyingId"), applying_ ? applyingId_ : QString{}},
         {QStringLiteral("selectionGeneration"), repository_.manifest()
                                                     .value(QStringLiteral("selection"))
                                                     .toObject()
@@ -662,6 +668,9 @@ QJsonObject DesktopRuntime::controlState() const {
          QJsonObject{{QStringLiteral("requests"), QString::number(reconcileRequests_)},
                      {QStringLiteral("completed"), QString::number(reconcileCount_)}}},
         {QStringLiteral("corePid"), static_cast<int>(engine_.pid())},
+        {QStringLiteral("coreExecutionMode"), !engine_.running()       ? QString{}
+                                              : engine_.usingService() ? QStringLiteral("Service")
+                                                                       : QStringLiteral("Local")},
         {QStringLiteral("tunState"),
          engine_.cleanupUncertain()                  ? QStringLiteral("Uncertain")
          : engine_.ready() && engine_.usingService() ? engine_.tunState()
@@ -693,6 +702,7 @@ QJsonObject DesktopRuntime::controlState() const {
                      {QStringLiteral("running"), engine_.ready()},
                      {QStringLiteral("pending"), runtimePreferences_ != savedPreferences_},
                      {QStringLiteral("phase"), status_}}},
+        {QStringLiteral("coreName"), QStringLiteral("mihomo")},
         {QStringLiteral("coreVersion"), engine_.ready() ? QStringLiteral("v1.19.33") : QString{}},
         {QStringLiteral("dataDirectory"), store_.root()},
         {QStringLiteral("dataUrl"), QUrl::fromLocalFile(store_.root()).toString()}};
@@ -2954,6 +2964,7 @@ void DesktopRuntime::finishWebsite(const std::shared_ptr<WebsiteProbe>& probe,
     publish();
 }
 void DesktopRuntime::invalidateWebsiteTest() {
+    cancelIpQueries(true);
     testResult_.clear();
     testQueue_.clear();
     ++testGeneration_;

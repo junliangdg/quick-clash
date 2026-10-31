@@ -333,6 +333,72 @@ int main(int argc, char** argv) {
                  "real domain CONNECT via controlled upstream", reopened))
         return 17;
     response->deleteLater();
+    origin.payloads.insert(
+        "/ip-info",
+        R"({"ip":"203.0.113.24","isp":"Fixture ISP","organization":"Fixture Org","country":"Test","asn":64500})");
+    const auto ipSource = QStringLiteral("https://127.0.0.1:%1/ip-info").arg(origin.serverPort());
+    const auto ipPair = [&] {
+        return reopened.snapshot()
+            .value("features")
+            .toObject()
+            .value("ipInfo")
+            .toObject()
+            .value("v4")
+            .toObject();
+    };
+    reopened.queryIp(QStringLiteral("v4"), QUrl(ipSource));
+    if (!require(waitFor([&] {
+                     return ipPair().value("local").toObject().value("state") != "Running" &&
+                            ipPair().value("proxy").toObject().value("state") != "Running";
+                 }) &&
+                     ipPair().value("local").toObject().value("ip") == "203.0.113.24" &&
+                     ipPair().value("proxy").toObject().value("isp") == "Fixture ISP",
+                 "IP paths parse independently", reopened))
+        return 183;
+    origin.payloads.insert("/ip-info", R"({"ip":"2001:db8::1"})");
+    reopened.queryIp(QStringLiteral("v4"), QUrl(ipSource));
+    if (!require(waitFor([&] {
+                     return ipPair().value("local").toObject().value("state") == "InvalidResponse";
+                 }) &&
+                     ipPair().value("local").toObject().value("ip") == "203.0.113.24",
+                 "wrong IP family preserves old value", reopened))
+        return 184;
+    origin.responseDelays.insert("/ip-info", 200);
+    reopened.queryIp(QStringLiteral("v4"), QUrl(ipSource));
+    reopened.featureCommand(QStringLiteral("cancel_ip"), {});
+    if (!require(ipPair().value("local").toObject().value("state") == "Cancelled",
+                 "IP cancellation fences replies", reopened))
+        return 185;
+    origin.responseDelays.remove("/ip-info");
+    QThread::msleep(250);
+    QCoreApplication::processEvents();
+    if (!require(ipPair().value("local").toObject().value("state") == "Cancelled",
+                 "late IP reply stays cancelled", reopened))
+        return 186;
+    origin.payloads.insert("/ip-info", QByteArray(17000, 'x'));
+    reopened.queryIp(QStringLiteral("v4"), QUrl(ipSource));
+    if (!require(waitFor([&] {
+                     return ipPair().value("local").toObject().value("state") == "ResponseLimit";
+                 }),
+                 "IP response bounded to 16 KiB", reopened))
+        return 187;
+    origin.payloads.insert("/ip-info", R"({"ip":"2001:db8::1"})");
+    reopened.queryIp(QStringLiteral("v6"), QUrl(ipSource));
+    if (!require(waitFor([&] {
+                     return reopened.snapshot()
+                                .value("features")
+                                .toObject()
+                                .value("ipInfo")
+                                .toObject()
+                                .value("v6")
+                                .toObject()
+                                .value("local")
+                                .toObject()
+                                .value("state") == "Ready";
+                 }) &&
+                     ipPair().value("local").toObject().value("ip") == "203.0.113.24",
+                 "IPv6 independent of preserved IPv4", reopened))
+        return 188;
     reopened.testWebsite(QStringLiteral("https://fixture.quickclash.invalid:%1/website-test")
                              .arg(origin.serverPort()));
     if (!require(waitFor([&] {
