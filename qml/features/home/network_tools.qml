@@ -73,20 +73,11 @@ ColumnLayout {
         return ["Timeout", "TlsError", "DnsError", "HttpError", "ProxyUnavailable", "ResponseLimit", "InvalidResponse", "RedirectBlocked", "RedirectLimit", "NetworkError"].includes(result.state) ? theme.error : theme.muted;
     }
     spacing: 12
-    RowLayout {
+    DashboardHeading {
+        theme: root.theme
+        source: "qrc:/icons/dashboard/wrench.svg"
+        text: qsTr("Network tools")
         Layout.fillWidth: true
-        DashboardHeading {
-            theme: root.theme
-            source: "qrc:/icons/dashboard/wrench.svg"
-            text: qsTr("Network tools")
-            Layout.fillWidth: true
-        }
-        ActionButton {
-            theme: root.theme
-            text: qsTr("Detailed tests")
-            ghost: true
-            onClicked: root.ui.navigate("tests")
-        }
     }
     Flow {
         Layout.fillWidth: true

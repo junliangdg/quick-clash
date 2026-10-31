@@ -304,6 +304,7 @@ ScrollView {
                         ]
                         delegate: ActionButton {
                             required property var modelData
+                            objectName: "appearance_" + modelData.key
                             theme: root.theme
                             text: modelData.label
                             selected: root.ui.themeMode === modelData.key
@@ -398,12 +399,6 @@ ScrollView {
                     font.pixelSize: root.theme.bodySize
                     font.weight: Font.DemiBold
                     color: root.theme.text
-                }
-                Label {
-                    text: (root.ui.runtimeError || qsTr("No runtime errors")) + (root.ui.runtime.readOnly ? qsTr(" · Data is read-only; back up and inspect damaged files") : "")
-                    color: root.theme.text
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
                 }
                 Label {
                     text: qsTr("The network engine runs automatically and restarts after a crash. Turning off these switches keeps it available for local forwarding.")

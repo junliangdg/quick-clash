@@ -202,17 +202,8 @@ ApplicationWindow {
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
                     }
-                    ThemedComboBox {
-                        theme: tokens
-                        objectName: "theme_selector"
-                        visible: !window.narrow
-                        implicitWidth: window.narrow ? 110 : 130
-                        model: [qsTr("Follow system"), qsTr("Light"), qsTr("Dark")]
-                        currentIndex: ["system", "light", "dark"].indexOf(window.ui.themeMode)
-                        onActivated: window.ui.themeMode = ["system", "light", "dark"][currentIndex]
-                        Accessible.name: qsTr("Appearance")
-                    }
                     Rectangle {
+                        id: runtimeStatusBadge
                         objectName: "runtime_status_badge"
                         Layout.preferredWidth: runtimeBadgeContent.implicitWidth + 18
                         Layout.preferredHeight: Math.max(28, runtimeBadgeContent.implicitHeight + 8)
@@ -220,6 +211,10 @@ ApplicationWindow {
                         color: window.runtimeFailed ? tokens.errorSurface : window.runtimeHealthy ? tokens.successSurface : tokens.inset
                         Accessible.role: Accessible.StaticText
                         Accessible.name: runtimeBadgeText.text
+                        Accessible.description: window.ui.runtimeError
+                        activeFocusOnTab: true
+                        border.width: activeFocus ? tokens.focusWidth : 0
+                        border.color: tokens.accent
                         RowLayout {
                             id: runtimeBadgeContent
                             anchors.centerIn: parent
@@ -234,21 +229,13 @@ ApplicationWindow {
                             }
                         }
                         HoverHandler { id: runtimeBadgeHover }
-                        ThemedToolTip { theme: tokens; visible: runtimeBadgeHover.hovered && window.ui.runtimeError.length > 0; text: window.ui.runtimeError }
+                        ThemedToolTip {
+                            objectName: "runtime_status_tooltip"
+                            theme: tokens
+                            visible: (runtimeBadgeHover.hovered || runtimeStatusBadge.activeFocus) && window.ui.runtimeError.length > 0
+                            text: window.ui.runtimeError
+                        }
                     }
-                }
-                Label {
-                    objectName: "runtime_error_detail"
-                    visible: window.ui.runtimeError.length > 0
-                    text: window.ui.runtimeError
-                    textFormat: Text.PlainText
-                    color: tokens.error
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    maximumLineCount: 3
-                    elide: Text.ElideRight
-                    HoverHandler { id: runtimeErrorHover }
-                    ThemedToolTip { theme: tokens; visible: runtimeErrorHover.hovered; text: window.ui.runtimeError }
                 }
                 Label {
                     visible: window.ui.routeError.length > 0

@@ -182,7 +182,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
     if (!require(names.size() >= 100, "name audit visits controls from all routes"))
         return 174;
     for (const auto* expected :
-         {"theme_selector", "website_route", "website_targets", "mixed_port", "controller_port"}) {
+         {"appearance_dark", "website_route", "website_targets", "mixed_port", "controller_port"}) {
         bool found = false;
         for (const auto& value : names)
             found |= value.toObject().value("object").toString() == QString::fromLatin1(expected);

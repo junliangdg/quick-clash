@@ -144,7 +144,8 @@ class UiState : public QObject {
     [[nodiscard]] bool uiVisible() const {
         return uiVisible_;
     }
-    void setUiVisible(bool visible);
+    // Minimized windows retain only the host traffic lease until hidden or unloaded.
+    void setUiVisible(bool visible, bool minimized = false);
     [[nodiscard]] bool replay() const {
         return replay_;
     }
@@ -251,6 +252,7 @@ class UiState : public QObject {
     QString themeMode_ = QStringLiteral("system");
     bool systemDark_ = false;
     bool uiVisible_ = false;
+    bool uiMinimized_ = false;
     bool replay_ = false;
     int replayConnections_ = 1000;
     bool trayAvailable_ = false;

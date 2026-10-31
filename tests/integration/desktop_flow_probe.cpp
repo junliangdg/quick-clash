@@ -247,9 +247,9 @@ bool desktopFlowProbe(ApplicationHost& host, bool reopen, QJsonObject& result) {
                        waitFor([&] { return ready() && preferences().value("mode") == "rule"; }),
                    "home mode buttons confirm direct then rule"))
             return false;
-        auto* theme = item(host, "theme_selector");
-        if (!check(theme && theme->setProperty("currentIndex", 2) &&
-                       QMetaObject::invokeMethod(theme, "activated", Q_ARG(int, 2)) &&
+        if (!check(click(host, "navigation_settings") &&
+                       waitFor([&] { return item(host, "appearance_dark"); }) &&
+                       click(host, "appearance_dark") &&
                        waitFor([&] { return ui.settingsReady() && ui.themeMode() == "dark"; }) &&
                        ready() && selected() == "fixture",
                    "theme change retains Ready and node across transactional mode changes"))

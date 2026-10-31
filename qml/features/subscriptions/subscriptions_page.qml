@@ -353,13 +353,6 @@ ListView {
             }
         }
         Label {
-            text: root.ui.runtimeError
-            visible: text.length > 0
-            color: root.theme.text
-            wrapMode: Text.WordWrap
-            Layout.fillWidth: true
-        }
-        Label {
             text: qsTr("Subscriptions")
             color: root.theme.text
             font.pixelSize: root.theme.bodySize

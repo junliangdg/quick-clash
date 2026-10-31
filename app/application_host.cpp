@@ -232,7 +232,7 @@ bool ApplicationHost::showWindow() {
         }
         connect(window_, &QWindow::visibilityChanged, this, [this](QWindow::Visibility visibility) {
             const bool visible = visibility != QWindow::Hidden && visibility != QWindow::Minimized;
-            state_.setUiVisible(visible);
+            state_.setUiVisible(visible, visibility == QWindow::Minimized);
             if (!unloading_ && !quitting_) {
                 state_.setHostState(
                     visibility == QWindow::Minimized

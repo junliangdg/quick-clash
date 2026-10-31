@@ -18,22 +18,11 @@ ColumnLayout {
     }
     readonly property bool tunOn: ui.runtime.tunState === "On"
     spacing: 12
-    RowLayout {
+    DashboardHeading {
+        theme: root.theme
+        source: "qrc:/icons/navigation/proxies.svg"
+        text: qsTr("Proxy and network")
         Layout.fillWidth: true
-        DashboardHeading {
-            theme: root.theme
-            source: "qrc:/icons/navigation/proxies.svg"
-            text: qsTr("Proxy and network")
-            Layout.fillWidth: true
-        }
-        ActionButton {
-            theme: root.theme
-            text: qsTr("View proxies")
-            ghost: true
-            onClicked: root.ui.navigate("proxies", {
-                group: root.outbound.policy || "primary"
-            })
-        }
     }
     GridLayout {
         id: sections

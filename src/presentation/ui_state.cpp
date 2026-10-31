@@ -560,16 +560,19 @@ void UiState::setSystemDark(bool dark) {
         emit themeChanged();
     }
 }
-void UiState::setUiVisible(bool visible) {
-    if (uiVisible_ == visible) {
+void UiState::setUiVisible(bool visible, bool minimized) {
+    minimized = minimized && !visible;
+    if (uiVisible_ == visible && uiMinimized_ == minimized) {
         return;
     }
-    if (!visible)
+    if (uiVisible_ && !visible)
         emit uiAboutToHide();
     uiVisible_ = visible;
+    uiMinimized_ = minimized;
     if (!visible) {
         demands_.clear();
-        clearTrafficHistory();
+        if (!minimized)
+            clearTrafficHistory();
     }
     emit uiVisibleChanged();
     updateTimer();
@@ -601,6 +604,8 @@ bool UiState::setReplayConnections(int rows) {
     return true;
 }
 int UiState::activeStreamCount() const {
+    if (!replay_)
+        return static_cast<int>(dataDemands_.active.size());
     const auto values = demands_.values();
     return static_cast<int>(QSet<QString>(values.cbegin(), values.cend()).size());
 }
@@ -621,9 +626,13 @@ void UiState::setDemand(const QString& instanceKey, const QString& stream, bool 
     emit demandsChanged();
 }
 void UiState::updateTimer() {
-    const auto streams = demands_.values();
+    auto streams = demands_.values();
+    // Keep one shared ~1 Hz stream across routes and taskbar minimization.
+    // Page consumers still release their heavier data when not visible.
+    if (!replay_ && (uiVisible_ || uiMinimized_))
+        streams.append(QStringLiteral("traffic"));
     const auto previous = dataDemands_;
-    dataDemands_.setActive(replay_ || !uiVisible_ ? QStringList{} : streams);
+    dataDemands_.setActive(replay_ ? QStringList{} : streams);
     if (settings_)
         settings_->setDemands(dataDemands_);
     for (const auto& channel : application::scopedChannels()) {

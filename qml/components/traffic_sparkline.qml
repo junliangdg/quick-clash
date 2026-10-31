@@ -13,6 +13,7 @@ Canvas {
     required property color gridColor
     required property real uploadFillOpacity
     required property real downloadFillOpacity
+    antialiasing: true
     readonly property real peak: {
         let maximum = 1;
         for (const series of [uploadSamples, downloadSamples])
@@ -90,7 +91,16 @@ Canvas {
                 trace(start, end);
                 painter.strokeStyle = color;
                 painter.lineWidth = 1.5;
-                painter.stroke();
+                painter.lineJoin = "round";
+                painter.lineCap = "round";
+                if (start === end) {
+                    painter.beginPath();
+                    painter.arc(start * step, plotHeight - 2 - Number(series[start]) / maximum * amplitude, 0.75, 0, Math.PI * 2);
+                    painter.fillStyle = color;
+                    painter.fill();
+                } else {
+                    painter.stroke();
+                }
                 start = end + 1;
             }
         }

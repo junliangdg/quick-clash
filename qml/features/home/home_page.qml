@@ -43,7 +43,11 @@ ScrollView {
             ui.runtimeCommand("cancel_ip");
         }
     }
-    onActiveChanged: syncDemand()
+    onActiveChanged: {
+        if (active)
+            now = Date.now();
+        syncDemand();
+    }
     Component.onCompleted: syncDemand()
     Component.onDestruction: {
         ui.setDemand("home:traffic", "traffic", false);
@@ -73,29 +77,11 @@ ScrollView {
                     anchors.fill: parent
                     anchors.margins: root.theme.panelPadding
                     spacing: 10
-                    RowLayout {
+                    DashboardHeading {
+                        theme: root.theme
+                        source: "qrc:/icons/navigation/subscriptions.svg"
+                        text: qsTr("Current subscription")
                         Layout.fillWidth: true
-                        spacing: 8
-                        DashboardHeading {
-                            theme: root.theme
-                            source: "qrc:/icons/navigation/subscriptions.svg"
-                            text: qsTr("Current subscription")
-                            Layout.fillWidth: true
-                        }
-                        Rectangle {
-                            visible: !!root.selectedId
-                            implicitWidth: activeProfileText.implicitWidth + 12
-                            implicitHeight: 22
-                            radius: 4
-                            color: root.theme.accentSurface
-                            Label {
-                                id: activeProfileText
-                                anchors.centerIn: parent
-                                text: root.ui.runtime.applyingId ? qsTr("Applying") : root.ui.runtime.ready && root.ui.runtime.status === "Ready" ? qsTr("Applied") : qsTr("Selected")
-                                color: root.theme.onSelection
-                                font.pixelSize: root.theme.scaledSize(12)
-                            }
-                        }
                     }
                     ThemedComboBox {
                         theme: root.theme
@@ -147,14 +133,6 @@ ScrollView {
                             onClicked: root.ui.navigate("subscriptions")
                         }
                     }
-                    Label {
-                        visible: root.selectedProfile.lastUpdateResult === "Failed" || (root.selectedProfile.pendingApply === true && !!root.ui.runtime.error)
-                        text: root.ui.runtime.ready ? qsTr("The last confirmed session is retained. See the error details above.") : root.ui.runtimeError
-                        color: root.theme.warning
-                        font.pixelSize: root.theme.supportingSize
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                    }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Add subscription")
@@ -176,22 +154,11 @@ ScrollView {
                     anchors.fill: parent
                     anchors.margins: root.theme.panelPadding
                     spacing: 12
-                    RowLayout {
+                    DashboardHeading {
+                        theme: root.theme
+                        source: "qrc:/icons/navigation/tests.svg"
+                        text: qsTr("Network traffic")
                         Layout.fillWidth: true
-                        spacing: 8
-                        DashboardHeading {
-                            theme: root.theme
-                            source: "qrc:/icons/navigation/tests.svg"
-                            text: qsTr("Network traffic")
-                            Layout.fillWidth: true
-                        }
-                        ActionButton {
-                            theme: root.theme
-                            text: root.ui.dashboard.curve ? qsTr("Hide chart") : qsTr("Show chart")
-                            ghost: true
-                            enabled: root.ui.settingsReady
-                            onClicked: root.ui.setDashboardOption("curve", !root.ui.dashboard.curve)
-                        }
                     }
                     RowLayout {
                         Layout.fillWidth: true
@@ -260,8 +227,15 @@ ScrollView {
                             }
                         }
                     }
+                    Label {
+                        objectName: "traffic_scale"
+                        visible: !!root.ui.telemetry.traffic || root.ui.replay
+                        Layout.fillWidth: true
+                        text: chart.peak >= 1048576 ? (chart.peak / 1048576).toFixed(2) + " GiB/s" : chart.peak >= 1024 ? (chart.peak / 1024).toFixed(2) + " MiB/s" : chart.peak.toFixed(1) + " KiB/s"
+                        color: root.theme.muted
+                        font.pixelSize: root.theme.supportingSize
+                    }
                     Item {
-                        visible: root.ui.dashboard.curve === true
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         Layout.minimumHeight: 76
@@ -276,15 +250,7 @@ ScrollView {
                             gridColor: root.theme.border
                             uploadFillOpacity: 0.06
                             downloadFillOpacity: 0.10
-                            visible: root.active && root.ui.dashboard.curve === true
-                        }
-                        Label {
-                            anchors.top: parent.top
-                            anchors.right: parent.right
-                            text: qsTr("Scale: %1 KiB/s").arg(chart.peak.toFixed(0))
-                            color: root.theme.muted
-                            font.pixelSize: root.theme.supportingSize
-                            visible: !!root.ui.telemetry.traffic || root.ui.replay
+                            visible: root.active
                         }
                         Label {
                             anchors.centerIn: parent
@@ -295,7 +261,6 @@ ScrollView {
                         }
                     }
                     RowLayout {
-                        visible: root.ui.dashboard.curve === true
                         Layout.fillWidth: true
                         Label {
                             text: qsTr("60 s ago")

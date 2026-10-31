@@ -256,6 +256,33 @@ int runVisualProbe(ApplicationHost& host) {
         }
         ui.navigate("home");
         QTest::qWait(50);
+        const auto peakTime = QDateTime::currentMSecsSinceEpoch();
+        for (int second = 0; second < 60; ++second) {
+            const auto up = second % 4 == 0 ? 1073741824 : second % 4 == 2 ? 1 : 0;
+            const auto down = second % 4 == 2 ? 1073741824 : 0;
+            ui.applyData(
+                {1,
+                 "visual-fixture",
+                 {{"traffic",
+                   QJsonObject{{"traffic",
+                                QJsonObject{{"time", QString::number(peakTime + second * 1000LL)},
+                                            {"up", up},
+                                            {"down", down}}}}}},
+                 ui.dataDemands().generations});
+        }
+        if (!capture(theme + "_traffic_extreme"))
+            return 112;
+        ui.applyData(
+            {1,
+             "visual-fixture",
+             {{"traffic",
+               QJsonObject{{"traffic", QJsonObject{{"time", QString::number(peakTime + 63000)},
+                                                   {"up", 1073741824},
+                                                   {"down", 0}}}}}},
+             ui.dataDemands().generations});
+        if (!capture(theme + "_traffic_gap"))
+            return 112;
+        populate();
         const auto subscription = objects("current_subscription_card");
         const auto traffic = objects("traffic_card");
         if (subscription.size() != 1 || traffic.size() != 1 ||
@@ -361,20 +388,26 @@ int runVisualProbe(ApplicationHost& host) {
         if (ports.first()->property("value").toInt() != 17990)
             return 122;
         auto* currentPage = fields.first()->parentItem();
-        ui.setThemeMode(theme == "light" ? "dark" : "light");
+        const auto appearance = objects(theme == "light" ? "appearance_dark" : "appearance_light");
+        if (appearance.size() != 1 || !QMetaObject::invokeMethod(appearance.first(), "clicked"))
+            return 115;
         QTest::qWait(20);
         if (fields.first()->property("text") != "https://draft.example/" ||
             ports.first()->property("value").toInt() != 17990 ||
             fields.first()->parentItem() != currentPage || host.engineGeneration() != generation)
             return 115;
-        ui.setThemeMode(theme);
-        fields.first()->forceActiveFocus(Qt::TabFocusReason);
-        const auto combos = objects("theme_selector");
+        const auto restoreAppearance = objects("appearance_" + theme);
+        if (restoreAppearance.size() != 1 ||
+            !QMetaObject::invokeMethod(restoreAppearance.first(), "clicked"))
+            return 115;
+        ui.navigate("home");
+        QTest::qWait(50);
+        const auto combos = objects("home_profile_selector");
         if (combos.size() != 1)
             return 116;
         auto* popup = combos.first()->property("popup").value<QObject*>();
         if (!popup || !QMetaObject::invokeMethod(popup, "open") ||
-            !capture(theme + "_theme_menu") || !popup->property("visible").toBool())
+            !capture(theme + "_profile_menu") || !popup->property("visible").toBool())
             return 116;
         QMetaObject::invokeMethod(popup, "close");
         ui.requestClose();
@@ -383,20 +416,34 @@ int runVisualProbe(ApplicationHost& host) {
             !confirmation->property("visible").toBool())
             return 117;
         QMetaObject::invokeMethod(confirmation, "close");
+        ui.navigate("home");
+        QTest::qWait(50);
+        const auto pageHost = objects("active_page_host");
+        if (pageHost.size() != 1)
+            return 123;
+        const auto pageBounds = pageHost.first()->mapRectToScene(pageHost.first()->boundingRect());
         auto failed = ui.runtime();
         failed.insert("status", "Failed");
         failed.insert("ready", false);
         failed.insert("error", "Synthetic runtime failure");
         ui.applyControl(QJsonObject::fromVariantMap(failed));
-        ui.navigate("home");
         if (!capture(theme + "_runtime_error"))
             return 123;
         if (objects("home_copy_proxy_address").first()->isEnabled() ||
             objects("home_runtime_core").first()->property("text") != "—")
             return 129;
-        const auto details = objects("runtime_error_detail");
-        if (!host.window()->property("runtimeFailed").toBool() || details.size() != 1 ||
-            !details.first()->isVisible())
+        const auto* tooltip = host.window()->findChild<QObject*>("runtime_status_tooltip");
+        if (!host.window()->property("runtimeFailed").toBool() || !tooltip ||
+            tooltip->property("text").toString() != ui.runtimeError() ||
+            pageHost.first()->mapRectToScene(pageHost.first()->boundingRect()) != pageBounds ||
+            !objects("runtime_error_detail").isEmpty() || !objects("theme_selector").isEmpty())
+            return 123;
+        const auto badges = objects("runtime_status_badge");
+        if (badges.size() != 1)
+            return 123;
+        badges.first()->forceActiveFocus(Qt::TabFocusReason);
+        QTest::qWait(550);
+        if (!tooltip->property("visible").toBool() || !capture(theme + "_runtime_error_tooltip"))
             return 123;
         failed.insert("status", "Ready");
         failed.insert("ready", true);
@@ -409,6 +456,15 @@ int runVisualProbe(ApplicationHost& host) {
         host.resizeWindow({width, 640});
         ui.navigate("home");
         populate();
+        const auto cards = objects("current_subscription_card");
+        if (cards.size() != 1)
+            return 118;
+        auto* homeViewport = cards.first()->parentItem();
+        while (homeViewport && !homeViewport->inherits("QQuickFlickable"))
+            homeViewport = homeViewport->parentItem();
+        if (!homeViewport)
+            return 118;
+        homeViewport->setProperty("contentY", 0);
         if (!capture(QStringLiteral("dark_home_%1").arg(width)))
             return 118;
         const auto sections = objects("home_proxy_sections");

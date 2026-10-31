@@ -971,3 +971,51 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 资源短测Pass（单场景）：`bench/measure_runtime_windows.ps1 -Executable build/delay_concurrency/quickclash.exe -OutputDirectory build/dashboard_hierarchy_memory -Seconds 10`，92样本；客户端专用工作集/总工作集/私有提交MiB首77.15/174.34/220.20→末66.89/164.11/198.76，峰77.64/174.85/220.25；内核首7.43/26.52/60.73→末7.50/26.59/60.77，峰同末。与上一轮overview_memory客户端末值相比+1.83/+4.45/+1.83MiB，峰+8.57/+11.18/+17.22MiB；单轮含加载波动，不能隔离归因或证明长期资源通过。EXE SHA256 `6561a761aa98ab079975cb44f4192e29bb46b9888b32e1362815f9d7ac33131a`，退出0、owned核心回收、stderr为空；无额外客户端进程。既有共享采样生命周期证据保留，未新增Timer、网络请求或离屏特效。
 - 限制与后续：全页可访问性双语Fail及原生exit154记录于`dashboard_hierarchy_ctest_final.log`/`dashboard_hierarchy_accessibility_native.log`，失败控件是未修改的订阅URL密码输入框，尚未建立当前Qt6.12修复前同构对照，不断言为本次回归或已排除回归；归原P3-27后续核对，不将本次视觉交付提升为全页可访问性Pass。Qt6.8旧部署包不支持探针参数，已结束本轮所启旧包进程，未用其证明前后行为。真实公网IPv6、实际OS字体/读屏及长期性能仍按原专项补验。原始日志/截图/采样留build，无新增日常report或提交。
 - 交付检查Pass：设计合并版重新生成及`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、本工作区全部修改/新增C++的clang-format `--dry-run --Werror`及`git diff --check`通过。最终EXE摘要与短测一致；本次视觉范围无剩余阻断，后续可访问性问题按上一条继续核对。
+
+## 2026-10-31 / 实时流量跨页与最小化连续记录
+
+- 范围：切页释放流量需求导致重新连接并等待采样，最小化同时清空历史；改为宿主持有一条约1Hz共享流量需求，窗口显示/最小化期间连续保留60点上下行，隐藏到托盘或实际卸载后释放并清空，epoch变化仍重置、真实缺采样仍断档。其他页面缓存/资源及绘图随可见性释放/停止，实验性5秒卸载偏好沿用。
+- 实现：UiState区分不可见的最小化与隐藏，独立持有宿主流量需求；ApplicationHost传入真实窗口可见状态；首页恢复时立即核对过期时间。补现有ui_state与host_lifecycle探针覆盖跨页采样、最小化仅保留traffic、恢复同租约/历史、隐藏清空/拒迟到与epoch重置。旧切页停流/最小化清空证据Stale，其他既有结果不扩大失效范围。
+- 状态：Done（定向范围），负责人Codex；原始证据留build，不新增日常report或提交。下列保留首轮失败与最终结果。
+- 首轮验证：Windows Qt6.12/MSVC Release增量构建及qmllint通过，仅既存订阅页三条lint警告；8项定向CTest中7项通过，ui_state在异步存储偏好步骤受沙箱限制失败，授权环境定向重跑Pass。新增流量断言、真实窗口最小化/恢复同租约及已有UI视觉/响应式/列表双语回归通过。补现有desktop探针traffic场景，接下来用官方owned核心核对真实跨页/最小化连续采样和隐藏/卸载释放，并在同一10秒场景采集客户端/内核三项内存，验证中/NotRun。
+- 最终构建/回归Pass：`traffic_continuity_build.log`与补探针后的`traffic_continuity_probe_build.log`为Qt6.12/MSVC Release增量构建，qmllint仅订阅页32/405/419三条既存警告。`traffic_continuity_ctest.log`记录deferred_ui_unload/qml_smoke/ui_visual/ui_responsive/ui_runtime_lists双语/host_lifecycle 7项通过（全轮22.61秒），`traffic_continuity_state_verified.log`为授权环境ui_state补验1/1（0.21秒）；合计8项通过。新增断言覆盖跨页真实毫秒连续样本、最小化释放重数据并保留同一traffic代次、恢复直接展示、隐藏拒迟到、epoch重置及真实缺采样仍留gap。
+- 真实内核/原生窗口Pass：`quickclash.exe --desktop-test --no-tray --desktop-phase=traffic --desktop-root=<隔离标记目录> --desktop-output=<result.json> --desktop-fixture=tests/fixtures/mvp/inline_valid.yaml`，证据`build/traffic_continuity_native/result.json`和`build/delay_concurrency/traffic_continuity_native.log`。官方owned内核Ready，首页3秒→设置页3秒→原生最小化3秒→恢复首页1秒，共100个100ms内存样本；阶段采样时间`1793453819814→1793453822814→1793453825814`连续推进，同一traffic generation=1，最近两点保持有效、环固定60点。最小化仅traffic，隐藏立即零需求/空历史、1.2秒不回填、显示新代次恢复；从最小化实际卸载也零需求/空历史、内核仍Ready且PID不变。最终QML错误0、日志为空；测试GUI及owned核心已退出，无辅助客户端进程，未改系统代理/TUN。
+- 资源短测Pass（单场景）：上述10秒同轮客户端专用工作集/总工作集/私有提交MiB首77.83/172.67/224.07→末77.15/173.78/212.04，峰83.75/179.91/224.12；内核首7.31/26.37/60.88→末7.37/26.43/60.88，峰同末。设置页末76.60/172.76/211.43→最小化末76.57/172.76/211.40，未见持续增长。相同主机上一轮首页峰77.64/174.85/220.25，本轮峰高6.11/5.06/3.87MiB；本轮包含切页/最小化/恢复和页加载，不能隔离为新增流量采样开销或证明长期/CPU/功耗通过。当前EXE SHA256 `3daaeb90ba29061a80dfaeb4018b326a2b21dbaa1e51bdf2d300d3a8109fc68e`。
+- 交付与限制：设计03/04/08/13/17及Windows指南、TASKS/CHECKLISTS和已有Windows摘要同步；原G1-C回放卸载、Qt既存其他页面警告及可访问性问题保留。服务模式连续流未在本轮重验，正式打包/长期CPU功耗仍NotRun；本轮构建位于`build/delay_concurrency/quickclash.exe`，不替换正在运行的其他构建。下一步按既有专项补验，无本次功能阻断。
+- 交付检查Pass：设计合并版生成及`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、本轮6份C++的clang-format `--dry-run --Werror`与`git diff --check`通过；本机阶段门状态保持原值，不以文档脚本替代产品验收。
+
+## 2026-10-31 / 流量曲线高低峰连续性
+
+- Codex承接用户反馈：曲线仍有断开，峰谷差大时明显。保留上轮未提交修改；新增专项Doing，验证中/NotRun。核对Canvas陡坡绘制及采样/发布路径，旧平缓波形视觉证据不足以证明本范围。
+- 初步定位：traffic到达只写featureState，由独立1秒featureTimer发布；两个1Hz时钟相位交错可覆盖尚未发布的样本，GUI按时间差插gap。Canvas使用默认抗锯齿/折线连接，需用真实像素复现尖峰和近零段，确认绘制因素后修复。下一步定向前后截图、受影响回归与Windows构建；仅真实缺采样保留断档。
+- 修复前短测：`traffic_peaks_baseline/result.json`10秒11个有效样本，最大发布年龄205ms、最大间隔1001ms，本轮未复现漏点，不能声称实际漏点已被复现；确认存在独立轮询造成的额外等待。离线极端波形有效段连续，默认尖角/未显式抗锯齿的呈现较差。改为到达即复用零延迟合并发布、折线抗锯齿与圆角端点/连接、单个有效点显示。扩展现有ui_state与视觉探针覆盖零值/1B与1GiB/s交替、正常抖动及真实gap，原生traffic探针补样本年龄/间隔断言；实现具备，验证中/NotRun。
+- 确认绘制缺陷：Canvas仅stroke单点路径时没有可见线段，真实断档后的首个有效点需等待第二点才显现；现以同色小圆点立即显示，分段仍不跨越空采样。极端峰谷仍按真实点折线，不引入过冲插值或额外动画/Timer。
+- Windows构建/回归Pass：`traffic_peaks_build.log`为Qt6.12/MSVC Release构建及qmllint（仅订阅页32/405/419三条既存警告）；`traffic_peaks_ctest.log`为runtime_publication/ui_state/qml_smoke/ui_visual/host_lifecycle 5/5，40.77秒。新增ui_state覆盖60个0/1B/1GiB/s交替且±40ms抖动的连续有效点，既有真实4秒缺采样/epoch/隐藏迟到断言保留。`traffic_render_probe/after.txt`通过：连续陡坡逐列检出线色、gap区无伪线、恢复孤立点可见，截图与临时夹具仅留build。
+- 原生视觉Pass：`traffic_peaks_visual`49张D3D11/DPR1.25中文截图，含新增light/dark_traffic_extreme及_traffic_gap；目视核对尖峰、零值底线和真实断档。`traffic_peaks_visual_stderr.log`为空；不将软件像素检查等同于原生GPU检查，两个路径分别保留。
+- 真实流量/生命周期Pass：首轮`traffic_peaks_native`最大样本年龄16ms，但Start-Process Hidden下未确认初始曝光，内存数据不作为正常显示基线；为补证在探针添加hide/show并qWaitForWindowExposed，再构建`traffic_peaks_probe_build.log`并运行`traffic_peaks_native_exposed/result.json`。官方owned内核Ready、D3D11，首页3秒→设置3秒→原生最小化3秒→恢复1秒，11个有效样本最大年龄16ms、最大间隔1001ms；环60点，同一租约、隐藏释放拒迟到、卸载释放且内核Ready/PID不变、QML错误0、stderr为空，探针及owned核心已退出。
+- 资源短测Pass（上述已曝光10秒100样本）：客户端专用工作集/总工作集/私有提交MiB首72.62/166.92/205.31→末74.62/170.74/207.03、峰77.56/173.22/210.41；内核首7.30/26.29/60.27→末及峰7.38/26.39/60.32。同机修复前峰89.06/185.25/230.88，本轮客户端峰低11.50/12.03/20.47MiB；初始曝光流程及加载存在差异，不归因为修复带来的内存收益，也不代表长期/CPU/功耗通过。流量仍约1Hz且历史固定60点，无新常驻采样器。最终EXE SHA256 `8f6ecafa2b12f249b1cb3536bd93993be543d98f5605ab9a1efdcb7aa1f94b79`；最终构建仅补探针曝光条件，产品实现与5项回归一致。
+- 状态Done（本次定向范围），TASKS/CHECKLISTS、设计03/17及指南/Windows摘要同步；服务模式、长时CPU功耗及既存G1-C/可访问性问题继续按原专项，不扩大本次Pass。下一步按既有任务补验；交付构建`build/delay_concurrency/quickclash.exe`，无自动提交或新增报告。
+- 交付检查Pass：设计合并版生成及`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、全部8份修改C++的clang-format `--dry-run --Werror`与`git diff --check`通过；阶段门状态维持原值，不以文档检查代替产品验收。
+
+## 2026-10-31 / 流量图刻度与页头展示精简
+
+- Codex按用户建议将上限数值移至绘图区左上方独立行，与纵轴对齐，移除“刻度上限”前缀，避免文字压线；按1024自动选择KiB/s、MiB/s或GiB/s，沿用既有速率的二进制口径。仅变更展示绑定/布局，无新采样、动画或Timer，复用上一轮流量生命周期/资源证据。
+- 实现具备，验证中/NotRun；设计17和使用指南同步，旧叠字截图Stale。下一步Windows增量构建/lint、受影响现有UI回归与原生深浅/宽窄截图核对；保留所有前轮未提交修改，不自动提交。
+- 用户追加范围：移除页头主题选择，保留设置外观按钮；移除全局运行错误行及首页订阅卡重复错误文字，右上角状态胶囊保留完整悬浮详情，并支持键盘聚焦与可访问描述。字段校验/操作结果仍按对应控件表达；没有重复到状态图标的路由错误维持原行为。更新现有视觉/可访问性/桌面流程探针到设置主题入口，视觉探针核对错误前后PageHost几何不变及提示可读；设计04/08/17与指南同步，验证中/NotRun。
+- 首轮刻度构建：QML编译/lint通过（既存订阅页三条警告），链接失败LNK1104，目标`build/delay_concurrency/quickclash.exe`正由用户运行（PID5896），未结束用户进程。独立`build/traffic_scale`首次完整构建已通过；继续在该目录合入本次追加范围并增量验收，首轮日志保留。
+- 首轮追加范围构建和5项回归通过，原生51张截图及错误前后PageHost几何断言通过。核对截图后发现设置仍重复显示“暂无运行错误”，搜索补清设置/订阅/配置编辑器直接读取runtimeError的文字，运行错误展示统一到页头提示；保留各控件自己的校验/状态与存储修复入口。原生探针原来沿用上一页滚动位置，已补宽窄首页抓图前归顶；主题切换验证改为实际设置按钮的clicked链路。改后增量验证中/NotRun，旧中间截图留build。
+- 最终Windows构建/lint Pass：`build/traffic_scale_final_build.log`，Qt6.12/MSVC Release，仅既存订阅页3条lint警告（删除文字后行号32/398/412）。`traffic_scale_final_ctest.log` 7/7（qml_smoke/ui_keyboard/ui_visual/ui_responsive/ui_subscriptions双语/host_lifecycle），22.64秒；现有视觉探针通过设置外观按钮切主题并确认草稿/引擎不重建，检查错误前后PageHost几何完全不变、无重复错误行/页头主题选择、完整提示与键盘焦点可见。
+- 最终原生视觉Pass：`build/traffic_scale_visual_verified`51张D3D11/DPR1.25中文截图，全为exposed=true；核对双主题、1440/1200/1000/800/360宽、刻度左对齐不压线、KiB及GiB自动显示、设置主题入口和运行错误提示。`traffic_scale_visual_verified_stderr.log`为空。产品QML中runtimeError仅由页头状态/可访问描述/提示读取；字段自己的校验与非重复路由错误保留。既有可访问性全页失败继续单列，本次不提升为完整读屏/OS字号验收。
+- 资源与交付：仅轻量文字绑定/布局调整，移除重复控件，无新增Timer/动画/网络流，上一轮10秒真实内核三指标与60点有界生命周期证据未受影响，按约定复用。最终EXE `build/traffic_scale/quickclash.exe` SHA256 `390d94cb721317c9882c6e02b33a88df46a7095f6f56337bf75589dd504b9081`；用户仍运行原`delay_concurrency`构建，未替换或结束该实例。状态Done（本次展示范围），设计04/08/17、指南、TASKS/CHECKLISTS和Windows摘要同步；下一步按既有专项，服务模式/长期性能/既存G1-C与可访问性限制保留。
+- 交付检查Pass：设计合并版重新生成与`-Check`、`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、本轮3份C++的clang-format `--dry-run --Werror`及`git diff --check`通过。改动桌面flow/完整可访问性探针入口已编译，本轮未执行其全链路，不借定向UI通过提升原专项状态。
+
+## 2026-10-31 / 仪表盘按钮精简
+
+- Codex按用户要求移除仪表盘“收起/显示曲线”“查看代理”“详细测试”按钮，三个卡片标题简化为图标与名称。流量曲线、刻度及时间轴固定显示，旧版curve=false不再影响展示；不可见时仍停止绘图，数据采样/生命周期不变。代理页和测试页通过既有导航进入，移除对应首页翻译。保留全部前轮工作区改动，无提交。
+- 设计08/17、Windows指南与专项台账同步；实现具备，验证中/NotRun，旧按钮/折叠视觉截图Stale。当前用户运行`build/traffic_scale/quickclash.exe`，本轮复用空闲的`build/delay_concurrency`增量构建，避免占用正在运行的EXE。下一步Windows构建/lint、现有UI回归与原生宽窄双主题核验；仅删除控件和展示条件，复用既有流量生命周期/10秒三指标证据，不新增性能矩阵。
+- 用户追加核对当前订阅的“已应用”角标：现有条件仅检查全局Ready，未检查该订阅的pendingApply/修订身份；旧会话保留时也可显示，不能独立证明当前订阅内容已应用。移除整组已选择/应用中/已应用角标及首页对应翻译，当前选择仍由下拉框表示，阶段/错误继续由页头提示。设计与指南同步；验证中/NotRun。
+- Windows构建/lint Pass：首轮沙箱内Ninja停在启动阶段，结束本轮自启构建进程后在授权环境重跑，`build/dashboard_buttons_build_verified.log`退出0，Qt6.12/MSVC Release，目标quickclash/localization_test/quickclash_qmllint。仅既存订阅页32/398/412三条类型推断警告及重复Refresh翻译提示；不新增镜像测试。
+- 现有回归Pass：`ctest --test-dir build/delay_concurrency -R '^(localization|qml_smoke|ui_keyboard|ui_visual|ui_responsive|ui_runtime_lists|ui_runtime_lists_zh|ui_subscriptions|ui_subscriptions_zh|host_lifecycle)$' --output-on-failure --timeout 30`，10/10、28.50秒，日志`build/dashboard_buttons_ctest.log`，JUnit位于`build/delay_concurrency/dashboard_buttons_tests.xml`。覆盖双语订阅/代理列表、导航、键盘、响应式、五卡与窗口生命周期；旧curve字段保留存储兼容，QML已无读取/写入该字段的路径。
+- 原生视觉Pass：现有`--visual-test --probe-language=zh-CN`退出0，`build/dashboard_buttons_visual`51张D3D11/DPR1.25截图全部exposed=true；目视核对light_home、dark_home_1440/360、light_tools_1440与dark_tools_800，三按钮与订阅角标均移除，标题无多余留白、曲线/刻度和宽窄布局正常。stderr有既存8条颜色undefined提示，未作为新增缺陷或完整可访问性通过；G1-C及原可访问性限制不变。
+- 状态Done（展示范围）：最终`build/delay_concurrency/quickclash.exe` SHA256 `6c08880b4146cabe781ea1a3c32e559319770b8b64490ffa8255ab99fbc16588`。本轮仅移除控件/显示条件，复用既有60点流量生命周期与10秒三指标证据，不将其记为新资源测量。原始日志/截图留build，未提交/创建远端事项；下一步按既有专项处理服务/长期资源和可访问性，本次请求无剩余阻断。
+- 交付检查Pass：设计合并生成及`build_design_docs.ps1 -Check`、`check_progress.ps1`、`check_source_layout.ps1`与`git diff --check`均退出0；确认首页QML已无三个按钮、activeProfileText与dashboard.curve绑定。未新增C++改动，无需额外格式/平台或产品全量测试；检查脚本不作为产品验收。

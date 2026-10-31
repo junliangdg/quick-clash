@@ -2,7 +2,9 @@
 #include "application_host.h"
 #include "desktop_flow_probe.h"
 #include "desktop_proxy_probe.h"
+#include "platform/process_memory.h"
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
@@ -14,6 +16,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTest>
+#include <algorithm>
 #include <cstdio>
 #include <functional>
 
@@ -93,9 +96,10 @@ int runDesktopProbe(ApplicationHost& host) {
         return ui.runtime().value(QStringLiteral("ready")).toBool() &&
                !ui.runtime().value(QStringLiteral("busy")).toBool();
     };
-    if (!check(!output.isEmpty() && (phase == "import" || phase == "lifecycle" || phase == "hold" ||
-                                     phase == "reopen" || phase == "repair" || phase == "proxy" ||
-                                     phase == "flow" || phase == "flow_reopen"),
+    if (!check(!output.isEmpty() &&
+                   (phase == "import" || phase == "lifecycle" || phase == "hold" ||
+                    phase == "reopen" || phase == "repair" || phase == "proxy" || phase == "flow" ||
+                    phase == "flow_reopen" || phase == "traffic"),
                "explicit output and supported phase required") ||
         !check(waitFor([&] { return ui.settingsReady() && host.contentReady(); }),
                "real settings worker and QML content"))
@@ -154,6 +158,101 @@ int runDesktopProbe(ApplicationHost& host) {
     const auto selection = ui.runtime().value(QStringLiteral("selectionGeneration"));
     if (!check(corePid.toInt() > 0 && !selected.toString().isEmpty(), "owned core and selection"))
         return 177;
+    if (phase == "traffic") {
+        host.window()->hide();
+        host.window()->show();
+        if (!check(QTest::qWaitForWindowExposed(host.window(), 5000),
+                   "traffic probe starts with an exposed native window"))
+            return 188;
+        result.insert(QStringLiteral("trafficGraphicsApi"),
+                      static_cast<int>(host.window()->rendererInterface()->graphicsApi()));
+        const auto sampleTime = [&] {
+            return ui.telemetry().value("traffic").toMap().value("time").toString().toLongLong();
+        };
+        QJsonArray trafficSamples;
+        qint64 previousTime = 0;
+        qint64 maximumAge = 0;
+        qint64 maximumInterval = 0;
+        QObject trafficObserver;
+        QObject::connect(&ui, &presentation::UiState::telemetryChanged, &trafficObserver, [&] {
+            const auto time = sampleTime();
+            if (time <= 0 || time == previousTime)
+                return;
+            const auto age = QDateTime::currentMSecsSinceEpoch() - time;
+            const auto interval = previousTime > 0 ? time - previousTime : 0;
+            maximumAge = std::max(maximumAge, age);
+            maximumInterval = std::max(maximumInterval, interval);
+            trafficSamples.append(QJsonObject{
+                {"time", QString::number(time)}, {"ageMs", age}, {"intervalMs", interval}});
+            previousTime = time;
+        });
+        if (!check(waitFor([&] { return sampleTime() > 0; }, 5000), "first real traffic sample"))
+            return 188;
+        const auto generation = ui.dataDemands().generations.value("traffic");
+        const auto coreIdentity = platform::processIdentity(corePid.toInt());
+        QJsonArray memory;
+        QJsonArray stages;
+        qint64 stageStart = sampleTime();
+        for (int tick = 0; tick < 100; ++tick) {
+            if (tick == 30 || tick == 60 || tick == 90) {
+                const auto history = ui.uploadHistory();
+                if (!check(sampleTime() > stageStart && history.size() == 60 &&
+                               history.at(58).isValid() && history.at(59).isValid(),
+                           "real samples remain consecutive throughout each foreground state"))
+                    return 188;
+                stages.append(QJsonObject{{"tick", tick}, {"time", QString::number(sampleTime())}});
+                stageStart = sampleTime();
+                if (tick == 30)
+                    (void)ui.navigate(QStringLiteral("settings"));
+                else if (tick == 60)
+                    ui.requestMinimize();
+                else if (!host.showWindow() || !ui.navigate(QStringLiteral("home")))
+                    return 188;
+            }
+            QTest::qWait(100);
+            if (!check(
+                    ui.dataDemands().generations.value("traffic") == generation &&
+                        ui.dataDemands().active.contains("traffic") &&
+                        (tick < 60 || tick >= 90 ||
+                         (!ui.uiVisible() && ui.dataDemands().active == QSet<QString>{"traffic"})),
+                    "routes and native minimization share one traffic lease"))
+                return 188;
+            memory.append(QJsonObject{{"tick", tick},
+                                      {"client", platform::currentProcessMemory()},
+                                      {"core", platform::processMemory(coreIdentity)}});
+        }
+        result.insert(QStringLiteral("memorySamples"), memory);
+        result.insert(QStringLiteral("trafficStages"), stages);
+        result.insert(QStringLiteral("trafficGeneration"), QString::number(generation));
+        result.insert(QStringLiteral("trafficSamples"), trafficSamples);
+        result.insert(QStringLiteral("maximumTrafficAgeMs"), maximumAge);
+        result.insert(QStringLiteral("maximumTrafficIntervalMs"), maximumInterval);
+        QObject::disconnect(&ui, nullptr, &trafficObserver, nullptr);
+        if (!check(trafficSamples.size() >= 9 && maximumAge < 150 && maximumInterval < 1500,
+                   "traffic arrives promptly without polling delay or missing samples"))
+            return 188;
+        const auto latestHistory = ui.uploadHistory();
+        host.window()->hide();
+        if (!check(ui.dataDemands().active.isEmpty() && !ui.uploadHistory().constLast().isValid(),
+                   "native hiding releases traffic and clears history"))
+            return 188;
+        QTest::qWait(1200);
+        if (!check(!ui.uploadHistory().constLast().isValid() && host.showWindow() &&
+                       ui.dataDemands().generations.value("traffic") > generation &&
+                       waitFor([&] { return sampleTime() > 0; }, 5000),
+                   "hidden stream stays stopped and resumes with a fresh lease"))
+            return 188;
+        ui.requestMinimize();
+        host.unloadWindow();
+        if (!check(!host.window() && ui.dataDemands().active.isEmpty() &&
+                       !ui.uploadHistory().constLast().isValid() && ready() &&
+                       ui.runtime().value("corePid") == corePid,
+                   "unloading a minimized window stops telemetry and preserves the core"))
+            return 188;
+        result.insert(QStringLiteral("historyPoints"), latestHistory.size());
+        result.insert(QStringLiteral("passed"), true);
+        return snapshot(QStringLiteral("completed")) ? 0 : 185;
+    }
     if (phase == "hold") {
         if (!snapshot(QStringLiteral("holding")))
             return 178;

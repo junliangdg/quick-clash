@@ -2296,13 +2296,8 @@
     <message><source>TUN adapter: %1</source><translation>TUN 网卡：%1</translation></message>
   </context>
   <context><name>home_page</name>
-    <message><source>Applying</source><translation>应用中</translation></message>
-    <message><source>Applied</source><translation>已应用</translation></message>
-    <message><source>Selected</source><translation>已选中</translation></message>
     <message><source>Update subscription</source><translation>更新订阅</translation></message>
     <message><source>The last confirmed session is retained. See the error details above.</source><translation>保留上次确认的会话，详情见上方错误提示。</translation></message>
-    <message><source>Hide chart</source><translation>收起曲线</translation></message>
-    <message><source>Show chart</source><translation>显示曲线</translation></message>
     <message><source>Scale: %1 KiB/s</source><translation>刻度上限：%1 KiB/s</translation></message>
     <message><source>Traffic data is stale</source><translation>流量数据已过期</translation></message>
     <message><source>Current core session totals</source><translation>本次内核运行累计</translation></message>
@@ -2317,7 +2312,6 @@
     <message><source>Cancelled</source><translation>已取消</translation></message>
     <message><source>Expired</source><translation>已过期</translation></message>
     <message><source>Proxy and network</source><translation>代理与网络</translation></message>
-    <message><source>View proxies</source><translation>查看代理</translation></message>
     <message><source>Outbound mode</source><translation>代理模式</translation></message>
     <message><source>Rule</source><translation>规则</translation></message>
     <message><source>Global</source><translation>全局</translation></message>
@@ -2358,7 +2352,6 @@
     <message><source>Network error</source><translation>网络错误</translation></message>
     <message><source>Not queried</source><translation>未查询</translation></message>
     <message><source>Network tools</source><translation>网络工具</translation></message>
-    <message><source>Detailed tests</source><translation>详细测试</translation></message>
     <message><source>IP comparison</source><translation>IP 对照</translation></message>
     <message><source>Common websites</source><translation>常用网站</translation></message>
     <message><source>IP address family</source><translation>IP 地址类型</translation></message>

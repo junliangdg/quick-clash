@@ -189,13 +189,6 @@ ThemedDialog {
                 Layout.fillWidth: true
             }
             Label {
-                text: root.ui.runtimeError
-                visible: text.length > 0
-                color: root.theme.error
-                wrapMode: Text.WordWrap
-                Layout.fillWidth: true
-            }
-            Label {
                 visible: root.previewReady
                 text: qsTr("Source → profile overrides (%1) → global mode, DNS, ports and TUN → reserved controller and resource constraints. Previews hide credentials and may omit content above 256 KiB.").arg((root.state.overlayFields || []).join(", "))
                 color: root.theme.muted

@@ -84,6 +84,9 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
                     sample.insert(QStringLiteral("time"),
                                   QString::number(QDateTime::currentMSecsSinceEpoch()));
                     featureState_.insert(QStringLiteral("traffic"), sample);
+                    // Do not resample the stream with the independent feature timer: phase
+                    // drift can overwrite an unpublished point and create a false gap.
+                    publish();
                 }
             });
     subscriptionTimer_.setSingleShot(true);

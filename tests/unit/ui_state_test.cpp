@@ -4,6 +4,7 @@
 #include <QElapsedTimer>
 #include <QTemporaryDir>
 #include <QThread>
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 
@@ -75,15 +76,19 @@ int main(int argc, char* argv[]) {
         {
             UiState traffic;
             traffic.setUiVisible(true);
+            const auto trafficGeneration = traffic.dataDemands().generations.value("traffic");
+            check(traffic.dataDemands().active == QSet<QString>{"traffic"},
+                  "visible host starts one traffic lease independently of the current page");
             traffic.setDemand("chart", "traffic", true);
             const auto deliver = [&traffic](int second) {
                 traffic.applyData(
                     {1,
                      "traffic-window",
                      {{"traffic",
-                       QJsonObject{{"traffic", QJsonObject{{"time", QString::number(second)},
-                                                           {"up", second * 1024},
-                                                           {"down", second * 2048}}}}}},
+                       QJsonObject{
+                           {"traffic", QJsonObject{{"time", QString::number(second * 1000LL)},
+                                                   {"up", second * 1024},
+                                                   {"down", second * 2048}}}}}},
                      traffic.dataDemands().generations});
             };
             for (int second = 1; second <= 75; ++second)
@@ -101,22 +106,78 @@ int main(int argc, char* argv[]) {
             traffic.setThemeMode("dark");
             check(traffic.uploadHistory() == history,
                   "page and theme changes retain traffic history");
-            traffic.setDemand("chart", "traffic", true);
+            check(traffic.dataDemands().generations.value("traffic") == trafficGeneration &&
+                      traffic.dataDemands().active.contains("traffic") &&
+                      traffic.upload() != QString::fromUtf8("—"),
+                  "leaving the dashboard retains the stream generation and latest rate");
             deliver(76);
-            check(traffic.uploadHistory().constFirst().toDouble() == 17.0,
-                  "reacquiring traffic continues the same bounded window");
+            check(traffic.uploadHistory().constLast().toDouble() == 76.0,
+                  "traffic continues recording while another page is open");
+            traffic.setDemand("chart", "traffic", true);
+            deliver(77);
+            check(traffic.uploadHistory().constFirst().toDouble() == 18.0,
+                  "returning to the dashboard continues the same bounded window");
+            traffic.setDemand("resources", "resources", true);
+            traffic.setDemand("connections", "connections", true);
+            traffic.setUiVisible(false, true);
+            check(!traffic.uiVisible() && traffic.activeDemandCount() == 0 &&
+                      traffic.dataDemands().active == QSet<QString>{"traffic"} &&
+                      traffic.dataDemands().generations.value("traffic") == trafficGeneration,
+                  "minimization releases page data and retains only the shared traffic stream");
+            deliver(78);
+            traffic.setUiVisible(true);
+            check(traffic.uploadHistory().constLast().toDouble() == 78.0 &&
+                      traffic.uploadHistory().at(58).toDouble() == 77.0 &&
+                      traffic.dataDemands().generations.value("traffic") == trafficGeneration,
+                  "restoring immediately exposes consecutive samples without a new lease");
+            traffic.setUiVisible(false, true);
+            const quickclash::application::RuntimeUpdate lateTraffic{
+                1,
+                "traffic-window",
+                {{"traffic",
+                  QJsonObject{{"traffic", QJsonObject{{"time", "79000"}, {"up", 1024}}}}}},
+                traffic.dataDemands().generations};
             traffic.setUiVisible(false);
             check(traffic.uploadHistory().size() == 60 &&
-                      !traffic.uploadHistory().constLast().isValid(),
-                  "hide resets the 60-point window");
+                      !traffic.uploadHistory().constLast().isValid() &&
+                      traffic.dataDemands().active.isEmpty(),
+                  "hiding a minimized window stops traffic and resets the 60-point window");
+            traffic.applyData(lateTraffic);
+            check(!traffic.uploadHistory().constLast().isValid(),
+                  "late traffic cannot refill hidden history");
             traffic.setUiVisible(true);
+            traffic.applyData(lateTraffic);
+            check(!traffic.uploadHistory().constLast().isValid(),
+                  "restoring from hidden rejects the previous traffic lease");
             traffic.setDemand("chart", "traffic", true);
-            deliver(100000);
-            deliver(104000);
+            deliver(100);
+            deliver(104);
             const auto gaps = traffic.uploadHistory();
             check(gaps.size() == 60 && !gaps.at(58).isValid() && !gaps.at(57).isValid() &&
-                      !gaps.at(56).isValid() && gaps.at(55).toDouble() == 100000,
+                      !gaps.at(56).isValid() && gaps.at(55).toDouble() == 100,
                   "missed seconds remain gaps rather than zero traffic");
+            for (int second = 105; second < 165; ++second) {
+                const auto rate = second % 3 == 0 ? 0 : second % 3 == 1 ? 1 : 1073741824;
+                traffic.applyData(
+                    {1,
+                     "traffic-window",
+                     {{"traffic",
+                       QJsonObject{{"traffic",
+                                    QJsonObject{{"time", QString::number(second * 1000LL +
+                                                                         (second % 2 ? 40 : -40))},
+                                                {"up", rate},
+                                                {"down", 1073741824 - rate}}}}}},
+                     traffic.dataDemands().generations});
+            }
+            const auto peaks = traffic.uploadHistory();
+            check(std::all_of(peaks.cbegin(), peaks.cend(),
+                              [](const auto& point) { return point.isValid(); }) &&
+                      peaks.at(57).toDouble() == 0 && peaks.at(58).toDouble() == 1.0 / 1024 &&
+                      peaks.at(59).toDouble() == 1048576,
+                  "zero, near-zero and extreme peaks remain consecutive with normal clock jitter");
+            traffic.applyControl({{"publicationGeneration", "2"}, {"epoch", "new-core"}});
+            check(!traffic.uploadHistory().constLast().isValid(),
+                  "core epoch changes still reset traffic history");
             traffic.setDashboardOption("resources", true);
             traffic.setDashboardOption("unknown", true);
             check(traffic.dashboard().value("resources").toBool() &&

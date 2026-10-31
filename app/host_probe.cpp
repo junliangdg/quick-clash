@@ -114,6 +114,7 @@ int runHostProbe(ApplicationHost& host) {
     int step = 0;
     int confirmations = 0;
     QPointer<QQuickWindow> previousWindow;
+    quint64 trafficGeneration = 0;
     const auto restoreConnection =
         QObject::connect(&host.state(), &presentation::UiState::hostChanged, &host, [&host] {
             if (host.state().hostState() == QStringLiteral("Unloading")) {
@@ -152,6 +153,14 @@ int runHostProbe(ApplicationHost& host) {
         case 1:
             if (!require(host.window()->property("compact").toBool(), "compact desktop layout"))
                 return;
+            host.state().setReplay(false);
+            trafficGeneration = host.state().dataDemands().generations.value("traffic");
+            host.state().applyData(
+                {1,
+                 "host-traffic",
+                 {{"traffic",
+                   QJsonObject{{"traffic", QJsonObject{{"time", "1000"}, {"up", 1024}}}}}},
+                 host.state().dataDemands().generations});
             host.state().setUnloadWhenHidden(true);
             host.state().requestMinimize();
             timer.setInterval(5500);
@@ -159,14 +168,25 @@ int runHostProbe(ApplicationHost& host) {
         case 2:
             if (!require(host.window() && host.engineGeneration() == 1 &&
                              host.state().hostState() == QStringLiteral("Minimized") &&
-                             host.state().activeDemandCount() == 0 && !host.state().replayRunning(),
-                         "no tray retains minimized taskbar recovery even with unload enabled"))
+                             !host.state().uiVisible() && host.state().activeDemandCount() == 0 &&
+                             !host.state().replayRunning() &&
+                             host.state().dataDemands().active == QSet<QString>{"traffic"} &&
+                             host.state().dataDemands().generations.value("traffic") ==
+                                 trafficGeneration &&
+                             host.state().uploadHistory().constLast().toDouble() == 1.0,
+                         "minimized taskbar retains only traffic without clearing history"))
                 return;
             if (!require(host.showWindow(), "restore minimized window"))
                 return;
             timer.setInterval(100);
             break;
         case 3:
+            if (!require(host.state().dataDemands().generations.value("traffic") ==
+                                 trafficGeneration &&
+                             host.state().uploadHistory().constLast().toDouble() == 1.0,
+                         "restore retains traffic history and stream generation"))
+                return;
+            host.state().setReplay(true);
             if (!require(host.state().uiVisible() && host.state().activeDemandCount() > 0 &&
                              host.state().replayRunning(),
                          "show reacquires page demand"))
