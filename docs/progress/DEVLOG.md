@@ -908,3 +908,12 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 验证：Windows Qt6.8增量构建通过；QML lint退出0（只含既存无关文件警告）；`ui_runtime_lists` 5/5（qml_smoke、ui_keyboard、ui_accessibility、ui_responsive、500节点视口）、`ui_runtime_lists_zh`/`deferred_ui_unload`/`host_lifecycle` 3/3；默认 `--page-memory-test` 退出0，节点控件33个、离页归零，无核心/设置IO；clang-format与`git diff --check`通过。
 - 限制：以上为合成 Qt6.8 D3D11 窗口的短时滚动对照，GPU利用率未单独仪器化，未覆盖真实用户长时滚动、不同显卡驱动、多屏缩放与G5长稳；页面其余字体/Qt缓存驻留问题不属于本修复结论。
 - 下一步：按G3/G5范围复用本证据，不在每次页面改动重跑长时矩阵。
+
+## 2026-10-31 / 代理页测速并发与超时调优
+
+- 关联：P3-01；用户要求测速并发尽可能提高、不再使用15秒级超时，并确认服务模式全局在途请求4个是否合理。保留已有工作区修改，未提交。
+- 根因：原实现固定2项在途，数百节点订阅要串行多轮；内核delay探测超时2500ms、服务IPC沿用15秒控制面期限，失败节点长时间占用槽位；服务端与客户端在途请求上限均为4，与提高并发直接冲突，第5个测速请求即返回ServiceBusy。正常节点实际只有几百毫秒，长超时只拖延失败判定。
+- 实现：新增`src/infra/core/delay_policy.h`统一`kNodeDelayTimeoutMs=2000`；`desktop_features.cpp`按模式选择并发，服务模式32、直连模式6（QNetworkAccessManager对同一主机HTTP/1.1最多6连接），单批500节点上限与可取消队列保持不变；`service_client.cpp`将delay动作的IPC期限改为5000ms，其他动作仍15000ms；`service_protocol.h`新增共享`kServiceRequestLimit=40`，服务端pending、客户端handlers与直连引擎replies统一使用，服务自身本地连接上限4不变。
+- 验证：Qt6.12.0/MSVC Release在独立目录`build/delay_concurrency`完成增量构建与qmllint（exit0，仅有subscriptions_page.qml既存类型推断警告）；整套CTest 39项35项Pass，其中`runtime` 112.86秒、`service_protocol` 0.06秒通过，覆盖直连6项Testing/2项Queued、取消迟到与过期结果。4项失败为`runtime_subscription_download`、`runtime_geo_update`（本机订阅/Geo下载失败）及`ui_accessibility`、`ui_accessibility_zh`（构建目录缺字体，subscription_url无无障碍名称），与本次并发/超时改动无关，未计为本次通过。9个改动C++文件clang-format `--dry-run --Werror`通过。
+- 限制：未在真实服务会话上用大订阅实测32并发、批量总耗时与失败率，也未用真实节点样本统计2000ms对高延迟可用节点的漏判；直连6并发是Qt每主机连接上限的推论，未单独压测；未做长时并发资源/内存曲线。服务最大本地客户端连接数仍为4，不影响同连接内多请求在途。
+- 下一步：在真实订阅与数百至数千节点上分别记录服务/直连模式单批耗时、ServiceBusy与超时分布；若大批量仍明显排队，再评估分批提交或单批上限，G3/G5长稳另测。

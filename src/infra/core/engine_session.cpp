@@ -1,5 +1,6 @@
 #include "infra/core/engine_session.h"
 #include "infra/core/listener_ports.h"
+#include "infra/core/service_protocol.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
 #include "platform/desktop_services.h"
@@ -482,7 +483,7 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
         service_.command(action, payload, std::move(handler));
         return;
     }
-    if (replies_.size() >= 4) {
+    if (replies_.size() >= kServiceRequestLimit) {
         handler(coreError("CoreRequestBusy"));
         return;
     }

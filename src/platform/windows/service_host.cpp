@@ -1,6 +1,7 @@
 #include "platform/windows/service_host.h"
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
+#include "infra/core/delay_policy.h"
 #include "infra/core/listener_ports.h"
 #include "infra/core/provider_command.h"
 #include "infra/io/bounded_read.h"
@@ -614,7 +615,8 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         }
         api(socket, id, "GET",
             "/proxies/" + QUrl::toPercentEncoding(name) +
-                "/delay?timeout=2500&url=" + QUrl::toPercentEncoding(url.toString()));
+                "/delay?timeout=" + QByteArray::number(infra::kNodeDelayTimeoutMs) +
+                "&url=" + QUrl::toPercentEncoding(url.toString()));
         return;
     }
     if (action == QStringLiteral("close_connection") &&

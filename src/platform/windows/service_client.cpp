@@ -20,6 +20,9 @@ namespace {
 // only owner connection makes the service stop the core for safety, which previously turned a
 // transient control-plane timeout into the user-visible CoreExited/TUN restart loop.
 constexpr int kRequestTimeoutMs = 15000;
+// The core probe has a 2-second deadline. Allow transport and service scheduling slack,
+// but do not let a stuck delay request occupy a slot for the full control-plane deadline.
+constexpr int kDelayRequestTimeoutMs = 5000;
 } // namespace
 
 ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
@@ -184,7 +187,7 @@ bool ServiceClient::hadSession() const {
     return everVerified_;
 }
 void ServiceClient::command(const QString& action, const QJsonObject& payload, Handler handler) {
-    if (handlers_.size() >= 4) {
+    if (handlers_.size() >= kServiceRequestLimit) {
         handler(storageError("ServiceBusy"));
         return;
     }
@@ -201,7 +204,9 @@ void ServiceClient::command(const QString& action, const QJsonObject& payload, H
     handlers_.insert(id, std::move(handler));
     if (connected()) {
         socket_.write(bytes);
-        QTimer::singleShot(kRequestTimeoutMs, this, [this, id] {
+        const auto timeout =
+            action == QStringLiteral("delay") ? kDelayRequestTimeoutMs : kRequestTimeoutMs;
+        QTimer::singleShot(timeout, this, [this, id] {
             auto handler = handlers_.take(id);
             if (handler)
                 handler(storageError("ServiceTimeout"));

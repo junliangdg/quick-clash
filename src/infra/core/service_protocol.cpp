@@ -92,7 +92,7 @@ ServiceProtocol::Decision ServiceProtocol::accept(const QJsonObject& message) {
         return decision;
     }
     const auto numeric = id.toULongLong();
-    if (numeric <= lastId_ || pending_.size() >= 4) {
+    if (numeric <= lastId_ || pending_.size() >= kServiceRequestLimit) {
         decision.error = QStringLiteral("ServiceReplayRejected");
         return decision;
     }

@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "domain/connection_snapshot.h"
+#include "infra/core/delay_policy.h"
 #include "infra/core/listener_ports.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -12,6 +13,12 @@
 #include <utility>
 
 namespace quickclash::application {
+namespace {
+constexpr int kDelayConcurrencyService = 32;
+// QNetworkAccessManager opens at most six HTTP/1.1 connections per host. Keeping the
+// direct-mode batch at that ceiling avoids a long local queue behind the control API.
+constexpr int kDelayConcurrencyDirect = 6;
+} // namespace
 void DesktopRuntime::loadOfflineGroups() {
     if (engine_.ready())
         return;
@@ -706,15 +713,17 @@ void DesktopRuntime::startDelayTests(const QStringList& names) {
 void DesktopRuntime::pumpDelayTests() {
     const auto generation = delayGeneration_;
     const auto epoch = epoch_;
-    // Two in flight keeps large subscriptions responsive and bounds core/IPC demand.
-    while (delayRunning_ && activeDelays_.size() < 2 && !delayQueue_.isEmpty()) {
+    const auto concurrency =
+        engine_.usingService() ? kDelayConcurrencyService : kDelayConcurrencyDirect;
+    while (delayRunning_ && activeDelays_.size() < concurrency && !delayQueue_.isEmpty()) {
         const auto name = delayQueue_.takeFirst();
         activeDelays_.insert(name);
         delays_.insert(name, QStringLiteral("Testing"));
         engine_.api(
             "GET",
             "/proxies/" + QUrl::toPercentEncoding(name) +
-                "/delay?timeout=2500&url=" + QUrl::toPercentEncoding(delayTarget_),
+                "/delay?timeout=" + QByteArray::number(infra::kNodeDelayTimeoutMs) +
+                "&url=" + QUrl::toPercentEncoding(delayTarget_),
             {}, [this, name, generation, epoch](domain::Result<QJsonObject> result) {
                 if (generation != delayGeneration_ || epoch != epoch_)
                     return;

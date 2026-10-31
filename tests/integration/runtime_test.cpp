@@ -1522,8 +1522,18 @@ int main(int argc, char** argv) {
         managedFixture.write("proxies:\n  - {name: first, type: http, server: 127.0.0.1, port: 9}\n"
                              "  - {name: second, type: http, server: 127.0.0.1, port: 9}\n"
                              "  - {name: third, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay0, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay1, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay2, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay3, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay4, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay5, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay6, type: http, server: 127.0.0.1, port: 9}\n"
+                             "  - {name: delay7, type: http, server: 127.0.0.1, port: 9}\n"
                              "proxy-groups:\n  - {name: managed_group, type: select, proxies: "
                              "[first, second, third]}\n"
+                             "  - {name: delay_group, type: select, proxies: [delay0, delay1, "
+                             "delay2, delay3, delay4, delay5, delay6, delay7]}\n"
                              "rules: ['MATCH,managed_group']\n");
         managedFixture.close();
         managed.importFile(QUrl::fromLocalFile(fixturePath).toString(),
@@ -1565,24 +1575,30 @@ int main(int argc, char** argv) {
             return 141;
         managed.featureCommand(
             QStringLiteral("delay_batch"),
-            {QStringLiteral("managed_group"), QStringLiteral("https://ignored.invalid/")});
-        const auto queued = managed.snapshot().value("delays").toObject();
-        if (!require(queued.value("first") == "Testing" && queued.value("second") == "Testing" &&
-                         queued.value("third") == "Queued" &&
+            {QStringLiteral("delay_group"), QStringLiteral("https://ignored.invalid/")});
+        const auto countDelays = [&](const QString& state) {
+            const auto values = managed.snapshot().value("delays").toObject();
+            int count = 0;
+            for (int i = 0; i < 8; ++i)
+                count += values.value(QStringLiteral("delay%1").arg(i)).toString() == state;
+            return count;
+        };
+        if (!require(countDelays(QStringLiteral("Testing")) == 6 &&
+                         countDelays(QStringLiteral("Queued")) == 2 &&
                          managed.snapshot().value("delayTarget") == "https://example.invalid/delay",
-                     "delay concurrency is two and command cannot override settings target",
+                     "direct delay concurrency is six and command cannot override settings target",
                      managed))
             return 143;
         managed.featureCommand(QStringLiteral("cancel_delays"), {});
-        if (!require(managed.snapshot().value("delays").toObject().value("third") == "Cancelled",
+        if (!require(managed.snapshot().value("delays").toObject().value("delay6") == "Cancelled",
                      "cancel also marks nodes still in the queue", managed))
             return 144;
         QThread::msleep(30);
         QCoreApplication::processEvents();
-        if (!require(managed.snapshot().value("delays").toObject().value("first") == "Cancelled",
+        if (!require(managed.snapshot().value("delays").toObject().value("delay0") == "Cancelled",
                      "late delay response cannot overwrite cancellation", managed))
             return 145;
-        managed.featureCommand(QStringLiteral("delay_batch"), {QStringLiteral("managed_group")});
+        managed.featureCommand(QStringLiteral("delay_batch"), {QStringLiteral("delay_group")});
         if (!require(waitFor([&] {
                          return managed.snapshot()
                                     .value("features")
@@ -1591,7 +1607,7 @@ int main(int argc, char** argv) {
                                     .toObject()
                                     .value("state") == "Completed";
                      }) &&
-                         managed.snapshot().value("delays").toObject().size() == 3,
+                         managed.snapshot().value("delays").toObject().size() == 8,
                      "batch delay tests every node and completes despite unavailable nodes",
                      managed))
             return 136;
@@ -1602,7 +1618,7 @@ int main(int argc, char** argv) {
         delayDemand.active.insert(QStringLiteral("proxies"));
         delayDemand.generations.insert(QStringLiteral("proxies"), 1);
         managed.applyDemands(delayDemand);
-        if (!require(managed.snapshot().value("delays").toObject().value("first") == "Stale",
+        if (!require(managed.snapshot().value("delays").toObject().value("delay0") == "Stale",
                      "session delay cache expires after ten minutes", managed))
             return 146;
         managed.featureCommand(

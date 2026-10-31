@@ -7,6 +7,10 @@
 namespace quickclash::infra {
 inline constexpr int kServiceHandshakeTimeoutMs = 3000;
 inline constexpr qint64 kServiceHandshakeMaxBytes = 16 * 1024;
+// One GUI session may have several bounded feature requests and a node-delay batch in
+// flight. Keep the service backstop above the delay batch ceiling without making it
+// unbounded; the privileged service must still reject command storms.
+inline constexpr int kServiceRequestLimit = 40;
 struct ServiceRequest {
     QString id;
     QString action;

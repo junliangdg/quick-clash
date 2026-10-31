@@ -61,14 +61,16 @@ int main(int argc, char** argv) {
         return 7; // Lost responses return the exact result, no second mutation.
     if (protocol.accept(request(1, QStringLiteral("start"))).disposition != Kind::Disconnect)
         return 8;
-    for (int i = 2; i <= 5; ++i)
+    for (int i = 2; i <= quickclash::infra::kServiceRequestLimit + 1; ++i)
         if (protocol.accept(request(i)).disposition != Kind::Execute)
             return 9;
-    if (protocol.accept(request(6)).disposition != Kind::Reject)
+    if (protocol.accept(request(quickclash::infra::kServiceRequestLimit + 2)).disposition !=
+        Kind::Reject)
         return 10;
-    for (int i = 2; i <= 5; ++i)
+    for (int i = 2; i <= quickclash::infra::kServiceRequestLimit + 1; ++i)
         protocol.complete(QString::number(i), response);
-    for (int i = 6; i <= 40; ++i) {
+    for (int i = quickclash::infra::kServiceRequestLimit + 2;
+         i <= quickclash::infra::kServiceRequestLimit + 36; ++i) {
         if (protocol.accept(request(i)).disposition != Kind::Execute)
             return 11;
         protocol.complete(QString::number(i), response);
