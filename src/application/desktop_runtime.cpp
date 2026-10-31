@@ -186,6 +186,15 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             error(code);
         }
     });
+    connect(&engine_, &infra::EngineSession::groupsRefreshFailed, this,
+            [this](const QString& code) {
+                // A group read is observational. Keep the last confirmed membership visible
+                // while marking it stale instead of turning a transient API failure into a
+                // core error.
+                featureState_.insert(QStringLiteral("groupsStale"), true);
+                featureState_.insert(QStringLiteral("groupsError"), code);
+                publish();
+            });
     connect(&engine_, &infra::EngineSession::tunStateChanged, this, [this](const QString& state) {
         if (state == QStringLiteral("Missing") || state == QStringLiteral("Unknown")) {
             appendLog(QStringLiteral("App"), QStringLiteral("warning"),
@@ -276,6 +285,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
     });
     connect(
         &engine_, &infra::EngineSession::groupsChanged, this, [this](const QJsonObject& objects) {
+            featureState_.insert(QStringLiteral("groupsStale"), false);
+            featureState_.remove(QStringLiteral("groupsError"));
             QJsonObject previous;
             for (const auto& entry : groups_) {
                 const auto group = entry.toObject();

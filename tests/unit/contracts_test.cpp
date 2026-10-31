@@ -338,13 +338,36 @@ int main(int argc, char* argv[]) {
         check(routingConfig.value("nodes").toArray().first().toObject().value("type") == "ss" &&
                   routingConfig.value("nodes").toArray().first().toObject().value("udp").toBool(),
               "node cards receive protocol and explicit UDP capability");
+        const auto automaticGroup = routingConfig.value("groups").toArray()[2].toObject();
+        check(automaticGroup.value("name") == "A-auto" &&
+                  automaticGroup.value("automatic").toBool() &&
+                  automaticGroup.value("current").isNull(),
+              "automatic groups do not invent an offline current member");
+        const auto automaticSources = quickclash::infra::configurationSummary(
+            "proxies: []\nproxy-providers: {remote: {type: http, url: "
+            "https://example.invalid/nodes.yaml, path: ./nodes.yaml}}\n"
+            "proxy-groups: [{name: auto, type: url-test, use: [remote]}]\n"
+            "rules: [\"MATCH,auto\"]\n");
+        const auto sourced = automaticSources.value("groups").toArray()[1].toObject();
+        check(sourced.value("sources").toArray() == QJsonArray{"remote"} &&
+                  sourced.value("current").isNull(),
+              "provider-backed automatic groups expose their source without a current member");
+        const auto optionalHealthUrl = quickclash::infra::preflightConfig(
+            "proxies: []\nproxy-groups: [\n"
+            "  {name: auto, type: url-test, proxies: [DIRECT, REJECT]},\n"
+            "  {name: failover, type: fallback, proxies: [DIRECT, REJECT]}]\n"
+            "rules: [\"MATCH,auto\"]\n",
+            {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(optionalHealthUrl),
+              "url-test and fallback groups may use the core health-check default");
         QJsonObject live;
         for (const auto& value : routingConfig.value("groups").toArray()) {
             const auto group = value.toObject();
+            const auto name = group.value("name").toString();
             live.insert(
-                group.value("name").toString(),
+                name,
                 QJsonObject{{"type", group.value("canSelect").toBool() ? "Selector" : "Fallback"},
-                            {"now", group.value("current")},
+                            {"now", name == "A-auto" ? QJsonValue{"node"} : group.value("current")},
                             {"all", group.value("members")}});
         }
         live["GLOBAL"] = QJsonObject{{"type", "Selector"}, {"now", "Z-primary"}};

@@ -30,6 +30,11 @@ int main(int argc, char* argv[]) {
             "Apply updates when selected" ||
         QCoreApplication::translate("proxies_page", "%1 members") == "%1 members")
         return 6;
+    if (QCoreApplication::translate("proxies_page", "Waiting for core confirmation") !=
+            "等待内核确认" ||
+        QCoreApplication::translate("proxies_page", "Group members may be out of date") !=
+            "组成员可能已过期")
+        return 9;
     if (!localization.load({"ja-JP"}) || localization.language() != "en" ||
         QCoreApplication::translate("main", "Quit") != "Quit")
         return 4;

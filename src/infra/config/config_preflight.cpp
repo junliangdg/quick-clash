@@ -295,22 +295,31 @@ QJsonObject configurationSummary(const QByteArray& semantic) {
                 members.append(QString::fromStdString(member.as<std::string>()));
             const auto name = QString::fromStdString(group["name"].as<std::string>());
             const auto type = QString::fromStdString(group["type"].as<std::string>());
+            const bool automatic =
+                type == QStringLiteral("url-test") || type == QStringLiteral("fallback");
+            QJsonArray sources;
+            for (const auto& source : group["use"])
+                sources.append(QString::fromStdString(source.as<std::string>()));
             all.append(name);
-            groups.append(
-                QJsonObject{{QStringLiteral("name"), name},
-                            {QStringLiteral("type"), type},
-                            {QStringLiteral("canSelect"), type == QStringLiteral("select")},
-                            {QStringLiteral("current"), type == QStringLiteral("load-balance") ||
-                                                                members.isEmpty() || group["use"]
-                                                            ? QJsonValue{}
-                                                            : members.first()},
-                            {QStringLiteral("members"), members}});
+            groups.append(QJsonObject{
+                {QStringLiteral("name"), name},
+                {QStringLiteral("type"), type},
+                {QStringLiteral("canSelect"), type == QStringLiteral("select")},
+                {QStringLiteral("automatic"), automatic},
+                {QStringLiteral("current"), automatic || type == QStringLiteral("load-balance") ||
+                                                    members.isEmpty() || group["use"]
+                                                ? QJsonValue{}
+                                                : members.first()},
+                {QStringLiteral("members"), members},
+                {QStringLiteral("sources"), sources}});
         }
         groups.prepend(QJsonObject{{QStringLiteral("name"), QStringLiteral("GLOBAL")},
                                    {QStringLiteral("type"), QStringLiteral("select")},
                                    {QStringLiteral("canSelect"), true},
+                                   {QStringLiteral("automatic"), false},
                                    {QStringLiteral("current"), all.first()},
-                                   {QStringLiteral("members"), all}});
+                                   {QStringLiteral("members"), all},
+                                   {QStringLiteral("sources"), QJsonArray{}}});
         return {{QStringLiteral("groups"), groups},
                 {QStringLiteral("nodes"), nodes},
                 {QStringLiteral("defaultPolicy"), fields.defaultPolicy}};
@@ -329,14 +338,27 @@ QJsonArray orderedProxyGroups(const QJsonArray& configured, const QJsonObject& l
              type != QStringLiteral("Fallback") && type != QStringLiteral("LoadBalance")))
             return;
         added.insert(name);
-        result.append(
-            QJsonObject{{QStringLiteral("name"), name},
-                        {QStringLiteral("type"), type},
-                        {QStringLiteral("canSelect"), type == QStringLiteral("Selector")},
-                        {QStringLiteral("current"), type == QStringLiteral("LoadBalance")
-                                                        ? QJsonValue{}
-                                                        : value.value(QStringLiteral("now"))},
-                        {QStringLiteral("members"), value.value(QStringLiteral("all"))}});
+        QJsonObject configuredGroup;
+        for (const auto& entry : configured) {
+            const auto candidate = entry.toObject();
+            if (candidate.value(QStringLiteral("name")) == name) {
+                configuredGroup = candidate;
+                break;
+            }
+        }
+        result.append(QJsonObject{
+            {QStringLiteral("name"), name},
+            {QStringLiteral("type"), type},
+            {QStringLiteral("canSelect"), type == QStringLiteral("Selector")},
+            {QStringLiteral("automatic"),
+             configuredGroup.value(QStringLiteral("automatic")).toBool() ||
+                 type == QStringLiteral("URLTest") || type == QStringLiteral("Fallback")},
+            {QStringLiteral("current"), type == QStringLiteral("LoadBalance")
+                                            ? QJsonValue{}
+                                            : value.value(QStringLiteral("now"))},
+            {QStringLiteral("members"), value.value(QStringLiteral("all"))},
+            {QStringLiteral("sources"),
+             configuredGroup.value(QStringLiteral("sources")).toArray()}});
     };
     for (const auto& group : configured)
         append(group.toObject().value(QStringLiteral("name")).toString());

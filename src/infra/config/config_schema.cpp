@@ -602,7 +602,7 @@ class Schema final {
                                     path + ".strategy");
                     }
                     keys(group, fields, path);
-                    if (type != "select") {
+                    if (group["url"]) {
                         const QUrl url(
                             QString::fromStdString(text(group["url"], path + ".url", 4096)));
                         require(url.isValid() &&
@@ -610,6 +610,8 @@ class Schema final {
                                     !url.host().isEmpty() && url.userInfo().isEmpty() &&
                                     !url.hasFragment(),
                                 path + ".url");
+                    }
+                    if (type != "select") {
                         if (group["interval"])
                             number(group["interval"], path + ".interval", 1, 86400);
                         if (group["timeout"])

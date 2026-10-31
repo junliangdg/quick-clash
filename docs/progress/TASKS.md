@@ -68,6 +68,7 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P2-22 | P2 | W09, W10 | url-test/fallback组与能力化展示 | Done | Codex | P2-21 | [协议交付](reports/windows_validation.md#订阅与代理功能) | Selector/URLTest/Fallback能力映射、健康检查跳过REJECT、嵌套/引用保护与界面通过 |
 | P2-23 | P2 | W09, W12 | 协议/组/规则/DNS具体不兼容原因与中英文提示 | Done | Codex | P2-22, P2-19 | [协议交付](reports/windows_validation.md#订阅与代理功能) | 最多32项安全结构诊断、七类不兼容与字段错误、中英文词表187条完成 |
 | P2-24 | P2 | W05 | 缩放跨导航断点时消除D3D11秒级等待并稳定壳布局 | Done | Codex | P2-18 | [缩放修复](reports/windows_validation.md#订阅与代理功能) | 默认basic/D3D11关闭帧延迟等待对象；4/4检查与真实窗口160步通过，页面/需求保留，最终包Ready首页专用工作集60.75MB；完整帧/转发组合未测 |
+| P2-25 | P2 | W09, W10 | 自动组离线/嵌套出口与新鲜度补全 | Done | Codex | P2-22 | [开发与验收](DEVLOG.md#2026-10-31--代理自动组离线嵌套与新鲜度补全) | 离线url-test/fallback current为空，automatic/sources投影、父Selector嵌套出口递归、组读取失败stale保留及refresh_groups、等待/来源/刷新UI完成；Windows增量构建与定向测试Pass。真实provider远端刷新、健康检查故障转移及GUI目视NotRun |
 | P3-01 | P3 | W10 | 代理组独立展开、节点选择与延迟测试 | Done | Codex（接续Zoo） | P2-06, P2-21, P2-22, P3-10, P3-16 | [开发与验收](DEVLOG.md#2026-10-28--p3代理与测速) | 空展开恢复、500节点视口/键盘定位、最新选择读回、设置目标权威、排队/取消/过期完成；Windows构建/lint与定向测试Pass，字体/缓存增长仍按专项跟踪；动态provider身份归P3-19；滚动性能与测速并发调优见专项状态 |
 | P3-02 | P3 | W11 | 订阅用量/到期/告警与计划策略补证 | Done | Codex | P2-07, P3-11 | [开发与验收](DEVLOG.md#2026-10-28--p3订阅用量与告警) | 严格解析/未知合计/采集时间、90%/耗尽及7天/过期告警完成；Windows构建/lint和15项定向测试Pass，含重开/同内容更新/调度合并与中英文UI；资源归P3-19/20 |
 | P3-03 | P3 | W12 | 连接快照/详情/筛选与单条/批量关闭 | Done | Codex | P2-03, P2-06, P3-16 | [开发与验收](DEVLOG.md#2026-10-28--p3连接详情与关闭) | 完整有界快照/稳定详情/结束保留、时间/超限暂停重试及关闭计数完成；Windows构建/lint与最终6项定向测试Pass，真实关闭保留新连接，默认GPU1000连接短测及离页释放Pass；日志与规则分别P3-21/22 |

@@ -25,6 +25,8 @@ void DesktopRuntime::loadOfflineGroups() {
     groups_ = {};
     configuredGroups_ = {};
     defaultPolicy_.clear();
+    featureState_.remove(QStringLiteral("groupsStale"));
+    featureState_.remove(QStringLiteral("groupsError"));
     const auto selection = repository_.manifest().value(QStringLiteral("selection")).toObject();
     if (selection.isEmpty())
         return;
@@ -261,6 +263,11 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command == QStringLiteral("refresh_groups")) {
+        if (!busy_ && engine_.ready())
+            engine_.refreshGroups();
+        return;
+    }
     if (command == QStringLiteral("cancel_listener_ports")) {
         if (featureState_.contains(QStringLiteral("listenerPortCandidate"))) {
             featureState_.remove(QStringLiteral("listenerPortCandidate"));

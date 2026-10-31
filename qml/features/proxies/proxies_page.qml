@@ -79,6 +79,20 @@ Item {
     function groupType(group): string {
         return ["URLTest", "url-test"].includes(group.type) ? qsTr("Automatic latency selection · url-test") : ["Fallback", "fallback"].includes(group.type) ? qsTr("Automatic failover · fallback") : ["LoadBalance", "load-balance"].includes(group.type) ? qsTr("Load balancing · load-balance") : qsTr("Manual selection · select");
     }
+    function isAutomatic(group): bool {
+        return ["URLTest", "url-test", "Fallback", "fallback"].includes(group.type);
+    }
+    function groupCurrentText(group): string {
+        if (group.current)
+            return group.current;
+        if (!root.isAutomatic(group))
+            return "";
+        return root.runtime.ready ? qsTr("Awaiting automatic selection") : qsTr("Waiting for core confirmation");
+    }
+    function groupSourceText(group): string {
+        const sources = group.sources || [];
+        return sources.length > 0 ? qsTr("Provider: %1").arg(sources.join(", ")) : "";
+    }
     // Group cards are few and laid out directly; only the expanded group
     // instantiates its node grid. The page keeps a single scrollbar whose
     // length derives from the real layout, so recycled variable-height rows
@@ -112,6 +126,24 @@ Item {
                 color: root.theme.muted
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
+            }
+            RowLayout {
+                visible: !!(root.runtime.features || {}).groupsStale
+                Layout.fillWidth: true
+                spacing: 8
+                Label {
+                    text: qsTr("Group members may be out of date")
+                    color: root.theme.warning
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ActionButton {
+                    theme: root.theme
+                    text: qsTr("Refresh")
+                    implicitHeight: root.theme.compactHeight
+                    enabled: !!root.runtime.ready && !root.runtime.busy
+                    onClicked: root.ui.runtimeCommand("refresh_groups", [])
+                }
             }
             Repeater {
                 model: root.groups
@@ -165,16 +197,16 @@ Item {
                                         textFormat: Text.PlainText
                                     }
                                     Label {
-                                        text: root.groupType(groupTile.modelData) + " · " + qsTr("%1 members").arg((groupTile.modelData.members || []).length)
+                                        text: root.groupType(groupTile.modelData) + " · " + qsTr("%1 members").arg((groupTile.modelData.members || []).length) + (root.groupSourceText(groupTile.modelData) ? " · " + root.groupSourceText(groupTile.modelData) : "")
                                         color: root.theme.muted
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
                                     }
                                 }
                                 Label {
-                                    visible: !!groupTile.modelData.current && groupToggle.width >= root.theme.scaledSize(420)
-                                    text: groupTile.modelData.current || ""
-                                    color: root.theme.accent
+                                    visible: root.groupCurrentText(groupTile.modelData) !== "" && groupToggle.width >= root.theme.scaledSize(420)
+                                    text: root.groupCurrentText(groupTile.modelData)
+                                    color: groupTile.modelData.current ? root.theme.accent : root.theme.muted
                                     Layout.maximumWidth: Math.max(80, groupToggle.width * 0.38)
                                     elide: Text.ElideRight
                                     textFormat: Text.PlainText
@@ -196,9 +228,9 @@ Item {
                             }
                         }
                         Label {
-                            visible: !!groupTile.modelData.current && groupToggle.width < root.theme.scaledSize(420)
-                            text: groupTile.modelData.current || ""
-                            color: root.theme.accent
+                            visible: root.groupCurrentText(groupTile.modelData) !== "" && groupToggle.width < root.theme.scaledSize(420)
+                            text: root.groupCurrentText(groupTile.modelData)
+                            color: groupTile.modelData.current ? root.theme.accent : root.theme.muted
                             Layout.fillWidth: true
                             elide: Text.ElideRight
                             textFormat: Text.PlainText

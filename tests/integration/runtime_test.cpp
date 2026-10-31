@@ -916,6 +916,15 @@ int main(int argc, char** argv) {
                      reopened.snapshot().value("profiles").toArray().size() == 1,
                  "mainstream official isolated validation", reopened))
         return 41;
+    bool offlineAutomaticCurrent = false;
+    for (const auto& entry : reopened.snapshot().value("groups").toArray()) {
+        const auto group = entry.toObject();
+        if (group.value("name") == "automatic_fixture")
+            offlineAutomaticCurrent = !group.value("current").isNull();
+    }
+    if (!require(!offlineAutomaticCurrent, "automatic group has no offline current member",
+                 reopened))
+        return 179;
     const auto mainstreamId =
         reopened.snapshot().value("profiles").toArray()[0].toObject().value("id").toString();
     reopened.selectProfile(mainstreamId);
@@ -966,6 +975,49 @@ int main(int argc, char** argv) {
                      !reopened.snapshot().value("busy").toBool(),
                  "automatic group mutation rejected", reopened))
         return 45;
+    reopened.selectProxy(QStringLiteral("primary_fixture"), QStringLiteral("automatic_fixture"));
+    QString automaticLeaf;
+    if (!require(waitFor([&] {
+                     if (reopened.snapshot().value("busy").toBool())
+                         return false;
+                     for (const auto& entry : reopened.snapshot().value("groups").toArray()) {
+                         const auto group = entry.toObject();
+                         if (group.value("name") == "automatic_fixture")
+                             automaticLeaf = group.value("current").toString();
+                     }
+                     for (const auto& entry : reopened.snapshot().value("groups").toArray()) {
+                         const auto group = entry.toObject();
+                         if (group.value("name") == "primary_fixture" &&
+                             group.value("current") == "automatic_fixture")
+                             return !automaticLeaf.isEmpty();
+                     }
+                     return false;
+                 }),
+                 "nested automatic group selection readback", reopened))
+        return 180;
+    const auto nestedChain =
+        reopened.snapshot().value("outbound").toObject().value("chain").toArray();
+    if (!require(nestedChain.size() == 3 && nestedChain[0] == "primary_fixture" &&
+                     nestedChain[1] == "automatic_fixture" && nestedChain[2] == automaticLeaf &&
+                     reopened.snapshot().value("outbound").toObject().value("node") ==
+                         automaticLeaf,
+                 "nested automatic group resolves to its selected leaf", reopened))
+        return 181;
+    reopened.stop();
+    reopened.start(false);
+    if (!require(waitFor([&] {
+                     return reopened.snapshot().value("ready").toBool() &&
+                            !reopened.snapshot().value("busy").toBool();
+                 }) &&
+                     waitFor([&] {
+                         for (const auto& entry : reopened.snapshot().value("groups").toArray())
+                             if (entry.toObject().value("name") == "primary_fixture" &&
+                                 entry.toObject().value("current") == "automatic_fixture")
+                                 return true;
+                         return false;
+                     }),
+                 "nested automatic group selection restored", reopened))
+        return 182;
     reopened.selectProxy(QStringLiteral("primary_fixture"), QStringLiteral("hy2_fixture"));
     if (!require(waitFor([&] {
                      for (const auto& entry : reopened.snapshot().value("groups").toArray())

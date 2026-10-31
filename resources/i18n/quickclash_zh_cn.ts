@@ -883,6 +883,26 @@
       <source>Viewing group</source>
       <translation>正在查看的分组</translation>
     </message>
+    <message>
+      <source>Awaiting automatic selection</source>
+      <translation>等待自动选择</translation>
+    </message>
+    <message>
+      <source>Waiting for core confirmation</source>
+      <translation>等待内核确认</translation>
+    </message>
+    <message>
+      <source>Provider: %1</source>
+      <translation>提供者：%1</translation>
+    </message>
+    <message>
+      <source>Group members may be out of date</source>
+      <translation>组成员可能已过期</translation>
+    </message>
+    <message>
+      <source>Refresh</source>
+      <translation>刷新</translation>
+    </message>
   </context>
   <context>
     <name>proxy_summary</name>

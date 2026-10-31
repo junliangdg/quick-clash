@@ -643,13 +643,13 @@ void EngineSession::refreshGroups() {
                         } else {
                             // A partial read cannot prove static/dynamic name collisions safe
                             // for restoring saved selections. Keep the previous confirmed view.
-                            emit failed(std::get<domain::Error>(providers).code);
+                            emit groupsRefreshFailed(std::get<domain::Error>(providers).code);
                             return;
                         }
                         emit groupsChanged(objects);
                     });
         } else {
-            emit failed(std::get<domain::Error>(result).code);
+            emit groupsRefreshFailed(std::get<domain::Error>(result).code);
         }
     });
 }

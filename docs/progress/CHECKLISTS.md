@@ -63,6 +63,7 @@
 - [x] P2-21/22：基础字段/官方加载与启停、自动组能力/受控健康检查和实际代理页通过；不代表公网握手。[协议交付](reports/windows_validation.md#订阅与代理功能)
 - [x] P2-23：最多32项具体协议/传输/组/规则/DNS/外部资源原因、安全路径、脱敏和中英文词表通过。[协议交付](reports/windows_validation.md#订阅与代理功能)
 - [x] P2-24：默认Windows D3D11连续跨1000/600断点无原秒级等待；首页/代理各80步保持页面实例、引擎和需求，4/4 UI检查通过；最终包10秒Ready首页专用工作集60.75MB，非完整帧/转发组合验收。[缩放修复](reports/windows_validation.md#订阅与代理功能)
+- [x] P2-25：离线url-test/fallback不伪造current，automatic/sources投影与父Selector嵌套出口递归完成；组读取失败保留最后快照并标记stale/error，refresh_groups只重读内核展示快照；代理页等待/来源/刷新反馈通过。Windows增量构建、contracts/localization/runtime/engine_startup/qmllint通过；真实provider远端刷新、真实健康检查故障转移及GUI目视NotRun。[开发与验收](DEVLOG.md#2026-10-31--代理自动组离线嵌套与新鲜度补全)
 
 - [x] G2-A：MVP-01—16按设计19/1.9逐条件Pass，版本/证据/限制齐全；不使用N/A。[逐项验收](reports/windows_validation.md#g2本机mvp逐项验收)
 - [x] G2-B：真实GUI HTTPS订阅/第二本地导入→官方核心→代理页节点选择/首页模式→系统代理→独立显式及PRECONFIG客户端受控HTTPS→正常退出/同目录重开通过。[主链路](reports/windows_validation.md#g2本机mvp逐项验收)

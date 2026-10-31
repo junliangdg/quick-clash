@@ -917,3 +917,12 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 验证：Qt6.12.0/MSVC Release在独立目录`build/delay_concurrency`完成增量构建与qmllint（exit0，仅有subscriptions_page.qml既存类型推断警告）；整套CTest 39项35项Pass，其中`runtime` 112.86秒、`service_protocol` 0.06秒通过，覆盖直连6项Testing/2项Queued、取消迟到与过期结果。4项失败为`runtime_subscription_download`、`runtime_geo_update`（本机订阅/Geo下载失败）及`ui_accessibility`、`ui_accessibility_zh`（构建目录缺字体，subscription_url无无障碍名称），与本次并发/超时改动无关，未计为本次通过。9个改动C++文件clang-format `--dry-run --Werror`通过。
 - 限制：未在真实服务会话上用大订阅实测32并发、批量总耗时与失败率，也未用真实节点样本统计2000ms对高延迟可用节点的漏判；直连6并发是Qt每主机连接上限的推论，未单独压测；未做长时并发资源/内存曲线。服务最大本地客户端连接数仍为4，不影响同连接内多请求在途。
 - 下一步：在真实订阅与数百至数千节点上分别记录服务/直连模式单批耗时、ServiceBusy与超时分布；若大批量仍明显排队，再评估分批提交或单批上限，G3/G5长稳另测。
+
+## 2026-10-31 / 代理自动组离线、嵌套与新鲜度补全
+
+- 关联：P2-22、P2-25；用户询问代理页自动选择/故障转移组的作用、主组选择自动组时的出口判定、自动组是否自动刷新成员并按规则选择，以及当前方案是否覆盖。保留已有工作区修改，未提交。
+- 语义结论：自动选择/故障转移由固定Mihomo内核按组配置和健康检查完成，客户端不计算健康、不合成current、不自行选择叶节点；客户端只读取内核now/all并展示。离线摘要中url-test/fallback的current为空，避免把首个成员伪装为当前；Ready后以内核now为准。
+- 实现：`config_preflight.cpp`为组摘要增加automatic与sources（`use`引用的provider名称），自动组离线current为空，orderedProxyGroups把实时内核结果与配置摘要合并；`config_schema.cpp`将url改为可选、存在时继续严格校验HTTP(S)、无用户信息和片段；`engine_session`新增groupsRefreshFailed，组读取失败不再走核心failed；`desktop_runtime`据此设置groupsStale/groupsError并保留最后确认快照，成功读取或离线加载后清除；`desktop_features`新增refresh_groups命令，仅在Ready且非busy时重读内核组状态。父Selector选择嵌套自动组时，出口链按内核实时数据递归解析。代理页显示等待内核确认、provider来源、成员到期提示及stale刷新按钮，自动组仍不可手动选择；新增5条中文翻译，其中2条纳入本地化测试。
+- 验证：Windows Qt6.12.0 Release、Ninja、BUILD_TESTING=ON增量构建通过；contracts_test、localization_test、runtime_test、engine_startup_test及quickclash_qmllint退出0。runtime覆盖离线自动组current为空、选择自动组后的实时读取、嵌套出口链解析及停止/重启恢复。qmllint另有subscriptions_page.qml第32/405/419行3条既存类型推断警告，与本次改动无关，未写成零警告。
+- 限制/未运行：未用真实provider远端更新验证成员变化，未用真实健康检查故障制造自动切换，未做GUI目视确认等待态/来源/刷新入口的实际视觉；上述均NotRun。自动化测试中的自动组切换为受控夹具，不证明公网节点健康判定或provider刷新时延。
+- 状态/下一步：P2-25 Done（自动化与离线/恢复范围）；P2-22保持Done，新增结论不改变MVP-04已有Pass。后续按G3在真实订阅上补provider更新、健康检查故障转移与GUI目视核对，再决定是否调整刷新频率或提示。交付检查见本次文档重建与台账脚本结果；未自动提交。
