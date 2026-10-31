@@ -12,14 +12,19 @@ class ServiceClient final : public QObject {
   public:
     using Handler = std::function<void(domain::Result<QJsonObject>)>;
     explicit ServiceClient(QObject* parent = nullptr);
+    ~ServiceClient() override;
     void command(const QString& action, const QJsonObject& payload, Handler handler);
     void close();
     [[nodiscard]] bool connected() const;
+    [[nodiscard]] bool hadSession() const;
   signals:
-    void lost();
+    // The failure that ended the session, so callers can offer the right recovery instead of
+    // collapsing every transport error into one generic message.
+    void lost(const QString& reason);
 
   private:
     void fail(const char* code);
+    void connectService(int attempt = 0);
     QLocalSocket socket_;
     QTimer deadline_;
     QTimer heartbeat_;
@@ -31,7 +36,9 @@ class ServiceClient final : public QObject {
     QString sessionId_;
     QString epoch_;
     QString handshakeId_;
+    QJsonObject expectedCapabilities_;
     bool verified_ = false;
+    bool everVerified_ = false;
     bool failing_ = false;
 };
 } // namespace quickclash::infra

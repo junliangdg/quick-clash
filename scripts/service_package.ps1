@@ -1,6 +1,19 @@
-#Requires -Version 7.2
-# Shared by the reviewed installer and its no-elevation integrity tests.
+#Requires -Version 5.1
+# Shared by the no-elevation validation kit and the package integrity tests.
+function Get-StreamSha256Hex([System.IO.Stream]$Stream) {
+    $taskHasher = [Security.Cryptography.SHA256]::Create()
+    try {
+        $taskBytes = $taskHasher.ComputeHash($Stream)
+        return (-join ($taskBytes | ForEach-Object { $_.ToString('x2') }))
+    } finally { $taskHasher.Dispose() }
+}
+function Get-PackageRelativePath([string]$Root, [string]$FullPath) {
+    $taskPrefix = $Root.TrimEnd([char[]]"\/") + [IO.Path]::DirectorySeparatorChar
+    if (-not $FullPath.StartsWith($taskPrefix, [StringComparison]::OrdinalIgnoreCase)) { throw 'Package path escape.' }
+    return $FullPath.Substring($taskPrefix.Length).Replace([char]92, [char]47)
+}
 function Assert-ServicePackagePath([string]$Path) {
+    if (-not (Test-Path -LiteralPath $Path)) { throw "Package path not found: $Path" }
     $taskAncestor = [IO.Path]::GetFullPath($Path)
     while ($taskAncestor) {
         $taskInfo = Get-Item -LiteralPath $taskAncestor -Force -ErrorAction Stop
@@ -12,15 +25,18 @@ function Assert-ServicePackagePath([string]$Path) {
 function Open-ServicePackage([string]$Directory) {
     $taskRoot = (Resolve-Path -LiteralPath $Directory -ErrorAction Stop).Path
     Assert-ServicePackagePath $taskRoot
+    $taskManifestPath = Join-Path $taskRoot 'metadata/package_manifest.json'
+    if (-not (Test-Path -LiteralPath $taskManifestPath -PathType Leaf)) {
+        throw "Package manifest not found: $taskManifestPath. Pass -PackageDirectory with the extracted package root that contains metadata/package_manifest.json."
+    }
     $taskFiles = [Collections.Generic.List[object]]::new()
     try {
-        $taskManifestPath = Join-Path $taskRoot 'metadata/package_manifest.json'
         Assert-ServicePackagePath $taskManifestPath
         $taskManifestStream = [IO.File]::Open($taskManifestPath, 'Open', 'Read', 'Read')
         $taskFiles.Add([pscustomobject]@{ Path = 'metadata/package_manifest.json'; Stream = $taskManifestStream; Entry = $null })
         if ($taskManifestStream.Length -gt 4MB) { throw 'Package manifest limit exceeded.' }
         $taskReader = [IO.StreamReader]::new($taskManifestStream, [Text.UTF8Encoding]::new($false, $true), $true, 4096, $true)
-        try { $taskManifest = $taskReader.ReadToEnd() | ConvertFrom-Json -Depth 12 } finally { $taskReader.Dispose() }
+        try { $taskManifest = $taskReader.ReadToEnd() | ConvertFrom-Json } finally { $taskReader.Dispose() }
         if ($taskManifest.schema_version -cne 1 -or $taskManifest.files -isnot [Array] -or
             $taskManifest.files.Count -eq 0 -or $taskManifest.files.Count -gt 10000) { throw 'Invalid package manifest schema.' }
         $taskPaths = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
@@ -28,7 +44,7 @@ function Open-ServicePackage([string]$Directory) {
         foreach ($taskEntry in $taskManifest.files) {
             $taskRelative = $taskEntry.path
             # Package scripts are not executed or installed by this copier.
-            if ($taskRelative -cin 'readme.md', 'install_service_windows.ps1', 'service_package.ps1') { continue }
+            if ($taskRelative -cin 'readme.md', 'service_package.ps1') { continue }
             if ($taskRelative -isnot [string] -or $taskRelative.Length -gt 240 -or
                 $taskRelative -cnotmatch '^(bin|core|geo|metadata|licenses|plugins|qml|translations)/[A-Za-z0-9_ .()/+-]+$' -or
                 @($taskRelative.Split('/') | Where-Object { $_ -in '', '.', '..' -or $_ -match '[. ]$|^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])([.]|$)' }).Count) { throw 'Unsafe package path.' }
@@ -42,7 +58,7 @@ function Open-ServicePackage([string]$Directory) {
             $taskStream = [IO.File]::Open($taskSource, 'Open', 'Read', 'Read')
             $taskFiles.Add([pscustomobject]@{ Path = $taskRelative; Stream = $taskStream; Entry = $taskEntry })
             if ($taskStream.Length -ne $taskEntry.bytes -or
-                [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($taskStream)).ToLowerInvariant() -cne $taskEntry.sha256) { throw 'Package integrity check failed.' }
+                (Get-StreamSha256Hex $taskStream) -cne $taskEntry.sha256) { throw 'Package integrity check failed.' }
             $taskStream.Position = 0
         }
         foreach ($taskRequired in 'bin/quickclash.exe', 'bin/quickclash_service.exe', 'core/mihomo.exe', 'bin/Qt6Core.dll') {
@@ -58,7 +74,7 @@ function Open-ServicePackage([string]$Directory) {
                 foreach ($taskChild in Get-ChildItem -LiteralPath $taskQueue.Dequeue() -Force) {
                     if (++$taskEntries -gt 20000 -or $taskChild.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw 'Unsafe package inventory.' }
                     if ($taskChild.PSIsContainer) { $taskQueue.Enqueue($taskChild.FullName); continue }
-                    $taskRelative = [IO.Path]::GetRelativePath($taskRoot, $taskChild.FullName).Replace([char]92, [char]47)
+                    $taskRelative = Get-PackageRelativePath $taskRoot $taskChild.FullName
                     if ($taskRelative -ine 'metadata/package_manifest.json' -and -not $taskPaths.Contains($taskRelative)) { throw 'Unlisted package file rejected.' }
                 }
             }
@@ -84,7 +100,7 @@ function Copy-ServicePackage($Package, [string]$Destination) {
             $taskOutput.Flush($true)
             $taskOutput.Position = 0
             if ($taskOutput.Length -ne $taskFile.Entry.bytes -or
-                [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($taskOutput)).ToLowerInvariant() -cne $taskFile.Entry.sha256) { throw 'Installed package integrity check failed.' }
+                (Get-StreamSha256Hex $taskOutput) -cne $taskFile.Entry.sha256) { throw 'Installed package integrity check failed.' }
         } finally { $taskOutput.Dispose() }
     }
 }

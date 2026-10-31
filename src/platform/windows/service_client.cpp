@@ -15,12 +15,29 @@
 #endif
 
 namespace quickclash::infra {
+namespace {
+// A slow status or feature request must not tear down the authenticated session. Losing the
+// only owner connection makes the service stop the core for safety, which previously turned a
+// transient control-plane timeout into the user-visible CoreExited/TUN restart loop.
+constexpr int kRequestTimeoutMs = 15000;
+} // namespace
+
 ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
     socket_.setReadBufferSize(kReadChunkSize);
+    // The installed service must come from this package. Comparing the exact service binary
+    // build lets a rebuilt package request one update instead of silently exercising old code.
+    expectedCapabilities_ = ServiceProtocol::capabilities(
+        ServiceProtocol::executableBuild(QDir(QCoreApplication::applicationDirPath())
+                                             .filePath(QStringLiteral("quickclash_service.exe"))));
     deadline_.setSingleShot(true);
-    deadline_.setInterval(15000);
+    deadline_.setInterval(kRequestTimeoutMs);
     heartbeat_.setInterval(10000);
-    connect(&deadline_, &QTimer::timeout, this, [this] { fail("ServiceTimeout"); });
+    // This timer only bounds connection and handshake. Once verified, every request owns its
+    // timeout so one unanswered response does not abort the session.
+    connect(&deadline_, &QTimer::timeout, this, [this] {
+        if (!verified_)
+            fail("ServiceTimeout");
+    });
     connect(&heartbeat_, &QTimer::timeout, this, [this] {
         command(QStringLiteral("heartbeat"), {}, [](domain::Result<QJsonObject>) {});
     });
@@ -32,7 +49,19 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
             fail("ServiceIdentityRejected");
             return;
         }
-        if (!platform::installedServiceMatches(pid)) {
+        switch (platform::installedServiceRegistration(pid)) {
+        case platform::ServiceRegistration::Verified:
+            break;
+        case platform::ServiceRegistration::NotInstalled:
+            fail("ServiceInstallationRequired");
+            return;
+        case platform::ServiceRegistration::Stopped:
+            fail("ServiceNotRunning");
+            return;
+        case platform::ServiceRegistration::Unavailable:
+            fail("ServiceUnavailable");
+            return;
+        case platform::ServiceRegistration::Mismatch:
             fail("ServiceIdentityRejected");
             return;
         }
@@ -47,9 +76,26 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
                           .toJson(QJsonDocument::Compact) +
                       '\n');
     });
-    connect(&socket_, &QLocalSocket::disconnected, this, [this] { fail("ServiceDisconnected"); });
+    connect(&socket_, &QLocalSocket::disconnected, this, [this] {
+        // A service that closes the pipe before completing hello is not usable by this client.
+        // Treat that as a protocol/version problem so switching TUN on can offer the one
+        // administrator update instead of a dead-end "unavailable" message. After a verified
+        // handshake the same event means the live session was lost.
+        fail(!verified_ && !handshakeId_.isEmpty() ? "ServiceProtocolMismatch"
+                                                   : "ServiceDisconnected");
+    });
     connect(&socket_, &QLocalSocket::errorOccurred, this,
-            [this](QLocalSocket::LocalSocketError) { fail("ServiceUnavailable"); });
+            [this](QLocalSocket::LocalSocketError error) {
+                if (error == QLocalSocket::ServerNotFoundError)
+                    fail("ServiceInstallationRequired");
+                else if (error == QLocalSocket::ConnectionRefusedError)
+                    fail("ServiceNotRunning");
+                else if (error == QLocalSocket::PeerClosedError && !verified_ &&
+                         !handshakeId_.isEmpty())
+                    fail("ServiceProtocolMismatch");
+                else
+                    fail("ServiceUnavailable");
+            });
     connect(&socket_, &QIODevice::readyRead, this, [this] {
         if (!appendAvailable(socket_, input_, 3 * 1024 * 1024)) {
             fail("ServiceResponseLimit");
@@ -64,25 +110,40 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
                 return;
             }
             if (!verified_) {
-                if (result.value(QStringLiteral("requestId")) == handshakeId_ &&
-                    result.value(QStringLiteral("error")) == QStringLiteral("ServiceSessionBusy")) {
-                    fail("ServiceSessionBusy");
-                    return;
+                if (result.value(QStringLiteral("requestId")) == handshakeId_) {
+                    const auto handshakeError = result.value(QStringLiteral("error")).toString();
+                    if (!handshakeError.isEmpty()) {
+                        const auto accepted =
+                            handshakeError == QStringLiteral("ServiceSessionBusy") ||
+                            handshakeError == QStringLiteral("ServiceClientUntrusted") ||
+                            handshakeError == QStringLiteral("ServiceProtocolMismatch");
+                        fail(accepted ? handshakeError.toLatin1().constData()
+                                      : "ServiceIdentityRejected");
+                        return;
+                    }
                 }
                 auto capabilities = result.value(QStringLiteral("result")).toObject();
                 const auto session = capabilities.take(QStringLiteral("sessionId")).toString();
                 if (result.value(QStringLiteral("requestId")) != handshakeId_ ||
-                    QUuid(session).isNull() || capabilities != ServiceProtocol::capabilities()) {
+                    QUuid(session).isNull() || capabilities != expectedCapabilities_) {
                     fail("ServiceProtocolMismatch");
                     return;
                 }
                 verified_ = true;
+                everVerified_ = true;
                 sessionId_ = session;
                 handshakeId_.clear();
+                deadline_.stop();
                 for (const auto& bytes : pendingWrites_) {
                     auto message = QJsonDocument::fromJson(bytes).object();
                     message.insert(QStringLiteral("sessionId"), sessionId_);
                     socket_.write(QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n');
+                    const auto id = message.value(QStringLiteral("requestId")).toString();
+                    QTimer::singleShot(kRequestTimeoutMs, this, [this, id] {
+                        auto handler = handlers_.take(id);
+                        if (handler)
+                            handler(storageError("ServiceTimeout"));
+                    });
                 }
                 pendingWrites_.clear();
                 heartbeat_.start();
@@ -97,15 +158,30 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
                 if (value.contains(QStringLiteral("epoch")))
                     epoch_ = value.value(QStringLiteral("epoch")).toString();
                 handler(result.value(QStringLiteral("result")).toObject());
-            } else
-                handler(storageError(error.toLatin1().constData()));
+            } else {
+                auto failure = storageError(error.toLatin1().constData());
+                if (result.contains(QStringLiteral("detail")))
+                    failure.redactedDetail = QString::fromUtf8(
+                        QJsonDocument(result.value(QStringLiteral("detail")).toObject())
+                            .toJson(QJsonDocument::Compact));
+                handler(failure);
+            }
         }
         if (handlers_.isEmpty())
             deadline_.stop();
     });
 }
+ServiceClient::~ServiceClient() {
+    // QLocalSocket can emit disconnected from its destructor. Close it while the session
+    // members still exist, without invoking client callbacks during destruction.
+    socket_.disconnect(this);
+    close();
+}
 bool ServiceClient::connected() const {
     return verified_ && socket_.state() == QLocalSocket::ConnectedState;
+}
+bool ServiceClient::hadSession() const {
+    return everVerified_;
 }
 void ServiceClient::command(const QString& action, const QJsonObject& payload, Handler handler) {
     if (handlers_.size() >= 4) {
@@ -123,20 +199,61 @@ void ServiceClient::command(const QString& action, const QJsonObject& payload, H
         return;
     }
     handlers_.insert(id, std::move(handler));
-    if (connected())
+    if (connected()) {
         socket_.write(bytes);
-    else {
+        QTimer::singleShot(kRequestTimeoutMs, this, [this, id] {
+            auto handler = handlers_.take(id);
+            if (handler)
+                handler(storageError("ServiceTimeout"));
+        });
+    } else {
         pendingWrites_.append(bytes);
-        if (socket_.state() == QLocalSocket::UnconnectedState)
-            socket_.connectToServer(QStringLiteral("QuickClash.Service.v1"));
+        if (socket_.state() == QLocalSocket::UnconnectedState) {
+            connectService();
+        }
     }
-    if (!deadline_.isActive())
+    if (!verified_ && !deadline_.isActive())
         deadline_.start();
+}
+void ServiceClient::connectService(int attempt) {
+    if (pendingWrites_.isEmpty() || verified_ || socket_.state() != QLocalSocket::UnconnectedState)
+        return;
+    switch (platform::installedServiceRegistration(0)) {
+    case platform::ServiceRegistration::NotInstalled:
+        fail("ServiceInstallationRequired");
+        return;
+    case platform::ServiceRegistration::Mismatch:
+        // A legacy registration or moved folder needs a new explicit authorization.
+        fail("ServiceProtocolMismatch");
+        return;
+    case platform::ServiceRegistration::Stopped:
+        if (!platform::startRegisteredService()) {
+            fail("ServiceNotRunning");
+            return;
+        }
+        if (attempt >= 100) {
+            fail("ServiceNotRunning");
+            return;
+        }
+        {
+            const auto generation = closeGeneration_;
+            QTimer::singleShot(100, this, [this, attempt, generation] {
+                if (generation == closeGeneration_)
+                    connectService(attempt + 1);
+            });
+        }
+        return;
+    case platform::ServiceRegistration::Unavailable:
+    case platform::ServiceRegistration::Verified:
+        break;
+    }
+    socket_.connectToServer(QStringLiteral("QuickClash.Service.v1"));
 }
 void ServiceClient::fail(const char* code) {
     if (failing_)
         return;
     failing_ = true;
+    ++closeGeneration_;
     deadline_.stop();
     heartbeat_.stop();
     pendingWrites_.clear();
@@ -152,13 +269,15 @@ void ServiceClient::fail(const char* code) {
     for (auto& handler : handlers)
         handler(storageError(code));
     if (active || !handlers.isEmpty())
-        emit lost();
+        emit lost(QString::fromLatin1(code));
     failing_ = false;
 }
 void ServiceClient::close() {
+    ++closeGeneration_;
     sessionId_.clear();
     epoch_.clear();
     verified_ = false;
+    everVerified_ = false;
     handshakeId_.clear();
     failing_ = true;
     heartbeat_.stop();

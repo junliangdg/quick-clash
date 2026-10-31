@@ -58,8 +58,6 @@ foreach ($taskLicense in Get-ChildItem -LiteralPath (Join-Path $taskRepo 'resour
     Copy-Item -LiteralPath $taskLicense.FullName -Destination (Join-Path $taskDestination 'licenses')
 }
 Copy-Item -LiteralPath (Join-Path $taskRepo 'resources/windows_readme.md') -Destination (Join-Path $taskDestination 'readme.md')
-Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/install_service_windows.ps1') -Destination $taskDestination
-Copy-Item -LiteralPath (Join-Path $taskRepo 'scripts/service_package.ps1') -Destination $taskDestination
 Copy-Item -LiteralPath $taskMatrixPath -Destination (Join-Path $taskDestination 'metadata/release_matrix.json')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/config_policy.json') -Destination (Join-Path $taskDestination 'metadata/config_policy.json')
 # Preserve Qt-provided license/notices when present; deployment keeps runtime

@@ -56,8 +56,15 @@ class UnsupportedPlatformTest final : public QObject {
         auto resources = platform::makeDesktopResources();
         QVERIFY(resources->host().isEmpty());
         QVERIFY(!resources->service().value("complete").toBool());
+        auto setup = platform::makeServiceSetup();
+        QString setupError;
+        setup->start(
+            application::ServiceSetupMode::Authorize, {}, [](int) {},
+            [&setupError](const QString& code) { setupError = code; });
+        QCOMPARE(setupError, QStringLiteral("ServicePlatformUnsupported"));
         QVERIFY(platform::currentProcessMemory().isEmpty());
-        QVERIFY(!platform::installedServiceMatches(1));
+        QVERIFY(platform::installedServiceRegistration(1) ==
+                platform::ServiceRegistration::Unavailable);
         QCOMPARE(inventory(), files);
     }
     void serviceNeverConnectsAndCancelsWithOwner() {
@@ -66,6 +73,7 @@ class UnsupportedPlatformTest final : public QObject {
         QLocalServer server;
         const bool listening = server.listen(QStringLiteral("QuickClash.Service.v1"));
         infra::ServiceClient client;
+        QVERIFY(!client.hadSession());
         bool completed = false;
         client.command("hello", {}, [&completed](domain::Result<QJsonObject> result) {
             completed = true;
@@ -75,6 +83,7 @@ class UnsupportedPlatformTest final : public QObject {
         QVERIFY(!completed);
         QTRY_VERIFY(completed);
         QVERIFY(!client.connected());
+        QVERIFY(!client.hadSession());
         if (listening)
             QVERIFY(!server.hasPendingConnections());
         bool late = false;
@@ -88,6 +97,7 @@ class UnsupportedPlatformTest final : public QObject {
         client.close();
         QCoreApplication::processEvents();
         QVERIFY(!late);
+        QVERIFY(!client.hadSession());
     }
 };
 QTEST_GUILESS_MAIN(UnsupportedPlatformTest)

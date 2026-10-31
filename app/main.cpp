@@ -40,10 +40,29 @@
 #ifndef NOMINMAX
 #define NOMINMAX
 #endif
+#include "platform/windows/service_installer.h"
 #include <windows.h>
 #endif
 
 int main(int argc, char* argv[]) {
+#ifdef Q_OS_WIN
+    {
+        // The elevated helper runs this same executable before any UI, single-instance check or
+        // user-profile access. Only the fixed setup actions are accepted.
+        QStringList arguments;
+        arguments.reserve(argc);
+        for (int index = 0; index < argc; ++index)
+            arguments.append(QString::fromLocal8Bit(argv[index]));
+        const auto invocation = quickclash::platform::parseServiceSetupCommandLine(arguments);
+        if (invocation.present) {
+            if (!invocation.valid) {
+                std::fprintf(stderr, "%s\n", invocation.problem.toUtf8().constData());
+                return 2;
+            }
+            return quickclash::platform::runServiceSetup(invocation.request);
+        }
+    }
+#endif
 #ifdef QUICKCLASH_TEST_PROBES
     if (std::any_of(argv + 1, argv + argc, [](const char* argument) {
             return std::string_view(argument).starts_with("--desktop-flow-client=") ||

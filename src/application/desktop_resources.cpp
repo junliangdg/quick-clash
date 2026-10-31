@@ -18,7 +18,6 @@ void discardGeo(infra::GeoResourceWriter& writer) {
 } // namespace
 void DesktopRuntime::updateGeo() {
     if (busy_ || store_.readOnly() || selectedId_.isEmpty() ||
-        runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() ||
         geoSourceBase_.scheme() != QStringLiteral("https") || geoSourceBase_.host().isEmpty() ||
         !geoSourceBase_.userInfo().isEmpty() || geoSourceBase_.hasFragment() ||
         geoSourceBase_.hasQuery()) {

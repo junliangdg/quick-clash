@@ -3,14 +3,19 @@
 #include "infra/core/service_protocol.h"
 #include "platform/process_memory.h"
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLocalSocket>
 #include <QSaveFile>
 #include <QTcpServer>
+#include <QTemporaryDir>
 #include <QThread>
+#include <array>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -61,7 +66,9 @@ QJsonObject startPayload() {
         return {};
     const auto port = reservation.serverPort();
     reservation.close();
-    const QByteArray yaml = "proxies: []\nproxy-groups:\n  - name: choose\n"
+    // A valid first start must retain the normal configuration budget after hello.
+    const QByteArray yaml = QByteArray("#") + QByteArray(20 * 1024, 'x') +
+                            "\nproxies: []\nproxy-groups:\n  - name: choose\n"
                             "    type: select\n    proxies: [DIRECT, REJECT]\n"
                             "rules: ['MATCH,DIRECT']\n";
     return {{QStringLiteral("yaml"), QString::fromLatin1(yaml.toBase64())},
@@ -75,6 +82,55 @@ bool saveEvidence(const QString& output, const QJsonObject& evidence) {
     file.setDirectWriteFallback(false);
     const auto bytes = QJsonDocument(evidence).toJson();
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
+}
+bool connectionProbe(QJsonObject& evidence) {
+    std::array<QLocalSocket, 4> peers;
+    QElapsedTimer timer;
+    timer.start();
+    for (auto& peer : peers) {
+        peer.connectToServer(QStringLiteral("QuickClash.Service.v1"));
+        if (!waitFor([&] { return peer.state() != QLocalSocket::ConnectingState; }) ||
+            peer.state() != QLocalSocket::ConnectedState)
+            return false;
+    }
+    // Cover a silent peer, a fragmented request, hello-only, and a pre-owner large frame.
+    peers[1].write("{\"protocolVersion\":");
+    const auto hello = exchange(peers[2], {{QStringLiteral("protocolVersion"), 1},
+                                           {QStringLiteral("requestId"), QStringLiteral("1")},
+                                           {QStringLiteral("sessionId"), QString{}},
+                                           {QStringLiteral("engineEpoch"), QString{}},
+                                           {QStringLiteral("action"), QStringLiteral("hello")},
+                                           {QStringLiteral("payload"), QJsonObject{}}});
+    peers[3].write(QByteArray(infra::kServiceHandshakeMaxBytes + 1, 'x'));
+    const bool oversizedClosed =
+        waitFor([&] { return peers[3].state() == QLocalSocket::UnconnectedState; });
+    const auto oversizedMs = timer.elapsed();
+    const bool reclaimed = waitFor([&] {
+        for (const auto& peer : peers)
+            if (peer.state() != QLocalSocket::UnconnectedState)
+                return false;
+        return true;
+    });
+    const auto reclaimedMs = timer.elapsed();
+    infra::ServiceClient owner;
+    const auto initial = command(owner, QStringLiteral("status"));
+    QElapsedTimer lease;
+    lease.start();
+    waitFor([&] { return lease.elapsed() >= infra::kServiceHandshakeTimeoutMs + 500; });
+    const auto later = command(owner, QStringLiteral("status"));
+    const bool passed = !hello.value(QStringLiteral("result")).toObject().isEmpty() &&
+                        oversizedClosed && oversizedMs < infra::kServiceHandshakeTimeoutMs &&
+                        reclaimed && reclaimedMs < infra::kServiceHandshakeTimeoutMs + 2000 &&
+                        initial.value(QStringLiteral("clean")).toBool() &&
+                        later.value(QStringLiteral("clean")).toBool() && owner.connected();
+    evidence = {{QStringLiteral("helloAccepted"), hello.contains(QStringLiteral("result"))},
+                {QStringLiteral("oversizedClosedMs"), oversizedMs},
+                {QStringLiteral("allReclaimedMs"), reclaimedMs},
+                {QStringLiteral("ownerSurvivedDeadline"), owner.connected()},
+                {QStringLiteral("initial"), initial},
+                {QStringLiteral("later"), later},
+                {QStringLiteral("passed"), passed}};
+    return passed;
 }
 bool protocolProbe(QJsonObject& evidence) {
     QLocalSocket socket;
@@ -163,11 +219,103 @@ int serviceProbe() {
         return 1;
     infra::ServiceClient client;
     QJsonObject evidence;
+    if (mode == QStringLiteral("connections")) {
+        const bool passed = connectionProbe(evidence);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
+    if (mode == QStringLiteral("timeout")) {
+        const auto initial = command(client, QStringLiteral("status"));
+        const auto started = command(client, QStringLiteral("start"), startPayload());
+        evidence = {{QStringLiteral("initial"), initial},
+                    {QStringLiteral("started"), started},
+                    {QStringLiteral("waitingForPause"), true}};
+        if (!saveEvidence(output, evidence) || started.value(QStringLiteral("pid")).toInt() <= 0)
+            return 3;
+        bool lost = false;
+        QObject::connect(&client, &infra::ServiceClient::lost, &client, [&] { lost = true; });
+        if (!waitFor([&] { return QFileInfo::exists(output + QStringLiteral(".paused")); }))
+            return 3;
+        const auto timedOut = command(client, QStringLiteral("status"));
+        const auto recovered = command(client, QStringLiteral("status"));
+        const auto stopped = command(client, QStringLiteral("stop"));
+        const auto clean = command(client, QStringLiteral("status"));
+        const bool passed =
+            timedOut.value(QStringLiteral("error")) == QStringLiteral("ServiceTimeout") && !lost &&
+            client.connected() && recovered.value(QStringLiteral("ready")).toBool() &&
+            recovered.value(QStringLiteral("pid")) == started.value(QStringLiteral("pid")) &&
+            stopped.value(QStringLiteral("stopped")).toBool() &&
+            clean.value(QStringLiteral("clean")).toBool();
+        evidence.insert(QStringLiteral("timedOut"), timedOut);
+        evidence.insert(QStringLiteral("recovered"), recovered);
+        evidence.insert(QStringLiteral("clean"), clean);
+        evidence.insert(QStringLiteral("lost"), lost);
+        evidence.insert(QStringLiteral("passed"), passed);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
     if (mode == QStringLiteral("status")) {
         evidence = command(client, QStringLiteral("status"));
         const bool clean = evidence.value(QStringLiteral("clean")).toBool();
         evidence.insert(QStringLiteral("passed"), clean);
         return saveEvidence(output, evidence) ? (clean ? 0 : 3) : 2;
+    }
+    if (mode == QStringLiteral("geo")) {
+        QTemporaryDir resources;
+        QJsonObject snapshot;
+        // Minimal valid protobuf databases, deliberately different from frozen bundled data.
+        const QHash<QString, QByteArray> assets{
+            {QStringLiteral("geoip.dat"),
+             QByteArray::fromHex("0a100a02434e12080a04c000020010181800")},
+            {QStringLiteral("geosite.dat"),
+             QByteArray::fromHex("0a160a02636e12100802120c6578616d706c652e74657374")}};
+        for (auto it = assets.begin(); it != assets.end(); ++it) {
+            const auto hash = QString::fromLatin1(
+                QCryptographicHash::hash(it.value(), QCryptographicHash::Sha256).toHex());
+            const auto ref = QStringLiteral("data/geo/%1/%2").arg(hash, it.key());
+            const auto path = QDir(resources.path()).filePath(ref);
+            if (!QDir().mkpath(QFileInfo(path).absolutePath()))
+                return 2;
+            QFile file(path);
+            if (!file.open(QIODevice::WriteOnly) || file.write(it.value()) != it.value().size())
+                return 2;
+            snapshot.insert(it.key(), QJsonObject{{"sha256", hash}, {"sourceRef", ref}});
+        }
+        auto payload = startPayload();
+        const QByteArray yaml = "proxies: []\nproxy-groups: []\nrules: ['GEOIP,CN,DIRECT', "
+                                "'GEOSITE,cn,DIRECT', 'MATCH,DIRECT']\n";
+        payload.insert(QStringLiteral("yaml"), QString::fromLatin1(yaml.toBase64()));
+        payload.insert(QStringLiteral("geo"),
+                       QJsonObject{{"snapshot", snapshot}, {"storageRoot", resources.path()}});
+        const auto started = command(client, QStringLiteral("start"), payload);
+        const auto state = command(client, QStringLiteral("status"));
+        const auto stopped = command(client, QStringLiteral("stop"));
+        // Same approved reference but changed bytes must fail before the next core starts.
+        const auto ref = snapshot.value(QStringLiteral("geoip.dat"))
+                             .toObject()
+                             .value(QStringLiteral("sourceRef"))
+                             .toString();
+        QFile corrupt(QDir(resources.path()).filePath(ref));
+        if (!corrupt.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            return 2;
+        corrupt.write("corrupt");
+        corrupt.close();
+        const auto rejected = command(client, QStringLiteral("start"), payload);
+        command(client, QStringLiteral("stop"));
+        const bool passed =
+            started.value(QStringLiteral("pid")).toInt() > 0 &&
+            state.value(QStringLiteral("ready")).toBool() &&
+            state.value(QStringLiteral("geoResources"))
+                    .toObject()
+                    .value(QStringLiteral("resources"))
+                    .toArray()
+                    .size() == 2 &&
+            stopped.value(QStringLiteral("stopped")).toBool() &&
+            rejected.value(QStringLiteral("error")) == QStringLiteral("GeoResourceIntegrityFailed");
+        evidence = {{"started", started},
+                    {"status", state},
+                    {"snapshot", snapshot},
+                    {"corruptRejected", rejected},
+                    {"passed", passed}};
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
     }
     if (mode == QStringLiteral("hold")) {
         evidence.insert(QStringLiteral("initial"), command(client, QStringLiteral("status")));

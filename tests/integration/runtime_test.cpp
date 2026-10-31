@@ -106,6 +106,24 @@ int main(int argc, char** argv) {
     while (controller == mixed)
         controller = port();
     runtime.setPorts(mixed, controller);
+    const auto settingsBeforeSuggestion = runtime.snapshot().value("preferences");
+    runtime.featureCommand(QStringLiteral("suggest_listener_ports"), {});
+    if (!require(runtime.snapshot().value("preferences") == settingsBeforeSuggestion &&
+                     runtime.snapshot()
+                             .value("features")
+                             .toObject()
+                             .value("listenerPortCandidate")
+                             .toObject()
+                             .value("mixedPort")
+                             .toInt() == mixed,
+                 "port suggestion is a preview without saved changes", runtime))
+        return 180;
+    runtime.featureCommand("cancel_listener_ports", {});
+    if (!require(
+            !runtime.snapshot().value("features").toObject().contains("listenerPortCandidate") &&
+                runtime.snapshot().value("preferences") == settingsBeforeSuggestion,
+            "cancelling ports consumes the preview without saved changes", runtime))
+        return 183;
     if (!require(runtime.snapshot()
                              .value("settingsState")
                              .toObject()
@@ -196,6 +214,18 @@ int main(int argc, char** argv) {
                          QStringLiteral("global"),
                  "mode", runtime))
         return 7;
+    const auto unchangedSettings = runtime.snapshot().value("preferences").toObject();
+    runtime.featureCommand("suggest_listener_ports", {});
+    runtime.featureCommand("network_settings", {unchangedSettings.value("mode").toString(),
+                                                QString::number(mixed), QString::number(controller),
+                                                unchangedSettings.value("dnsMode").toString(),
+                                                runtime.snapshot().value("epoch").toString(),
+                                                QString::number(runtime.selectionGeneration())});
+    if (!require(
+            !runtime.snapshot().value("features").toObject().contains("listenerPortCandidate") &&
+                runtime.snapshot().value("preferences") == unchangedSettings,
+            "confirming unchanged ports consumes the preview", runtime))
+        return 184;
     runtime.stop();
     if (!require(!runtime.snapshot().value("ready").toBool() &&
                      !runtime.snapshot().value("groups").toArray().isEmpty() &&

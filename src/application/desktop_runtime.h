@@ -78,6 +78,11 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void flushData();
     [[nodiscard]] QJsonObject controlState() const;
     void error(const QString& code);
+    // Runs the TUN preflight and, when the service is missing, stopped or not yet authorized
+    // for this folder, requests one administrator confirmation before retrying.
+    [[nodiscard]] bool startTunSetup(const QString& failure);
+    void finishTunSetup(int exitCode);
+    void retryTunAfterSetup();
     void configError(const domain::Error& failure);
     void download(const QString& url, const QString& name, const QString& id = {},
                   const QJsonObject& headers = {}, const QString& route = {},
@@ -218,7 +223,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void fetchGeo(int index, QJsonObject snapshot, quint64 generation);
     void scheduleSubscriptions();
     void completeSubscriptionUpdate(const QString& result);
-    void scheduleBackgroundStart(bool afterFailure = false);
+    void scheduleBackgroundStart(bool afterFailure = false, bool shortFailure = false);
     [[nodiscard]] domain::CommandResult saveProxyIntent(bool desired);
     [[nodiscard]] QUuid beginOperation(const QString& kind);
     void finishOperation(domain::OperationState state, const QString& error = {});
@@ -233,6 +238,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     const DesktopPlatformInfo platformInfo_;
     std::unique_ptr<IDesktopResources> resources_;
     std::unique_ptr<ISystemProxyLease> proxyLease_;
+    std::unique_ptr<IServiceSetup> serviceSetup_;
     infra::EngineSession engine_;
     std::unique_ptr<IDesktopProcess> validator_;
     QNetworkAccessManager directNetwork_;
@@ -304,6 +310,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool backgroundManaged_ = false;
     bool backgroundSuppressed_ = false;
     int recoveryFailures_ = 0;
+    int shortFailures_ = 0;
+    bool tunRecoveryBlocked_ = false;
+    bool tunPending_ = false;
+    bool tunDisabling_ = false;
     QList<qint64> crashTimes_;
     QPointer<QNetworkReply> downloadReply_;
     QNetworkAccessManager subscriptionNetwork_;
@@ -321,10 +331,16 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QString defaultPolicy_;
     QJsonArray errors_;
     QJsonArray configIssues_;
+    QString coreExitDetail_;
     QJsonObject runtimePreferences_;
     QJsonObject savedPreferences_;
     QJsonObject sessionPreferences_;
     QJsonObject effectivePreferences_;
+    QJsonObject listenerIssue_;
+    bool listenerRecoveryBlocked_ = false;
+    // A single TUN enable action requests at most one administrator confirmation; a second
+    // failure is reported instead of showing another UAC prompt.
+    bool tunSetupAttempted_ = false;
     QJsonObject candidate_;
     QJsonObject previous_;
     QJsonObject previousPreferences_;

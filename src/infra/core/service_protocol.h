@@ -5,6 +5,8 @@
 #include <QStringList>
 
 namespace quickclash::infra {
+inline constexpr int kServiceHandshakeTimeoutMs = 3000;
+inline constexpr qint64 kServiceHandshakeMaxBytes = 16 * 1024;
 struct ServiceRequest {
     QString id;
     QString action;
@@ -28,7 +30,8 @@ class ServiceProtocol final {
     void clear();
     [[nodiscard]] static bool validEnvelope(const QJsonObject& message);
     [[nodiscard]] static bool validResponse(const QJsonObject& message);
-    [[nodiscard]] static QJsonObject capabilities();
+    [[nodiscard]] static QString executableBuild(const QString& path);
+    [[nodiscard]] static QJsonObject capabilities(const QString& serviceBuild);
 
   private:
     quint64 lastId_ = 0;

@@ -2,6 +2,7 @@
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QTemporaryFile>
 #include <iostream>
 
 using quickclash::infra::ServiceProtocol;
@@ -79,9 +80,36 @@ int main(int argc, char** argv) {
     response.insert(QStringLiteral("error"), QStringLiteral("error"));
     if (ServiceProtocol::validResponse(response))
         return 14;
-    if (ServiceProtocol::capabilities().value(QStringLiteral("proxyRecovery")) !=
-        QStringLiteral("NotAvailable"))
+    const auto capabilities = ServiceProtocol::capabilities(QStringLiteral("test-build"));
+    if (capabilities.value(QStringLiteral("proxyRecovery")) != QStringLiteral("NotAvailable") ||
+        capabilities.value(QStringLiteral("serviceBuild")) != QStringLiteral("test-build"))
         return 15;
+    QTemporaryFile first;
+    QTemporaryFile second;
+    if (!first.open() || !second.open())
+        return 18;
+    first.write("first");
+    second.write("second");
+    first.flush();
+    second.flush();
+    if (ServiceProtocol::executableBuild(first.fileName()).isEmpty() ||
+        ServiceProtocol::executableBuild(first.fileName()) ==
+            ServiceProtocol::executableBuild(second.fileName()) ||
+        !ServiceProtocol::executableBuild(QStringLiteral("missing-file")).isEmpty())
+        return 19;
+    QJsonObject portFailure{
+        {"protocolVersion", 1},
+        {"requestId", "42"},
+        {"error", "CoreListenerAddressInUse"},
+        {"detail",
+         QJsonObject{{"code", "CoreListenerAddressInUse"}, {"port", 7890}, {"role", "mixed"}}}};
+    if (!ServiceProtocol::validResponse(portFailure))
+        return 16;
+    auto detail = portFailure.value("detail").toObject();
+    detail.insert("path", "not_allowed");
+    portFailure.insert("detail", detail);
+    if (ServiceProtocol::validResponse(portFailure))
+        return 17;
     std::cout
         << "PASS: strict envelopes, response schema, bounded replay and capability downgrade\n";
     return 0;

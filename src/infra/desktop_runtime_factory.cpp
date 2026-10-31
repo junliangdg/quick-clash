@@ -12,6 +12,6 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, QObject* parent,
                      {platform::makeCredentialStore(store), platform::desktopPlatformInfo(),
                       platform::makeDesktopResources(),
                       platform::makeSystemProxyLease(store, proxySettings),
-                      platform::makeDesktopProcess()},
+                      platform::makeDesktopProcess(), platform::makeServiceSetup()},
                      parent, std::move(clock), geoSourceBase) {}
 } // namespace quickclash::application

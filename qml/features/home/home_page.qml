@@ -314,9 +314,9 @@ ScrollView {
                 ThemedSwitch {
                     theme: root.theme
                     Layout.fillWidth: true
-                    text: qsTr("Virtual network adapter (TUN)") + " · " + (root.ui.runtime.tunState === "On" ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : qsTr("Off"))
+                    text: qsTr("Virtual network adapter (TUN)") + " · " + (root.ui.runtime.tunPending === true ? qsTr("Starting") : root.ui.runtime.tunDisabling === true ? qsTr("Stopping") : root.ui.runtime.tunState === "On" ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : (root.ui.runtime.tunState === "Missing" || root.ui.runtime.tunState === "Unknown" || root.ui.runtime.tunState === "Blocked") ? qsTr("Unavailable") : qsTr("Off"))
                     objectName: "home_tun"
-                    checked: root.ui.runtime.tunState === "On"
+                    checked: root.ui.runtime.tunPending === true || (root.ui.runtime.tunDisabling !== true && root.ui.runtime.tunState === "On")
                     enabled: !root.ui.runtime.busy && !!root.selectedId && (root.ui.runtime.capabilities || {}).tun !== "Unsupported"
                     onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
                 }

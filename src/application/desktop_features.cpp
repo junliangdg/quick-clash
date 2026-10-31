@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "domain/connection_snapshot.h"
+#include "infra/core/listener_ports.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -253,6 +254,34 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command == QStringLiteral("cancel_listener_ports")) {
+        if (featureState_.contains(QStringLiteral("listenerPortCandidate"))) {
+            featureState_.remove(QStringLiteral("listenerPortCandidate"));
+            publish();
+        }
+        return;
+    }
+    if (command == QStringLiteral("suggest_listener_ports")) {
+        if (busy_ || store_.readOnly())
+            return;
+        const auto effectiveMixed =
+            engine_.ready() ? effectivePreferences_.value("mixedPort").toInt() : 0;
+        const auto effectiveController = engine_.ready() && !engine_.usingService()
+                                             ? effectivePreferences_.value("controllerPort").toInt()
+                                             : 0;
+        auto candidate = infra::suggestListenerPorts(
+            preferences().mixedPort, preferences().controllerPort,
+            static_cast<quint16>(effectiveMixed), static_cast<quint16>(effectiveController));
+        if (candidate.isEmpty()) {
+            error(QStringLiteral("NoAvailableListenerPorts"));
+            return;
+        }
+        candidate.insert(QStringLiteral("token"),
+                         QUuid::createUuid().toString(QUuid::WithoutBraces));
+        featureState_.insert(QStringLiteral("listenerPortCandidate"), candidate);
+        publish();
+        return;
+    }
     if (command == QStringLiteral("diagnostics") || command == QStringLiteral("storage_preview") ||
         command == QStringLiteral("repair_preview") ||
         command == QStringLiteral("confirm_maintenance") ||
@@ -453,8 +482,13 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         candidate.insert(QStringLiteral("mixedPort"), mixed);
         candidate.insert(QStringLiteral("controllerPort"), controller);
         candidate.insert(QStringLiteral("dnsMode"), args[3]);
-        if (candidate == runtimePreferences_)
+        featureState_.remove(QStringLiteral("listenerPortCandidate"));
+        if (candidate == runtimePreferences_) {
+            publish();
             return;
+        }
+        listenerRecoveryBlocked_ = false;
+        listenerIssue_ = {};
         previousPreferences_ = runtimePreferences_;
         runtimePreferences_ = candidate;
         if (!selectedId_.isEmpty()) {

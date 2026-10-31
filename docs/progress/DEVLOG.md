@@ -728,3 +728,172 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 最终居中补正增量构建6.24秒/lint退出0，qml_smoke/ui_keyboard/ui_visual/ui_responsive 4/4 Pass共8.07秒（p3_20261030T114615）；独立最终包build/qcat_brand/quickclash_qcat，188项完整摘要/x64/CRT/官方核心/Qt许可检查通过，清开发Qt环境本地导入Ready2.441秒、缺核心修复1.997秒均exit0/未超时（package_final_check）。包manifest SHA256=14690BF94A06A388F5FBB5EFEE1D3B82AD140BB4CF28CA82AF67D1A9E7F64E2F，最终GUI SHA256=98A8301CD5BB267A105BEC2BCF40F1F71022BDDCFF9FB2B38610B81615DBB497，EXE九档图标再次逐字节匹配。800/1000宽原生D3D11截图均QML错误0，图标轨收展按钮居中；仅改对齐，复用未影响的双主题/资源证据。
 - 本专项Done/Pass，设计/使用说明、台账和现有视觉/Windows报告同步；未提交/推送/发布，最终包为BUILD_TESTING=ON/未签名本地验证包。系统任务栏明暗实际切换未操作，不称完整OS主题切换Pass；托盘卸载既有失败如上保留，下一步先定向区分销毁期警告/恢复功能，再补已有P3-14/25/27真实环境项。P3仍22 Done/3 Review/2 Todo、MVP16/16 Pass，G1 Stale/G2/G3 NotRun；最终仓库检查进行中。
 - 最终check_progress、设计-Check、check_source_layout（41目录/273文件）、check_platform_boundaries、C++格式、预览/ICO一致性及git diff --check均通过，仅既有LF/CRLF提示。Get-Process未发现quickclash/mihomo残留；未更改安装服务。交付运行入口build/qcat_brand/quickclash_qcat/bin/quickclash.exe，原始取证留在build/qcat_brand。
+
+## 2026-10-30 / 内核监听与服务安装入口修复
+
+- 用户反馈普通启动CoreListenersNotOwned和TUN服务身份错误。Codex接续，工作区原本干净；只读错误代码确认当日反复失败。现有完整runtime在沙箱外通过，普通沙箱因受限ACL初始化退出1；当前固定夹具不代表用户配置通过。SCM为Running/Manual/LocalSystem，固定路径C:/Program Files/QuickClash/bin/quickclash_service.exe，新便携包不在该目录导致同目录身份检查拒绝。保留身份保护，核对配置/监听异步时序并补明确安装入口；当前Doing/NotRun，不宣称TUN完整验收。
+- 实现完成、验证中：普通Ready将配置不匹配单列CoreConfigReadbackFailed，监听尚未owned时在既有10秒内继续异步探测，超时才报CoreListenersNotOwned；Windows读取TCP表变化时最多重读3次。新增真实官方核心+延迟归属适配的正反测试。便携目录只做固定SCM路径诊断，仍拒绝IPC并提示ServiceInstallationRequired；增加中文恢复提示和管理员-Update受保护暂存/保留旧包/回退流程，不开放任意路径权限。旧包两份用户原文隔离导入均Ready，未稳定复现实际失败，不将时序解释冒充已确认唯一根因。Windows增量构建53.33秒exit0/lint通过，定向测试进行中。
+- 根因后续确认：用户保存的mixed=7891在本机TCP试绑返回WSAEACCES/AccessDenied；UDP7891及TCP7890/7892/9091可用，未查到可见占用者，系统排除区间也未列7891，不臆测具体进程。该端口启动的Mihomo运行配置mixed-port=0，故旧错误掩盖了实际绑定失败。启动前增加IPv4回环双TCP端口预检，仍保留正式owned归属检查；占用端口正反回归已补。上轮增量构建48.60秒及runtime/engine_startup/service_protocol/unsupported_platform/ui_state/localization/qml_smoke 7/7通过，共144.83秒（runtime131.90秒）；新增预检后的最终回归进行中。当前个人配置和正式安装尚待修复核对，不将上述夹具结果替代实机结果。
+- 最终Windows Qt6.8.0/MSVC Release增量构建9.918秒exit0，QML lint通过（保留既有Overlay/模型静态警告）；上述7/7回归Pass126.12秒，其中runtime112.47秒、engine_startup12.67秒，覆盖代理/控制端口占用时零进程启动、延迟归属成功及永久未归属不误报Ready。证据build/listener_service_fix/build.log、tests.xml；service_package_test8项锁定/坏摘要/逃逸/缺文件/联接等检查Pass，PowerShell解析及受影响C++格式通过。
+- 最终完整包build/listener_service_fix/quickclash_fixed_final共188项，manifest SHA256=056AB5F33E7695DFFA5730F48EDB6121AF134C2EB530292785C2FA8C798731A1，GUI SHA256=9548EDF270F70B5CF83CB25A8C620DD28F395EFB9C74C9B28C920659AFF7FDCF；Package核对Pass（package_final_check），清Qt PATH导入Ready、缺核心修复界面、原生D3D11和QML错误0通过。部署仍提示缺dxcompiler/dxil，不扩大GPU兼容结论；包为BUILD_TESTING=ON/未签名本地验证包。
+- 实际通过UAC运行-Update，固定C:/Program Files/QuickClash已更新，QuickClashService为Running/Manual/LocalSystem；旧包保留C:/Program Files/QuickClash_backup_cdeb7dfd1439444ab9e168395e5da83d，个人config/data/ui.ini先备份至build/listener_service_fix/user_backup_before_repair并限制ACL，未删除服务数据或降低安装保护。新目录管理员/SYSTEM完全控制、Users只读执行，正式GUI与包摘要一致；成功更新路径已验，故意注入更新失败/回滚分支NotRun。
+- 普通权限正式GUI的--service-test完整探针Pass：协议不匹配/无握手/重放/命令白名单、核心读写及组选择、核心pipe和服务配置拒绝普通用户、同用户竞争Busy、断线clean及10秒三次资源快照均通过（installed_service.json）。便携目录status探针按预期返回ServiceInstallationRequired，未放宽SCM/路径/ACL/活动用户会话验证（portable_service.json的passed=false是拒绝连接的预期反例）。
+- 正式GUI用用户原配置曾以7891/9091正常Ready，两个监听确属随包核心，说明先前AccessDenied是当时本机环境下的实际结果，不能据此断言7891永久不可用或某一进程占用。通过正常设置确认对话框将端口改为7892/9091并提交新revision1793364577777，界面已保存/当前生效一致、暂无错误；回环两端口owned PID33060，artifact摘要核对有效，系统代理/TUN请求与生效均关闭（user_repaired.json），没有手工修改hash绑定的配置。另一代理verge-mihomo及Meta Tunnel/默认路由当前有效，本轮未叠加实际TUN，因此TUN转发/路由/DNS仍NotRun，P3-04 Todo、P3-25 Review及既有G1/G2/G3边界不变。
+- 本专项Done/Pass仅限启动与服务身份入口修复，文档/台账/Windows报告已同步，未提交/推送/发布。最终设计重建/-Check、源码命名（41目录/274文件）、平台边界、格式/脚本解析及差异检查通过；最终进度检查与重开核对进行中。下一步仍按既有P3-04/25范围，在单一TUN环境补转发/路由/DNS及跨用户验收。
+- 最终重开核对通过：结束本轮带定时退出的验证实例后，以普通权限正常打开正式安装，GUI8776/随包核心3580，7892和9091均为该核心回环监听，界面“本地代理就绪”，服务Running。当前应用保留打开，系统代理/TUN关闭。期间后台订阅定时更新另记SubscriptionDownloadFailed，未重新出现启动或服务身份错误，不将订阅网络失败归入本修复Pass；未改订阅源或另一代理配置。check_progress、设计-Check、命名及git diff --check最终退出0，仅现有LF/CRLF提示；阶段仍P3 22Done/3Review/2Todo、G1 Stale/G2/G3 NotRun、历史MVP16/16。
+
+## 2026-10-30 / 端口与TUN冲突处理
+
+- 用户确认方案并授权实施；Codex保留此前启动/安装修复工作区，按独立专项实施，当前Doing/NotRun。端口错误区分占用/系统拒绝，候选端口经现有确认事务提交，监听冲突暂停后台恢复；TUN改为受保护稳定名、GUID/LUID会话日志、默认路由预检和自身接口/DNS残留核对。固定IPC能力升级要求GUI/服务同包。
+- 当前代码已具备、验证中；Windows增量构建与端口/会话事务、网络策略/原生快照、IPC、UI双语回归待运行。未更新正式安装、未操作其他VPN/TUN或个人配置；实际单一TUN转发/路由/DNS仍NotRun，原服务旧版证据不能替代当前实现。下一步完成构建和定向测试、同步实际结果与使用说明。
+- Windows Qt6.8.0/MSVC Release构建29.386秒exit0、QML lint通过（保留既有Overlay/模型静态警告）；runtime/tun_network/engine_startup/unsupported_platform/localization/ui_state/service_protocol/qml_smoke及中英文ui_runtime_lists共10/10 Pass131.70秒，覆盖精确端口错误、候选只预览、占用失败恢复旧会话、第三方Meta不得认领、受保护GUID/LUID复用与残留DNS拒绝。原生快照47接口、检测到虚拟默认路由冲突；未停用其他代理或实际创建TUN。收尾发现确认未变端口时预览未清除，补消费预览与回归，重新定向构建/测试中；设计统一清理不确定时保留诊断入口，当前专项仍验证中。
+- 预览消费补验首轮构建21.837秒exit0，新增测试在空仓库错误地使用缺省selectionGeneration及dnsMode，触发OperationUnavailable退出183（final_runtime.log）；属于测试前提错误，未绕过事务校验。将未变设置确认放到已有成功会话之后，空仓库单测改为取消预览，重跑定向runtime及完整包验证；保留首轮失败日志。
+- 修正后的runtime补验Pass112.64秒（final_runtime_retry.xml），增量构建19.006秒exit0。首个完整包已部署/清Qt PATH smoke通过，随后因本机VS更新、脚本默认14.50 CRT目录不存在而停止；实际CRT为14.51.36231，使用脚本既有-VcRuntimeDirectory参数和新目录重打包，不覆盖失败产物，不重复通过的运行时测试。正式安装GUI仍为此前9548EDF…版本，未更新服务。
+- 最终build/network_conflicts/quickclash_conflicts_final完整包188项，manifest SHA256=AEAF2891BDFC2240003C6E80772139B43B5BEC6296FFEE47E9BDF4F152CAD9D7，GUI=DDB34BE93975F05E4E9E5ECA312EC004D7A5E68DCAD15F5EF5D5FBD4FADC1AA7，服务=671B69BE54CD7D7305A2524DDE6D8E3C7404708B2C7816861386B2FA304E223D。Package核验Pass（package_final_check/result.json）：PATH无开发Qt、中文空格路径导入2.437秒Ready、缺核心副本2.143秒CoreIntegrityFailed/PID0，两步exit0/未超时、D3D11/真实托盘/QML错误0、退出owned核心回收。包为BUILD_TESTING=ON/未签名本地验证包；部署仍提示缺dxcompiler/dxil，不扩大GPU或干净机器结论。
+- 本专项Done/Pass限实现、策略/UI与普通模式定向验证；设计05/10、用户/随包说明、TASKS/CHECKLISTS及已有Windows报告同步。未更新Program Files安装/服务、未改个人配置或第三方Meta网卡；新协议须GUI/服务同包更新。新服务实际集成、官方核心真实TUN接口/DNS观测及转发/停止清理仍NotRun，旧服务证据对此实现Stale；下一步在可控单一TUN环境按P3-25→P3-04前置补验，尤其核对DNS非空/接口清理约束，不以策略测试代替。源码快照/候选搜索有界，无新增常驻采样或网卡修改。未提交/推送/发布；最终仓库检查进行中。
+- 最终设计生成/-Check、check_progress、check_source_layout（41目录/279文件）、check_platform_boundaries、全部受影响C++格式和git diff --check均退出0，仅既有LF/CRLF提示。P3仍22Done/3Review/2Todo，G1 Stale、G2/G3 NotRun及历史MVP16/16保持；交付包入口build/network_conflicts/quickclash_conflicts_final/bin/quickclash.exe，TUN需更新同包受保护服务后使用。
+
+## 2026-10-30 / 权限服务客户端身份与安装入口设计
+
+- 用户确认方向：ZIP 解压到任意目录是主要分发形态，需要在不拆除高权限边界的前提下让该副本使用 TUN。本次只同步设计，未改代码、未重装服务、未改动系统配置；P3-28 为 Todo/未分配。
+- 身份模型：设计10把 Windows 客户端身份从“GUI 与 service 同目录”改为“受信签名 + SID + 活动控制台会话 + 进程创建时间”。服务在握手时按对端 PID 以只读镜像句柄验证 Authenticode 并匹配项目固定的发布者或证书指纹，连接建立后只核对绑定，不做逐请求验签。GUI 安装目录不再参与身份判断；服务程序与内核仍只从受保护目录启动，便携目录不会变成高权限信任根。
+- 安装入口：实际安装/更新改由用户显式确认的一次性提权入口执行，安装期间 GUI 退出，完成后可从当前受信副本或安装目录继续；拒绝授权保持普通代理模式。清单核对在10/14中明确为“包内自洽”，与发行签名作用不同，不能互相替代。
+- 明确取舍：不引入 owner token 或按用户数据目录发放的客户端凭据，避免多一套文件 ACL 与重解析点实现。签名无法证明用户此刻要求了该操作，因此改为服务在每次实际启动 TUN 时记录并可提示调用方镜像路径与签名主体，使借道可归因。
+- 验收项：新增 SVC-08（任意目录受信签名可建立会话；未签名、签名不匹配、验后被替换的镜像拒绝）、SVC-09（一次性安装入口的拒绝授权、重复触发与退出续接）、SVC-10（借道可归因），当前均 NotRun。
+- 文档同步：设计 README 升至 1.13（2026-10-30），更新10/11/14/16（新增 ADR-26）并重建合并版；TASKS 新增 P3-28 并把 P3-25 的后续指向它；CHECKLISTS 在 G3 增加 P3-28 未运行说明。P3-25 既有 SVC-01—07 Pass 仍对应当前目录校验实现，改造后需重跑，不提前标 Stale。使用说明 docs/baseline/windows_user_guide.md 仍描述当前的 PowerShell 安装与 Program Files 运行方式，待 P3-28 实现后再改，避免说明书先于产品行为。
+- 未运行：未构建、未重装服务、未操作 TUN，也未申请或验证代码签名证书。证书可得性（OV 证书周期、Azure Trusted Signing 的主体年限要求）是 P3-28 的前置条件，需在实现前确认。
+- 下一步：P3-28 先完成签名验证与一次性安装入口的最小闭环，再在可控单一 TUN 环境补 SVC-08—10；真实 TUN 转发/路由/DNS 仍归 P3-04，跨用户争用仍归 P3-25。注意由此产生的实现约束：P3-04 的 TUN 实测必须使用开发签名者签过的 GUI（当前 build/dev 产物未签名，按新设计会被服务拒绝），签名步骤需在构建脚本中固化，否则开发与验收链路会先于产品被卡住。
+
+## 2026-10-30 / 受信客户端根替代签名身份
+
+- 用户明确不采购代码签名证书（个人桌面项目，非企业发行）。上一条 DEVLOG 的签名身份方案作废，改为受信客户端根：安装器把受信根写进受保护配置，客户端不可申报；服务按对端镜像最终路径是否落在该根内判定，其余绑定（SID、活动控制台会话、PID 与创建时间）不变。
+- 取舍：不引入 WinVerifyTrust、证书链、开发签名者与打包断言。开发与发行共用同一二进制，开发机把受信根指向构建目录即可无重装迭代，协议变化时才需重装服务。代价是同用户可替换受信根内的程序并驱动服务，落点与“用自带程序配自有配置”相同，不产生 SYSTEM 代码执行；服务仍只执行自己目录中的官方内核、只接受固定命令集。
+- 设计同步：10 章身份段、安装器段、平台表和验收（SVC-08 受信根内外与等价路径、SVC-09 一次性安装入口、SVC-10 受信根移动后重新授权、SVC-11 TUN 启动归因）；14 章撤销“未签名构建只能用普通代理”；16 章 ADR-26 改写、风险对策与 F10 映射改为 SVC-01—11；18 章服务/TUN 映射同步；设计 README 升至 1.14（2026-10-30）。
+- 未运行：此前签名条目里的证书前置条件不再适用。设计重建、-Check、check_progress 与命名检查本次执行；未构建、未改安装器、未重装服务、未操作 TUN。
+- 下一步：P3-28 实现受信根最小闭环（安装器写入与公共可写目录拒绝、服务端最终路径校验、客户端错误映射与重新授权入口），随后做一次性安装入口；真实 TUN 转发/路由/DNS 仍归 P3-04。
+
+## 2026-10-30 / 受信客户端根实现
+
+- 关联任务：P3-28（Doing，验证中）；保留工作区既有 P3/TUN 改动，未提交。实现完成但未做真实 UAC/服务闭环，SVC-08—11 保持 NotRun。
+- 实现：安装脚本新增 -TrustedClientRoot/-AuthorizeClientRoot，写入 %ProgramData%\QuickClash\trusted_client_root.json（SYSTEM/Administrators 完全控制，临时文件+替换）；授权前拒绝盘符根、ProgramData/Public/SystemRoot 子树、Program Files 根、重解析点及 Everyone/Anonymous 可写位置，并要求目录内存在 quickclash.exe；-AuthorizeClientRoot 同时启动已停止的服务。服务端按命名管道对端 PID 取最终镜像，要求恰好为受信根下 quickclash.exe，仍绑定 SID、活动控制台会话、PID 与创建时间；服务只从自身受保护目录启动内核。
+- 客户端：ServiceRegistration 增加 NotInstalled/Stopped，错误映射为 ServiceInstallationRequired/ServiceNotRunning/ServiceClientUntrusted；TUN 预检失败时由 IServiceSetup 经 ShellExecuteExW runas 启动 pwsh 执行同包脚本一次（Install 用包目录+受信根，Authorize 用当前目录），日志写 %TEMP%\quickclash-setup-<时间戳>.log 并显示路径；UAC 取消返回 ServiceSetupDeclined 并保持普通模式，成功后原进程内自动重试 TUN。新增同一次 TUN 开启只请求一次提权尝试的保护，避免服务仍拒绝时重复弹 UAC。
+- 确认只出现一次：提权包装内设 $ConfirmPreference='None'，脚本的 ShouldProcess 不再在管理员控制台追问第二次；UAC 即唯一确认。脚本仍保留 CmdletBinding/SupportsShouldProcess，供管理员手动执行时审阅。
+- 边界：打包 ZIP 根含 install_service_windows.ps1 与 metadata/package_manifest.json、GUI 在 bin/，一键安装路径可用；开发目录 build/dev 无同目录 package manifest，只有已安装服务时可走授权分支，服务缺失时返回 ServiceSetupPackageMissing（README/界面提示改用安装包或管理员终端）。
+- 验证：Windows Qt6.8.0/MSVC Release 增量构建通过（quickclash、quickclash_service、ui_state_test、trusted_client_root_test、unsupported_platform_test，格式化后再次构建主程序/服务），QML lint 与翻译 611 条 0 unfinished；service_protocol_test、trusted_client_root_test、unsupported_platform_test（4 项）、ui_state_test、localization 与完整 runtime_test 在沙箱外运行 Pass（runtime 输出 Import/isolated -t/stopped selection/owned Ready/readback/mode/stop-restart 通过）。脚本 -ValidateOnly 对 build/dev 通过，盘符根/ProgramData/缺失包目录被拒；PowerShell 包装与 Tee-Object 日志命令实际执行通过。受影响 C++ 文件 clang-format 干跑通过（service_host.cpp 先做了纯格式修正）。
+- 未运行：当前 Program Files 服务仍是旧版本，未实际更新新服务，未执行真实 UAC 授权、TUN 自动重试、移动/改名后重新授权或借道归因；故 SVC-08—11 NotRun，P3-25 既有 Pass 只对应旧同目录校验，改造后需重跑。设计10/11/14/16/18 已按受信根同步，文档重建与 -Check 见收尾检查。
+- 下一步：更新同包服务后用 build/dev（或解压包）在普通权限 GUI 触发一次开 TUN，确认 UAC→授权→自动重试→TUN 开启，再验证移动目录重授权与拒绝分支；真实 TUN 转发/路由/DNS 仍归 P3-04。
+
+## 2026-10-31 / 一键安装兼容 Windows PowerShell 5.1
+
+- 关联任务：P3-28（继续 Doing/验证中）。用户指出 Windows 默认不安装 PowerShell 7，原一键入口会因脚本 `#Requires -Version 7.2` 直接失败，ZIP 新用户基本无法开启 TUN。
+- 实现：`install_service_windows.ps1` 与 `service_package.ps1` 降为 `#Requires -Version 5.1`；移除 PowerShell 7 专属的 `ConvertFrom-Json -Depth`、`Convert.ToHexString`、`IO.Path.GetRelativePath`，改为 5.1 可用的 SHA256 流校验、前缀相对路径和普通 `ConvertFrom-Json`。GUI 的 `powershell()` 仍优先查找 `pwsh`，随后回退 PATH 中的 `powershell.exe` 与 System32\WindowsPowerShell\v1.0\powershell.exe；提权包装继续以 `$ConfirmPreference='None'` 保证只出现一次 UAC 确认。脚本保持纯 ASCII，避免 5.1 按 ANSI 读取无 BOM 脚本。
+- 验证：Windows PowerShell 5.1 实际运行 `-AuthorizeClientRoot D:\repos\quick-clash\build\dev -ValidateOnly` 退出 0；对既有完整包 `build/listener_service_fix/quickclash_fixed` 运行 `-ValidateOnly` 退出 0（185 个锁定文件、183219927 字节，覆盖新 SHA256 与相对路径实现）。与 GUI 相同的 `Tee-Object`/`$ConfirmPreference` 包装在 5.1 下实际执行并写入日志。主程序首次链接因 `build/dev` 既有实例（PID 10556）占用 `quickclash.exe` 报 LNK1104；经用户同意结束该实例后重新链接成功，ui_state/localization/service_protocol/trusted_client_root 回归 Pass。真实 UAC 授权与 TUN 自动重试仍 NotRun。
+- 文档/翻译：设计10、用户指南、随包说明改为“优先 PowerShell 7，回退 Windows PowerShell 5.1，通常无需另装组件”；UI 的 `ServiceSetupPowerShellMissing` 文案与中文词表同步，避免继续宣称必须安装 PS7。
+- 下一步：关闭占用 `build/dev/quickclash.exe` 的实例后完成链接，再按 P3-28 在普通权限 GUI 触发一次真实 UAC 授权与 TUN 开启。
+
+### 2026-10-31 / Update 包路径报错修正与实际包
+
+- 用户实测在仓库 `scripts` 目录直接运行 `./install_service_windows.ps1 -Update`：该目录没有 `metadata/package_manifest.json`，原实现报 `Get-Item` 路径不存在，容易被误读为脚本缺陷。
+- 修正：`Open-ServicePackage` 与 Update/安装分支在确认前显式检查清单，提示 “Package manifest not found ... Pass -PackageDirectory with the extracted package root”；`Assert-ServicePackagePath` 对不存在路径给出明确错误；`PackageDirectory` 默认值改为在脚本体解析 `$PSScriptRoot`，避免 Windows PowerShell 5.1 以 `-File` 运行时默认绑定为空串。仓库 scripts 目录现在稳定返回该提示并退出 1，不再出现空 LiteralPath 异常。
+- 复核：Windows PowerShell 5.1 下，错误目录与正确完整包分别验证（后者 `-ValidateOnly` 退出 0）；默认 `PackageDirectory` 在完整包根目录直接运行同样通过。
+- 实际包：用 Qt6.8.0 Release 的 `build/ci_qt680` 增量构建并生成 `build/trusted_root/setup_package_qt680`（185 个锁定文件、183324375 字节；manifest SHA256=355D24796EE44F2B7C5D3F1DEFE926AC58A676D08131E8EB42BFDAB462EBC754，GUI=FD10C1D4…，服务=0F0E38CE…）。先前的 `build/trusted_root/setup_package` 是用 Qt6.12 的 build/dev 部署失败留下的产物，不作为交付包。
+- 未运行：实际 `-Update`、UAC 授权与 TUN 开启仍需管理员确认，SVC-08—11 保持 NotRun。
+- 下一步：退出 QuickClash 后在管理员终端于 `build/trusted_root/setup_package_qt680` 运行 `./install_service_windows.ps1 -Update`，再用该包或 build/dev 普通权限 GUI 开启 TUN。
+
+## 2026-10-31 / 原生服务安装入口
+
+- 关联任务：P3-28（继续 Doing/验证中）。保留工作区既有 P3/TUN 改动，未提交；SVC-08—11 保持 NotRun。
+- 决策：按用户要求移除运行时对 install_service_windows.ps1、PowerShell 和包清单的依赖。Windows 服务安装、更新、授权、卸载改由同一个 quickclash.exe 的固定 --service-setup 动作完成；普通权限只保留 validate 只读核对。其他平台各自实现原生安装/授权，共享层仅保留抽象动作。
+- 实现：service_installer 提供固定动作表与 --client-root/--log 参数，main 在 UI、单实例和用户配置访问前拦截；service_setup 通过 ShellExecuteExW runas 启动同一程序，GUI 不获取提升令牌。安装只复制服务程序、非系统运行库、官方内核与 Geo，拒绝重解析点和已存在目标；目标 ACL 为 SYSTEM/管理员完全控制、Users 只读执行，服务控制 ACL 仅 SYSTEM/管理员可更改或启停。安装先在同级暂存目录构造并原子激活，失败清理未激活内容；install 若发现固定目录已存在但没有服务注册（例如卸载后保留的文件），先把旧目录整体改名为同级保留目录再激活，失败时恢复；install/update 成功后只保留最近一份旧安装。更新核对固定 LocalSystem 注册后停止服务、保留旧安装、激活新目录并启动，准备或停止阶段失败也会清理暂存目录；启动失败恢复旧目录；授权只替换受信根并重启服务，卸载只停止并注销服务。受信根校验同时精确拒绝 Program Files 与 Program Files (x86) 根目录，其下受保护安装子目录仍可作为已安装 GUI 的客户端根。
+- 根因与修复：已安装的旧服务在 hello 交换期间直接关闭管道，ServiceClient 原先把该路径归为 ServiceUnavailable，GUI 因而没有可执行的恢复分支。现在握手前断开映射为 ServiceProtocolMismatch；DesktopRuntime 将其映射为 Update，开启 TUN 时请求一次 UAC、成功后自动重试。build/service_probe_before_update.json 为 ServiceUnavailable，build/service_probe_after_handshake_fix.json 与当前只读探针为 ServiceProtocolMismatch。
+- 验证：Windows Qt6.8/MSVC Release 增量构建通过（build/dev 主程序、build/ci_qt680 完整构建）；CTest 6/6 Pass（trusted_client_root、engine_startup、unsupported_platform、localization、ui_state、service_protocol）。--service-setup validate 找到 build/dev 对应的核心 D:/repos/quick-clash/.cache/mihomo/mihomo.exe 与 Geo D:/repos/quick-clash/.cache/geo，证据 build/qc_validate.log。最后一次安装器改动后重新构建 build/dev 主程序与 build/ci_qt680 完整目标均通过，CTest 6/6 再次 Pass（13.21秒）；设计合并重建与 -Check、check_progress、check_source_layout、check_platform_boundaries、git diff --check 通过。移除已无来源的 ServiceSetupScriptMissing 界面映射，service_package.ps1 注释改为验收工具包共用。当前 ci_qt680 的只读 status 探针（--service-test --service-probe-mode=status）在普通令牌下返回 ServiceProtocolMismatch（build/service_probe_final.json，exit 3 表示 passed=false，符合旧服务不兼容预期）；build/dev 的 validate 动作在 Qt 6.12.0 运行时下 exit 0 并识别核心与 Geo。构建产物时间晚于 service_client.cpp/service_installer.cpp，当前服务探针返回 ServiceProtocolMismatch。
+- 格式与复验：用 CI 锁定的 clang-format 21.1.2（pip 安装到 build/py_clang_format）检查全部改动 C++ 文件，对其报告的 8 个文件执行纯格式修正（含新增安装器/入口与三个测试）；dry-run 全部通过，格式化后重建 build/dev 与 build/ci_qt680、复跑 6/6 Pass（13.08秒）；补受信根 Program Files 根目录拒绝后又重建并复跑 6/6 Pass（13.10秒）；更新准备/停止阶段失败清理暂存目录后再重建并复跑 6/6 Pass（13.11秒）。
+- 未运行：真实交互式 UAC 更新/安装、管理员 helper 退出后的自动重试、TUN 实际开启/转发、移动或改名目录后的重新授权、取消 UAC；这些不得标 Pass。
+- 文档：设计10/11/14/16/18 与设计 README（1.15/2026-10-31）、Windows 用户指南、随包说明、打包/验收说明改为原生固定动作入口；ADR-27 记录不依赖脚本的决定。合并设计由 build_design_docs.ps1 重建。
+- 下一步：从 build/dev 正常启动 GUI，开启 TUN，确认旧服务被识别为版本不匹配、仅出现一次 UAC、更新到 C:/Program Files/QuickClash 后原进程自动重试并开启 TUN；随后验证 SVC-08—11 与真实转发。
+
+## 2026-10-31 / 服务更新实测与目录占用修复
+
+- 关联任务：P3-28（Doing→Review）；P3-04 仍为 Todo。保留既有 P3/TUN 改动，未提交。本轮补上真实交互式 UAC update 与原进程自动重试证据，仍不把实际 TUN 转发/路由/DNS 标为 Pass。
+- 用户实测：从 `build/dev` 普通权限 GUI 开启 TUN，旧服务在 hello 阶段关闭管道，客户端识别为 ServiceProtocolMismatch 并发起一次 `update` UAC；helper 以管理员权限运行，GUI 保持普通权限等待。成功日志 `C:\Users\Administrator\AppData\Local\Temp\quickclash-setup-1793384916538.log` exit 0：复制服务运行库、等待旧服务进程退出、把旧安装归档为 `C:\Program Files\QuickClash_previous_4b9b7d505b0040b5ad76a27eddbb57eb`、激活新载荷、写入受信根、重启服务。
+- 失败证据 1：`quickclash-setup-1793384220428.log` 在服务停止后归档根目录仍连续 20 次返回拒绝访问。原因是资源管理器窗口停留在 `C:\Program Files\QuickClash\bin`，持有目录句柄；关闭该窗口后同一流程成功。安装器保留 20×250ms 有限重试，并在最终失败时提示关闭占用目录的资源管理器或程序；不对其他错误盲目重试。
+- 失败证据 2：`quickclash-setup-1793384775200.log` 归档旧安装后报 `Cannot parse the security descriptor.`。文件 SDDL 原写成 `D:P(A;FA;;;SY)(A;FA;;;BA)`，缺少对象类型标志；改为 `D:P(A;;FA;;;SY)(A;;FA;;;BA)` 后用 Windows `ConvertStringSecurityDescriptorToSecurityDescriptorW` 实测解析成功。写受信根临时文件 ACL 失败时删除临时文件，避免留下半成品。
+- 更新结果：`QuickClashService` 为 Running/Manual/LocalSystem，注册路径 `"C:\Program Files\QuickClash\bin\quickclash_service.exe"`；安装服务 SHA256 `687EE16D88C35740030DA5B9675640FE96ED7278D0791DE73E79B4AD951138DE` 与 `build/dev/quickclash_service.exe` 一致。受保护目录只有 `bin/`、`core/`、`geo/`，SYSTEM/Administrators 完全控制、Users 只读执行；没有 `quickclash.exe`，不是第二个 GUI。当前 GUI SHA256 `6744E19A6F9D9593797E0FB2E6E2073A9F58ABD79DA63D2D20517672B0514502`。
+- helper 成功后原 GUI 自动重试：`errors.json` 末条为 `ServiceTunRouteConflict`，`route print -4` 显示 `Meta Tunnel #2` 持有 `0.0.0.0/0`，下一跳 198.18.0.2、metric 0。该结果说明更新与自动重试已进入 TUN 预检，但按设计拒绝与另一全隧道 TUN 并存，QuickClash TUN 未创建。自动避让只解决网卡名称冲突；Windows 可有多张虚拟网卡，但默认路由只选一个，不能用更低 metric 抢走第三方流量。
+- 作用域修正：设计10、用户指南、随包说明与打包说明明确 `C:\Program Files\QuickClash` 只是服务载荷，唯一 GUI 仍是解压目录中的 `bin/quickclash.exe`；首次开启 TUN 由该 GUI 触发服务准备，普通系统代理不需要服务。设计 README 升至 1.16（2026-10-31），并补充“新建自有网卡只解决名称冲突，不解决默认路由冲突”。
+- 验证边界：GUI 当前持有服务会话，普通权限 `--service-test --service-probe-mode=status` 返回 ServiceSessionBusy，只证明服务在运行且认到活动会话，不作为 status clean 或 SVC-08/09 完整 Pass。实际 TUN 转发/路由/DNS、关闭 Meta Tunnel 后开启 QuickClash TUN、取消 UAC、便携目录移动/改名后重新授权、并发安装、跨用户与强杀恢复均 NotRun；SVC-10/11 仍 NotRun。旧 P3-25 同目录身份 Pass 对当前受信根服务 Stale，相关范围需重跑。
+- 收尾检查：`tests/scripts/service_package_test.ps1` 全部 PASS（锁定源复制/摘要，以及 unlisted/corrupt/duplicate/escape/missing/schema/junction 拒绝）；设计生成与 `-Check` 通过；`check_progress.ps1` PASS（P3 28项：22 Done/4 Review/2 Todo；G0 Pass/G1 Stale/G2—G5 NotRun；MVP16/16）；`check_source_layout.ps1` 41目录/285文件通过；`check_platform_boundaries.ps1` 通过；clang-format 21.1.2 对37个改动/新增C++文件执行 `--dry-run --Werror` exit 0；`git diff --check` exit 0，仅既有LF/CRLF提示。文档/台账检查不替代产品验收。
+- 下一步：用户先关闭 Clash Verge/Meta Tunnel，再由用户本人在 QuickClash GUI 点击开启 TUN，核对实际适配器、默认路由、DNS 与客户端转发；随后补取消 UAC、移动目录重授权和 SVC-10/11。不要代关第三方 TUN 或代点 UAC。
+
+## 2026-10-31 / TUN瞬断误判与恢复上限
+
+- 关联任务：P3-29（Review，验证中）；P3-04 仍为 Todo。保留既有 P3/TUN 改动，未提交。
+- 现象与根因：用户开启 TUN 后十余秒出现 CoreExited、虚拟网卡消失、开关关闭，随后自动重启并反复。旧 EngineSession 每秒轮询服务 status，只要 ready=false、tun=false、请求超时或没有响应对象就主动停止服务会话并报 CoreExited。Windows WER/Application/System 日志未发现 mihomo 崩溃；适配器创建后约 17 秒被服务停止。CoreExited 是 GUI 自身停核后的错误码，不是内核崩溃证据。
+- 实现：新增 core_health 纯策略。interpretServiceStatus 只在服务明确 ready=false 时判定内核退出；请求超时、IPC 错误、无对象为 Unknown，不停止内核。TUN 以 On/Missing/Unknown 独立观测，连续三次缺失才向界面报告不可用，恢复 On 时清除提示。服务 status 增加 tunState 和核心退出诊断；OwnedProcess 仅在内存保留最后 4 KiB 原始 stderr，发送前用 domain::redactedLogEntry 脱敏并截断至 2 KiB，status 返回 coreExitCode/coreExitedAt/coreStderr。DesktopRuntime 将真实退出诊断写入应用日志，并按核心运行时长区分短时失败；TUN 会话连续 3 次核心运行不足 60 秒时暂停自动重开 TUN，保留普通代理并报 TunRecoveryExhausted；普通代理仍按 1/2/4/8/16/30 秒退避。用户显式操作 TUN 时清除阻断并重新计数。UI/翻译补充 CoreExited、CoreExitedDuringStart、CoreExitedDuringApply、CoreRecoveryExhausted、TunRecoveryExhausted、TunNetworkUnavailable，Missing/Unknown/Blocked 显示为不可用。
+- 验证：build/dev 配置和 Windows 增量构建通过（quickclash、quickclash_service、core_health_test、engine_startup_test、ui_state_test、service_protocol_test、localization_test；runtime_test、runtime_publication_test、recovery_test、tun_network_test、trusted_client_root_test、unsupported_platform_test）。沙箱内 Ninja 执行任务会挂起，CTest 的后台线程/子进程也受限；改在沙箱外以 vcvars64 环境运行：core_health、service_protocol、engine_startup、ui_state、localization 5/5 Pass；runtime 113.64 秒、recovery 15.99 秒、runtime_publication 26.59 秒、tun_network、trusted_client_root、unsupported_platform 6/6 Pass。core_health 覆盖 status 超时不杀核、ready=false 退出诊断和三次 TUN 防抖。
+- 文档：设计05补充控制面/数据面分离、状态超时语义、退出诊断和 TUN 短时失败恢复上限，并更新 CORE-04/CORE-05；设计10补充 TunState 的 Missing/Unknown/Blocked、5.2 服务状态观测与诊断及 TUN-04/TUN-05；TASKS 新增 P3-29 并加入 P3-07 依赖；CHECKLISTS 在 G3 记录 P3-29 与 NotRun 边界。设计合并文档由脚本重建。
+- 未运行：未由本轮代理点击 TUN 或代确认 UAC。真实服务 TUN 开关、适配器 GUID/LUID、默认路由、DNS、客户端转发、CoreExited 不再误报，以及连续三次短时失败后切换普通代理的行为均 NotRun；core_health 的策略测试不能替代真实服务/TUN 验收。TUN-04/TUN-05 不提前标 Pass，P3-29 保持 Review。
+- 下一步：用户关闭其他全隧道 TUN 后，从 build/dev 或解压包本人开启 TUN，确认服务 status 从 On 起保持、核心 PID 不变、适配器/默认路由/DNS 正常且应用日志不再出现误报 CoreExited；再核对连续短时失败后的 TunRecoveryExhausted/普通代理保留与显式重试恢复。
+
+## 2026-10-31 / 服务会话超时与服务预检收口
+
+- 关联任务：P3-29（Review）；P3-04 仍为 Todo。保留既有 P3/TUN 改动，未提交。
+- 根因补充：ServiceClient 的 15 秒截止原本覆盖整个会话，任何一次 status 无响应都会 fail 并关闭已认证连接，服务随即回收 owned 内核，GUI 再把会话丢失显示为 CoreExited；另有持久化 tunDesired=true 时跳过服务预检，旧协议服务被继续使用；未建立服务会话的退出也被记为清理不确定，导致普通代理同样被阻止。
+- 实现：截止只约束连接与 hello 握手，握手完成后每个请求单独计时；status 超时或 IPC 错误记 Unknown，只有 ready=false 判定内核退出。握手能力增加 serviceBuild（服务程序 SHA-256），GUI 比对同目录服务载荷，不一致返回 ServiceProtocolMismatch 并走一次受控 update。每次显式开启 TUN 都执行服务预检，不受 tunDesired 跳过。清理不确定只阻止服务模式；未完成握手的退出不发送 status/stop，也不产生 ServiceCleanupUncertain。引擎恢复 Ready 时清除遗留 Service* 错误；UI 为 ServiceBusy 增加中文可操作提示。TUN 开关在操作期间保持目标位置并显示正在启动/正在关闭（tunPending/tunDisabling），关闭时不再先回弹到开启；两者在成功、失败和意外停止时清除。
+- 构建与测试：build/dev 增量构建通过（quickclash、core_health_test、service_protocol_test、engine_startup_test、ui_state_test、runtime_test；未重建 quickclash_service，服务哈希 535A3D6A6BE89EED3B2FC9E719D0AF48813A87DED43478988B24991351889923 与 C:\Program Files\QuickClash\bin 一致，重启后开 TUN 不再触发 UAC）。沙箱内 ninja 会挂起、ui_state/runtime/engine_startup 因写用户目录失败，改在沙箱外执行：service_protocol、core_health、ui_state、engine_startup、runtime_test 均 exit 0；clang-format --dry-run --Werror 与 git diff --check exit 0。
+- 开关耗时定位：一次配置校验的复制加 mihomo -t 实测约 0.2 秒（复制 84 ms、校验 128 ms），不是主要瓶颈；剩余时间来自服务侧内核启动、TUN 网卡/路由/DNS 建立与就绪探测，因此界面改为在操作期间显示过渡状态而不是等待就绪后才切换。
+- 真实验证：用户本人 11:58 首次开启 TUN 并确认 UAC，服务更新到 11:58:09；12:23 重启新构建后 TUN 自动恢复，用户随后多次手动开关 TUN，核心按预期随开关重建；最终版开关双向实测无回弹。验证时 TUN 开启：适配器 QuickClash-a880b33f、IPv4 198.18.0.1、默认路由 0.0.0.0/0→198.18.0.2 metric 0、DNS 198.18.0.2，经 TUN 的 HTTP 探测返回 204；随后用户关闭 TUN，适配器移除并由普通内核接管；应用日志自 03:58:33Z 后无新增 CoreExited/ServiceTimeout，仅 04:23:16Z 的 SubscriptionDownloadFailed。
+- 未运行：连续三次短时失败后的 TunRecoveryExhausted、清理不确定下普通代理独立启动、适配器 LUID、移动目录重新授权与跨用户并发。TUN-04/TUN-05 不提前标 Pass。
+- 下一步：若再次出现异常，先读取 errors.json 的 stopReason/coreExitCode/coreStderr；随后补 TUN-04/TUN-05 与 SVC-10/SVC-11。
+
+## 2026-10-31 / 非Windows服务会话接口补齐
+
+- 用户要求补服务连接回收、非Windows接口遗漏与异常恢复验收；保留原工作区全部修改。先完成接口修复，再继续连接回收。
+- 实现：Unsupported ServiceClient补hadSession()，固定返回false；现有Unsupported测试覆盖构造、失败命令及close取消后均无已认证会话，直接调用该符号以防再次漏定义。
+- 验证：本机MSVC/Qt6.12.0 Release构建unsupported_platform_test并链接成功；CTest unsupported_platform 1/1 Pass（0.07秒），JUnit build/unsupported_session_tests.xml。仅为Windows上编译真实Unsupported后端，不代替Linux/macOS原生构建或系统能力验收。
+- 下一步：补服务认证前连接期限、握手报文预算和真实连接回收；用户选择暂不关闭第三方Meta TUN，本轮仅补普通服务异常恢复，真实TUN故障注入保持NotRun。
+
+## 2026-10-31 / 服务连接回收与普通服务恢复验收
+
+- 实现（验证中/NotRun）：服务未成为owner的连接3秒绝对期限，包含未授权静默、零碎请求和仅hello连接；认证并完成hello前报文/读缓存限制16KiB（另1字节检测超限），hello后恢复原配置预算以兼容首个start大报文，owner继续使用独立心跳。连接断开沿用现有身份/会话/缓冲清理，不新增可绕过认证的生产入口。
+- 计划验证：实际服务连接占满后回收、超限快速拒绝、仅hello回收、正常owner超过握手期限仍可用；隔离配置的普通服务客户端退出/核心异常/服务异常后清理及重新启动。当前Meta TUN保持原样，真实TUN异常注入NotRun。
+- 首轮验证：MSVC/Qt6.12.0增量构建通过，7项定向CTest全部Pass（30.53秒）；原生UAC update exit 0，服务Running。真实connections探针退出发生0xc0000005；本地CDB复现的调用栈显示QLocalSocket析构发disconnected时回调ServiceClient，较后声明的会话成员已经销毁，另一次表现为qBadAlloc/terminate。补显式析构：先断开socket到this的信号，再在成员仍存活时close；Unsupported同接口补默认析构。修复后重新构建/实测中，不能沿用首轮测试为最终Pass。原始日志保留build/service_recovery。
+- 最终构建/回归：`pwsh -NoProfile -File build/service_recovery/run_build.ps1`增量构建GUI/服务和受影响测试成功；`ctest --test-dir build/dev -R "^(unsupported_platform|service_protocol|core_health|tun_network|engine_startup|ui_state|recovery)$" --output-on-failure --output-junit ../service_recovery/tests_final.xml` 7/7 Pass（29.83秒）。最初构建helper把PATH中两个cmake路径合成导致启动失败，改用绝对路径后成功。验收探针增加20KiB注释的合法YAML，专门验证hello后首个start不会被16KiB预算误拒；随后仅重建GUI探针成功。
+- 实服务版本：最终原生`--service-setup update --client-root D:/repos/quick-clash/build/dev`真实UAC exit 0；`setup_final.log`保留更新结果。已安装服务与build/dev服务SHA256均为`F52931B5555F52FABBAB066168E64C207BF2AA9C057343757E443ABA170D78C9`，服务Running/Manual/LocalSystem，原受保护注册路径不变。未生成新发行包。
+- 连接回收Pass：受信GUI探针四连接覆盖静默/碎片/hello-only/超限，超限55ms关闭、全部3037ms回收；正常owner等待3.5秒后仍可查询且隐式析构正常退出。非受信PowerShell四连接静默/碎片/超限占满并测第五连接拒绝，3028ms全部回收，随后hello仍返回ServiceClientUntrusted。证据`connections.json`、`untrusted.json`；绝对期限不被零碎请求延长，不代表持续本地洪泛压力通过。
+- 普通服务恢复Pass：`run_faults.ps1`普通权限客户端，真实UAC helper仅对核验SCM路径/PID及父子关系的本轮进程注入。客户端强杀→owned核心消失、下一status clean；owned核心强杀→ready=false/CoreExited/退出码和截断stderr，断开后clean且可新启动；服务强杀→Job回收owned核心，重启后clean且可新启动。分别见`client_fault.json`/`client_after.json`、`core_fault.json`、`service_fault.json`和`fault_helper.log`。这不证明GUI全部恢复策略或TUN网络清理。
+- 超时恢复Pass：helper暂停服务17秒并在finally恢复；首个status返回ServiceTimeout，第二个status恢复Ready、PID5220和epoch不变、lost=false；显式stop后clean。见`timeout.json`，证明实际单请求超时不再关闭已认证连接或停核。非TUN会话，不宣称连续3次TUN短时失败上限通过。
+- 重新启动复验Pass：`restart_full.json`验证协议99/无握手/任意执行/危险控制器配置拒绝、start同ID精确重放及改报文断开、普通用户无法访问真实核心pipe/服务配置、固定组读取/选择、同用户竞争Busy、断开清理。资源单轮10.045秒三样本，专用工作集/总工作集/私有提交（MiB）客户端探针2.74/19.90/58.29→2.74/19.91/58.29；服务2.11/16.27/3.13→2.08/16.25/2.88；核心7.36/26.55/60.60保持。三项均完整，服务未呈持续增长；不是GUI内存基线或长期压力结论。
+- 最终现场：无quickclash/mihomo测试进程残留，服务Running且status clean/tun=false；第三方Meta仍Up、GUID`{0AFD3ED9-02C8-0811-124D-1682118B6574}`/ifIndex17，没有新QuickClash适配器。连接/进程/资源原始证据均在忽略目录build/service_recovery。
+- 状态/下一步：专项Done（普通服务范围）；P3-25/P3-28/P3-29仍Review，跨用户、受信根完整安装矩阵及Linux/macOS原生未验；TUN-04/TUN-05、连续3次短时TUN失败后普通代理恢复按用户选择NotRun。待用户安排第三方TUN可关闭的窗口后再做真实TUN异常恢复；本轮不改其他阶段门/MVP结论；交付检查见下项。
+- 交付检查：`scripts/build_design_docs.ps1`生成及`-Check`通过；`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`、本轮7个C++文件clang-format 21.1.2 `--dry-run --Werror`与`git diff --check`通过。最终`final_status.json`为clean=true/coreRunning=false/tun=false；`final_snapshot.json`保存网卡、进程及GUI/服务摘要。未自动提交。
+
+## 2026-10-31 / TUN便携目录持久服务替换
+
+- 授权/范围：用户要求执行便携单份方案替换；首次UAC持久信任目录及未来更新，GUI保持普通权限，后续应用/系统重开沿用tunDesired与注册。第三方Meta TUN按用户要求不关闭，本轮只运行普通服务，不将真实TUN故障/系统重启写为Pass。保留既有全部工作区改动，未提交。
+- 实现：原生固定setup动作直接注册相邻quickclash_service.exe为AUTO_START/LocalSystem，删除安装复制/暂存激活逻辑；同目录update只停止/启动已核验注册，普通用户只有查询/启停，改路径/授权及卸载仍需管理员。注册迁移保留原ImagePath/start mode/受信根并在失败时回退；成功后只清理固定旧位置中可识别且无重解析点的bin/core/geo树。移目录需重新授权，卸载删除注册和授权、保留便携/用户文件。
+- 共享资源：服务和DesktopRuntime采用相同官方核心解析规则（发行包缺件不回退开发缓存）；服务start传递选定Geo快照，取消TUN仅限随包Geo/禁止更新限制。Geo固定引用/32MiB上限/流式摘要核验保留；服务在客户端pipe令牌下打开源文件再恢复SYSTEM，复制/摘要使用同一已打开句柄，避免代读客户端无权读取的资源。ProgramData继续只用于保护授权、私有会话物化与TUN清理记录；运行时副本可重建。
+- 生命周期：保留固定IPC、活动控制台/受信镜像、配置白名单、单owner/Job清理和连接回收；ServiceClient支持普通启动已停止的注册服务，状态过渡有界重试并用generation取消关闭后的旧回调。非Windows仍由独立Unsupported后端接接口，不宣称原生TUN兼容完成。
+- 环境失败保留：build/dev关闭CMake自动再生成，首次构建未吸收新的开发核心定义，迁移启动失败后恢复旧注册；显式cmake -S . -B build/dev再构建后解决。开发目录为服务加入Qt DLL后需补qt.conf插件目录，否则runtime_geo_update无法加载TLS插件；修正后通过。首次故障助手仍保留旧Program Files路径而提前拒绝，未注入；修订验收脚本后通过。直接调用lint缺VS环境找不到utility，后续统一使用DevShell构建。PowerShell Stop-Service还查询dependent权限而被拒，原生SCM stop及产品最小权限接口成功。原始输出在忽略目录build/portable_service。
+- 实际迁移Pass：migrate_2.log真实UAC更新exit0；sc.exe qc核对ImagePath为D:/repos/quick-clash/build/dev/quickclash_service.exe、AUTO_START、LocalSystem；旧C:/Program Files/QuickClash识别载荷已删除。开发核心路径为D:/repos/quick-clash/.cache/mihomo/mihomo.exe，与普通模式一致。未生成新发行包。
+- 免UACPass：普通SCM stop后新普通客户端status自动启动服务，clean=true；普通--service-setup update exit0，ordinary_update.log确认Administrator:no，不改注册/授权。系统重启未实际执行，不能据自动启动注册推断整条网络恢复Pass。
+- GeoPass：开发目录geo.json及隔离包布局lifecycle/packaged_geo.json均使用不同于冻结资产的有效最小GeoIP/GeoSite protobuf并Ready，status manifest与选定快照一致；破坏同引用字节后GeoResourceIntegrityFailed拒绝启动。新增contracts覆盖共享materializer更新内容和自定义opener拒绝，trusted_client_root覆盖发行包缺核心不借开发路径。真实SYSTEM-only资源/链接竞态矩阵未验。
+- 普通服务恢复Pass：untrusted.json四连接/溢出回收3037ms；faults_2验证客户端/owned核心/服务强杀后旧核心消失、clean并可新启动；服务暂停17秒首请求ServiceTimeout，恢复后同PID10584/epoch、Ready、lost=false，显式stop clean。restart_full.json重跑协议99/无hello/任意执行/危险控制器字段拒绝、start同ID重放/改报文断开、普通用户控制器/配置拒读、组读取/选择、同用户Busy和断开清理。
+- 资源短测：同轮10秒三样本，专用工作集/总工作集/私有提交MiB，客户端探针2.78/19.96/58.48→2.79/19.98/58.48；服务2.09/16.26/2.87→2.12/16.30/2.97；核心7.38/26.51/60.95保持。三指标完整、Job/连接生命周期回收验证通过；不是GUI内存基线或长期压力结论。
+- 迁移/移动/卸载定向Pass：lifecycle/run.ps1普通客户端与UAC助手协调，仅操作本轮build/portable_service/lifecycle隔离副本。authorize_a后新根握手、旧根ServiceProtocolMismatch；停止后实际移动portable_a→portable_b，未授权返回ServiceProtocolMismatch；authorize_b恢复握手/共享Geo。用无效服务镜像触发StartService失败，原ImagePath/受信根恢复且普通status成功；uninstall后ServiceInstallationRequired、授权文件不存在、便携core仍在；finally重新授权并恢复build/dev服务。多步骤由同一管理员验收助手执行，不冒充每次GUI交互验收。
+- 最终构建/测试：MSVC/Qt6.12.0 Release增量构建与quickclash_qmllint退出0；lint在未修改的subscriptions_page.qml第32/405/419行有3条既存类型推断警告（focusFirst/implicitHeight），未写为零警告。10/10 CTest Pass61.38秒（verified_tests.xml），含contracts、trusted_client_root、runtime_geo_update、recovery、tun_network、engine_startup、unsupported_platform、ui_state、service_protocol、core_health。最后补并发启动已完成的Verified分支后再增量构建11.352秒通过，受影响8/8回归Pass31.91秒（start_transition_tests.xml），前述contracts/Geo结果可复用；最终普通status/Geo/full/同目录update再次通过，verified_update.log仍为Administrator:no。连接探针最终3049ms回收、超限52ms断开，正常owner不受期限影响。
+- 状态/下一步：替换实现及授权普通服务验收完成、专项Done（普通服务范围）；P3-25/28/29仍Review。SVC-08/10定向通过，SVC-09整体、SVC-11、新方案真实TUN/系统重启、完整跨用户/路径/超权限资源矩阵未验；旧复制安装/Manual/普通用户停止AccessDenied结论Stale。后续待用户安排可关闭第三方TUN的窗口再补真实网络恢复。
+
+- 交付检查：build_design_docs.ps1生成及-Check、check_progress.ps1、check_source_layout.ps1、check_platform_boundaries.ps1、22个本轮C++文件clang-format21.1.2 --dry-run --Werror、git diff --check通过。一次组合命令误用旧LASTEXITCODE，在设计生成已成功后误报失败，随后独立-Check确认通过。最终delivery_status.json为clean=true/coreRunning=false/tun=false，服务Running；delivery_snapshot.json记录AUTO_START/LocalSystem及相邻便携ImagePath、旧Program Files载荷不存在、无quickclash/mihomo测试残留，Meta仍Up且GUID/ifIndex未变，无QuickClash网卡。GUI SHA256=E9A7272F02D3C9DDC643363DE2A4AD0355CFEEFD11B741DD0B654E10C6F5C704，服务=3179972D2EED4027BB1472F03E7B83BA8682D3FF6FA39F6EBED14400976E1340。未自动提交。
+
+## 2026-10-31 / 开发目录主界面启动修复
+
+- 关联：用户反馈主界面不显示、仅有托盘；保留已有工作区修改。
+- 诊断Fail：当前build/dev隔离smoke退出1，QML日志明确为QtQuick.Controls插件qtquickcontrols2plugin未找到。上轮为SYSTEM服务加入本地QtCore/Network后，Qt安装路径跟随DLL重定位；仅补插件目录遗漏QML目录，自动生成qt.conf仅含本工程模块路径。普通启动异步等设置，失败时保留先创建的托盘。上轮普通服务/headless通过不能证明GUI启动。原始日志位于忽略目录build/window_startup。
+- 实现：CMake在Windows UI链接后调用所选Qt的windeployqt扫描本工程QML，部署动态模块、样式及其DLL依赖；相对qt6.conf优先于Qt6.12生成的qt.conf，不写入开发SDK绝对路径。服务链接后复制TARGET_RUNTIME_DLLS，测试构建另外复制offscreen平台插件。安装仍生成独立包布局qt.conf，不安装构建qt6.conf；构建说明同步。未修改产品业务源码。
+- 中间失败保留：仅修正SDK路径后，清PATH仍缺Basic样式依赖DLL；改为官方完整部署后，最初未部署测试offscreen平台插件导致3项测试初始化失败，补齐后通过。一次未结束的诊断实例占用EXE导致LNK1104，核对PID/路径并结束后重建成功。Hidden诊断启动无可见窗口，最终以Normal正常启动核对。最终部署脚本日志已明确通过，外层误读残留LASTEXITCODE报错；随后独立读取smoke与包配置再次核实，不将包装命令误报当产品失败。
+- 构建/回归Pass：Qt6.12.0/MSVC19.51，显式配置build/dev及Windows增量构建通过；清除开发Qt PATH、QT_PLUGIN_PATH、QML_IMPORT_PATH及QML2_IMPORT_PATH，single_instance/qml_smoke/ui_responsive/host_lifecycle 4/4 Pass，9.93秒，JUnit为build/window_startup/tests_pass.xml。Windows真实平台隔离smoke退出0，page_ready=true/qml_errors=0、1000×640、DPR1.25、graphics_api=4；日志和JSON位于build/window_startup。
+- 原生启动Pass：普通个人配置GUI PID22480，computer-use读取到真实QuickClash窗口、导航与仪表盘，内核Ready；关闭后等待实际隐藏/卸载，再运行同一EXE激活，窗口由70389160重建为23465636，主页再次可见，单实例仍PID22480。当前保留该主界面打开。个人会话stderr另有8条QQuickColorValueType undefined警告，未阻止显示；不将本次修复扩展为全UI无警告或旧tray-test销毁问题解决，G1-C仍Stale。
+- 部署/服务Pass：build/window_startup/deployed_final清开发PATH启动page_ready=true/qml_errors=0，未携带bin/qt6.conf，包bin/qt.conf为Prefix=..；部署日志为build/dev/logs/deploy_20261031T065149094Z。普通--service-test status确认自动启动注册服务、clean=true/coreRunning=false/tun=false/passed=true，服务Running；不触发UAC或TUN。此前误用--service-probe被普通单实例处理，没有生成验收证据，已改用正确入口重验。
+- 状态/下一步：专项Done/启动范围Pass；现有G1-C实验回放与实际OS可访问性、真实TUN/跨用户/系统重启仍按原任务边界待验。第三方TUN未切换。GUI SHA256=0E7FC7770343BB171EAA804792B8180262122C61DF07F7B3C15AAF4E01499E3B，服务=1C200B85970E7478E045E26B711484E51F50C1D980666B22EEC4032F3B498BAA。保留全部已有修改，未提交。
+- 交付检查：check_progress.ps1、check_source_layout.ps1、check_platform_boundaries.ps1及git diff --check均通过；仅构建配置/说明及台账变更，未修改设计分册或C++/QML源码，不重跑无关全矩阵。

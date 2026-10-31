@@ -1,4 +1,5 @@
 #include "infra/core/engine_session.h"
+#include "infra/core/listener_ports.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
 #include "platform/desktop_services.h"
@@ -8,6 +9,7 @@
 #include <QJsonDocument>
 #include <QNetworkProxy>
 #include <QNetworkRequest>
+#include <QTcpServer>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -21,7 +23,9 @@ domain::Error coreError(const char* code) {
 }
 } // namespace
 EngineSession::EngineSession(QObject* parent)
-    : QObject(parent), process_(platform::makeDesktopProcess()) {
+    : EngineSession(platform::makeDesktopProcess(), parent) {}
+EngineSession::EngineSession(std::unique_ptr<application::IDesktopProcess> process, QObject* parent)
+    : QObject(parent), process_(std::move(process)) {
     servicePoll_.setInterval(1000);
     connect(&servicePoll_, &QTimer::timeout, this, [this] {
         if (!serviceMode_ || !ready_)
@@ -32,12 +36,24 @@ EngineSession::EngineSession(QObject* parent)
                          [this, generation](domain::Result<QJsonObject> result) {
                              if (generation != generation_)
                                  return;
-                             const auto* value = std::get_if<QJsonObject>(&result);
-                             if (!value || !value->value(QStringLiteral("ready")).toBool() ||
-                                 !value->value(QStringLiteral("tun")).toBool()) {
+                             const auto health = interpretServiceStatus(result);
+                             if (health.lifecycle == CoreLifecycle::Unknown) {
+                                 // A timed-out or rejected status request is control-plane
+                                 // uncertainty, not proof that the owned core exited. Keep the
+                                 // session and only surface degraded TUN observation after
+                                 // repeated failures.
+                                 if (++statusFailures_ >= 3)
+                                     setTunState(tunTracker_.observe(QStringLiteral("Unknown")));
+                                 return;
+                             }
+                             statusFailures_ = 0;
+                             if (health.lifecycle == CoreLifecycle::Exited) {
+                                 coreExitDiagnostics_ = health.exitDiagnostics;
                                  stop();
                                  emit stopped(true);
+                                 return;
                              }
+                             setTunState(tunTracker_.observe(health.tunState));
                          });
         for (const auto& name : serviceStreams_) {
             const auto streamGeneration = streamGenerations_.value(name);
@@ -70,22 +86,33 @@ EngineSession::EngineSession(QObject* parent)
                 });
         }
     });
-    connect(&service_, &ServiceClient::lost, this, [this] {
+    connect(&service_, &ServiceClient::lost, this, [this](const QString& reason) {
         if (!serviceMode_)
             return;
         const bool unexpected = ready_;
         stop();
         emit stopped(unexpected);
-        if (!unexpected)
-            emit failed(QStringLiteral("ServiceUnavailable"));
+        if (unexpected)
+            return;
+        // Only failures the user can act on keep their specific code; transport noise stays
+        // generic so the UI never shows an internal identifier.
+        const auto actionable = reason == QStringLiteral("ServiceInstallationRequired") ||
+                                reason == QStringLiteral("ServiceNotRunning") ||
+                                reason == QStringLiteral("ServiceClientUntrusted") ||
+                                reason == QStringLiteral("ServiceProtocolMismatch") ||
+                                reason == QStringLiteral("ServiceSessionBusy");
+        emit failed(actionable ? reason : QStringLiteral("ServiceUnavailable"));
     });
     network_.setProxy(QNetworkProxy::NoProxy);
     probeTimer_.setInterval(150);
     deadline_.setSingleShot(true);
     deadline_.setInterval(10000);
     connect(&probeTimer_, &QTimer::timeout, this, &EngineSession::probe);
-    connect(&deadline_, &QTimer::timeout, this,
-            [this] { fail(QStringLiteral("CoreReadyTimeout")); });
+    connect(&deadline_, &QTimer::timeout, this, [this] {
+        fail(configPending_      ? QStringLiteral("CoreConfigReadbackFailed")
+             : listenersPending_ ? QStringLiteral("CoreListenersNotOwned")
+                                 : QStringLiteral("CoreReadyTimeout"));
+    });
     connect(process_.get(), &application::IDesktopProcess::finished, this, [this](int) {
         const bool unexpected = ready_;
         stop();
@@ -102,21 +129,22 @@ EngineSession::~EngineSession() {
 }
 void EngineSession::start(const QString& executable, const QString& config,
                           const QString& directory, const QByteArray& secret, quint16 mixedPort,
-                          quint16 controllerPort, const QString& expectedMode, bool serviceMode) {
+                          quint16 controllerPort, const QString& expectedMode, bool serviceMode,
+                          const QJsonObject& geoSnapshot, const QString& storageRoot) {
     const auto platform = platform::desktopPlatformInfo();
     if (platform.capabilities.value(QStringLiteral("core")) != QStringLiteral("Supported")) {
         emit failed(QStringLiteral("CorePlatformUnsupported"));
         return;
     }
-    if (serviceCleanupUncertain_) {
+    if (serviceMode && serviceCleanupUncertain_) {
         emit failed(QStringLiteral("ServiceCleanupUncertain"));
         return;
     }
     if (serviceStopping_) {
         afterServiceStop_ = [this, executable, config, directory, secret, mixedPort, controllerPort,
-                             expectedMode, serviceMode] {
+                             expectedMode, serviceMode, geoSnapshot, storageRoot] {
             start(executable, config, directory, secret, mixedPort, controllerPort, expectedMode,
-                  serviceMode);
+                  serviceMode, geoSnapshot, storageRoot);
         };
         return;
     }
@@ -137,6 +165,11 @@ void EngineSession::start(const QString& executable, const QString& config,
         return;
     }
     secret_ = secret;
+    coreExitDiagnostics_ = {};
+    statusFailures_ = 0;
+    tunTracker_.reset();
+    setTunState(QStringLiteral("Off"));
+    listenerIssue_ = {};
     mixedPort_ = mixedPort;
     controllerPort_ = controllerPort;
     expectedMode_ = expectedMode;
@@ -154,32 +187,51 @@ void EngineSession::start(const QString& executable, const QString& config,
         }
         serviceMode_ = true;
         const auto generation = generation_;
-        service_.command(QStringLiteral("start"),
-                         {{QStringLiteral("yaml"), QString::fromLatin1(loaded.bytes.toBase64())},
-                          {QStringLiteral("mixedPort"), mixedPort},
-                          {QStringLiteral("mode"), expectedMode},
-                          {QStringLiteral("tun"), true},
-                          {QStringLiteral("dnsMode"), QStringLiteral("profile")}},
-                         [this, generation](domain::Result<QJsonObject> result) {
-                             if (generation != generation_)
-                                 return;
-                             if (const auto* error = std::get_if<domain::Error>(&result)) {
-                                 fail(error->code);
-                                 return;
-                             }
-                             const auto value = std::get<QJsonObject>(result);
-                             if (!value.value(QStringLiteral("tun")).toBool()) {
-                                 fail(QStringLiteral("ServiceTunReadbackFailed"));
-                                 return;
-                             }
-                             servicePid_ =
-                                 static_cast<quint32>(value.value(QStringLiteral("pid")).toInt());
-                             ready_ = true;
-                             servicePoll_.start();
-                             emit becameReady(QStringLiteral("v1.19.33"));
-                             refreshGroups();
-                         });
+        service_.command(
+            QStringLiteral("start"),
+            {{QStringLiteral("yaml"), QString::fromLatin1(loaded.bytes.toBase64())},
+             {QStringLiteral("mixedPort"), mixedPort},
+             {QStringLiteral("mode"), expectedMode},
+             {QStringLiteral("tun"), true},
+             {QStringLiteral("dnsMode"), QStringLiteral("profile")},
+             {QStringLiteral("geo"), QJsonObject{{QStringLiteral("snapshot"), geoSnapshot},
+                                                 {QStringLiteral("storageRoot"), storageRoot}}}},
+            [this, generation](domain::Result<QJsonObject> result) {
+                if (generation != generation_)
+                    return;
+                if (const auto* error = std::get_if<domain::Error>(&result)) {
+                    listenerIssue_ =
+                        QJsonDocument::fromJson(error->redactedDetail.toUtf8()).object();
+                    fail(error->code);
+                    return;
+                }
+                const auto value = std::get<QJsonObject>(result);
+                if (!value.value(QStringLiteral("tun")).toBool()) {
+                    fail(QStringLiteral("ServiceTunReadbackFailed"));
+                    return;
+                }
+                servicePid_ = static_cast<quint32>(value.value(QStringLiteral("pid")).toInt());
+                tunDevice_ = value.value(QStringLiteral("tunDevice")).toString();
+                ready_ = true;
+                setTunState(QStringLiteral("On"));
+                servicePoll_.start();
+                emit becameReady(QStringLiteral("v1.19.33"));
+                refreshGroups();
+            });
         return;
+    }
+    {
+        QTcpServer mixed;
+        QTcpServer controller;
+        if (!mixed.listen(QHostAddress::LocalHost, mixedPort))
+            listenerIssue_ = listenerPortIssue(mixed, mixedPort, QStringLiteral("mixed"));
+        else if (!controller.listen(QHostAddress::LocalHost, controllerPort))
+            listenerIssue_ =
+                listenerPortIssue(controller, controllerPort, QStringLiteral("controller"));
+        if (!listenerIssue_.isEmpty()) {
+            fail(listenerIssue_.value(QStringLiteral("code")).toString());
+            return;
+        }
     }
     const auto result = process_->start(
         executable, {QStringLiteral("-f"), config, QStringLiteral("-d"), directory}, directory);
@@ -194,14 +246,16 @@ void EngineSession::start(const QString& executable, const QString& config,
 void EngineSession::stop() {
     ++generation_;
     ready_ = false;
+    setTunState(QStringLiteral("Off"));
     const bool stopService = serviceMode_;
     serviceMode_ = false;
     servicePid_ = 0;
+    tunDevice_.clear();
     servicePoll_.stop();
     serviceStreams_.clear();
     serviceLogDemand_ = {};
     afterServiceStop_ = {};
-    if (stopService && !serviceStopping_) {
+    if (stopService && !serviceStopping_ && service_.hadSession()) {
         serviceStopping_ = true;
         auto completeStop = [this](domain::Result<QJsonObject> result) {
             serviceStopping_ = false;
@@ -228,6 +282,8 @@ void EngineSession::stop() {
     } else if (!serviceStopping_)
         service_.close();
     probing_ = false;
+    listenersPending_ = false;
+    configPending_ = false;
     probeTimer_.stop();
     deadline_.stop();
     const auto streams = streams_;
@@ -246,13 +302,25 @@ void EngineSession::stop() {
     secret_.fill('\0');
     secret_.clear();
 }
+void EngineSession::setTunState(const QString& state) {
+    if (tunState_ == state)
+        return;
+    tunState_ = state;
+    emit tunStateChanged(state);
+}
 void EngineSession::probeService(ApiHandler handler) {
     service_.command(QStringLiteral("status"), {},
                      [this, handler = std::move(handler)](domain::Result<QJsonObject> result) {
                          if (const auto* value = std::get_if<QJsonObject>(&result);
-                             value && value->value(QStringLiteral("clean")).toBool())
+                             value && value->value(QStringLiteral("clean")).toBool()) {
                              serviceCleanupUncertain_ = false;
-                         handler(std::move(result));
+                             service_.command(QStringLiteral("tun_preflight"), {},
+                                              std::move(handler));
+                         } else if (std::holds_alternative<QJsonObject>(result)) {
+                             serviceCleanupUncertain_ = true;
+                             handler(coreError("ServiceCleanupUncertain"));
+                         } else
+                             handler(std::move(result));
                      });
 }
 void EngineSession::serviceResources(ApiHandler handler) {
@@ -507,20 +575,24 @@ void EngineSession::probe() {
                 return;
             }
             const auto value = std::get<QJsonObject>(configs);
-            if (value.value(QStringLiteral("mode")).toString() != expectedMode_) {
-                fail(QStringLiteral("CoreModeReadbackFailed"));
+            // The controller may answer with defaults while Mihomo applies the configuration.
+            configPending_ = value.value(QStringLiteral("mode")).toString() != expectedMode_ ||
+                             value.value(QStringLiteral("mixed-port")).toInt() != mixedPort_ ||
+                             value.value(QStringLiteral("allow-lan")).toBool(true) ||
+                             value.value(QStringLiteral("tun"))
+                                 .toObject()
+                                 .value(QStringLiteral("enable"))
+                                 .toBool();
+            if (configPending_) {
+                listenersPending_ = false;
                 return;
             }
-            if (value.value(QStringLiteral("mixed-port")).toInt() != mixedPort_ ||
-                value.value(QStringLiteral("allow-lan")).toBool(true) ||
-                value.value(QStringLiteral("tun"))
-                    .toObject()
-                    .value(QStringLiteral("enable"))
-                    .toBool() ||
-                !process_->ownsListener(mixedPort_) || !process_->ownsListener(controllerPort_)) {
-                fail(QStringLiteral("CoreListenersNotOwned"));
+            // Mihomo exposes its controller before all inbound listeners finish starting.
+            // Keep checking within the startup deadline; authentication alone is not Ready.
+            listenersPending_ =
+                !process_->ownsListener(mixedPort_) || !process_->ownsListener(controllerPort_);
+            if (listenersPending_)
                 return;
-            }
             ready_ = true;
             probeTimer_.stop();
             deadline_.stop();

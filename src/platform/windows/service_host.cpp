@@ -1,18 +1,23 @@
 #include "platform/windows/service_host.h"
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
+#include "infra/core/listener_ports.h"
 #include "infra/core/provider_command.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
+#include "platform/windows/trusted_client_root.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QDateTime>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QProcessEnvironment>
+#include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTcpServer>
 #include <QUrl>
 #include <yaml-cpp/yaml.h>
 // clang-format off
@@ -42,6 +47,12 @@ QString serviceData() {
     return length && length < 32768
                ? QString::fromWCharArray(path) + QStringLiteral("/QuickClash/service")
                : QString{};
+}
+QString trustedClientRootFile() {
+    const auto data = serviceData();
+    return data.isEmpty()
+               ? QString{}
+               : QFileInfo(data).absolutePath() + QStringLiteral("/trusted_client_root.json");
 }
 bool fixedFields(const QJsonObject& object, const QStringList& keys) {
     for (auto it = object.begin(); it != object.end(); ++it)
@@ -112,8 +123,10 @@ bool protectedPath(const QString& path) {
     return true;
 }
 } // namespace
-ServiceHost::ServiceHost(QObject* parent) : QObject(parent), store_(serviceData()) {
-    corePath_ = QDir(installation()).absoluteFilePath(QStringLiteral("../core/mihomo.exe"));
+ServiceHost::ServiceHost(QObject* parent)
+    : QObject(parent), store_(serviceData()),
+      buildId_(infra::ServiceProtocol::executableBuild(QCoreApplication::applicationFilePath())) {
+    corePath_ = portableCorePath(installation());
     directory_ = store_.root() + QStringLiteral("/session");
     configPath_ = directory_ + QStringLiteral("/config.yaml");
     heartbeat_.setInterval(1000);
@@ -122,29 +135,45 @@ ServiceHost::ServiceHost(QObject* parent) : QObject(parent), store_(serviceData(
         if (tick_.isValid() && tick_.restart() > 15000)
             lastHeartbeat_.restart();
         if (owner_ && lastHeartbeat_.isValid() && lastHeartbeat_.elapsed() > 60000) {
-            stop();
+            stop("HeartbeatTimeout");
             owner_->disconnectFromServer();
         }
     });
     connect(&server_, &QLocalServer::newConnection, this, [this] {
         while (server_.hasPendingConnections()) {
             auto* socket = server_.nextPendingConnection();
-            if (buffers_.size() >= 4 || !authenticated(socket)) {
-                identities_.remove(socket);
+            if (buffers_.size() >= 4) {
                 socket->abort();
                 socket->deleteLater();
                 continue;
             }
             buffers_.insert(socket, {});
-            socket->setReadBufferSize(infra::kReadChunkSize);
+            QString rejection;
+            QString image;
+            if (!authenticated(socket, &rejection, &image)) {
+                rejections_.insert(socket, rejection.isEmpty()
+                                               ? QStringLiteral("ServiceClientUntrusted")
+                                               : rejection);
+            } else {
+                images_.insert(socket, image);
+            }
+            socket->setReadBufferSize(infra::kServiceHandshakeMaxBytes + 1);
+            // Neither silent rejected peers nor authenticated peers that only say hello may
+            // reserve a connection indefinitely. The owner uses its separate heartbeat lease.
+            QTimer::singleShot(infra::kServiceHandshakeTimeoutMs, socket, [this, socket] {
+                if (owner_ != socket)
+                    socket->abort();
+            });
             connect(socket, &QIODevice::readyRead, this, [this, socket] { receive(socket); });
             connect(socket, &QLocalSocket::disconnected, this, [this, socket] {
                 if (owner_ == socket) {
-                    stop();
+                    stop("ClientDisconnect");
                     owner_.clear();
                 }
                 buffers_.remove(socket);
                 identities_.remove(socket);
+                images_.remove(socket);
+                rejections_.remove(socket);
                 sessions_.remove(socket);
                 if (!owner_)
                     protocol_.clear();
@@ -152,15 +181,21 @@ ServiceHost::ServiceHost(QObject* parent) : QObject(parent), store_(serviceData(
             });
         }
     });
-    connect(&core_, &OwnedProcess::finished, this, [this](int) { ready_ = false; });
+    connect(&core_, &OwnedProcess::finished, this, [this](int code) {
+        coreExitKnown_ = true;
+        coreExitCode_ = code;
+        coreExitedAt_ = QDateTime::currentDateTimeUtc();
+        // A service-initiated stop (timeout, probe failure, explicit stop) already recorded the
+        // cause. Only an unsolicited core exit is a core exit.
+        if (stopReason_.isEmpty() || stopReason_ == QStringLiteral("CoreExited"))
+            stopReason_ = QStringLiteral("CoreExited");
+        ready_ = false;
+    });
 }
 bool ServiceHost::listen() {
-    // Installation is administrator-owned. Never run a service from a user checkout.
-    const auto programFiles = QDir::fromNativeSeparators(qEnvironmentVariable("ProgramFiles"));
-    if (programFiles.isEmpty() ||
-        !installation().startsWith(QDir::cleanPath(programFiles) + '/', Qt::CaseInsensitive) ||
-        serviceData().isEmpty() || !protectedPath(QCoreApplication::applicationFilePath()) ||
-        !protectedPath(corePath_) || !protectedPath(QFileInfo(serviceData()).absolutePath()))
+    // First UAC explicitly trusts the portable executable tree. Only authorization and
+    // private session state require a protected system directory.
+    if (serviceData().isEmpty() || !protectedPath(QFileInfo(serviceData()).absolutePath()))
         return false;
     HANDLE token = nullptr;
     if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
@@ -175,10 +210,34 @@ bool ServiceHost::listen() {
         return false;
     if (std::holds_alternative<domain::Error>(store_.open()))
         return false;
-    // SCM process death closes the Job. Never reuse its configuration after restart.
-    // Refuse to listen if kernel-owned routes or protected-file cleanup remain uncertain.
-    if (!tunClean())
+    if (!loadTrustedClientRoot())
         return false;
+    const auto identity = store_.read(QStringLiteral("tun_identity.json"));
+    const auto journal = store_.read(QStringLiteral("tun_session.json"));
+    if (std::holds_alternative<domain::Error>(identity) ||
+        std::holds_alternative<domain::Error>(journal))
+        return false;
+    if (const auto saved = std::get<std::optional<QJsonObject>>(identity)) {
+        tunInstallationId_ = saved->value(QStringLiteral("installationId")).toString();
+        tunName_ = saved->value(QStringLiteral("name")).toString();
+        reusableTun_ = saved->value(QStringLiteral("adapter")).toObject();
+        if (!QRegularExpression(QStringLiteral("^[a-f0-9]{32}$"))
+                 .match(tunInstallationId_)
+                 .hasMatch() ||
+            !QRegularExpression(QStringLiteral("^QuickClash-[a-f0-9]{8}(-[1-9][0-9]?)?$"))
+                 .match(tunName_)
+                 .hasMatch())
+            return false;
+    }
+    if (const auto saved = std::get<std::optional<QJsonObject>>(journal)) {
+        tunRecord_ = *saved;
+        if (tunRecord_.value(QStringLiteral("name")).toString().isEmpty() ||
+            tunRecord_.value(QStringLiteral("epoch")).toString().isEmpty())
+            return false;
+    }
+    // SCM process death closes the Job. Never reuse its configuration after restart.
+    // Keep IPC available for diagnosis/retry while refusing a second uncertain session.
+    (void)tunClean();
     const auto removed = store_.remove(QStringLiteral("session/config.yaml"));
     configClean_ = !std::holds_alternative<domain::Error>(removed);
     if (!configClean_)
@@ -191,21 +250,40 @@ bool ServiceHost::listen() {
     heartbeat_.start();
     return true;
 }
-bool ServiceHost::authenticated(QLocalSocket* socket) {
+bool ServiceHost::loadTrustedClientRoot() {
+    const auto file = trustedClientRootFile();
+    if (file.isEmpty())
+        return false;
+    if (QFileInfo::exists(file) && !protectedPath(file))
+        return false;
+    const auto loaded = readTrustedClientRoot(file, installation());
+    if (!loaded)
+        return false;
+    if (QDir::cleanPath(installation()).compare(loaded->root, Qt::CaseInsensitive) != 0)
+        return false;
+    trustedClient_ = *loaded;
+    return true;
+}
+bool ServiceHost::authenticated(QLocalSocket* socket, QString* failure, QString* image) {
+    const auto reject = [failure](const char* code) {
+        if (failure)
+            *failure = QString::fromLatin1(code);
+        return false;
+    };
     ULONG pid = 0;
     if (!GetNamedPipeClientProcessId(reinterpret_cast<HANDLE>(socket->socketDescriptor()), &pid))
-        return false;
+        return reject("ServiceIdentityRejected");
     const auto process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
     if (!process)
-        return false;
+        return reject("ServiceIdentityRejected");
     wchar_t path[32768]{};
     DWORD length = 32768;
     HANDLE token = nullptr;
-    const bool queried = QueryFullProcessImageNameW(process, 0, path, &length) &&
-                         OpenProcessToken(process, TOKEN_QUERY, &token);
+    const bool imageRead = QueryFullProcessImageNameW(process, 0, path, &length);
+    const bool tokenOpen = imageRead && OpenProcessToken(process, TOKEN_QUERY, &token);
     DWORD session = 0, size = 0;
     const bool sessionRead =
-        queried && GetTokenInformation(token, TokenSessionId, &session, sizeof(session), &size);
+        tokenOpen && GetTokenInformation(token, TokenSessionId, &session, sizeof(session), &size);
     QByteArray user(1024, Qt::Uninitialized);
     const bool userRead =
         sessionRead &&
@@ -216,38 +294,64 @@ bool ServiceHost::authenticated(QLocalSocket* socket) {
         ConvertSidToStringSidW(reinterpret_cast<TOKEN_USER*>(user.data())->User.Sid, &sid);
     FILETIME created{}, exited{}, kernel{}, used{};
     const bool timeRead = GetProcessTimes(process, &created, &exited, &kernel, &used);
-    const auto identity = sidRead && timeRead ? QStringLiteral("%1:%2:%3:%4:%5")
-                                                    .arg(QString::fromWCharArray(sid))
-                                                    .arg(session)
-                                                    .arg(pid)
-                                                    .arg(created.dwHighDateTime)
-                                                    .arg(created.dwLowDateTime)
-                                                    .toUtf8()
-                                              : QByteArray{};
+    const auto sidText = sid ? QString::fromWCharArray(sid) : QString{};
     if (sid)
         LocalFree(sid);
     if (token)
         CloseHandle(token);
     CloseHandle(process);
-    if (!sessionRead || identity.isEmpty() || session == 0 ||
-        session != WTSGetActiveConsoleSessionId() ||
-        (identities_.contains(socket) && identities_.value(socket) != identity))
-        return false;
-    const auto expected = QDir(installation()).filePath(QStringLiteral("quickclash.exe"));
-    if (QDir::cleanPath(QString::fromWCharArray(path, static_cast<int>(length)))
-                .compare(expected, Qt::CaseInsensitive) != 0 ||
-        !protectedPath(expected))
-        return false;
+    const auto trusted =
+        imageRead ? trustedClientImage(QString::fromWCharArray(path, static_cast<int>(length)),
+                                       trustedClient_)
+                  : std::nullopt;
+    if (!trusted)
+        return reject("ServiceClientUntrusted");
+    if (!sessionRead || !sidRead || sidText.isEmpty() || !timeRead || session == 0 ||
+        session != WTSGetActiveConsoleSessionId())
+        return reject("ServiceIdentityRejected");
+    const auto identity = (*trusted + QStringLiteral("\n") + sidText + QStringLiteral(":") +
+                           QString::number(session) + QStringLiteral(":") + QString::number(pid) +
+                           QStringLiteral(":") + QString::number(created.dwHighDateTime) +
+                           QStringLiteral(":") + QString::number(created.dwLowDateTime))
+                              .toUtf8();
+    if (identities_.contains(socket) && identities_.value(socket) != identity)
+        return reject("ServiceIdentityRejected");
     identities_.insert(socket, identity);
+    if (image)
+        *image = *trusted;
     return true;
 }
 void ServiceHost::receive(QLocalSocket* socket) {
-    if (!authenticated(socket)) {
+    if (rejections_.contains(socket)) {
+        auto& rejectionBuffer = buffers_[socket];
+        if (!infra::appendAvailable(*socket, rejectionBuffer, infra::kServiceHandshakeMaxBytes)) {
+            socket->abort();
+            return;
+        }
+        const auto newline = rejectionBuffer.indexOf('\n');
+        if (newline < 0)
+            return;
+        const auto request = QJsonDocument::fromJson(rejectionBuffer.first(newline)).object();
+        rejectionBuffer.remove(0, newline + 1);
+        if (!infra::ServiceProtocol::validEnvelope(request)) {
+            socket->abort();
+            return;
+        }
+        answer(socket, request.value(QStringLiteral("requestId")).toString(),
+               failure(rejections_.value(socket).toLatin1().constData()));
+        rejections_.remove(socket);
+        socket->disconnectFromServer();
+        return;
+    }
+    QString image;
+    if (!authenticated(socket, nullptr, &image) || images_.value(socket) != image) {
         socket->abort();
         return;
     }
     auto& buffer = buffers_[socket];
-    if (!infra::appendAvailable(*socket, buffer, 24 * 1024 * 1024)) {
+    const auto limit =
+        sessions_.contains(socket) ? 24 * 1024 * 1024 : infra::kServiceHandshakeMaxBytes;
+    if (!infra::appendAvailable(*socket, buffer, limit)) {
         socket->abort();
         return;
     }
@@ -270,7 +374,8 @@ void ServiceHost::receive(QLocalSocket* socket) {
             request.value(QStringLiteral("sessionId")).toString().isEmpty()) {
             const auto session = QUuid::createUuid().toString(QUuid::WithoutBraces);
             sessions_.insert(socket, session);
-            auto capabilities = infra::ServiceProtocol::capabilities();
+            socket->setReadBufferSize(infra::kReadChunkSize);
+            auto capabilities = infra::ServiceProtocol::capabilities(buildId_);
             capabilities.insert(QStringLiteral("sessionId"), session);
             answer(socket, id, capabilities);
             continue;
@@ -328,9 +433,12 @@ void ServiceHost::answer(QLocalSocket* socket, const QString& id,
     if (!socket)
         return;
     QJsonObject response{{QStringLiteral("protocolVersion"), 1}, {QStringLiteral("requestId"), id}};
-    if (const auto* error = std::get_if<domain::Error>(&result))
+    if (const auto* error = std::get_if<domain::Error>(&result)) {
         response.insert(QStringLiteral("error"), error->code);
-    else
+        if (!error->redactedDetail.isEmpty())
+            response.insert(QStringLiteral("detail"),
+                            QJsonDocument::fromJson(error->redactedDetail.toUtf8()).object());
+    } else
         response.insert(QStringLiteral("result"), std::get<QJsonObject>(result));
     if (owner_ == socket) {
         protocol_.complete(id, response);
@@ -374,18 +482,60 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         return;
     }
     if (action == QStringLiteral("stop") && payload.isEmpty()) {
-        stop();
+        stop("Explicit");
         confirmStopped(socket, id, 0);
         return;
     }
     if (action == QStringLiteral("status") && payload.isEmpty()) {
-        answer(socket, id,
-               QJsonObject{{QStringLiteral("ready"), ready_},
-                           {QStringLiteral("tun"), ready_ && tunDesired_ && tunObserved()},
-                           {QStringLiteral("pid"), static_cast<int>(core_.pid())},
-                           {QStringLiteral("epoch"), epoch_},
-                           {QStringLiteral("clean"), !core_.running() && !validator_.running() &&
-                                                         !busy_ && configClean_ && tunClean()}});
+        auto result =
+            QJsonObject{{QStringLiteral("ready"), ready_},
+                        {QStringLiteral("busy"), busy_},
+                        {QStringLiteral("coreRunning"), core_.running()},
+                        {QStringLiteral("pid"), static_cast<int>(core_.pid())},
+                        {QStringLiteral("geoResources"), geoResources_},
+                        {QStringLiteral("epoch"), epoch_},
+                        {QStringLiteral("tunDevice"), tunName_},
+                        {QStringLiteral("tunIdentity"), tunRecord_},
+                        {QStringLiteral("clean"), !core_.running() && !validator_.running() &&
+                                                      !busy_ && configClean_ && tunClean()}};
+        auto tunState = QStringLiteral("Off");
+        if (ready_ && tunDesired_) {
+            const auto observed = observeTun();
+            tunState = observed == TunObservation::On        ? QStringLiteral("On")
+                       : observed == TunObservation::Missing ? QStringLiteral("Missing")
+                                                             : QStringLiteral("Unknown");
+        }
+        result.insert(QStringLiteral("tun"), tunState == QStringLiteral("On"));
+        result.insert(QStringLiteral("tunState"), tunState);
+        if (!stopReason_.isEmpty())
+            result.insert(QStringLiteral("stopReason"), stopReason_);
+        if (!stopDetail_.isEmpty())
+            result.insert(QStringLiteral("stopDetail"), stopDetail_.left(1024));
+        if (coreExitKnown_) {
+            result.insert(QStringLiteral("coreExitCode"), coreExitCode_);
+            result.insert(QStringLiteral("coreExitedAt"), coreExitedAt_.toString(Qt::ISODate));
+            const auto tail = QString::fromUtf8(core_.outputTail());
+            if (!tail.isEmpty()) {
+                const auto safe = domain::redactedLogEntry(0, {}, QStringLiteral("Core"),
+                                                           QStringLiteral("error"), tail);
+                result.insert(QStringLiteral("coreStderr"), safe.value(QStringLiteral("message")));
+            }
+        }
+        answer(socket, id, result);
+        return;
+    }
+    if (action == QStringLiteral("tun_preflight") && payload.isEmpty()) {
+        if (!tunClean()) {
+            answer(socket, id, failure("ServiceCleanupUncertain"));
+            return;
+        }
+        const auto network = inspectTunNetwork();
+        if (const auto* error = std::get_if<domain::Error>(&network))
+            answer(socket, id, *error);
+        else if (conflictingTunRoute(std::get<TunNetwork>(network)))
+            answer(socket, id, failure("ServiceTunRouteConflict"));
+        else
+            answer(socket, id, QJsonObject{});
         return;
     }
     if (action == QStringLiteral("log_demand") &&
@@ -537,10 +687,14 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
     answer(socket, id, failure("ServiceActionRejected"));
 }
 void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObject& payload) {
-    if (busy_ || core_.running() || !configClean_ || !tunClean() ||
+    if (!tunClean()) {
+        answer(socket, id, failure("ServiceCleanupUncertain"));
+        return;
+    }
+    if (busy_ || core_.running() || !configClean_ ||
         !fixedFields(payload,
                      {QStringLiteral("yaml"), QStringLiteral("mixedPort"), QStringLiteral("mode"),
-                      QStringLiteral("dnsMode"), QStringLiteral("tun")})) {
+                      QStringLiteral("dnsMode"), QStringLiteral("tun"), QStringLiteral("geo")})) {
         answer(socket, id, failure("ServiceStartRejected"));
         return;
     }
@@ -590,6 +744,25 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         return;
     }
     const auto semantic = std::get<infra::PreflightConfig>(checked).semanticYaml;
+    QTcpServer listener;
+    if (!listener.listen(QHostAddress::LocalHost, pref.mixedPort)) {
+        const auto issue =
+            infra::listenerPortIssue(listener, pref.mixedPort, QStringLiteral("mixed"));
+        auto error = infra::storageError(
+            issue.value(QStringLiteral("code")).toString().toLatin1().constData());
+        error.redactedDetail =
+            QString::fromUtf8(QJsonDocument(issue).toJson(QJsonDocument::Compact));
+        answer(socket, id, error);
+        return;
+    }
+    listener.close();
+    if (tun) {
+        const auto prepared = prepareTun();
+        if (const auto* error = std::get_if<domain::Error>(&prepared)) {
+            answer(socket, id, *error);
+            return;
+        }
+    }
     pipe_ = QStringLiteral("QuickClash.Core.") + QUuid::createUuid().toString(QUuid::WithoutBraces);
     QByteArray configBytes;
     try {
@@ -606,7 +779,7 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
             QDir::toNativeSeparators(QStringLiteral("//./pipe/") + pipe_).toStdString();
         root["secret"] = QUuid::createUuid().toString().toStdString();
         root["tun"]["enable"] = tun;
-        root["tun"]["device"] = "QuickClash";
+        root["tun"]["device"] = tunName_.toStdString();
         root["tun"]["stack"] = "mixed";
         root["tun"]["auto-route"] = true;
         root["tun"]["auto-detect-interface"] = true;
@@ -632,11 +805,42 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         return;
     }
     configClean_ = false;
-    const auto resources = infra::prepareGeoResources(configBytes, directory_);
+    const auto geo = payload.value(QStringLiteral("geo")).toObject();
+    if ((!geo.isEmpty() && (geo.size() != 2 || !geo.value(QStringLiteral("snapshot")).isObject() ||
+                            !geo.value(QStringLiteral("storageRoot")).isString())) ||
+        (payload.contains(QStringLiteral("geo")) &&
+         !payload.value(QStringLiteral("geo")).isObject())) {
+        answer(socket, id, failure("ServiceFieldsRejected"));
+        return;
+    }
+    const auto snapshot = geo.value(QStringLiteral("snapshot")).toObject();
+    const auto storageRoot = geo.value(QStringLiteral("storageRoot")).toString();
+    if (!snapshot.isEmpty() &&
+        (!QDir::isAbsolutePath(storageRoot) || storageRoot.startsWith(QLatin1Char('/')) ||
+         storageRoot.startsWith(QLatin1Char('\\')))) {
+        answer(socket, id, failure("GeoResourceIntegrityFailed"));
+        return;
+    }
+    // Open user snapshots under the authenticated pipe peer token, then copy/hash the same
+    // bounded handle as SYSTEM into the private core home. This cannot read a SYSTEM-only
+    // file on behalf of an ordinary client, even if a path is swapped during the request.
+    const auto openSource = [socket, snapshot](QFile& source) {
+        if (snapshot.isEmpty())
+            return source.open(QIODevice::ReadOnly);
+        if (!ImpersonateNamedPipeClient(reinterpret_cast<HANDLE>(socket->socketDescriptor())))
+            return false;
+        const auto opened = source.open(QIODevice::ReadOnly);
+        if (!RevertToSelf())
+            TerminateProcess(GetCurrentProcess(), ERROR_CANNOT_IMPERSONATE);
+        return opened;
+    };
+    const auto resources =
+        infra::prepareGeoResources(configBytes, directory_, snapshot, storageRoot, openSource);
     if (const auto* error = std::get_if<domain::Error>(&resources)) {
         answer(socket, id, *error);
         return;
     }
+    geoResources_ = infra::geoResourceManifest(configBytes, snapshot);
     const auto providerCache =
         infra::prepareRuntimeProviderCache(configBytes, store_, QStringLiteral("session"));
     if (const auto* error = std::get_if<domain::Error>(&providerCache)) {
@@ -662,6 +866,40 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
             auto environment = QProcessEnvironment::systemEnvironment();
             environment.insert(QStringLiteral("LISTEN_NAMEDPIPE_SDDL"),
                                QStringLiteral("D:P(A;;GA;;;SY)"));
+            if (tunDesired_) {
+                const auto inspected = inspectTunNetwork();
+                const auto* network = std::get_if<TunNetwork>(&inspected);
+                if (!network || conflictingTunRoute(*network) ||
+                    availableTunName(tunName_, tunInstallationId_, *network, reusableTun_) !=
+                        tunName_) {
+                    busy_ = false;
+                    answer(peer, id,
+                           failure(!network ? "ServiceNetworkInspectionFailed"
+                                   : conflictingTunRoute(*network) ? "ServiceTunRouteConflict"
+                                                                   : "ServiceTunNameChanged"));
+                    return;
+                }
+                tunBefore_ = *network;
+                // Record intent before creation. A crash before GUID observation stays uncertain.
+                tunRecord_ = {{QStringLiteral("name"), tunName_},
+                              {QStringLiteral("epoch"), epoch_},
+                              {QStringLiteral("clientImage"), images_.value(peer.data())},
+                              {QStringLiteral("startedAt"),
+                               QString::number(QDateTime::currentMSecsSinceEpoch())}};
+                const auto saved = store_.write(QStringLiteral("tun_session.json"), tunRecord_);
+                if (const auto* error = std::get_if<domain::Error>(&saved)) {
+                    tunJournalFailed_ = true;
+                    busy_ = false;
+                    answer(peer, id, *error);
+                    return;
+                }
+            }
+            coreExitKnown_ = false;
+            coreExitCode_ = 0;
+            coreExitedAt_ = {};
+            stopReason_.clear();
+            stopDetail_.clear();
+            probeDetail_.clear();
             const auto launched = core_.start(
                 corePath_, {QStringLiteral("-f"), configPath_, QStringLiteral("-d"), directory_},
                 directory_, false, environment);
@@ -669,6 +907,16 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
                 busy_ = false;
                 answer(peer, id, *error);
                 return;
+            }
+            if (tunDesired_) {
+                tunRecord_.insert(QStringLiteral("corePid"), static_cast<int>(core_.pid()));
+                if (std::holds_alternative<domain::Error>(
+                        store_.write(QStringLiteral("tun_session.json"), tunRecord_))) {
+                    tunJournalFailed_ = true;
+                    stop("JournalFailed");
+                    answer(peer, id, failure("ServiceCleanupUncertain"));
+                    return;
+                }
             }
             probe(peer, id, 0);
         });
@@ -683,7 +931,7 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
     }
     QTimer::singleShot(12000, this, [this, peer, id, epoch] {
         if (peer == owner_ && epoch == epoch_ && busy_ && protocol_.pending(id)) {
-            stop();
+            stop("StartTimeout");
             answer(peer, id, failure("ServiceStartTimeout"));
         }
     });
@@ -699,23 +947,60 @@ void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
             if (!peer || owner_ != peer || !busy_ || epoch != epoch_)
                 return;
             const auto* value = std::get_if<QJsonObject>(&result);
-            if (value && value->value(QStringLiteral("mixed-port")).toInt() == mixedPort_ &&
-                value->value(QStringLiteral("tun"))
-                        .toObject()
-                        .value(QStringLiteral("enable"))
-                        .toBool() == tunDesired_ &&
-                core_.ownsListener(mixedPort_) && (!tunDesired_ || tunObserved())) {
+            const auto tun = value ? value->value(QStringLiteral("tun")).toObject() : QJsonObject{};
+            const bool portMatches =
+                value && value->value(QStringLiteral("mixed-port")).toInt() == mixedPort_;
+            const bool enableMatches =
+                value && tun.value(QStringLiteral("enable")).toBool() == tunDesired_;
+            const bool listenerOwned = core_.ownsListener(mixedPort_);
+            const bool deviceMatches =
+                !tunDesired_ ||
+                (value && tun.value(QStringLiteral("device")).toString() == tunName_);
+            const bool observed = !tunDesired_ || tunObserved();
+            if (portMatches && enableMatches && listenerOwned && deviceMatches && observed) {
                 busy_ = false;
                 ready_ = true;
+                probeDetail_.clear();
                 answer(peer, id,
                        QJsonObject{{QStringLiteral("version"), QStringLiteral("v1.19.33")},
                                    {QStringLiteral("pid"), static_cast<int>(core_.pid())},
                                    {QStringLiteral("epoch"), epoch_},
+                                   {QStringLiteral("tunDevice"), tunName_},
                                    {QStringLiteral("tun"), tunDesired_}});
                 return;
             }
-            if (attempt >= 12 || !core_.running()) {
-                stop();
+            QString detail;
+            if (!value)
+                detail = QStringLiteral("configs=%1").arg(std::get<domain::Error>(result).code);
+            else
+                detail = QStringLiteral("port=%1/%2 enable=%3/%4 device=%5/%6 listener=%7")
+                             .arg(value->value(QStringLiteral("mixed-port")).toInt())
+                             .arg(mixedPort_)
+                             .arg(tun.value(QStringLiteral("enable")).toBool())
+                             .arg(tunDesired_)
+                             .arg(tun.value(QStringLiteral("device")).toString(), tunName_)
+                             .arg(listenerOwned);
+            if (tunDesired_ && value && deviceMatches && !observed) {
+                const auto inspected = inspectTunNetwork();
+                const auto* network = std::get_if<TunNetwork>(&inspected);
+                QString adapter = QStringLiteral("absent");
+                if (!network)
+                    adapter = QStringLiteral("inspect-failed");
+                else
+                    for (const auto& item : network->adapters)
+                        if (item.name == tunName_) {
+                            adapter = QStringLiteral("up=%1 routes=%2 dns=%3")
+                                          .arg(item.up)
+                                          .arg(item.defaultRoutes.join(QLatin1Char(',')),
+                                               item.dnsServers.join(QLatin1Char(',')));
+                            break;
+                        }
+                detail += QStringLiteral(" adapter(%1): %2").arg(tunName_, adapter);
+            }
+            probeDetail_ = detail.left(1024);
+            if (attempt >= 24 || !core_.running()) {
+                stopDetail_ = probeDetail_;
+                stop("ProbeFailed");
                 answer(peer, id, failure("ServiceTunReadbackFailed"));
                 return;
             }
@@ -725,36 +1010,88 @@ void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
             });
         });
 }
-bool ServiceHost::tunObserved() const {
-    ULONG size = 0;
-    (void)GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, nullptr, &size);
-    if (!size || size > 1024 * 1024)
-        return false;
-    QByteArray buffer(static_cast<qsizetype>(size), Qt::Uninitialized);
-    auto* adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(buffer.data());
-    if (GetAdaptersAddresses(AF_UNSPEC, GAA_FLAG_INCLUDE_PREFIX, nullptr, adapter, &size) !=
-        NO_ERROR)
-        return false;
-    NET_LUID luid{};
-    for (; adapter; adapter = adapter->Next)
-        if (QString::fromWCharArray(adapter->FriendlyName) == QStringLiteral("QuickClash") &&
-            adapter->OperStatus == IfOperStatusUp) {
-            luid = adapter->Luid;
-            break;
-        }
-    if (!luid.Value)
-        return false;
-    PMIB_IPFORWARD_TABLE2 routes = nullptr;
-    if (GetIpForwardTable2(AF_UNSPEC, &routes) != NO_ERROR)
-        return false;
-    bool found = false;
-    for (ULONG i = 0; i < routes->NumEntries; ++i)
-        found |= routes->Table[i].InterfaceLuid.Value == luid.Value &&
-                 routes->Table[i].DestinationPrefix.PrefixLength <= 1;
-    FreeMibTable(routes);
-    return found;
+domain::CommandResult ServiceHost::prepareTun() {
+    const auto inspected = inspectTunNetwork();
+    if (const auto* error = std::get_if<domain::Error>(&inspected))
+        return *error;
+    const auto& network = std::get<TunNetwork>(inspected);
+    if (conflictingTunRoute(network))
+        return failure("ServiceTunRouteConflict");
+    if (tunInstallationId_.isEmpty())
+        tunInstallationId_ = QUuid::createUuid().toString(QUuid::Id128);
+    const auto name = availableTunName(tunName_, tunInstallationId_, network, reusableTun_);
+    if (name.isEmpty())
+        return failure("ServiceTunNameExhausted");
+    const auto saved = store_.write(
+        QStringLiteral("tun_identity.json"),
+        {{QStringLiteral("installationId"), tunInstallationId_},
+         {QStringLiteral("name"), name},
+         {QStringLiteral("adapter"), name == tunName_ ? reusableTun_ : QJsonObject{}}});
+    if (const auto* error = std::get_if<domain::Error>(&saved))
+        return *error;
+    if (name != tunName_)
+        reusableTun_ = {};
+    tunName_ = name;
+    tunBefore_ = network;
+    return std::monostate{};
 }
-void ServiceHost::stop() {
+ServiceHost::TunObservation ServiceHost::observeTun() {
+    if (!core_.running() || tunJournalFailed_)
+        return TunObservation::Missing;
+    const auto inspected = inspectTunNetwork();
+    const auto* network = std::get_if<TunNetwork>(&inspected);
+    if (!network)
+        return TunObservation::Unknown;
+    const auto observed = observedTunRecord(tunName_, tunBefore_, *network, reusableTun_);
+    if (observed.isEmpty())
+        return TunObservation::Missing;
+    if (!tunRecord_.value(QStringLiteral("guid")).toString().isEmpty())
+        return tunRecord_.value(QStringLiteral("guid")) == observed.value(QStringLiteral("guid")) &&
+                       tunRecord_.value(QStringLiteral("luid")) ==
+                           observed.value(QStringLiteral("luid"))
+                   ? TunObservation::On
+                   : TunObservation::Missing;
+    for (auto it = observed.begin(); it != observed.end(); ++it)
+        tunRecord_.insert(it.key(), it.value());
+    const auto saved = store_.write(QStringLiteral("tun_session.json"), tunRecord_);
+    if (std::holds_alternative<domain::Error>(saved)) {
+        tunJournalFailed_ = true;
+        return TunObservation::Missing;
+    }
+    const auto identitySaved = store_.write(QStringLiteral("tun_identity.json"),
+                                            {{QStringLiteral("installationId"), tunInstallationId_},
+                                             {QStringLiteral("name"), tunName_},
+                                             {QStringLiteral("adapter"), observed}});
+    if (std::holds_alternative<domain::Error>(identitySaved)) {
+        tunJournalFailed_ = true;
+        return TunObservation::Missing;
+    }
+    reusableTun_ = observed;
+    return TunObservation::On;
+}
+bool ServiceHost::tunObserved() {
+    return observeTun() == TunObservation::On;
+}
+bool ServiceHost::tunClean() {
+    if (tunJournalFailed_)
+        return false;
+    if (tunRecord_.isEmpty())
+        return true;
+    if (core_.running() || validator_.running() || busy_)
+        return false;
+    const auto inspected = inspectTunNetwork();
+    const auto* network = std::get_if<TunNetwork>(&inspected);
+    if (!network || !tunRecordClean(tunRecord_, *network))
+        return false;
+    if (std::holds_alternative<domain::Error>(store_.remove(QStringLiteral("tun_session.json"))))
+        return false;
+    tunRecord_ = {};
+    return true;
+}
+void ServiceHost::stop(const char* reason) {
+    // A real core exit keeps its own reason even when the client asks for the follow-up stop.
+    if (reason && !coreExitKnown_)
+        stopReason_ = QString::fromLatin1(reason);
     epoch_.clear();
     delete logStream_.data();
     logBuffer_.clear();
@@ -769,35 +1106,6 @@ void ServiceHost::stop() {
     providerRefreshPending_ = false;
     const auto removed = store_.remove(QStringLiteral("session/config.yaml"));
     configClean_ = !std::holds_alternative<domain::Error>(removed);
-}
-bool ServiceHost::tunClean() const {
-    ULONG size = 0;
-    (void)GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, nullptr, &size);
-    if (!size || size > 1024 * 1024)
-        return false;
-    QByteArray data(static_cast<qsizetype>(size), Qt::Uninitialized);
-    auto* adapter = reinterpret_cast<IP_ADAPTER_ADDRESSES*>(data.data());
-    if (GetAdaptersAddresses(AF_UNSPEC, 0, nullptr, adapter, &size) != NO_ERROR)
-        return false;
-    NET_LUID luid{};
-    for (; adapter; adapter = adapter->Next) {
-        if (QString::fromWCharArray(adapter->FriendlyName) == QStringLiteral("QuickClash")) {
-            if (adapter->OperStatus == IfOperStatusUp)
-                return false;
-            luid = adapter->Luid;
-        }
-    }
-    if (!luid.Value)
-        return true;
-    PMIB_IPFORWARD_TABLE2 routes = nullptr;
-    if (GetIpForwardTable2(AF_UNSPEC, &routes) != NO_ERROR)
-        return false;
-    bool clean = true;
-    for (ULONG i = 0; i < routes->NumEntries; ++i)
-        clean &= routes->Table[i].InterfaceLuid.Value != luid.Value ||
-                 routes->Table[i].DestinationPrefix.PrefixLength > 1;
-    FreeMibTable(routes);
-    return clean;
 }
 void ServiceHost::confirmStopped(QLocalSocket* socket, const QString& id, int attempt) {
     if (!socket || owner_ != socket)
@@ -819,7 +1127,7 @@ void ServiceHost::confirmStopped(QLocalSocket* socket, const QString& id, int at
     });
 }
 void ServiceHost::shutdown() {
-    stop();
+    stop("Shutdown");
     server_.close();
 }
 } // namespace quickclash::platform

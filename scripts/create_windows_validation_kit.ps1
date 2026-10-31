@@ -30,8 +30,8 @@ try {
     $null = [IO.Directory]::CreateDirectory($taskDestination)
     $taskPackageTarget = Join-Path $taskDestination 'package'
     Copy-ServicePackage $taskPackage $taskPackageTarget
-    # The service copier deliberately excludes root documentation/scripts and the manifest.
-    foreach ($taskRelative in 'readme.md', 'install_service_windows.ps1', 'service_package.ps1', 'metadata/package_manifest.json') {
+    # The service copier deliberately excludes root documentation and the manifest.
+    foreach ($taskRelative in 'readme.md', 'metadata/package_manifest.json') {
         $taskEntry = @($taskManifest.files | Where-Object { $_.path -ceq $taskRelative })
         $taskStream = $null
         try {

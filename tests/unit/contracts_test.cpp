@@ -11,6 +11,8 @@
 #include "infra/config/geo_resources.h"
 #include "infra/core/provider_command.h"
 #include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -297,6 +299,35 @@ int main(int argc, char* argv[]) {
                   "dns: {enable: true}\nrules: []\n", geoDestination.path(), invalidGeo,
                   geoRoot.path())),
               "Geo snapshot rejects paths outside the resource store");
+        QJsonObject snapshot;
+        for (const auto* name : {"geoip.dat", "geosite.dat"}) {
+            const QByteArray bytes = QByteArray("updated-") + name;
+            const auto hash = QString::fromLatin1(
+                QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
+            const auto ref = QStringLiteral("data/geo/%1/%2").arg(hash, QLatin1String(name));
+            const auto path = QDir(geoRoot.path()).filePath(ref);
+            check(QDir().mkpath(QFileInfo(path).absolutePath()), "create snapshot directory");
+            QFile file(path);
+            check(file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size(),
+                  "write snapshot");
+            snapshot.insert(QLatin1String(name), QJsonObject{{"sha256", hash}, {"sourceRef", ref}});
+        }
+        int opened = 0;
+        const auto copied = quickclash::infra::prepareGeoResources(
+            "dns: {enable: true}\nrules: []\n", geoDestination.path(), snapshot, geoRoot.path(),
+            [&](QFile& source) {
+                ++opened;
+                return source.open(QIODevice::ReadOnly);
+            });
+        check(std::holds_alternative<std::monostate>(copied) && opened == 2,
+              "both updated Geo files use caller-authorized source handles");
+        QFile copiedGeo(QDir(geoDestination.path()).filePath(QStringLiteral("GeoIP.dat")));
+        check(copiedGeo.open(QIODevice::ReadOnly) && copiedGeo.readAll() == "updated-geoip.dat",
+              "updated snapshot bytes are used instead of bundled Geo");
+        check(std::holds_alternative<Error>(quickclash::infra::prepareGeoResources(
+                  "dns: {enable: true}\nrules: []\n", geoDestination.path(), snapshot,
+                  geoRoot.path(), [](QFile&) { return false; })),
+              "source permission denial fails closed");
         check(!history.activeRevision && !history.lastGoodRevision,
               "first run has no confirmed history");
         const RuntimePreferences preferences;

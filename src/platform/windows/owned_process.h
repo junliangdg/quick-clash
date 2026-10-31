@@ -1,6 +1,7 @@
 #pragma once
 #include "application/desktop_process.h"
 #include "platform/process_memory.h"
+#include <QDateTime>
 #include <QProcessEnvironment>
 #include <QTimer>
 #include <memory>
@@ -27,12 +28,27 @@ class OwnedProcess final : public application::IDesktopProcess {
     [[nodiscard]] qsizetype outputBytes() const {
         return outputBytes_;
     }
+    // Bounded raw tail for diagnostics. Redaction belongs to the caller before persistence or
+    // transport so this layer only captures what the child process actually wrote.
+    [[nodiscard]] QByteArray outputTail() const {
+        return outputTail_;
+    }
+    [[nodiscard]] int exitCode() const {
+        return exitCode_;
+    }
+    [[nodiscard]] QDateTime exitedAt() const {
+        return exitedAt_;
+    }
 
   private:
     void poll();
+    void drainOutput();
     struct State;
     std::unique_ptr<State> state_;
     QTimer timer_;
     qsizetype outputBytes_ = 0;
+    QByteArray outputTail_;
+    int exitCode_ = 0;
+    QDateTime exitedAt_;
 };
 } // namespace quickclash::platform

@@ -262,6 +262,9 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     }
     state_->pid = process.dwProcessId;
     outputBytes_ = 0;
+    outputTail_.clear();
+    exitCode_ = 0;
+    exitedAt_ = {};
     timer_.start();
     return std::monostate{};
 #else
@@ -278,7 +281,23 @@ void OwnedProcess::poll() {
     if (!running()) {
         return;
     }
-    // Discard raw core output: it may contain credentials or server addresses.
+    drainOutput();
+    if (WaitForSingleObject(state_->process.get(), 0) == WAIT_OBJECT_0) {
+        // Capture the final bytes that may have arrived between the first drain and exit.
+        drainOutput();
+        DWORD exit = 1;
+        (void)GetExitCodeProcess(state_->process.get(), &exit);
+        exitCode_ = static_cast<int>(exit);
+        exitedAt_ = QDateTime::currentDateTimeUtc();
+        timer_.stop();
+        state_ = std::make_unique<State>();
+        emit finished(exitCode_);
+    }
+#endif
+}
+void OwnedProcess::drainOutput() {
+#ifdef Q_OS_WIN
+    // Keep only a small tail in memory. The service redacts it before exposing diagnostics.
     // Drain at most 64 KiB per event to keep control operations responsive.
     DWORD available = 0;
     char buffer[4096];
@@ -293,14 +312,10 @@ void OwnedProcess::poll() {
             break;
         }
         consumed += read;
+        outputTail_.append(buffer, static_cast<qsizetype>(read));
+        if (outputTail_.size() > 4096)
+            outputTail_ = outputTail_.right(4096);
         outputBytes_ = std::min<qsizetype>(outputBytes_ + read, 1024 * 1024 * 1024);
-    }
-    if (WaitForSingleObject(state_->process.get(), 0) == WAIT_OBJECT_0) {
-        DWORD exit = 1;
-        (void)GetExitCodeProcess(state_->process.get(), &exit);
-        timer_.stop();
-        state_ = std::make_unique<State>();
-        emit finished(static_cast<int>(exit));
     }
 #endif
 }
@@ -324,9 +339,17 @@ bool OwnedProcess::ownsListener(quint16 port) const {
         ERROR_INSUFFICIENT_BUFFER) {
         return false;
     }
-    QByteArray bytes(static_cast<qsizetype>(size), Qt::Uninitialized);
-    if (GetExtendedTcpTable(bytes.data(), &size, FALSE, AF_INET, TCP_TABLE_OWNER_PID_LISTENER, 0) !=
-        NO_ERROR) {
+    QByteArray bytes;
+    DWORD result = ERROR_INSUFFICIENT_BUFFER;
+    // The table can grow between sizing and reading as other applications open sockets.
+    for (int attempt = 0; attempt < 3 && result == ERROR_INSUFFICIENT_BUFFER; ++attempt) {
+        if (!size || size > 16 * 1024 * 1024)
+            return false;
+        bytes.resize(static_cast<qsizetype>(size));
+        result = GetExtendedTcpTable(bytes.data(), &size, FALSE, AF_INET,
+                                     TCP_TABLE_OWNER_PID_LISTENER, 0);
+    }
+    if (result != NO_ERROR) {
         return false;
     }
     const auto* table = reinterpret_cast<const MIB_TCPTABLE_OWNER_PID*>(bytes.constData());

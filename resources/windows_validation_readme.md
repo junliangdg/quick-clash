@@ -1,6 +1,6 @@
 # QuickClash Windows 验收工具包
 
-这是未签名的本地测试构建及验收夹具。将整个目录复制到 Windows x64 桌面后，以普通用户在工具包根目录运行以下命令。需要 PowerShell 7.2 或更新版本（也可用官方便携版本）；Windows 自带的 Windows PowerShell 5.1 不适用。无需源码仓库、Qt SDK、Visual Studio 或编译工具。
+这是未签名的本地测试构建及验收夹具。将整个目录复制到 Windows x64 桌面后，以普通用户在工具包根目录运行以下命令。需要 PowerShell 7.2 或更新版本（也可用官方便携版本）；Windows 自带的 Windows PowerShell 5.1 不适用。该要求仅针对本工具包的验收脚本；产品自身的服务安装/更新入口不依赖 PowerShell。无需源码仓库、Qt SDK、Visual Studio 或编译工具。
 
 默认检查完整包摘要、x64 依赖，清除开发 Qt 环境后，从中文空格路径导入本地配置并启动官方核心，再验证缺核心时的修复入口：
 

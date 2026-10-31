@@ -1,6 +1,7 @@
 #pragma once
 #include "application/desktop_process.h"
 #include "application/ports.h"
+#include "infra/core/core_health.h"
 #include "infra/core/service_client.h"
 #include <QJsonObject>
 #include <QNetworkAccessManager>
@@ -41,11 +42,13 @@ class EngineSession final : public QObject {
   public:
     using ApiHandler = std::function<void(domain::Result<QJsonObject>)>;
     explicit EngineSession(QObject* parent = nullptr);
+    EngineSession(std::unique_ptr<application::IDesktopProcess> process, QObject* parent);
     ~EngineSession() override;
     // All paths have been resolved by the storage worker; caller owns validation/transactions.
     void start(const QString& executable, const QString& config, const QString& directory,
                const QByteArray& secret, quint16 mixedPort, quint16 controllerPort,
-               const QString& expectedMode, bool serviceMode = false);
+               const QString& expectedMode, bool serviceMode = false,
+               const QJsonObject& geoSnapshot = {}, const QString& storageRoot = {});
     void probeService(ApiHandler handler);
     void serviceResources(ApiHandler handler);
     void stop();
@@ -62,8 +65,23 @@ class EngineSession final : public QObject {
     [[nodiscard]] bool ready() const {
         return ready_;
     }
+    [[nodiscard]] QJsonObject listenerIssue() const {
+        return listenerIssue_;
+    }
+    [[nodiscard]] QString tunDevice() const {
+        return tunDevice_;
+    }
+    [[nodiscard]] bool cleanupUncertain() const {
+        return serviceCleanupUncertain_;
+    }
     [[nodiscard]] bool tunActive() const {
-        return serviceMode_ && ready_;
+        return tunState_ == QStringLiteral("On");
+    }
+    [[nodiscard]] QString tunState() const {
+        return tunState_;
+    }
+    [[nodiscard]] QJsonObject coreExitDiagnostics() const {
+        return coreExitDiagnostics_;
     }
     [[nodiscard]] bool usingService() const {
         return serviceMode_;
@@ -81,6 +99,7 @@ class EngineSession final : public QObject {
     void groupsChanged(const QJsonObject& groups);
     void mutationFinished(const QString& kind, bool success);
     void streamData(const QString& name, const QJsonObject& data);
+    void tunStateChanged(const QString& state);
 
   private:
     using ReplyHandler = std::function<void(domain::Result<QJsonObject>)>;
@@ -89,6 +108,7 @@ class EngineSession final : public QObject {
     void probe();
     void fail(const QString& code);
     void syncServiceLogs();
+    void setTunState(const QString& state);
     std::unique_ptr<application::IDesktopProcess> process_;
     ServiceClient service_;
     QTimer servicePoll_;
@@ -106,11 +126,19 @@ class EngineSession final : public QObject {
     QList<QPointer<QNetworkReply>> replies_;
     QHash<QString, QPointer<QNetworkReply>> streams_;
     QByteArray secret_;
+    QJsonObject listenerIssue_;
+    QString tunDevice_;
+    QJsonObject coreExitDiagnostics_;
+    QString tunState_ = QStringLiteral("Off");
+    TunObservationTracker tunTracker_;
+    int statusFailures_ = 0;
     QString expectedMode_;
     quint16 mixedPort_ = 0;
     quint16 controllerPort_ = 0;
     quint64 generation_ = 0;
     bool ready_ = false;
     bool probing_ = false;
+    bool listenersPending_ = false;
+    bool configPending_ = false;
 };
 } // namespace quickclash::infra

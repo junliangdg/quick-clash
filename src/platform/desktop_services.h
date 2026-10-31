@@ -17,4 +17,5 @@ makeCredentialStore(infra::JsonStore& store);
 makeSystemProxyLease(infra::JsonStore& store, ProxySettings* settings = nullptr);
 [[nodiscard]] std::unique_ptr<application::IDesktopResources> makeDesktopResources();
 [[nodiscard]] application::DesktopPlatformInfo desktopPlatformInfo();
+[[nodiscard]] std::unique_ptr<application::IServiceSetup> makeServiceSetup();
 } // namespace quickclash::platform

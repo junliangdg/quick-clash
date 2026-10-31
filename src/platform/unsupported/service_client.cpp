@@ -4,7 +4,11 @@
 
 namespace quickclash::infra {
 ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {}
+ServiceClient::~ServiceClient() = default;
 bool ServiceClient::connected() const {
+    return false;
+}
+bool ServiceClient::hadSession() const {
     return false;
 }
 void ServiceClient::command(const QString&, const QJsonObject&, Handler handler) {

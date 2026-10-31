@@ -292,13 +292,90 @@ QString UiState::runtimeError() const {
         return tr("This feature is not available on this platform yet.");
     if (code == QStringLiteral("ServiceSessionBusy"))
         return tr("The Windows service is in use by another client. Close that session first.");
+    if (code == QStringLiteral("ServiceBusy"))
+        return tr("The Windows service is still finishing its last request. Try again in a "
+                  "moment.");
     if (code == QStringLiteral("ServiceProtocolMismatch") ||
         code == QStringLiteral("ServiceHandshakeRequired"))
-        return tr(
-            "The Windows service is incompatible. Install the service from the same package.");
+        return tr("The Windows service belongs to a different version. Enable TUN again to update "
+                  "it from this copy.");
+    if (code == QStringLiteral("ServiceUnavailable"))
+        return tr("The Windows service could not be reached. Enable TUN again to retry; if it "
+                  "persists, check the service in Windows Services.");
+    if (code == QStringLiteral("CoreExited"))
+        return tr("The proxy core exited unexpectedly. TUN is no longer active. Retry; if it "
+                  "repeats, review the app log for the core exit code.");
+    if (code == QStringLiteral("CoreExitedDuringStart"))
+        return tr("The proxy core exited while starting. Review the configuration and app log.");
+    if (code == QStringLiteral("CoreExitedDuringApply"))
+        return tr("The proxy core stopped while applying the profile. The previous profile was "
+                  "restored.");
+    if (code == QStringLiteral("CoreRecoveryExhausted"))
+        return tr("The proxy core stopped repeatedly in a short time. Automatic restart is "
+                  "paused. Review the app log, then start it again.");
+    if (code == QStringLiteral("TunRecoveryExhausted"))
+        return tr("TUN stopped repeatedly in a short time. QuickClash is running in proxy-only "
+                  "mode. Turn TUN on again to retry after checking other VPN or TUN software.");
+    if (code == QStringLiteral("TunNetworkUnavailable"))
+        return tr("TUN is enabled but its virtual adapter is no longer observable. The core is "
+                  "still running; turn TUN off and on to recreate it.");
     if (code == QStringLiteral("ServiceIdentityRejected"))
         return tr("The Windows service identity could not be verified. Check the protected "
                   "installation.");
+    if (code == QStringLiteral("ServiceClientUntrusted"))
+        return tr("TUN is not authorized for this QuickClash folder. Enable TUN again and approve "
+                  "the single administrator request. Moving or renaming the folder requires "
+                  "authorization again.");
+    if (code == QStringLiteral("ServiceInstallationRequired"))
+        return tr("TUN requires the Windows service. Enable TUN again to approve one "
+                  "administrator request that installs it from this package.");
+    if (code == QStringLiteral("ServiceNotRunning"))
+        return tr("The Windows service is stopped. Enable TUN again to approve one administrator "
+                  "request that starts it.");
+    if (code == QStringLiteral("ServiceSetupDeclined"))
+        return tr("Administrator confirmation was cancelled, so TUN stays off. Enable TUN again "
+                  "when you are ready.");
+    if (code == QStringLiteral("ServiceSetupClientRootRejected"))
+        return tr("This folder cannot be authorized for TUN. Run QuickClash from a normal folder "
+                  "without junctions or links.");
+    if (code == QStringLiteral("ServiceSetupPackageMissing"))
+        return tr("This copy is missing quickclash_service.exe. Extract the complete package and "
+                  "enable TUN again.");
+    if (code == QStringLiteral("ServiceSetupLaunchFailed"))
+        return tr("The administrator helper could not start. Try again from a normal folder.");
+    if (code == QStringLiteral("ServiceSetupTimeout"))
+        return tr("The administrator helper did not finish. Review its window, then enable TUN "
+                  "again.");
+    if (code == QStringLiteral("ServiceSetupFailed"))
+        return tr("Administrator setup did not complete. Review the setup log and try again.");
+    if (code == QStringLiteral("CoreListenersNotOwned") ||
+        code == QStringLiteral("CoreListenerPortUnavailable"))
+        return tr("The core could not bind its local ports. Close conflicting applications or "
+                  "change the proxy and controller ports in Settings, then retry.");
+    if (code == QStringLiteral("CoreListenerAddressInUse"))
+        return tr("Local TCP port %1 is already in use. Choose available ports in Settings or "
+                  "close the conflicting application, then retry.")
+            .arg(runtime_.value(QStringLiteral("listenerIssue")).toMap().value("port").toInt());
+    if (code == QStringLiteral("CoreListenerAccessDenied"))
+        return tr("Windows denied binding local TCP port %1. Check system restrictions or "
+                  "choose available ports in Settings, then retry.")
+            .arg(runtime_.value(QStringLiteral("listenerIssue")).toMap().value("port").toInt());
+    if (code == QStringLiteral("NoAvailableListenerPorts"))
+        return tr("No available ports were found nearby. Enter different ports and retry.");
+    if (code == QStringLiteral("ServiceTunRouteConflict"))
+        return tr("Another virtual adapter is handling default traffic. Turn off its VPN or TUN "
+                  "mode before enabling QuickClash TUN, then retry.");
+    if (code == QStringLiteral("ServiceTunNameExhausted") ||
+        code == QStringLiteral("ServiceTunNameChanged"))
+        return tr("No unused TUN adapter name was found. Review virtual adapters and retry.");
+    if (code == QStringLiteral("ServiceNetworkInspectionFailed"))
+        return tr("Windows network state could not be verified. Keep the current mode and retry.");
+    if (code == QStringLiteral("ServiceCleanupUncertain"))
+        return tr("QuickClash could not confirm TUN cleanup. A second session is blocked. Check "
+                  "the service and its recorded adapter, then retry.");
+    if (code == QStringLiteral("CoreConfigReadbackFailed"))
+        return tr("The core configuration does not match the requested local session. Stop the "
+                  "core and retry.");
     if (code == QStringLiteral("StoragePreviewStale"))
         return tr("Data changed or the confirmation expired. Preview the operation again.");
     if (code == QStringLiteral("MaintenanceUnavailable"))

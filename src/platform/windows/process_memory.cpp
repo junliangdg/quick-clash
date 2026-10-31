@@ -79,46 +79,52 @@ QJsonObject currentProcessMemory() {
     return {};
 #endif
 }
-bool installedServiceMatches(quint32 pid) {
+ServiceRegistration installedServiceRegistration(quint32 pid) {
 #ifdef Q_OS_WIN
-    if (!pid)
-        return false;
     ServiceHandle manager(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
     ServiceHandle service(manager ? OpenServiceW(manager.get(), L"QuickClashService",
                                                  SERVICE_QUERY_CONFIG | SERVICE_QUERY_STATUS)
                                   : nullptr);
     if (!service)
-        return false;
+        return GetLastError() == ERROR_SERVICE_DOES_NOT_EXIST ? ServiceRegistration::NotInstalled
+                                                              : ServiceRegistration::Mismatch;
     SERVICE_STATUS_PROCESS before{}, after{};
     DWORD size = 0;
     if (!QueryServiceStatusEx(service.get(), SC_STATUS_PROCESS_INFO,
                               reinterpret_cast<BYTE*>(&before), sizeof(before), &size) ||
-        before.dwCurrentState != SERVICE_RUNNING || before.dwProcessId != pid ||
         before.dwServiceType != SERVICE_WIN32_OWN_PROCESS)
-        return false;
+        return ServiceRegistration::Mismatch;
     DWORD needed = 0;
     QueryServiceConfigW(service.get(), nullptr, 0, &needed);
     if (!needed || needed > 64 * 1024)
-        return false;
+        return ServiceRegistration::Mismatch;
     QByteArray buffer(static_cast<qsizetype>(needed), Qt::Uninitialized);
     auto* config = reinterpret_cast<QUERY_SERVICE_CONFIGW*>(buffer.data());
     if (!QueryServiceConfigW(service.get(), config, needed, &needed) ||
         QString::fromWCharArray(config->lpServiceStartName)
                 .compare(QStringLiteral("LocalSystem"), Qt::CaseInsensitive) != 0)
-        return false;
-    const auto expected =
-        QDir::toNativeSeparators(QDir(QCoreApplication::applicationDirPath())
-                                     .filePath(QStringLiteral("quickclash_service.exe")));
+        return ServiceRegistration::Mismatch;
+    const auto directory = QCoreApplication::applicationDirPath();
+    const auto expected = QDir::toNativeSeparators(
+        QDir(directory).filePath(QStringLiteral("quickclash_service.exe")));
     // The reviewed installer uses one quoted executable with no arguments.
     if (QString::fromWCharArray(config->lpBinaryPathName)
             .compare('"' + expected + '"', Qt::CaseInsensitive) != 0)
-        return false;
-    return QueryServiceStatusEx(service.get(), SC_STATUS_PROCESS_INFO,
-                                reinterpret_cast<BYTE*>(&after), sizeof(after), &size) &&
-           after.dwCurrentState == SERVICE_RUNNING && after.dwProcessId == pid;
+        return ServiceRegistration::Mismatch;
+    if (before.dwCurrentState != SERVICE_RUNNING)
+        return ServiceRegistration::Stopped;
+    if (pid && before.dwProcessId != pid)
+        return ServiceRegistration::Mismatch;
+    if (!pid)
+        return ServiceRegistration::Verified;
+    if (!QueryServiceStatusEx(service.get(), SC_STATUS_PROCESS_INFO,
+                              reinterpret_cast<BYTE*>(&after), sizeof(after), &size) ||
+        after.dwCurrentState != SERVICE_RUNNING || after.dwProcessId != pid)
+        return ServiceRegistration::Mismatch;
+    return ServiceRegistration::Verified;
 #else
     Q_UNUSED(pid)
-    return false;
+    return ServiceRegistration::Unavailable;
 #endif
 }
 QJsonObject installedServiceMemory() {
@@ -177,5 +183,29 @@ QJsonObject installedServiceMemory() {
     result.insert(QStringLiteral("complete"), true);
 #endif
     return result;
+}
+bool startRegisteredService() {
+    const auto registration = installedServiceRegistration(0);
+    if (registration == ServiceRegistration::Verified)
+        return true;
+    if (registration != ServiceRegistration::Stopped)
+        return false;
+    ServiceHandle manager(OpenSCManagerW(nullptr, nullptr, SC_MANAGER_CONNECT));
+    ServiceHandle service(manager ? OpenServiceW(manager.get(), L"QuickClashService",
+                                                 SERVICE_START | SERVICE_QUERY_STATUS)
+                                  : nullptr);
+    SERVICE_STATUS_PROCESS status{};
+    DWORD bytes = 0;
+    if (!service ||
+        !QueryServiceStatusEx(service.get(), SC_STATUS_PROCESS_INFO,
+                              reinterpret_cast<LPBYTE>(&status), sizeof(status), &bytes))
+        return false;
+    // A previous ordinary stop may still be completing. The client retries until STOPPED,
+    // then starts the same authorized registration, without treating a transition as UAC work.
+    if (status.dwCurrentState == SERVICE_START_PENDING ||
+        status.dwCurrentState == SERVICE_STOP_PENDING || status.dwCurrentState == SERVICE_RUNNING)
+        return true;
+    return StartServiceW(service.get(), 0, nullptr) ||
+           GetLastError() == ERROR_SERVICE_ALREADY_RUNNING;
 }
 } // namespace quickclash::platform

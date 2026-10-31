@@ -45,7 +45,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
     : QObject(parent), store_(store), repository_(store),
       credentials_(std::move(services.credentials)),
       platformInfo_(std::move(services.platformInfo)), resources_(std::move(services.resources)),
-      proxyLease_(std::move(services.proxyLease)), validator_(std::move(services.validator)),
+      proxyLease_(std::move(services.proxyLease)), serviceSetup_(std::move(services.serviceSetup)),
+      validator_(std::move(services.validator)),
       clock_(clock ? std::move(clock) : [] { return QDateTime::currentDateTimeUtc(); }),
       runtimePreferences_(infra::SettingsRepository::runtimeDefaults()) {
     geoSourceBase_ =
@@ -159,17 +160,48 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         }
     });
     connect(&engine_, &infra::EngineSession::becameReady, this, [this](const QString&) {
+        coreExitDetail_.clear();
+        tunPending_ = false;
+        tunDisabling_ = false;
+        if (lastError_.startsWith(QStringLiteral("Service")))
+            lastError_.clear();
+        listenerRecoveryBlocked_ = false;
+        listenerIssue_ = {};
         effectivePreferences_ = sessionPreferences_;
         coreUptime_.start();
         status_ = QStringLiteral("RestoringSelections");
         publish();
     });
     connect(&engine_, &infra::EngineSession::failed, this, [this](const QString& code) {
+        tunPending_ = false;
+        tunDisabling_ = false;
+        if (code.startsWith(QStringLiteral("CoreListener"))) {
+            listenerIssue_ = engine_.listenerIssue();
+            listenerRecoveryBlocked_ = true;
+            recoveryTimer_.stop();
+        }
         if (applying_) {
             failedApply(code);
         } else {
             error(code);
         }
+    });
+    connect(&engine_, &infra::EngineSession::tunStateChanged, this, [this](const QString& state) {
+        if (state == QStringLiteral("Missing") || state == QStringLiteral("Unknown")) {
+            appendLog(QStringLiteral("App"), QStringLiteral("warning"),
+                      state == QStringLiteral("Missing")
+                          ? QStringLiteral("The TUN adapter is no longer observable. The "
+                                           "core stays running; turn TUN off and on to "
+                                           "recreate it.")
+                          : QStringLiteral("TUN network state could not be inspected. The "
+                                           "core stays running; retry or inspect the "
+                                           "Windows network state."));
+            error(QStringLiteral("TunNetworkUnavailable"));
+        } else if (state == QStringLiteral("On") &&
+                   lastError_ == QStringLiteral("TunNetworkUnavailable")) {
+            lastError_.clear();
+        }
+        publish();
     });
     connect(&engine_, &infra::EngineSession::stopped, this, [this](bool unexpected) {
         effectivePreferences_ = {};
@@ -186,6 +218,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         if (!applying_)
             status_ = QStringLiteral("Stopped");
         if (unexpected) {
+            tunPending_ = false;
+            tunDisabling_ = false;
             if (applying_) {
                 failedApply(QStringLiteral("CoreExitedDuringApply"));
                 return;
@@ -198,11 +232,33 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             const auto released = proxyLease_->release();
             if (const auto* failure = std::get_if<domain::Error>(&released))
                 error(failure->code);
+            const auto diagnostics = engine_.coreExitDiagnostics();
+            if (!diagnostics.isEmpty()) {
+                auto detail =
+                    QStringLiteral("Core exit diagnostics: code=%1, time=%2")
+                        .arg(diagnostics.value(QStringLiteral("coreExitCode")).toInt())
+                        .arg(diagnostics.value(QStringLiteral("coreExitedAt")).toString());
+                const auto reason = diagnostics.value(QStringLiteral("stopReason")).toString();
+                if (!reason.isEmpty())
+                    detail += QStringLiteral(", reason=%1").arg(reason);
+                const auto stopDetail = diagnostics.value(QStringLiteral("stopDetail")).toString();
+                if (!stopDetail.isEmpty())
+                    detail += QStringLiteral(", detail=%1").arg(stopDetail);
+                const auto output = diagnostics.value(QStringLiteral("coreStderr")).toString();
+                if (!output.isEmpty())
+                    detail += QStringLiteral("; last output: %1").arg(output);
+                appendLog(QStringLiteral("App"), QStringLiteral("error"), detail);
+                coreExitDetail_ = detail;
+            }
             error(QStringLiteral("CoreExited"));
             if (backgroundManaged_) {
-                if (coreUptime_.isValid() && coreUptime_.elapsed() >= 60000)
+                const bool ranLongEnough = coreUptime_.isValid() && coreUptime_.elapsed() >= 60000;
+                if (ranLongEnough)
                     recoveryFailures_ = 0;
-                scheduleBackgroundStart(true);
+                const bool tunSession =
+                    runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() &&
+                    !tunRecoveryBlocked_;
+                scheduleBackgroundStart(true, !ranLongEnough && tunSession);
                 publish();
                 return;
             }
@@ -520,11 +576,31 @@ void DesktopRuntime::enableBackgroundManagement() {
     backgroundSuppressed_ = false;
     scheduleBackgroundStart();
 }
-void DesktopRuntime::scheduleBackgroundStart(bool afterFailure) {
+void DesktopRuntime::scheduleBackgroundStart(bool afterFailure, bool shortFailure) {
+    if (listenerRecoveryBlocked_)
+        return;
     if (!backgroundManaged_ || backgroundSuppressed_ || shuttingDown_ || store_.readOnly() ||
         repository_.recoveryRequired() || selectedId_.isEmpty() || engine_.ready())
         return;
     if (afterFailure) {
+        const bool tunSession = runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() &&
+                                !tunRecoveryBlocked_;
+        if (shortFailure && tunSession) {
+            ++shortFailures_;
+            if (shortFailures_ >= 3) {
+                shortFailures_ = 0;
+                tunRecoveryBlocked_ = true;
+                appendLog(QStringLiteral("App"), QStringLiteral("error"),
+                          QStringLiteral("TUN failed repeatedly in a short time. Automatic TUN "
+                                         "restart is paused; restarting in proxy-only mode."));
+                error(QStringLiteral("TunRecoveryExhausted"));
+                if (!recoveryTimer_.isActive())
+                    recoveryTimer_.start(0);
+                return;
+            }
+        } else {
+            shortFailures_ = 0;
+        }
         recoveryFailures_ = std::min(recoveryFailures_ + 1, 6);
         status_ = QStringLiteral("RecoveryBackoff");
         recoveryTimer_.start(std::min(30000, 1000 << (recoveryFailures_ - 1)));
@@ -576,14 +652,21 @@ QJsonObject DesktopRuntime::controlState() const {
                      {QStringLiteral("completed"), QString::number(reconcileCount_)}}},
         {QStringLiteral("corePid"), static_cast<int>(engine_.pid())},
         {QStringLiteral("tunState"),
-         engine_.tunActive() ? QStringLiteral("On")
+         engine_.cleanupUncertain()                  ? QStringLiteral("Uncertain")
+         : engine_.ready() && engine_.usingService() ? engine_.tunState()
          : runtimePreferences_.value(QStringLiteral("tunDesired")).toBool()
-             ? QStringLiteral("AuthorizationRequired")
+             ? (tunRecoveryBlocked_ || engine_.ready() ? QStringLiteral("Blocked")
+                                                       : QStringLiteral("AuthorizationRequired"))
              : QStringLiteral("Off")},
         {QStringLiteral("readOnly"), store_.readOnly()},
+        {QStringLiteral("tunPending"), tunPending_},
+        {QStringLiteral("tunDisabling"), tunDisabling_},
         {QStringLiteral("systemProxy"), proxyLease_->active()},
         {QStringLiteral("proxyConflict"), proxyLease_->conflict()},
         {QStringLiteral("error"), lastError_},
+        {QStringLiteral("listenerIssue"), listenerIssue_},
+        {QStringLiteral("tunDevice"), engine_.tunDevice()},
+        {QStringLiteral("listenerRecoveryBlocked"), listenerRecoveryBlocked_},
         {QStringLiteral("configIssues"), configIssues_},
         {QStringLiteral("errors"), errors_},
         {QStringLiteral("testResult"), testResult_},
@@ -833,12 +916,20 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
     scheduleSubscriptions();
 }
 void DesktopRuntime::error(const QString& code) {
+    if (!busy_) {
+        tunPending_ = false;
+        tunDisabling_ = false;
+    }
     appendLog(QStringLiteral("App"), QStringLiteral("error"), code);
     lastError_ = code;
     configIssues_ = {};
-    errors_.append(
-        QJsonObject{{QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
-                    {QStringLiteral("code"), code}});
+    QJsonObject entry{
+        {QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
+        {QStringLiteral("code"), code}};
+    // Keep the service-reported exit cause beside the code so a field report stays actionable.
+    if (code == QStringLiteral("CoreExited") && !coreExitDetail_.isEmpty())
+        entry.insert(QStringLiteral("detail"), coreExitDetail_.left(2048));
+    errors_.append(entry);
     while (errors_.size() > 100) {
         errors_.removeFirst();
     }
@@ -1176,6 +1267,8 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
             configTransaction_.reset();
             context->semantic = {};
             busy_ = false;
+            tunPending_ = false;
+            tunDisabling_ = false;
             error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
             return;
         }
@@ -1477,6 +1570,8 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             discardConfigTransaction();
             restorePreferences();
             busy_ = false;
+            tunPending_ = false;
+            tunDisabling_ = false;
             status_ = engine_.ready() ? QStringLiteral("Ready") : QStringLiteral("Stopped");
             error(lastError_.isEmpty() ? QStringLiteral("CoreConfigValidationFailed") : lastError_);
             return;
@@ -1735,10 +1830,12 @@ void DesktopRuntime::launch() {
     status_ = QStringLiteral("Starting");
     sessionPreferences_ = runtimePreferences_;
     publish();
-    engine_.start(coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory),
-                  secret_, values.mixedPort, values.controllerPort,
-                  runtimePreferences_.value(QStringLiteral("mode")).toString(),
-                  runtimePreferences_.value(QStringLiteral("tunDesired")).toBool());
+    engine_.start(
+        coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory), secret_,
+        values.mixedPort, values.controllerPort,
+        runtimePreferences_.value(QStringLiteral("mode")).toString(),
+        runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() && !tunRecoveryBlocked_,
+        runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root());
 }
 void DesktopRuntime::confirmed() {
     if (engine_.ready())
@@ -1883,6 +1980,8 @@ void DesktopRuntime::confirmed() {
     publish();
 }
 void DesktopRuntime::failedApply(const QString& code) {
+    tunPending_ = false;
+    tunDisabling_ = false;
     discardConfigTransaction();
     engine_.stop();
     cleanupSession();
@@ -1926,6 +2025,8 @@ void DesktopRuntime::failedApply(const QString& code) {
     publish();
 }
 void DesktopRuntime::start(bool systemProxy) {
+    listenerRecoveryBlocked_ = false;
+    listenerIssue_ = {};
     backgroundSuppressed_ = false;
     if (busy_ || engine_.ready()) {
         if (engine_.ready() && systemProxy)
@@ -1939,8 +2040,10 @@ void DesktopRuntime::start(bool systemProxy) {
     if (!operation_)
         (void)beginOperation(systemProxy ? QStringLiteral("start_proxy")
                                          : QStringLiteral("start_core"));
-    if (!restartAttempt_)
+    if (!restartAttempt_) {
         crashTimes_.clear();
+        shortFailures_ = 0;
+    }
     restartAttempt_ = false;
     proxyDesired_ = systemProxy;
     candidate_ = repository_.manifest();
@@ -2068,6 +2171,12 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     publish();
 }
 void DesktopRuntime::setTun(bool desired) {
+    if (!busy_ && !engine_.cleanupUncertain() && desired == engine_.tunActive() &&
+        desired == runtimePreferences_.value(QStringLiteral("tunDesired")).toBool())
+        return;
+    // An explicit TUN action is a fresh user retry; clear the automatic restart cap.
+    tunRecoveryBlocked_ = false;
+    shortFailures_ = 0;
     if (platformInfo_.capabilities.value(QStringLiteral("tun")) == QStringLiteral("Unsupported")) {
         error(QStringLiteral("ServicePlatformUnsupported"));
         return;
@@ -2076,33 +2185,85 @@ void DesktopRuntime::setTun(bool desired) {
         error(QStringLiteral("OperationUnavailable"));
         return;
     }
-    if (desired && !runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject().isEmpty()) {
-        error(QStringLiteral("TunBundledGeoRequired"));
-        return;
-    }
     backgroundSuppressed_ = false;
     recoveryTimer_.stop();
-    if (desired && !runtimePreferences_.value(QStringLiteral("tunDesired")).toBool()) {
+    // Every explicit enable revalidates the service before touching the network. A persisted
+    // "desired" flag must not bypass install/update/authorize after a package change or after a
+    // previous cleanup failure.
+    if (desired) {
         busy_ = true;
+        tunPending_ = true;
+        tunDisabling_ = false;
         publish();
-        const auto generation = ++operationGeneration_;
-        engine_.probeService([this, generation](domain::Result<QJsonObject> result) {
-            if (generation != operationGeneration_)
-                return;
-            busy_ = false;
-            if (const auto* failure = std::get_if<domain::Error>(&result)) {
-                error(failure->code);
-                return;
-            }
-            previousPreferences_ = runtimePreferences_;
-            runtimePreferences_.insert(QStringLiteral("tunDesired"), true);
-            applyProfile(selectedId_, true);
-        });
+        tunSetupAttempted_ = false;
+        retryTunAfterSetup();
         return;
     }
     previousPreferences_ = runtimePreferences_;
     runtimePreferences_.insert(QStringLiteral("tunDesired"), desired);
+    tunPending_ = false;
+    tunDisabling_ = true;
     applyProfile(selectedId_, backgroundManaged_ || engine_.ready());
+}
+void DesktopRuntime::retryTunAfterSetup() {
+    const auto generation = ++operationGeneration_;
+    engine_.probeService([this, generation](domain::Result<QJsonObject> result) {
+        if (generation != operationGeneration_)
+            return;
+        busy_ = false;
+        if (const auto* failure = std::get_if<domain::Error>(&result)) {
+            if (startTunSetup(failure->code))
+                return;
+            error(failure->code);
+            return;
+        }
+        previousPreferences_ = runtimePreferences_;
+        runtimePreferences_.insert(QStringLiteral("tunDesired"), true);
+        applyProfile(selectedId_, true);
+    });
+}
+bool DesktopRuntime::startTunSetup(const QString& failure) {
+    if (!serviceSetup_ || tunSetupAttempted_)
+        return false;
+    ServiceSetupMode mode;
+    if (failure == QStringLiteral("ServiceInstallationRequired"))
+        mode = ServiceSetupMode::Install;
+    else if (failure == QStringLiteral("ServiceProtocolMismatch"))
+        mode = ServiceSetupMode::Update;
+    else if (failure == QStringLiteral("ServiceClientUntrusted") ||
+             failure == QStringLiteral("ServiceNotRunning"))
+        mode = ServiceSetupMode::Authorize;
+    else
+        return false;
+    tunSetupAttempted_ = true;
+    busy_ = true;
+    featureState_.insert(QStringLiteral("serviceSetupPending"), true);
+    featureState_.remove(QStringLiteral("serviceSetupLog"));
+    publish();
+    serviceSetup_->start(
+        mode, QCoreApplication::applicationDirPath(),
+        [this](int exitCode) { finishTunSetup(exitCode); },
+        [this](const QString& code) {
+            featureState_.remove(QStringLiteral("serviceSetupPending"));
+            if (serviceSetup_ && !serviceSetup_->logPath().isEmpty())
+                featureState_.insert(QStringLiteral("serviceSetupLog"), serviceSetup_->logPath());
+            busy_ = false;
+            tunPending_ = false;
+            error(code);
+        });
+    return true;
+}
+void DesktopRuntime::finishTunSetup(int exitCode) {
+    featureState_.remove(QStringLiteral("serviceSetupPending"));
+    if (serviceSetup_ && !serviceSetup_->logPath().isEmpty())
+        featureState_.insert(QStringLiteral("serviceSetupLog"), serviceSetup_->logPath());
+    if (exitCode != 0) {
+        busy_ = false;
+        tunPending_ = false;
+        error(QStringLiteral("ServiceSetupFailed"));
+        return;
+    }
+    retryTunAfterSetup();
 }
 void DesktopRuntime::cleanupSession() {
     for (const auto& stream :
@@ -2321,6 +2482,8 @@ void DesktopRuntime::setPorts(int mixed, int controller) {
         error(QStringLiteral("InvalidListenerPorts"));
         return;
     }
+    listenerRecoveryBlocked_ = false;
+    listenerIssue_ = {};
     previousPreferences_ = runtimePreferences_;
     runtimePreferences_.insert(QStringLiteral("mixedPort"), mixed);
     runtimePreferences_.insert(QStringLiteral("controllerPort"), controller);

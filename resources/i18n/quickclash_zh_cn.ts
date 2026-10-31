@@ -539,6 +539,16 @@
       <translation>虚拟网卡模式（TUN）</translation>
     </message>
     <message>
+      <location filename="../../qml/features/home/home_page.qml" line="317" />
+      <source>Starting</source>
+      <translation>正在启动</translation>
+    </message>
+    <message>
+      <location filename="../../qml/features/home/home_page.qml" line="317" />
+      <source>Stopping</source>
+      <translation>正在关闭</translation>
+    </message>
+    <message>
       <location filename="../../qml/features/home/home_page.qml" line="230" />
       <source>IP information not queried. Choose a website and run a test manually.</source>
       <translation>IP 信息未查询 · 网站测试由你指定目标并手动运行</translation>
@@ -590,6 +600,10 @@
     <message>
       <source>Clash Meta (mihomo) · Core</source>
       <translation>Clash Meta (mihomo) · 内核</translation>
+    </message>
+    <message>
+      <source>Unavailable</source>
+      <translation>不可用</translation>
     </message>
   </context>
   <context>
@@ -1192,8 +1206,8 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="23" />
-      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.</source>
-      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Clash Meta (mihomo) 校验后一起应用。现有连接会重新建立，并保留上一份快照。TUN 目前使用随包 Geo 数据库。</translation>
+      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.</source>
+      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Clash Meta (mihomo) 校验后一起应用于普通和 TUN 模式。现有连接会重新建立，并保留上一份快照。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="29" />
@@ -1271,8 +1285,18 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="246" />
-      <source>TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.</source>
-      <translation>TUN 需要从已校验的软件包安装 Windows 服务。以管理员身份运行 install_service_windows.ps1，再以普通用户身份启动安装后的界面。</translation>
+      <source>TUN needs the Windows service. Enabling TUN can ask for one administrator confirmation to install it or authorize this folder; moving or renaming the folder requires authorization again. QuickClash itself keeps running as an ordinary user.</source>
+      <translation>TUN 需要 Windows 服务。开启 TUN 时会请求一次管理员确认，用于安装服务或授权当前目录；目录移动或改名后需要重新授权。QuickClash 本身始终以普通权限运行。</translation>
+    </message>
+    <message>
+      <location filename="../../qml/features/settings/settings_page.qml" line="449" />
+      <source>Waiting for Windows administrator confirmation…</source>
+      <translation>等待 Windows 管理员确认…</translation>
+    </message>
+    <message>
+      <location filename="../../qml/features/settings/settings_page.qml" line="456" />
+      <source>Administrator setup log: %1</source>
+      <translation>管理员安装日志：%1</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="254" />
@@ -1422,6 +1446,10 @@
       <location filename="../../qml/features/settings/settings_page.qml" line="442" />
       <source>Synthetic records preview the interface without starting the core or changing the system proxy.</source>
       <translation>合成记录仅用于页面与资源验证，不启动内核、不修改系统代理。</translation>
+    </message>
+    <message>
+      <source>Unavailable</source>
+      <translation>不可用</translation>
     </message>
   </context>
   <context>
@@ -1866,8 +1894,26 @@
   <context>
     <name>quickclash::presentation::UiState</name>
     <message><source>The Windows service is in use by another client. Close that session first.</source><translation>Windows 服务正由另一客户端使用，请先关闭该会话。</translation></message>
-    <message><source>The Windows service is incompatible. Install the service from the same package.</source><translation>Windows 服务版本不兼容，请从同一程序包安装服务。</translation></message>
+    <message><source>The Windows service belongs to a different version. Enable TUN again to update it from this copy.</source><translation>Windows 服务属于其他版本。再次开启 TUN 即可从当前副本更新服务。</translation></message>
+    <message><source>The Windows service could not be reached. Enable TUN again to retry; if it persists, check the service in Windows Services.</source><translation>无法连接 Windows 服务。再次开启 TUN 重试；若持续失败，请在 Windows 服务中检查服务状态。</translation></message>
+    <message><source>The proxy core exited unexpectedly. TUN is no longer active. Retry; if it repeats, review the app log for the core exit code.</source><translation>代理内核意外退出，TUN 已不再生效。请重试；若反复发生，请在应用日志中查看核心退出码。</translation></message>
+    <message><source>The proxy core exited while starting. Review the configuration and app log.</source><translation>代理内核在启动过程中退出。请检查配置和应用日志。</translation></message>
+    <message><source>The proxy core stopped while applying the profile. The previous profile was restored.</source><translation>代理内核在应用配置时停止，已恢复之前的配置。</translation></message>
+    <message><source>The proxy core stopped repeatedly in a short time. Automatic restart is paused. Review the app log, then start it again.</source><translation>代理内核在短时间内反复停止，已暂停自动重启。请查看应用日志后手动重新启动。</translation></message>
+    <message><source>TUN stopped repeatedly in a short time. QuickClash is running in proxy-only mode. Turn TUN on again to retry after checking other VPN or TUN software.</source><translation>TUN 在短时间内反复停止，QuickClash 已切换为仅代理模式。请检查其他 VPN 或 TUN 软件后，再次开启 TUN 重试。</translation></message>
+    <message><source>TUN is enabled but its virtual adapter is no longer observable. The core is still running; turn TUN off and on to recreate it.</source><translation>TUN 已开启，但虚拟网卡已无法观测。内核仍在运行；请关闭再开启 TUN 以重新创建网卡。</translation></message>
     <message><source>The Windows service identity could not be verified. Check the protected installation.</source><translation>无法核验 Windows 服务身份，请检查受保护的安装目录。</translation></message>
+    <message><source>TUN is not authorized for this QuickClash folder. Enable TUN again and approve the single administrator request. Moving or renaming the folder requires authorization again.</source><translation>此 QuickClash 目录尚未获得 TUN 服务授权。再次开启 TUN 并确认一次管理员请求即可；目录移动或改名后需要重新授权。</translation></message>
+    <message><source>TUN requires the Windows service. Enable TUN again to approve one administrator request that installs it from this package.</source><translation>TUN 需要 Windows 服务。再次开启 TUN 并确认一次管理员请求，即可从本包安装服务。</translation></message>
+    <message><source>The Windows service is stopped. Enable TUN again to approve one administrator request that starts it.</source><translation>Windows 服务当前已停止。再次开启 TUN 并确认一次管理员请求，即可启动服务。</translation></message>
+    <message><source>Administrator confirmation was cancelled, so TUN stays off. Enable TUN again when you are ready.</source><translation>管理员确认已取消，TUN 保持关闭。需要时可再次开启 TUN。</translation></message>
+    <message><source>This folder cannot be authorized for TUN. Run QuickClash from a normal folder without junctions or links.</source><translation>无法授权此目录使用 TUN。请从没有 junction 或符号链接的普通目录运行 QuickClash。</translation></message>
+    <message><source>This copy is missing quickclash_service.exe. Extract the complete package and enable TUN again.</source><translation>此副本缺少 quickclash_service.exe。请解压完整程序包后再次开启 TUN。</translation></message>
+    <message><source>The administrator helper could not start. Try again from a normal folder.</source><translation>无法启动管理员辅助程序。请从普通目录再次尝试。</translation></message>
+    <message><source>The administrator helper did not finish. Review the setup log, then enable TUN again.</source><translation>管理员辅助程序未完成。请查看安装日志后再次开启 TUN。</translation></message>
+    <message><source>Administrator setup did not complete. Review the setup log and try again.</source><translation>管理员配置未完成。请查看安装日志后重试。</translation></message>
+    <message><source>The core could not bind its local ports. Close conflicting applications or change the proxy and controller ports in Settings, then retry.</source><translation>内核未能绑定本地端口。请关闭占用端口的程序，或在设置中修改代理端口和控制端口后重试。</translation></message>
+    <message><source>The core configuration does not match the requested local session. Stop the core and retry.</source><translation>内核配置与请求的本地会话不一致，请停止内核后重试。</translation></message>
     <message><source>Data changed or the confirmation expired. Preview the operation again.</source><translation>数据已变化或确认已过期，请重新预览操作。</translation></message>
     <message><source>Finish active operations, stop the core and resolve the system proxy lease before repairing data.</source><translation>请先结束当前操作、停止内核并处理系统代理租约，再修复数据。</translation></message>
     <message><source>The log storage budget is full. Review storage cleanup before exporting again.</source><translation>日志存储预算已满，请检查存储清理后再导出。</translation></message>
@@ -2210,5 +2256,23 @@
   </context>
   <context><name>quickclash::presentation::UiState</name>
     <message><source>This feature is not available on this platform yet.</source><translation>当前平台暂不支持此功能。</translation></message>
+  </context>
+  <context><name>settings_page</name>
+    <message><source>Use available ports…</source><translation>使用可用端口…</translation></message>
+    <message><source>Retry</source><translation>重试</translation></message>
+  </context>
+  <context><name>quickclash::presentation::UiState</name>
+    <message><source>Local TCP port %1 is already in use. Choose available ports in Settings or close the conflicting application, then retry.</source><translation>本地 TCP 端口 %1 已被占用。请在设置中选择可用端口，或关闭冲突程序后重试。</translation></message>
+    <message><source>Windows denied binding local TCP port %1. Check system restrictions or choose available ports in Settings, then retry.</source><translation>Windows 拒绝绑定本地 TCP 端口 %1。请检查系统限制，或在设置中选择可用端口后重试。</translation></message>
+    <message><source>No available ports were found nearby. Enter different ports and retry.</source><translation>未在附近找到可用端口。请输入其他端口后重试。</translation></message>
+    <message><source>Another virtual adapter is handling default traffic. Turn off its VPN or TUN mode before enabling QuickClash TUN, then retry.</source><translation>其他虚拟网卡正在接管默认流量。请先关闭对应的 VPN 或 TUN 模式，再重试启用 QuickClash TUN。</translation></message>
+    <message><source>No unused TUN adapter name was found. Review virtual adapters and retry.</source><translation>未找到空闲的 TUN 网卡名称。请检查虚拟网卡后重试。</translation></message>
+    <message><source>Windows network state could not be verified. Keep the current mode and retry.</source><translation>无法核实 Windows 网络状态。请保留当前模式并重试。</translation></message>
+  </context>
+  <context><name>quickclash::presentation::UiState</name>
+    <message><source>QuickClash could not confirm TUN cleanup. A second session is blocked. Check the service and its recorded adapter, then retry.</source><translation>QuickClash 无法确认 TUN 已清理，已阻止第二个会话。请检查服务及其记录的网卡后重试。</translation></message>
+  </context>
+  <context><name>settings_page</name>
+    <message><source>TUN adapter: %1</source><translation>TUN 网卡：%1</translation></message>
   </context>
 </TS>

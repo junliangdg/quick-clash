@@ -4,6 +4,9 @@
 #include "infra/core/service_protocol.h"
 #include "infra/storage/json_store.h"
 #include "platform/windows/owned_process.h"
+#include "platform/windows/trusted_client_root.h"
+#include "platform/windows/tun_network.h"
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QJsonArray>
 #include <QLocalServer>
@@ -21,7 +24,11 @@ class ServiceHost final : public QObject {
     void shutdown();
 
   private:
-    [[nodiscard]] bool authenticated(QLocalSocket* socket);
+    enum class TunObservation { On, Missing, Unknown };
+
+    [[nodiscard]] bool authenticated(QLocalSocket* socket, QString* failure = nullptr,
+                                     QString* image = nullptr);
+    [[nodiscard]] bool loadTrustedClientRoot();
     void receive(QLocalSocket* socket);
     void dispatch(QLocalSocket* socket, const QString& id, const QString& action,
                   const QJsonObject& payload);
@@ -30,15 +37,20 @@ class ServiceHost final : public QObject {
     void probe(QLocalSocket* socket, const QString& id, int attempt);
     void api(QLocalSocket* socket, const QString& id, const QByteArray& method,
              const QByteArray& path, const QJsonObject& body = {});
-    void stop();
+    void stop(const char* reason = "Explicit");
     void confirmStopped(QLocalSocket* socket, const QString& id, int attempt);
-    [[nodiscard]] bool tunObserved() const;
-    [[nodiscard]] bool tunClean() const;
+    [[nodiscard]] TunObservation observeTun();
+    [[nodiscard]] bool tunObserved();
+    [[nodiscard]] bool tunClean();
+    [[nodiscard]] domain::CommandResult prepareTun();
     QLocalServer server_;
     QPointer<QLocalSocket> owner_;
     QHash<QLocalSocket*, QByteArray> buffers_;
     QHash<QLocalSocket*, QByteArray> identities_;
+    QHash<QLocalSocket*, QString> images_;
+    QHash<QLocalSocket*, QString> rejections_;
     QHash<QLocalSocket*, QString> sessions_;
+    TrustedClientRoot trustedClient_;
     infra::ServiceProtocol protocol_;
     infra::JsonStore store_;
     OwnedProcess core_;
@@ -53,7 +65,21 @@ class ServiceHost final : public QObject {
     QString configPath_;
     QString directory_;
     QString pipe_;
+    QString tunInstallationId_;
+    QString tunName_;
+    QJsonObject tunRecord_;
+    QJsonObject reusableTun_;
+    TunNetwork tunBefore_;
+    bool tunJournalFailed_ = false;
+    QString stopReason_;
+    QString stopDetail_;
+    QString probeDetail_;
+    QString buildId_;
+    bool coreExitKnown_ = false;
+    int coreExitCode_ = 0;
+    QDateTime coreExitedAt_;
     QJsonObject groups_;
+    QJsonObject geoResources_;
     QSet<QString> providers_;
     bool providerRefreshPending_ = false;
     quint16 mixedPort_ = 0;

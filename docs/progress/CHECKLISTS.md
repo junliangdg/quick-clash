@@ -37,6 +37,7 @@
 
 | 范围 | 结果 | 证据/下一步 |
 |---|---|---|
+| 开发目录主界面启动 | Pass | Windows增量构建自动部署Qt依赖；清Qt PATH的4/4窗口回归、普通配置原生主界面及关闭到托盘后单实例重开、独立部署smoke及服务status通过。Qt6.12个人启动仍记录8条颜色undefined警告，未扩大为全UI无警告或G1-C整体Pass。[记录](DEVLOG.md#2026-10-31--开发目录主界面启动修复) |
 | 灵猫Q品牌与侧栏收展 | Pass | Windows构建/lint、7/7现有回归及居中修正4/4、EXE九档图标逐字节核对、独立部署原生双主题/宽窄截图及188项完整离线包核对通过；旧紫底Q及顶部交互由当前证据替代。额外tray回放卸载失败独立记G1-C Stale，不扩大本项结论。[记录](DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展) |
 | 导航圆角线性图标替换 | Pass | 用户采用第一套，八个本地SVG统一侧栏/图标轨/底栏；Windows Qt6.8增量构建/lint及6/6回归通过，独立部署清Qt PATH启动、D3D11/125%DPI原生双主题与宽窄导航核对通过。[记录](DEVLOG.md#2026-10-30--导航圆角线性图标) |
 | 方案C设计、静态概念图与离线预览 | Pass | 导航/品牌与产品同源SVG，Light/Dark静态图已重建；1200/800/360宽×双主题六组合无溢出/缺图，鼠标和键盘收展通过；未受影响的历史48项响应式/74组对比度证据保留。浏览器预览不替代产品验收。[记录](DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展) |
@@ -46,7 +47,11 @@
 
 ### G2：Windows MVP
 
+- [x] 启动与服务入口修复 Pass（有限范围）：2026-10-30旧会话CoreListenersNotOwned及便携包ServiceIdentityRejected的失败事实保留；已增加端口预检/有界Ready核对，完成7项回归、完整包验证及实际受保护安装更新。个人配置由应用事务保存为7892/9091并Ready，两个回环监听属于随包核心；普通GUI服务身份/控制/断线清理通过，便携包拒绝并提示正式路径。另一代理Meta网卡正在接管默认路由，本轮未切换实际TUN，P3-04路由/DNS与P3-25跨用户仍NotRun。[记录](DEVLOG.md#2026-10-30--内核监听与服务安装入口修复)
+
 追加功能检查（不替代下列G2-A—E或16项MVP）：
+
+- [x] 端口冲突与TUN名称/路由保护 Pass（实现/定向范围）：Windows构建/lint、10项回归和最终runtime补验通过，精确端口原因、候选确认/取消/回滚、第三方Meta不得认领、稳定名称/GUID/LUID和DNS残留策略通过；188项完整包清Qt环境导入Ready/缺核心修复通过。正式安装未更新，旧服务相关结论对此实现Stale；实际新服务/TUN创建、转发与单一TUN环境清理仍NotRun/P3-04/25，不提升G3。[记录](DEVLOG.md#2026-10-30--端口与tun冲突处理)
 
 - [x] P3-24：支持包固定字段/未知字符串拒绝、冻结预览/确认/隐藏取消、无内核与只读导出；损坏/新版schema原字节归档、重开空仓库不启动、中断标记/文件占用失败回退、旧确认/未处理租约拒绝通过。总量1GiB/缓存64MiB/导出日志15MiB软预算保留配置/历史/事务/草稿/核心缓存/备份/归档，超额提示而不删保护数据；测速凭据及草稿保留有回归。Windows增量构建/lint、最终9/9回归及完整runtime114.03秒Pass，10秒162轮预览/取消三指标与释放核对通过；无GUI短测不代表长期/GPU结论，真实服务/TUN仍未验收。[验收记录](DEVLOG.md#2026-10-29--p3支持包与存储修复)
 
@@ -75,14 +80,26 @@
 
 | P3-25条件 | 结果 | 证据范围与限制 |
 |---|---|---|
-| SVC-01 | Pass | 普通PowerShell身份被断开；保护路径GUI可握手；普通用户停止服务AccessDenied |
-| SVC-02 | Pass | 清单逃逸/重复/坏摘要/缺文件/未知schema/未列出DLL/联接拒绝，锁定源拒绝写替换，复制摘要复核；未做持续竞态压力 |
-| SVC-03 | Pass | 实际强杀本轮普通客户端探针后旧owned核心消失、查询clean；服务强杀重启旧核心回收/清理旧配置；不代表完整GUI宿主P3-14或TUN |
-| SVC-04 | Pass | 协议99及无握手请求拒绝；能力不匹配不进入权限操作，普通模式runtime113.24秒通过 |
+| SVC-01 | Pass | 当前便携受信根客户端可握手；普通PowerShell被ServiceClientUntrusted拒绝，静默/碎片/超限占满后3037ms回收，超额连接断开。新方案明确允许普通用户启停已注册服务，旧停止AccessDenied结论Stale |
+| SVC-02 | Stale | 旧清单身份矩阵不适用；当前坏Geo摘要拒绝及权限拒绝opener单测通过，完整路径逃逸/链接/超权限资源真实矩阵未验，不能标整体Pass |
+| SVC-03 | Pass | 当前便携服务实测客户端、owned内核、SCM服务分别强杀后旧核心消失、查询clean并可新启动；17秒暂停后单请求超时不拆会话、同PID恢复。不代表TUN故障或全部GUI宿主矩阵 |
+| SVC-04 | Pass | 当前便携服务重跑协议99及无握手拒绝；旧注册/移动目录返回ServiceProtocolMismatch，未安装返回ServiceInstallationRequired，能力不匹配不进入权限命令 |
 | SVC-05 | NotRun | 同用户第二连接Busy通过；缺第二活动用户桌面/切换的真实证据，RDP不受支持 |
 | SVC-06 | Pass | 普通GUI无法打开真实核心pipe或读取服务配置；危险external-controller-pipe字段拒绝，固定组读取/选择通过 |
-| SVC-07 | Pass | 实际start同ID精确返回相同PID/epoch，改报文复用ID断开；单测覆盖在途重复/淘汰ID拒绝 |
+| SVC-07 | Pass | 当前便携服务实测start同ID精确返回相同PID/epoch，改报文复用ID断开；单测覆盖在途重复/淘汰ID拒绝 |
+| SVC-08 | Pass | 定向：当前受信根握手，另一目录被拒；移动目录需重授权且修复后可用。完整链接/ACL/竞态矩阵未验 |
+| SVC-09 | NotRun | 已测旧版UAC迁移、普通权限重开/停止后启动/同路径update、共享Geo与卸载；新方案完整首次GUI流程、实际TUN和系统重启未验 |
+| SVC-10 | Pass | 定向：旧保护目录迁移清理、目录搬迁重授权、无效服务镜像注册失败后回退原注册与受信根；不代表并发/强杀安装矩阵 |
+| SVC-11 | NotRun | 新便携服务实际TUN启动镜像追踪未验，第三方Meta保持启用 |
 | SYS-05 | Pass | 仅能力降级分支：proxyRecovery=NotAvailable，不跨用户写HKCU，继续用户态租约/下次恢复；可信移交与即时恢复未实现 |
+
+2026-10-31当前便携服务重验：最终Windows构建、10/10回归61.38秒及最后启动并发修订8/8回归31.91秒通过，实际普通服务启动/Geo/协议/免UAC更新再次通过；第三方Meta保持Up，新方案真实TUN与系统重启NotRun。[当前记录](DEVLOG.md#2026-10-31--tun便携目录持久服务替换)。
+
+2026-10-31此前受信根服务补验（历史范围）：SVC-01/03/04/06/07上述定向范围已重跑通过（协议99/无hello拒绝、start同ID重放、改ID报文断开、控制器/配置拒读、固定组控制及同用户Busy）；3秒未拥有连接期限、16KiB握手限额及超过16KiB合法首个start通过。服务实际暂停17秒后单请求ServiceTimeout，同会话同PID恢复Ready，lost=false，显式停止后clean。新增显式析构修复socket销毁时回调已销毁成员；最终7/7回归Pass29.83秒。[完整记录与限制](DEVLOG.md#2026-10-31--服务连接回收与普通服务恢复验收)。真实TUN故障按用户选择NotRun。
+
+- [ ] P3-28 Review：首次UAC直接注册便携目录的SERVICE_AUTO_START服务，普通GUI保持原权限，后续启动/同目录update免UAC；普通与服务模式共用官方内核/Geo来源，ProgramData仅保留保护授权、私有运行会话与清理记录。旧Program Files服务迁移及识别载荷清理通过；隔离副本的根外拒绝、移动后要求授权、授权修复、坏服务镜像触发原注册/受信根回退、卸载与便携文件保留通过，结束恢复build/dev注册。SVC-08为定向Pass（非完整权限/链接竞态矩阵）；SVC-09已测普通权限重开/停止后启动/同路径更新/共享Geo及卸载，完整首次GUI UAC链路、新方案实际TUN和系统重启仍未验；SVC-10为迁移/移动/失败回退的定向Pass；SVC-11 NotRun。旧复制安装/Manual/停止AccessDenied结论Stale，保留历史于DEVLOG。[替换与验收](DEVLOG.md#2026-10-31--tun便携目录持久服务替换)。
+
+- [ ] P3-29 Review：服务每秒 status 的轮询曾把 ready=true/tun=false、请求超时、IPC 错误或缺少响应对象都当作内核退出，主动停止 owned 会话并报 CoreExited；这与 mihomo 崩溃无关，却导致 TUN 适配器消失、开关关闭和反复重启。现仅明确 ready=false 判定退出；状态失败记 Unknown，不停止内核；TUN 以 On/Missing/Unknown 独立观测，连续三次缺失才向界面报告不可用并在恢复 On 时清除；连续三次核心运行不足 60 秒的 TUN 失败后暂停自动重开 TUN，保留普通代理并报 TunRecoveryExhausted，用户显式操作 TUN 时重置。真实退出记录退出码、UTC 时间和脱敏截断的 stderr 尾部。补充修复：连接与握手共享 15 秒截止，握手后每次请求单独计时，单请求超时不再关闭服务会话或停核；握手携带 serviceBuild（服务程序 SHA-256），与随包服务载荷不一致时返回 ServiceProtocolMismatch 并请求一次受控 update；每次显式开启 TUN 都重新执行服务预检，持久化 tunDesired=true 不跳过；清理不确定只阻止服务模式，未建立会话的退出不再产生 ServiceCleanupUncertain；TUN 开关增加 tunPending/tunDisabling 过渡，用户实测开启保持、关闭立即保持且无回弹。Windows 增量构建与格式检查通过；core_health、service_protocol、engine_startup、ui_state、runtime_test 回归 Pass。用户本人多次开关真实服务 TUN，核心随开关预期重建，应用日志无新增 CoreExited/ServiceTimeout；验证时 TUN 开启，适配器 QuickClash-a880b33f（198.18.0.1）、默认路由 metric 0、DNS 198.18.0.2，经 TUN 的 HTTP 探测 204；关闭后适配器移除并由普通内核接管；适配器 LUID、连续短时失败后的 TunRecoveryExhausted 与普通代理恢复仍 NotRun，TUN-04/TUN-05 不得标 Pass。
 
 - [x] P3-21：Core/App/Service来源、2000条/4MiB双预算/截断/丢弃、暂停缺口与跟随区分、冻结脱敏预览/默认隐藏正文/令牌失效完成；Windows主程序/服务构建、8项回归及最终4项UI/筛选、headless5项Pass。默认GPU2000条页面短测模型/页面释放通过；真实服务安装联验仍P3-25，未关闭字体驻留专项。[验收记录](DEVLOG.md#2026-10-28--p3日志与导出)
 - [x] P3-23：schema2原文/覆盖与离线展开备份、schema1兼容、固定预检副本/确认令牌及整批官方校验完成；摘要/路径拒绝、晚项失败清理、取消和空仓库不启动通过。Windows增量构建/lint、5项定向及完整runtime Pass，10秒66次预览/取消短测候选均释放；不包含密码加密。[验收记录](DEVLOG.md#2026-10-28--p3配置备份恢复)
@@ -125,6 +142,8 @@
 P3任务拆分和遗漏映射复核见[2026-10-28记录](DEVLOG.md#2026-10-28--p3任务范围与依赖复核)；P3-17—27承接独立交付，不表示产品能力已验证。G1仍Stale、G2/G3仍NotRun，MVP结果不变。
 
 P3-13执行清单（均为静态或已有接口核对，不要求其他平台设备）：
+
+2026-10-31补齐Unsupported ServiceClient::hadSession链接契约及共享显式析构定义；Windows上编译真实后端并直接调用该接口的测试Pass，包含最终7/7回归，见[接口修复](DEVLOG.md#2026-10-31--非windows服务会话接口补齐)及[最终验收](DEVLOG.md#2026-10-31--服务连接回收与普通服务恢复验收)。Linux/macOS原生构建与TUN能力仍NotRun。
 
 - [x] 共享层/公开头不引用Windows具体凭据、代理、SCM/WinINet/DPAPI/资源采样或进程实现；DesktopServices职责接口由infra组装，include检查及人工核对通过。
 - [x] CMake按平台选择源/PRIVATE系统库，公开头不泄漏平台SDK；Unsupported真实实现契约在Windows编译/测试通过，非Windows原生NotRun。

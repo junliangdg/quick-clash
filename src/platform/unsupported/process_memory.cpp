@@ -1,6 +1,9 @@
 #include "platform/process_memory.h"
 
 namespace quickclash::platform {
+bool startRegisteredService() {
+    return false;
+}
 ProcessIdentity processIdentity(quint32) {
     return {};
 }
@@ -10,8 +13,8 @@ QJsonObject processMemory(ProcessIdentity) {
 QJsonObject currentProcessMemory() {
     return {};
 }
-bool installedServiceMatches(quint32) {
-    return false;
+ServiceRegistration installedServiceRegistration(quint32) {
+    return ServiceRegistration::Unavailable;
 }
 QJsonObject installedServiceMemory() {
     return {{QStringLiteral("complete"), false}};

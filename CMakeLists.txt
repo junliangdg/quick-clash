@@ -86,16 +86,27 @@ target_link_libraries(quickclash_platform PUBLIC quickclash_application PRIVATE 
 if(WIN32)
     target_sources(quickclash_platform PRIVATE
         src/platform/windows/desktop_services.cpp
+        src/platform/windows/tun_network.cpp src/platform/windows/tun_network.h
         src/platform/windows/process_memory.cpp
+        src/platform/windows/service_setup.cpp
+        src/platform/windows/service_installer.cpp src/platform/windows/service_installer.h
+        src/platform/windows/trusted_client_root.cpp src/platform/windows/trusted_client_root.h
         src/platform/windows/owned_process.cpp src/platform/windows/owned_process.h
         src/platform/windows/system_proxy.cpp src/platform/windows/system_proxy.h)
-    target_link_libraries(quickclash_platform PRIVATE iphlpapi ws2_32 userenv advapi32 psapi wininet)
+    target_link_libraries(quickclash_platform PRIVATE iphlpapi ws2_32 userenv advapi32 psapi wininet shell32)
+    if(BUILD_TESTING)
+        target_compile_definitions(quickclash_platform PRIVATE
+            QUICKCLASH_DEVELOPMENT_CORE="${CMAKE_SOURCE_DIR}/.cache/mihomo/mihomo.exe")
+    endif()
 else()
     target_sources(quickclash_platform PRIVATE
-        src/platform/unsupported/desktop_services.cpp src/platform/unsupported/process_memory.cpp)
+        src/platform/unsupported/desktop_services.cpp src/platform/unsupported/process_memory.cpp
+        src/platform/unsupported/service_setup.cpp)
 endif()
 quickclash_warnings(quickclash_platform)
 add_library(quickclash_engine
+    src/infra/core/core_health.cpp src/infra/core/core_health.h
+    src/infra/core/listener_ports.cpp src/infra/core/listener_ports.h
     src/infra/core/service_client.h
     src/infra/core/service_protocol.cpp src/infra/core/service_protocol.h
     src/infra/core/engine_session.cpp src/infra/core/engine_session.h)
@@ -249,6 +260,35 @@ if(QUICKCLASH_BUILD_UI)
                 src/presentation/profile_model.cpp src/presentation/profile_model.h
                 src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
                 src/presentation/replay_model.cpp src/presentation/replay_model.h)
+    if(WIN32)
+        # Deploy QML plugin dependencies as well as linked DLLs: copying QtCore
+        # alone relocates Qt paths and can leave a working tray without a UI.
+        # qt6.conf takes precedence over Qt 6.12's generated build qt.conf.
+        # Installation generates its own configuration for the package layout.
+        file(GENERATE OUTPUT "$<TARGET_FILE_DIR:quickclash>/qt6.conf" CONTENT
+            "[Paths]
+Prefix = .
+Plugins = .
+QmlImports = qml, ., QuickClash/Ui
+")
+        add_custom_command(TARGET quickclash POST_BUILD
+            COMMAND Qt6::windeployqt --qtpaths $<TARGET_FILE:Qt6::qtpaths>
+                $<IF:$<CONFIG:Debug>,--debug,--release>
+                --no-translations --no-compiler-runtime --no-patchqt
+                --qmldir "${CMAKE_CURRENT_SOURCE_DIR}/qml" $<TARGET_FILE:quickclash>
+            COMMAND_EXPAND_LISTS VERBATIM)
+        if(BUILD_TESTING)
+            add_custom_command(TARGET quickclash POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                    $<TARGET_FILE:Qt6::QOffscreenIntegrationPlugin>
+                    "$<TARGET_FILE_DIR:quickclash>/platforms"
+                VERBATIM)
+        endif()
+        add_custom_command(TARGET quickclash_service POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                $<TARGET_RUNTIME_DLLS:quickclash_service> $<TARGET_FILE_DIR:quickclash_service>
+            COMMAND_EXPAND_LISTS VERBATIM)
+    endif()
     if(MSVC)
         # Qt 6.8 qmlcachegen instantiations trigger C4702 with optimized MSVC.
         # Exempt only generated QML cache sources; keep /W4 and /WX elsewhere.
@@ -335,6 +375,26 @@ if(BUILD_TESTING)
             set_tests_properties(recovery PROPERTIES TIMEOUT 60 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         endif()
         find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
+        if(WIN32)
+            add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
+            add_executable(tun_network_test tests/unit/tun_network_test.cpp)
+            target_link_libraries(tun_network_test PRIVATE quickclash_platform)
+            quickclash_warnings(tun_network_test)
+            add_test(NAME tun_network COMMAND tun_network_test)
+            set_tests_properties(tun_network PROPERTIES TIMEOUT 15)
+            add_executable(trusted_client_root_test tests/unit/trusted_client_root_test.cpp)
+            target_link_libraries(trusted_client_root_test PRIVATE quickclash_platform Qt6::Test)
+            quickclash_warnings(trusted_client_root_test)
+            set_target_properties(trusted_client_root_test PROPERTIES AUTOMOC ON)
+            add_test(NAME trusted_client_root COMMAND trusted_client_root_test)
+            set_tests_properties(trusted_client_root PROPERTIES TIMEOUT 15)
+            set_target_properties(engine_startup_test PROPERTIES AUTOMOC ON)
+            target_link_libraries(engine_startup_test PRIVATE quickclash_engine quickclash_config Qt6::Test)
+            target_compile_definitions(engine_startup_test PRIVATE QUICKCLASH_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+            quickclash_warnings(engine_startup_test)
+            add_test(NAME engine_startup COMMAND engine_startup_test)
+            set_tests_properties(engine_startup PROPERTIES TIMEOUT 30 LABELS ci_slow)
+        endif()
         # Compile the actual fail-closed backend on Windows as well; this is a contract
         # test, not evidence of a non-Windows native build or system integration.
         add_executable(unsupported_platform_test tests/unit/unsupported_platform_test.cpp
@@ -342,6 +402,7 @@ if(BUILD_TESTING)
             src/platform/unsupported/desktop_services.cpp
             src/platform/unsupported/credential_store.cpp
             src/platform/unsupported/process_memory.cpp
+            src/platform/unsupported/service_setup.cpp
             src/platform/unsupported/service_client.cpp)
         set_target_properties(unsupported_platform_test PROPERTIES AUTOMOC ON)
         target_link_libraries(unsupported_platform_test PRIVATE quickclash_storage Qt6::Network Qt6::Test)
@@ -431,6 +492,11 @@ if(BUILD_TESTING)
         quickclash_warnings(service_protocol_test)
         add_test(NAME service_protocol COMMAND service_protocol_test)
         set_tests_properties(service_protocol PROPERTIES TIMEOUT 15)
+        add_executable(core_health_test tests/unit/core_health_test.cpp)
+        target_link_libraries(core_health_test PRIVATE quickclash_engine)
+        quickclash_warnings(core_health_test)
+        add_test(NAME core_health COMMAND core_health_test)
+        set_tests_properties(core_health PROPERTIES TIMEOUT 15)
         add_test(NAME ui_prototype COMMAND quickclash --prototype-test)
         set_tests_properties(ui_prototype PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
@@ -490,7 +556,7 @@ if(BUILD_TESTING)
     if(QUICKCLASH_BUILD_UI AND WIN32)
         set_tests_properties(runtime runtime_publication recovery PROPERTIES LABELS ci_slow)
     endif()
-    set(quickclash_full_only_targets runtime_test runtime_publication_test recovery_test
+    set(quickclash_full_only_targets runtime_test runtime_publication_test recovery_test engine_startup_test
         qt_cost_probe core_job_probe core_isolation_probe)
     get_property(quickclash_directory_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
     set(quickclash_fast_targets)

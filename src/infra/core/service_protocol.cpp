@@ -1,5 +1,6 @@
 #include "infra/core/service_protocol.h"
 #include <QCryptographicHash>
+#include <QFile>
 #include <QJsonDocument>
 
 namespace quickclash::infra {
@@ -37,9 +38,27 @@ bool ServiceProtocol::validEnvelope(const QJsonObject& message) {
 }
 bool ServiceProtocol::validResponse(const QJsonObject& message) {
     const bool error = message.contains(QStringLiteral("error"));
-    return exactFields(message, {QStringLiteral("protocolVersion"), QStringLiteral("requestId"),
-                                 error ? QStringLiteral("error") : QStringLiteral("result")}) &&
-           message.value(QStringLiteral("protocolVersion")) == 1 &&
+    auto fields = QStringList{QStringLiteral("protocolVersion"), QStringLiteral("requestId"),
+                              error ? QStringLiteral("error") : QStringLiteral("result")};
+    if (error && message.contains(QStringLiteral("detail"))) {
+        fields.append(QStringLiteral("detail"));
+        const auto detail = message.value(QStringLiteral("detail")).toObject();
+        if (!exactFields(
+                detail, {QStringLiteral("code"), QStringLiteral("port"), QStringLiteral("role")}) ||
+            detail.value(QStringLiteral("code")) != message.value(QStringLiteral("error")) ||
+            !QStringList{QStringLiteral("CoreListenerAddressInUse"),
+                         QStringLiteral("CoreListenerAccessDenied"),
+                         QStringLiteral("CoreListenerPortUnavailable")}
+                 .contains(message.value(QStringLiteral("error")).toString()) ||
+            !QStringList{QStringLiteral("mixed"), QStringLiteral("controller")}.contains(
+                detail.value(QStringLiteral("role")).toString()) ||
+            detail.value(QStringLiteral("port")).toDouble() !=
+                detail.value(QStringLiteral("port")).toInt() ||
+            detail.value(QStringLiteral("port")).toInt() < 1024 ||
+            detail.value(QStringLiteral("port")).toInt() > 65535)
+            return false;
+    }
+    return exactFields(message, fields) && message.value(QStringLiteral("protocolVersion")) == 1 &&
            requestId(message.value(QStringLiteral("requestId"))) &&
            (error ? message.value(QStringLiteral("error")).isString() &&
                         !message.value(QStringLiteral("error")).toString().isEmpty() &&
@@ -101,10 +120,23 @@ bool ServiceProtocol::pending(const QString& id) const {
 void ServiceProtocol::clear() {
     *this = ServiceProtocol{};
 }
-QJsonObject ServiceProtocol::capabilities() {
+QString ServiceProtocol::executableBuild(const QString& path) {
+    QFile file(path);
+    if (!file.open(QIODevice::ReadOnly))
+        return {};
+    QCryptographicHash hash(QCryptographicHash::Sha256);
+    if (!hash.addData(&file))
+        return {};
+    return QString::fromLatin1(hash.result().toHex());
+}
+QJsonObject ServiceProtocol::capabilities(const QString& serviceBuild) {
     return {{QStringLiteral("protocolVersion"), 1},
             {QStringLiteral("coreVersion"), QStringLiteral("v1.19.33")},
             {QStringLiteral("fixedCommands"), true},
+            {QStringLiteral("networkConflictPreflight"), 1},
+            {QStringLiteral("lifecycleDiagnostics"), 2},
+            {QStringLiteral("portableResources"), 1},
+            {QStringLiteral("serviceBuild"), serviceBuild},
             {QStringLiteral("proxyRecovery"), QStringLiteral("NotAvailable")},
             {QStringLiteral("reconnectPolicy"), QStringLiteral("StopOwnedSession")}};
 }

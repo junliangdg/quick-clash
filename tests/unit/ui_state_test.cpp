@@ -29,6 +29,24 @@ int main(int argc, char* argv[]) {
     try {
         FeatureRegistry registry;
         {
+            UiState errors;
+            for (const auto* code :
+                 {"CoreListenersNotOwned", "CoreListenerPortUnavailable",
+                  "CoreConfigReadbackFailed", "ServiceInstallationRequired",
+                  "ServiceClientUntrusted", "ServiceNotRunning", "ServiceSetupDeclined",
+                  "ServiceSetupClientRootRejected", "ServiceSetupPackageMissing",
+                  "ServiceSetupLaunchFailed", "ServiceSetupTimeout", "ServiceSetupFailed",
+                  "CoreListenerAddressInUse", "CoreListenerAccessDenied", "ServiceTunRouteConflict",
+                  "ServiceTunNameExhausted", "ServiceNetworkInspectionFailed",
+                  "NoAvailableListenerPorts"}) {
+                errors.applyControl({{"publicationGeneration", "1"},
+                                     {"epoch", "errors"},
+                                     {"error", QString::fromLatin1(code)}});
+                check(!errors.runtimeError().isEmpty() && errors.runtimeError() != code,
+                      "startup and installation errors explain recovery instead of raw codes");
+            }
+        }
+        {
             UiState editor;
             editor.setUiVisible(true);
             editor.setDemand("edit", "editor", true);

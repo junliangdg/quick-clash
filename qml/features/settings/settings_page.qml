@@ -15,6 +15,7 @@ ScrollView {
     property var pendingNetworkArgs: []
     property var pendingBackupPreview: ({})
     property var pendingMaintenancePreview: ({})
+    property string lastPortCandidateToken: ""
     readonly property var settingsState: ui.runtime.settingsState || ({})
     function requestNetworkSettings(): void {
         pendingNetworkArgs = [outboundMode.model[outboundMode.currentIndex].key, mixedPort.value.toString(), controllerPort.value.toString(), dnsMode.model[dnsMode.currentIndex].key, ui.runtime.epoch || "", ui.runtime.selectionGeneration || "0"];
@@ -52,6 +53,7 @@ ScrollView {
             }
         }
         onAccepted: root.ui.runtimeCommand("network_settings", root.pendingNetworkArgs)
+        onRejected: root.ui.runtimeCommand("cancel_listener_ports")
         onClosed: root.pendingNetworkArgs = []
     }
     ThemedDialog {
@@ -64,7 +66,7 @@ ScrollView {
         Label {
             width: Math.min(360, root.availableWidth - 40)
             wrapMode: Text.WordWrap
-            text: qsTr("Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together. Existing connections restart. The previous snapshot is retained. TUN currently uses bundled Geo databases.")
+            text: qsTr("Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.")
         }
         onAccepted: root.ui.runtimeCommand("update_geo")
     }
@@ -100,6 +102,13 @@ ScrollView {
     Connections {
         target: root.ui
         function onRuntimeChanged() {
+            const ports = (root.ui.runtime.features || {}).listenerPortCandidate;
+            if (root.ui.uiVisible && ports && ports.token !== root.lastPortCandidateToken) {
+                root.lastPortCandidateToken = ports.token;
+                mixedPort.value = ports.mixedPort;
+                controllerPort.value = ports.controllerPort;
+                root.requestNetworkSettings();
+            }
             const maintenance = (root.ui.runtime.features || {}).maintenancePreview;
             if (root.ui.uiVisible && maintenance && !maintenanceConfirmation.visible) {
                 root.pendingMaintenancePreview = maintenance;
@@ -112,6 +121,8 @@ ScrollView {
             }
         }
         function onUiAboutToHide() {
+            networkConfirmation.close();
+            root.ui.runtimeCommand("cancel_listener_ports");
             maintenanceConfirmation.close();
             root.ui.runtimeCommand("cancel_maintenance");
             restoreConfirmation.close();
@@ -119,6 +130,7 @@ ScrollView {
         }
     }
     Component.onDestruction: {
+        root.ui.runtimeCommand("cancel_listener_ports");
         root.ui.runtimeCommand("cancel_backup_restore");
         root.ui.runtimeCommand("cancel_maintenance");
     }
@@ -407,7 +419,7 @@ ScrollView {
                     wrapMode: Text.WordWrap
                 }
                 Label {
-                    text: qsTr("System proxy · requested %1 · active %2; TUN · requested %3 · active %4").arg((root.ui.runtime.preferences || {}).systemProxyDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.systemProxy ? qsTr("On") : qsTr("Off")).arg((root.ui.runtime.preferences || {}).tunDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.tunState === "On" ? qsTr("On") : qsTr("Off"))
+                    text: qsTr("System proxy · requested %1 · active %2; TUN · requested %3 · active %4").arg((root.ui.runtime.preferences || {}).systemProxyDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.systemProxy ? qsTr("On") : qsTr("Off")).arg((root.ui.runtime.preferences || {}).tunDesired ? qsTr("On") : qsTr("Off")).arg(root.ui.runtime.tunState === "On" ? qsTr("On") : (root.ui.runtime.tunState === "Missing" || root.ui.runtime.tunState === "Unknown" || root.ui.runtime.tunState === "Blocked") ? qsTr("Unavailable") : qsTr("Off"))
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -429,6 +441,28 @@ ScrollView {
                     enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly && (root.ui.runtime.capabilities || {}).tun !== "Unsupported"
                     onClicked: root.ui.runtimeCommand("tun", [checked ? "true" : "false"])
                     palette.windowText: root.theme.text
+                }
+                Label {
+                    visible: !!(root.ui.runtime.features || {}).serviceSetupPending
+                    text: qsTr("Waiting for Windows administrator confirmation…")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Label {
+                    objectName: "service_setup_log"
+                    visible: !!(root.ui.runtime.features || {}).serviceSetupLog
+                    text: qsTr("Administrator setup log: %1").arg((root.ui.runtime.features || {}).serviceSetupLog || "")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WrapAnywhere
+                }
+                Label {
+                    visible: !!root.ui.runtime.tunDevice
+                    text: qsTr("TUN adapter: %1").arg(root.ui.runtime.tunDevice || "")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WrapAnywhere
                 }
                 ThemedComboBox {
                     id: outboundMode
@@ -497,6 +531,20 @@ ScrollView {
                         objectName: "apply_network_settings"
                         enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: root.requestNetworkSettings()
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Use available ports…")
+                        objectName: "suggest_listener_ports"
+                        enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onClicked: root.ui.runtimeCommand("suggest_listener_ports")
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Retry")
+                        visible: !!root.ui.runtime.listenerRecoveryBlocked && !root.ui.runtime.ready
+                        enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onClicked: root.ui.runtimeCommand("start")
                     }
                     ActionButton {
                         theme: root.theme
@@ -571,7 +619,7 @@ ScrollView {
                     font.weight: Font.DemiBold
                 }
                 Label {
-                    text: (root.ui.runtime.capabilities || {}).tun === "Unsupported" ? qsTr("System proxy and TUN are not available on this platform yet.") : qsTr("TUN requires the Windows service installed from a verified package. Run install_service_windows.ps1 in an administrator terminal, then launch the installed GUI as an ordinary user. The GUI never needs administrator rights.")
+                    text: (root.ui.runtime.capabilities || {}).tun === "Unsupported" ? qsTr("System proxy and TUN are not available on this platform yet.") : qsTr("TUN needs the Windows service. Enabling TUN can ask for one administrator confirmation to install it or authorize this folder; moving or renaming the folder requires authorization again. QuickClash itself keeps running as an ordinary user.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

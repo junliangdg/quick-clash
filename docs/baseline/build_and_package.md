@@ -4,6 +4,8 @@
 
 ## 依赖与构建
 
+Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件、插件及其依赖部署到构建输出目录；服务链接后也复制其运行DLL，使SCM的SYSTEM环境无需开发Qt PATH。CMake生成相对路径qt6.conf，优先于Qt自动生成的构建qt.conf，避免仅复制QtCore后丢失QML/TLS路径。修改Qt套件须使用新的构建目录；构建目录仍不是发行包，独立便携包须使用下述部署脚本，安装只生成匹配bin/qml/plugins布局的qt.conf，不携带开发qt6.conf。
+
 - C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目接受 Qt ≥6.8，参考/验收环境仍固定 Qt 6.8.0，开发根目录可配置。
 - Windows 使用 MSVC 19.50.35727.0（Visual Studio 2026 18.4.1），SDK 10.0.26100.0。Qt 套件名为 msvc2022_64，该参考组合已完整链接/启动通过，不外推其他组合。
 - yaml-cpp 0.9.0 正式 release，版本、URL、SHA-256 统一读取 [release_matrix.json](release_matrix.json)。第三方只解到 build/_deps，不改上游 CMakeLists，不全局降低策略。
@@ -56,9 +58,11 @@ PR仅验证。默认分支（当前main）Windows快速验证通过后更新GitH
 
 Windows验证runner复用已装工具/依赖，测试通过后执行`cmake --preset release -B build/dev`，在同一目录切换到`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`再构建。UI测试探针为仅测试静态库，测试宏/开发资产路径宏只作用于使用它们的源文件；切换时复用未变的公共对象/QML缓存，只重新编译有差异的代码及重新链接，不再启动第二套独立全量构建。目录中残留的测试文件不安装；配置和当前目标图均关闭测试，生产程序不再链接探针/QtTest。本地`cmake --preset release`仍默认独立目录，只有同工具链/同Qt/同源码且已完成测试的CI顺序流程采用目录复用。再次验证须先运行dev配置，不能对发行配置直接执行旧CTest清单。
 
-`scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和可选服务安装脚本。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
+`scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和程序内置的固定动作服务安装入口（不附带 PowerShell 安装脚本）。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
 
 Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
+
+ZIP解压目录是程序、服务、核心和随包Geo的唯一发行来源。首次TUN请求UAC，SCM直接注册bin/quickclash_service.exe并设为自动启动；不在Program Files复制运行文件。后续重开/同目录更新免UAC；更新服务文件前先停止服务，移动目录须再次授权。ProgramData仅保留授权、私有会话及清理日志。
 
 本地核对命令（首次先完整获取依赖）：`cmake --preset release`、`cmake --build --preset release --parallel 4`、`pwsh -NoProfile -File scripts/package_release_windows.ps1 -Version continuous`。已有dist不覆盖，复核时显式选择新的`-Destination`。历史`package_windows.ps1`是本地验证包入口，不能作为自动发行入口。
 
@@ -92,7 +96,7 @@ P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildD
 
 测试构建离线包可运行tests/scripts/desktop_package_test.ps1 -PackageRoot '<完整包>' -Phase Package、Host、Flow或Proxy。Package核对全包摘要/x64和清开发Qt环境后的本地导入/Ready及缺核心修复；Host核对真实托盘隐藏卸载/转发、整GUI强杀与单实例重开。Flow覆盖GUI订阅/节点/模式、显式及WinINet客户端HTTPS转发与退出重开，会临时申请当前用户系统代理。Proxy会临时启用当前用户WinINet代理并用独立进程改绕过列表，核对冲突/新基线和原快照还原，仅在当前值仍属于本轮测试时恢复，不覆盖后续外部修改。原始证据默认写build/新目录，显式标记隔离数据，不使用个人配置；此探针仅BUILD_TESTING开启，不能代替干净机器、真实换网或TUN。包内metadata/release_matrix.json存在时核心只按随包路径解析，缺件不得回退开发缓存。
 
-将当前测试包准备成无需源码仓库的独立目录：pwsh -NoProfile -File scripts/create_windows_validation_kit.ps1 -PackageRoot '<完整测试包>' -Destination 'build/windows_validation_kit'。目标必须不存在且在源包目录之外；复制前核对原包摘要，保留原manifest，带上必要脚本、公开回环TLS证书/私钥及[工具包说明](../../resources/windows_validation_readme.md)，另生成validation_manifest.json用于发现搬运损坏，不构成签名。复制整个目录后在工具包根目录运行上述脚本，-PackageRoot使用'./package'。目标桌面需要Windows x64和PowerShell 7.2+（可用官方便携版），无需Qt SDK或VS；以普通用户运行，不安装权限服务。测试证书仅进程内信任；本机工具验证不等于干净机器验收。
+将当前测试包准备成无需源码仓库的独立目录：pwsh -NoProfile -File scripts/create_windows_validation_kit.ps1 -PackageRoot '<完整测试包>' -Destination 'build/windows_validation_kit'。目标必须不存在且在源包目录之外；复制前核对原包摘要，保留原manifest，带上必要脚本、公开回环TLS证书/私钥及[工具包说明](../../resources/windows_validation_readme.md)，另生成validation_manifest.json用于发现搬运损坏，不构成签名。复制整个目录后在工具包根目录运行上述脚本，-PackageRoot使用'./package'。目标桌面需要Windows x64和PowerShell 7.2+（可用官方便携版），无需Qt SDK或VS；该要求仅用于验收脚本。产品服务安装不依赖PowerShell；以普通用户运行，验收夹具本身不要求安装权限服务，显式测试 TUN 时由应用请求一次 UAC。测试证书仅进程内信任；本机工具验证不等于干净机器验收。
 
 ## P1 原型的构建与边界
 

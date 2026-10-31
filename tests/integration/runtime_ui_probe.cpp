@@ -423,6 +423,20 @@ int runRuntimeListProbe(ApplicationHost& host) {
         capturedSettings[4] != "next" || capturedSettings[5] != "7")
         return 83;
     QMetaObject::invokeMethod(settingsDialog, "reject");
+    ui.applyControl({{"publicationGeneration", "2"},
+                     {"epoch", "next"},
+                     {"features", QJsonObject{{"listenerPortCandidate",
+                                               QJsonObject{{"token", "port_preview"},
+                                                           {"mixedPort", 7893},
+                                                           {"controllerPort", 9092}}}}}});
+    QTest::qWait(40);
+    pending = settingsPage->property("pendingNetworkArgs");
+    if (pending.metaType() == QMetaType::fromType<QJSValue>())
+        pending = pending.value<QJSValue>().toVariant();
+    if (!settingsDialog->property("visible").toBool() || pending.toList().value(1) != "7893" ||
+        pending.toList().value(2) != "9092" || pending.toList().value(4) != "next")
+        return 181;
+    QMetaObject::invokeMethod(settingsDialog, "reject");
     const QJsonObject maintenancePreview{
         {"token", "fixed-support"}, {"kind", "diagnostics"}, {"text", "{\"schemaVersion\":1}"}};
     ui.applyControl({{"publicationGeneration", "2"},

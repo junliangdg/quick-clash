@@ -2,6 +2,7 @@
 #include "application/desktop_process.h"
 #include "application/ports.h"
 #include <QJsonObject>
+#include <functional>
 #include <memory>
 
 namespace quickclash::application {
@@ -29,11 +30,25 @@ struct DesktopPlatformInfo {
     // Stable names and Supported/RequiresAuthorization/Unsupported values for UI projection.
     QJsonObject capabilities;
 };
+// The administrator actions the GUI can request for TUN. Install copies a reviewed
+// package into the fixed installation and registers the service; Authorize extends trust
+// to the folder the ordinary user actually launched from, starting the service if needed.
+enum class ServiceSetupMode { Install, Update, Authorize };
+class IServiceSetup {
+  public:
+    virtual ~IServiceSetup() = default;
+    // Starts the elevated helper. Exactly one of the callbacks runs on the owning thread.
+    virtual void start(ServiceSetupMode mode, const QString& clientRoot,
+                       std::function<void(int exitCode)> completed,
+                       std::function<void(const QString& error)> failed) = 0;
+    [[nodiscard]] virtual QString logPath() const = 0;
+};
 struct DesktopServices {
     std::unique_ptr<ICredentialStore> credentials;
     DesktopPlatformInfo platformInfo;
     std::unique_ptr<IDesktopResources> resources;
     std::unique_ptr<ISystemProxyLease> proxyLease;
     std::unique_ptr<IDesktopProcess> validator;
+    std::unique_ptr<IServiceSetup> serviceSetup;
 };
 } // namespace quickclash::application

@@ -76,7 +76,8 @@ QJsonObject geoResourceManifest(const QByteArray& semantic, const QJsonObject& s
     return {{QStringLiteral("schemaVersion"), 1}, {QStringLiteral("resources"), resources}};
 }
 domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QString& directory,
-                                          const QJsonObject& snapshot, const QString& storageRoot) {
+                                          const QJsonObject& snapshot, const QString& storageRoot,
+                                          const std::function<bool(QFile&)>& openSource) {
     if (!needed(semantic))
         return std::monostate{};
     const QDir source(sourceDirectory());
@@ -101,7 +102,8 @@ domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QStr
             }
         }
         QFile input(path);
-        if (!input.open(QIODevice::ReadOnly) || input.size() < 0 || input.size() > 32 * 1024 * 1024)
+        if (!(openSource ? openSource(input) : input.open(QIODevice::ReadOnly)) ||
+            input.size() <= 0 || input.size() > 32 * 1024 * 1024)
             return failure();
         const auto expectedSize = input.size();
         QSaveFile output(QDir(directory).filePath(QString::fromLatin1(asset.target)));
