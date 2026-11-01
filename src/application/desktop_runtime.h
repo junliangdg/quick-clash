@@ -7,6 +7,7 @@
 #include "infra/storage/config_repository.h"
 #include "infra/storage/provider_stage.h"
 #include "infra/storage/settings_repository.h"
+#include "platform/core_archive.h"
 #include "platform/proxy_settings.h"
 #include <QDateTime>
 #include <QElapsedTimer>
@@ -75,6 +76,31 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
                             const QString& errorCode);
 
   private:
+    void refreshStartup();
+    void configureStartup(const QString& command, const QStringList& args);
+    QJsonObject startupState_;
+    void coreUpdateCommand(const QString& command, const QStringList& args);
+    void downloadCore();
+    void applyCore(const QString& id);
+    void cancelCoreUpdate();
+    platform::CoreArchive coreArchive_;
+    std::unique_ptr<QTemporaryDir> coreStage_;
+    QJsonObject coreUpdateState_;
+    bool coreOperationActive_ = false;
+    QString runningCoreVersion_;
+    QString bundledCoreExecutable_;
+    QUrl coreUpdateSource_;
+    [[nodiscard]] QString bundledCoreExecutable() const;
+    void configureGeo(const QString& command, const QStringList& args);
+    void resolveGeoSnapshot(quint64 generation);
+    void scheduleGeo();
+    QTimer geoTimer_;
+    QNetworkAccessManager resourceNetwork_;
+    QUrl geoResolvedBase_;
+    QString geoRevision_;
+    bool geoScheduled_ = false;
+    QJsonObject geoPending_;
+    QJsonObject geoSettings_;
     void publish();
     void flushData();
     [[nodiscard]] QJsonObject controlState() const;

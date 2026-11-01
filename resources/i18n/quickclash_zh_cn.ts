@@ -1471,6 +1471,50 @@
       <source>Unavailable</source>
       <translation>不可用</translation>
     </message>
+      <message><source>Application moved; enable again to repair</source><translation>程序路径已变化，请重新启用以修复</translation></message>
+    <message><source>Apply downloaded core…</source><translation>应用已下载内核…</translation></message>
+    <message><source>Apply downloaded Geo snapshot?</source><translation>应用已下载的 Geo 快照？</translation></message>
+    <message><source>Apply downloaded Geo…</source><translation>应用已下载 Geo…</translation></message>
+    <message><source>Applying core…</source><translation>正在应用内核…</translation></message>
+    <message><source>Both databases are validated again. Applying restarts the engine and interrupts active connections.</source><translation>重新校验两份数据库。应用会重启内核并中断现有连接。</translation></message>
+    <message><source>Bundled</source><translation>随包版本</translation></message>
+    <message><source>Cancel core download</source><translation>取消内核下载</translation></message>
+    <message><source>Check compatible core</source><translation>检查兼容内核</translation></message>
+    <message><source>Compatible catalog checked</source><translation>已检查兼容清单</translation></message>
+    <message><source>Core download cancelled</source><translation>已取消内核下载</translation></message>
+    <message><source>Core download path</source><translation>内核下载路径</translation></message>
+    <message><source>Core selection saved</source><translation>已保存内核选择</translation></message>
+    <message><source>Core update failed; confirmed selection kept</source><translation>内核更新失败，保留已确认版本</translation></message>
+    <message><source>Core updates</source><translation>内核更新</translation></message>
+    <message><source>Core verified; ready to apply</source><translation>内核已验证，可确认应用</translation></message>
+    <message><source>Direct download</source><translation>直连下载</translation></message>
+    <message><source>Disabled</source><translation>已停用</translation></message>
+    <message><source>Disabled in Windows startup settings</source><translation>已在 Windows 启动应用设置中禁用</translation></message>
+    <message><source>Download Geo daily</source><translation>每天下载 Geo</translation></message>
+    <message><source>Download Geo weekly</source><translation>每周下载 Geo</translation></message>
+    <message><source>Download or repair core</source><translation>下载或修复内核</translation></message>
+    <message><source>Downloading core…</source><translation>正在下载内核…</translation></message>
+    <message><source>Enabled</source><translation>已启用</translation></message>
+    <message><source>Geo download path</source><translation>Geo 下载路径</translation></message>
+    <message><source>Geo download schedule</source><translation>Geo 下载计划</translation></message>
+    <message><source>Geo snapshot downloaded; apply when ready</source><translation>Geo 快照已下载，可择时确认应用</translation></message>
+    <message><source>Geo snapshot: %1 · Last successful download: %2</source><translation>Geo 快照：%1 · 上次成功下载：%2</translation></message>
+    <message><source>Hide to the tray at sign-in</source><translation>登录启动时隐藏到托盘</translation></message>
+    <message><source>Manual Geo updates</source><translation>手动更新 Geo</translation></message>
+    <message><source>Only reviewed official assets in this client catalog can be downloaded. New upstream versions require a compatible catalog. Downloading does not switch the running core.</source><translation>仅下载本客户端兼容清单内已审核的官方资产。上游新版本需先更新兼容清单。下载不会切换当前内核。</translation></message>
+    <message><source>Refresh startup status</source><translation>刷新启动项状态</translation></message>
+    <message><source>Registration: %1. Startup restores your saved network intent after the engine is ready.</source><translation>注册状态：%1。内核就绪后恢复已保存的网络设置意图。</translation></message>
+    <message><source>Roll back core…</source><translation>回退内核…</translation></message>
+    <message><source>Running: %1 · Selected: %2 · Compatible catalog: %3</source><translation>运行版本：%1 · 已选：%2 · 兼容清单：%3</translation></message>
+    <message><source>Start QuickClash when I sign in</source><translation>登录 Windows 时启动 QuickClash</translation></message>
+    <message><source>Startup</source><translation>登录启动</translation></message>
+    <message><source>Switch the managed core?</source><translation>切换受管内核？</translation></message>
+    <message><source>The selected configuration and Geo files are validated first. A running core restarts and existing connections are interrupted. Failure restores the confirmed core and configuration.</source><translation>先校验所选配置与 Geo 文件。运行中的内核会重启并中断现有连接；失败时恢复已确认的内核和配置。</translation></message>
+    <message><source>Unable to read startup status</source><translation>无法读取启动项状态</translation></message>
+    <message><source>Unavailable on this platform</source><translation>当前平台不可用</translation></message>
+    <message><source>Use bundled core…</source><translation>使用随包内核…</translation></message>
+    <message><source>Use current proxy</source><translation>使用当前代理</translation></message>
+    <message><source>Verifying and extracting core…</source><translation>正在校验并解压内核…</translation></message>
   </context>
   <context>
     <name>subscription_details</name>
@@ -2141,6 +2185,12 @@
       <source>Unable to open page: invalid route or parameters</source>
       <translation>无法打开页面：路由或参数无效</translation>
     </message>
+      <message><source>Login startup is not supported on this platform.</source><translation>当前平台暂不支持登录启动。</translation></message>
+    <message><source>Start the core before downloading through the current proxy, or select direct download.</source><translation>使用当前代理下载前请先启动内核，或选择直连下载。</translation></message>
+    <message><source>The core download failed. The confirmed core is kept.</source><translation>内核下载失败，保留已确认内核。</translation></message>
+    <message><source>Unable to extract the verified core archive with Windows tar. The confirmed core is kept.</source><translation>无法通过 Windows tar 解压已验证的内核压缩包，保留已确认内核。</translation></message>
+    <message><source>Unable to save the Windows startup registration. Refresh its status and retry.</source><translation>无法保存 Windows 启动项，请刷新状态后重试。</translation></message>
+    <message><source>Unable to write the managed core. Check free space and write access to the portable core directory.</source><translation>无法写入受管内核，请检查可用空间和便携内核目录的写入权限。</translation></message>
   </context>
   <context>
     <name>quickclash::presentation::ReplayModel</name>

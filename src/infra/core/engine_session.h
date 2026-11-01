@@ -48,7 +48,8 @@ class EngineSession final : public QObject {
     void start(const QString& executable, const QString& config, const QString& directory,
                const QByteArray& secret, quint16 mixedPort, quint16 controllerPort,
                const QString& expectedMode, bool serviceMode = false,
-               const QJsonObject& geoSnapshot = {}, const QString& storageRoot = {});
+               const QJsonObject& geoSnapshot = {}, const QString& storageRoot = {},
+               const QString& coreArtifactId = {});
     void probeService(ApiHandler handler);
     void serviceResources(ApiHandler handler);
     void stop();
@@ -134,6 +135,7 @@ class EngineSession final : public QObject {
     TunObservationTracker tunTracker_;
     int statusFailures_ = 0;
     QString expectedMode_;
+    QString expectedVersion_;
     quint16 mixedPort_ = 0;
     quint16 controllerPort_ = 0;
     quint64 generation_ = 0;

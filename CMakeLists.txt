@@ -79,13 +79,18 @@ set_target_properties(quickclash_storage PROPERTIES AUTOMOC ON)
 if(QUICKCLASH_BUILD_UI)
 find_package(Qt6 ${QUICKCLASH_MINIMUM_QT_VERSION} REQUIRED COMPONENTS Network)
 add_library(quickclash_platform
+    src/platform/core_artifacts.cpp src/platform/core_artifacts.h
     src/application/desktop_process.h src/application/desktop_services.h
     src/platform/desktop_services.h src/platform/proxy_settings.h src/platform/process_memory.h)
 set_target_properties(quickclash_platform PROPERTIES AUTOMOC ON)
+qt_add_resources(quickclash_platform quickclash_core_catalog PREFIX /metadata
+    BASE resources/metadata FILES resources/metadata/core_updates.json)
 target_link_libraries(quickclash_platform PUBLIC quickclash_application PRIVATE quickclash_storage)
 if(WIN32)
     target_sources(quickclash_platform PRIVATE
         src/platform/windows/desktop_services.cpp
+        src/platform/windows/startup.cpp
+        src/platform/windows/core_archive.cpp
         src/platform/windows/tun_network.cpp src/platform/windows/tun_network.h
         src/platform/windows/process_memory.cpp
         src/platform/windows/service_setup.cpp
@@ -101,6 +106,8 @@ if(WIN32)
 else()
     target_sources(quickclash_platform PRIVATE
         src/platform/unsupported/desktop_services.cpp src/platform/unsupported/process_memory.cpp
+        src/platform/unsupported/startup.cpp
+        src/platform/unsupported/core_archive.cpp
         src/platform/unsupported/service_setup.cpp)
 endif()
 quickclash_warnings(quickclash_platform)
@@ -129,6 +136,8 @@ if(WIN32)
     install(TARGETS quickclash_service RUNTIME DESTINATION bin)
 endif()
 add_library(quickclash_runtime
+    src/application/desktop_startup.cpp
+    src/application/desktop_core_update.cpp
     src/infra/desktop_runtime_factory.cpp
     src/infra/storage/latest_mailbox.cpp src/infra/storage/latest_mailbox.h
     src/application/runtime_update.h
@@ -363,6 +372,7 @@ if(BUILD_TESTING)
                 tests/integration/backup_probe.cpp tests/integration/backup_probe.h
                 tests/integration/config_editor_probe.cpp tests/integration/config_editor_probe.h
                 tests/integration/geo_update_probe.cpp tests/integration/geo_update_probe.h
+                tests/integration/core_update_probe.cpp tests/integration/core_update_probe.h
                 tests/integration/subscription_download_probe.cpp tests/integration/subscription_download_probe.h
                 tests/integration/subscription_probe.cpp tests/integration/subscription_probe.h
                 tests/integration/subscription_memory_probe.cpp tests/integration/subscription_memory_probe.h
@@ -385,6 +395,8 @@ if(BUILD_TESTING)
             set_tests_properties(runtime_config_editor PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_subscription_download COMMAND runtime_test --subscription-download-test)
             add_test(NAME runtime_geo_update COMMAND runtime_test --geo-update-test)
+            add_test(NAME runtime_core_update COMMAND runtime_test --core-update-test)
+            set_tests_properties(runtime_core_update PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime_geo_update PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime_subscription_download PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime PROPERTIES TIMEOUT 240 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
@@ -397,6 +409,10 @@ if(BUILD_TESTING)
         find_package(Qt6 6.8 REQUIRED COMPONENTS Test)
         if(WIN32)
             add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
+            add_executable(startup_test tests/unit/startup_test.cpp)
+            target_link_libraries(startup_test PRIVATE quickclash_platform)
+            quickclash_warnings(startup_test)
+            add_test(NAME startup COMMAND startup_test)
             add_executable(tun_network_test tests/unit/tun_network_test.cpp)
             target_link_libraries(tun_network_test PRIVATE quickclash_platform)
             quickclash_warnings(tun_network_test)

@@ -6,6 +6,7 @@
 #include "infra/core/provider_command.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
+#include "platform/core_artifacts.h"
 #include "platform/windows/trusted_client_root.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -696,7 +697,8 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
     if (busy_ || core_.running() || !configClean_ ||
         !fixedFields(payload,
                      {QStringLiteral("yaml"), QStringLiteral("mixedPort"), QStringLiteral("mode"),
-                      QStringLiteral("dnsMode"), QStringLiteral("tun"), QStringLiteral("geo")})) {
+                      QStringLiteral("dnsMode"), QStringLiteral("tun"), QStringLiteral("geo"),
+                      QStringLiteral("coreArtifactId")})) {
         answer(socket, id, failure("ServiceStartRejected"));
         return;
     }
@@ -737,14 +739,19 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         answer(socket, id, *error);
         return;
     }
-    QFile binary(corePath_);
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    if (!binary.open(QIODevice::ReadOnly) || !hash.addData(&binary) ||
-        hash.result().toHex() !=
-            "1cde41cfffd3de0aedad63c0a8515e1ce5eea507e8133aed0f637d316c93800a") {
+    if (payload.contains(QStringLiteral("coreArtifactId")) &&
+        !payload.value(QStringLiteral("coreArtifactId")).isString()) {
+        answer(socket, id, failure("ServiceFieldsRejected"));
+        return;
+    }
+    const auto artifactId = payload.value(QStringLiteral("coreArtifactId")).toString();
+    corePath_ = managedCorePath(portableCorePath(installation()), artifactId);
+    if (corePath_.isEmpty() || !verifyCoreArtifact(corePath_, artifactId)) {
         answer(socket, id, failure("CoreIntegrityFailed"));
         return;
     }
+    expectedCoreVersion_ = coreArtifact(artifactId).value(QStringLiteral("version")).toString();
+    observedCoreVersion_.clear();
     const auto semantic = std::get<infra::PreflightConfig>(checked).semanticYaml;
     QTcpServer listener;
     if (!listener.listen(QHostAddress::LocalHost, pref.mixedPort)) {
@@ -943,6 +950,36 @@ void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
         return;
     QPointer<QLocalSocket> peer(socket);
     const auto epoch = epoch_;
+    if (observedCoreVersion_.isEmpty()) {
+        infra::pipeHttp(this, pipe_, "GET", "/version", {},
+                        [this, peer, id, attempt, epoch](domain::Result<QJsonObject> result) {
+                            if (!peer || owner_ != peer || !busy_ || epoch != epoch_)
+                                return;
+                            const auto* value = std::get_if<QJsonObject>(&result);
+                            if (value) {
+                                const auto version =
+                                    value->value(QStringLiteral("version")).toString();
+                                if (version != expectedCoreVersion_) {
+                                    stop("VersionMismatch");
+                                    answer(peer, id, failure("CoreVersionMismatch"));
+                                    return;
+                                }
+                                observedCoreVersion_ = version;
+                                probe(peer, id, attempt);
+                                return;
+                            }
+                            if (attempt >= 24 || !core_.running()) {
+                                stop("VersionUnavailable");
+                                answer(peer, id, failure("ServiceTunReadbackFailed"));
+                                return;
+                            }
+                            QTimer::singleShot(250, this, [this, peer, id, attempt, epoch] {
+                                if (peer && epoch == epoch_)
+                                    probe(peer, id, attempt + 1);
+                            });
+                        });
+        return;
+    }
     infra::pipeHttp(
         this, pipe_, "GET", "/configs", {},
         [this, peer, id, attempt, epoch](domain::Result<QJsonObject> result) {
@@ -964,7 +1001,7 @@ void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
                 ready_ = true;
                 probeDetail_.clear();
                 answer(peer, id,
-                       QJsonObject{{QStringLiteral("version"), QStringLiteral("v1.19.33")},
+                       QJsonObject{{QStringLiteral("version"), observedCoreVersion_},
                                    {QStringLiteral("pid"), static_cast<int>(core_.pid())},
                                    {QStringLiteral("epoch"), epoch_},
                                    {QStringLiteral("tunDevice"), tunName_},

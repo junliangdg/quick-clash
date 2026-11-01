@@ -147,9 +147,21 @@ void TlsFixture::incomingConnection(qintptr descriptor) {
             "\r\nSet-Cookie: fixture_cookie=private; Secure; Path=/\r\n\r\n";
         const auto send = [socket, header, body, head = parts[0] == "HEAD"] {
             socket->write(header);
-            if (!head)
-                socket->write(body);
-            socket->disconnectFromHost();
+            auto* pump = new QTimer(socket);
+            auto offset = std::make_shared<qsizetype>(head ? body.size() : 0);
+            QObject::connect(pump, &QTimer::timeout, socket, [socket, pump, body, offset] {
+                if (socket->bytesToWrite() || socket->encryptedBytesToWrite())
+                    return;
+                if (*offset == body.size()) {
+                    pump->stop();
+                    QTimer::singleShot(100, socket, [socket] { socket->disconnectFromHost(); });
+                    return;
+                }
+                const auto count = std::min<qsizetype>(32768, body.size() - *offset);
+                socket->write(body.constData() + *offset, count);
+                *offset += count;
+            });
+            pump->start(0);
         };
         QTimer::singleShot(responseDelays.value(path), socket, send);
     });

@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "platform": "windows-amd64",
+  "bundledId": "mihomo-v1.19.33-windows-amd64",
+  "candidateId": "mihomo-v1.19.33-windows-amd64",
+  "artifacts": [
+    {
+      "id": "mihomo-v1.19.33-windows-amd64",
+      "version": "v1.19.33",
+      "url": "https://github.com/MetaCubeX/mihomo/releases/download/v1.19.33/mihomo-windows-amd64-v1.19.33.zip",
+      "archiveBytes": 22512121,
+      "archiveSha256": "6ab2180875f9f6fff8b19386d760daec257f66b45f72b3afc650634272fa837a",
+      "entry": "mihomo-windows-amd64.exe",
+      "executableBytes": 61247488,
+      "sha256": "1cde41cfffd3de0aedad63c0a8515e1ce5eea507e8133aed0f637d316c93800a"
+    }
+  ]
+}

@@ -5,6 +5,7 @@
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
 #include "infra/storage/storage_maintenance.h"
+#include "platform/core_artifacts.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -49,12 +50,26 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
       validator_(std::move(services.validator)),
       clock_(clock ? std::move(clock) : [] { return QDateTime::currentDateTimeUtc(); }),
       runtimePreferences_(infra::SettingsRepository::runtimeDefaults()) {
+    bundledCoreExecutable_ = std::move(services.bundledCoreExecutable);
+    coreUpdateSource_ = std::move(services.coreUpdateSource);
     geoSourceBase_ =
         geoSourceBase.isEmpty()
             ? QUrl(QStringLiteral(
                   "https://github.com/MetaCubeX/meta-rules-dat/releases/download/latest/"))
             : geoSourceBase;
     directNetwork_.setProxy(QNetworkProxy::NoProxy);
+    resourceNetwork_.setProxy(QNetworkProxy::NoProxy);
+    geoTimer_.setSingleShot(true);
+    connect(&geoTimer_, &QTimer::timeout, this, [this] {
+        if (shuttingDown_ || store_.readOnly())
+            return;
+        if (busy_ || selectedId_.isEmpty() || !geoPending_.isEmpty()) {
+            geoTimer_.start(busy_ ? 5000 : 60000);
+            return;
+        }
+        geoScheduled_ = true;
+        updateGeo();
+    });
     publicationTimer_.setSingleShot(true);
     publicationTimer_.setInterval(0);
     connect(&publicationTimer_, &QTimer::timeout, this, &DesktopRuntime::flushData);
@@ -162,7 +177,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             completion(code == 0);
         }
     });
-    connect(&engine_, &infra::EngineSession::becameReady, this, [this](const QString&) {
+    connect(&engine_, &infra::EngineSession::becameReady, this, [this](const QString& version) {
+        runningCoreVersion_ = version;
         coreExitDetail_.clear();
         tunPending_ = false;
         tunDisabling_ = false;
@@ -428,6 +444,16 @@ DesktopRuntime::~DesktopRuntime() {
     stop(domain::StopReason::AppExit);
 }
 void DesktopRuntime::initialize() {
+    refreshStartup();
+    if (const auto stored = store_.read(QStringLiteral("config/geo_update.json"));
+        std::holds_alternative<std::optional<QJsonObject>>(stored))
+        geoSettings_ = std::get<std::optional<QJsonObject>>(stored).value_or(QJsonObject{});
+    if (const auto stored = store_.read(QStringLiteral("config/geo_pending.json"));
+        std::holds_alternative<std::optional<QJsonObject>>(stored))
+        geoPending_ = std::get<std::optional<QJsonObject>>(stored)
+                          .value_or(QJsonObject{})
+                          .value(QStringLiteral("snapshot"))
+                          .toObject();
     const auto released = proxyLease_->release();
     const bool leaseRecovered = std::holds_alternative<std::monostate>(released);
     if (const auto* failure = std::get_if<domain::Error>(&released))
@@ -588,6 +614,7 @@ void DesktopRuntime::initialize() {
 }
 void DesktopRuntime::enableBackgroundManagement() {
     backgroundManaged_ = true;
+    scheduleGeo();
     backgroundSuppressed_ = false;
     scheduleBackgroundStart();
 }
@@ -648,6 +675,13 @@ QJsonObject DesktopRuntime::controlState() const {
         features.remove(QLatin1String(key));
     return {
         {QStringLiteral("features"), features},
+        {QStringLiteral("startup"), startupState_},
+        {QStringLiteral("coreUpdate"), coreUpdateState_},
+        {QStringLiteral("geoUpdate"),
+         QJsonObject{{QStringLiteral("settings"), geoSettings_},
+                     {QStringLiteral("pending"), !geoPending_.isEmpty()},
+                     {QStringLiteral("snapshot"),
+                      runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject()}}},
         {QStringLiteral("publicationGeneration"), QString::number(publicationGeneration_)},
         {QStringLiteral("epoch"), epoch_},
         {QStringLiteral("platform"), QSysInfo::prettyProductName()},
@@ -706,7 +740,7 @@ QJsonObject DesktopRuntime::controlState() const {
                      {QStringLiteral("pending"), runtimePreferences_ != savedPreferences_},
                      {QStringLiteral("phase"), status_}}},
         {QStringLiteral("coreName"), QStringLiteral("mihomo")},
-        {QStringLiteral("coreVersion"), engine_.ready() ? QStringLiteral("v1.19.33") : QString{}},
+        {QStringLiteral("coreVersion"), engine_.ready() ? runningCoreVersion_ : QString{}},
         {QStringLiteral("dataDirectory"), store_.root()},
         {QStringLiteral("dataUrl"), QUrl::fromLocalFile(store_.root()).toString()}};
 }
@@ -763,9 +797,24 @@ QJsonObject DesktopRuntime::snapshot() const {
     return result;
 }
 void DesktopRuntime::publish() {
+    if (coreOperationActive_ && !busy_) {
+        coreOperationActive_ = false;
+        coreUpdateState_.insert(QStringLiteral("state"), lastError_.isEmpty()
+                                                             ? QStringLiteral("Applied")
+                                                             : QStringLiteral("Failed"));
+    }
     finishSnapshotProviderRefresh();
     if (geoOperationActive_ && !busy_) {
         geoOperationActive_ = false;
+        geoScheduled_ = false;
+        if (lastError_.isEmpty() && !geoPending_.isEmpty() &&
+            runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject() == geoPending_) {
+            const auto cleared = store_.write(QStringLiteral("config/geo_pending.json"), {});
+            if (std::holds_alternative<std::monostate>(cleared))
+                geoPending_ = {};
+            else
+                lastError_ = std::get<domain::Error>(cleared).code;
+        }
         featureState_.insert(QStringLiteral("geoResult"), lastError_.isEmpty()
                                                               ? QStringLiteral("Applied")
                                                               : QStringLiteral("Failed"));
@@ -975,18 +1024,14 @@ void DesktopRuntime::configError(const domain::Error& failure) {
     publish();
 }
 QString DesktopRuntime::coreExecutable() const {
-    const auto directory = QCoreApplication::applicationDirPath();
-    const auto packaged =
-        QDir(directory).filePath(QStringLiteral("../core/") + platformInfo_.coreFileName);
-    if (QFileInfo::exists(packaged) || QFileInfo::exists(QDir(directory).filePath(
-                                           QStringLiteral("../metadata/release_matrix.json")))) {
-        return QFileInfo(packaged).absoluteFilePath();
-    }
-#ifdef QUICKCLASH_DEVELOPMENT_CORE
-    return QStringLiteral(QUICKCLASH_DEVELOPMENT_CORE);
-#else
-    return QDir(directory).filePath(QStringLiteral("core/") + platformInfo_.coreFileName);
-#endif
+    return platform::managedCorePath(
+        bundledCoreExecutable(),
+        runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString());
+}
+QString DesktopRuntime::bundledCoreExecutable() const {
+    return bundledCoreExecutable_.isEmpty()
+               ? platform::bundledCorePath(QCoreApplication::applicationDirPath())
+               : bundledCoreExecutable_;
 }
 domain::RuntimePreferences DesktopRuntime::preferences() const {
     domain::RuntimePreferences value;
@@ -1130,10 +1175,9 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         completion(false);
         return;
     }
-    QFile binary(coreExecutable());
-    QCryptographicHash checksum(QCryptographicHash::Sha256);
-    if (!binary.open(QIODevice::ReadOnly) || !checksum.addData(&binary) ||
-        checksum.result().toHex() != platformInfo_.coreSha256) {
+    if (!platform::verifyCoreArtifact(
+            coreExecutable(),
+            runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString())) {
         error(QStringLiteral("CoreIntegrityFailed"));
         completion(false);
         return;
@@ -1482,6 +1526,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     const auto item = profile(id);
     if (item.isEmpty()) {
         discardConfigTransaction();
+        restorePreferences();
         busy_ = false;
         error(QStringLiteral("ProfileNotFound"));
         return;
@@ -1859,7 +1904,8 @@ void DesktopRuntime::launch() {
         values.mixedPort, values.controllerPort,
         runtimePreferences_.value(QStringLiteral("mode")).toString(),
         runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() && !tunRecoveryBlocked_,
-        runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root());
+        runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root(),
+        runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString());
 }
 void DesktopRuntime::confirmed() {
     if (engine_.ready())
@@ -2105,6 +2151,13 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
     return result;
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
+    cancelCoreUpdate();
+    coreArchive_.cancel();
+    coreStage_.reset();
+    if (coreOperationActive_) {
+        coreOperationActive_ = false;
+        coreUpdateState_.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
+    }
     clearMaintenancePreview();
     snapshotProviderRefresh_ = {};
     releaseFeature(QStringLiteral("rules"));
@@ -2403,6 +2456,7 @@ void DesktopRuntime::collectGarbage() {
     };
     retainGeo(runtimePreferences_);
     retainGeo(previousPreferences_);
+    retainGeo({{QStringLiteral("geoSnapshot"), geoPending_}});
     for (const auto& revision : revisions) {
         if (revision.isEmpty())
             continue;

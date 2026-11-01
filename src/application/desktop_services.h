@@ -2,6 +2,7 @@
 #include "application/desktop_process.h"
 #include "application/ports.h"
 #include <QJsonObject>
+#include <QUrl>
 #include <functional>
 #include <memory>
 
@@ -50,5 +51,8 @@ struct DesktopServices {
     std::unique_ptr<ISystemProxyLease> proxyLease;
     std::unique_ptr<IDesktopProcess> validator;
     std::unique_ptr<IServiceSetup> serviceSetup;
+    // Composition-only overrides for isolated integration hosts; never read from config/IPC.
+    QString bundledCoreExecutable;
+    QUrl coreUpdateSource;
 };
 } // namespace quickclash::application

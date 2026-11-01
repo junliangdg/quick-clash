@@ -54,6 +54,10 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
             [this] { state_.runtimeCommand(QStringLiteral("reconcile")); });
     connect(&state_, &presentation::UiState::storageChanged, this, [this] {
         updateDeferredUnload();
+        if (loginPending_ && (state_.settingsReady() || !state_.storageError().isEmpty())) {
+            loginPending_ = false;
+            (void)startAtLogin();
+        }
         if (waitingForSettings_ && (state_.settingsReady() || !state_.storageError().isEmpty())) {
             waitingForSettings_ = false;
             (void)showWindow();
@@ -175,7 +179,19 @@ void ApplicationHost::updateTrayIcon() {
                                  : QStringLiteral(":/icons/brand/qcat_tray_dark.svg")));
     }
 }
+bool ApplicationHost::startAtLogin() {
+    if (!state_.settingsReady() && state_.storageError().isEmpty()) {
+        loginPending_ = true;
+        return true;
+    }
+    const auto startup = state_.runtime().value(QStringLiteral("startup")).toMap();
+    if (state_.settingsReady() && startup.value(QStringLiteral("hidden"), true).toBool() &&
+        recoverableFromTray())
+        return true;
+    return showWindow();
+}
 bool ApplicationHost::showWindow() {
+    loginPending_ = false;
     deferredUnload_.cancel();
     if (quitting_)
         return false;

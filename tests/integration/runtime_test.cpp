@@ -4,6 +4,7 @@
 #endif
 #include "backup_probe.h"
 #include "config_editor_probe.h"
+#include "core_update_probe.h"
 #include "geo_update_probe.h"
 #include "native_proxy_client.h"
 #include "network_fixture.h"
@@ -66,6 +67,8 @@ bool require(bool value, const char* message, quickclash::application::DesktopRu
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--core-update-test")))
+        return quickclash::test::coreUpdateProbe();
     if (app.arguments().contains(QStringLiteral("--provider-test")))
         return quickclash::test::providerProbe();
     if (app.arguments().contains(QStringLiteral("--backup-test")))

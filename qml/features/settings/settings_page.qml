@@ -16,13 +16,49 @@ ScrollView {
     property var pendingBackupPreview: ({})
     property var pendingMaintenancePreview: ({})
     property string lastPortCandidateToken: ""
+    property string pendingCoreCommand: ""
+    readonly property var coreUpdate: ui.runtime.coreUpdate || ({})
     readonly property var settingsState: ui.runtime.settingsState || ({})
+    function startupStatus(value): string {
+        switch (value) {
+        case "On": return qsTr("Enabled");
+        case "Off": return qsTr("Disabled");
+        case "PathMismatch": return qsTr("Application moved; enable again to repair");
+        case "DisabledBySystem": return qsTr("Disabled in Windows startup settings");
+        case "Unsupported": return qsTr("Unavailable on this platform");
+        default: return qsTr("Unable to read startup status");
+        }
+    }
     function requestNetworkSettings(): void {
         pendingNetworkArgs = [outboundMode.model[outboundMode.currentIndex].key, mixedPort.value.toString(), controllerPort.value.toString(), dnsMode.model[dnsMode.currentIndex].key, ui.runtime.epoch || "", ui.runtime.selectionGeneration || "0"];
         networkConfirmation.open();
     }
     function networkSummary(value): string {
         return qsTr("Mode %1 · proxy port %2 · controller port %3 · DNS %4").arg(value.mode || "—").arg(value.mixedPort || "—").arg(value.controllerPort || "—").arg(value.dnsMode || "profile");
+    }
+    ThemedDialog {
+        id: coreConfirmation
+        theme: root.theme
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(560, parent.width - 32)
+        height: Math.min(320, parent.height - 32)
+        implicitHeight: height
+        title: qsTr("Switch the managed core?")
+        modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: ScrollView {
+            id: coreConfirmationBody
+            contentWidth: availableWidth
+            clip: true
+            Label {
+                width: coreConfirmationBody.availableWidth
+                wrapMode: Text.WordWrap
+                color: root.theme.text
+                text: qsTr("The selected configuration and Geo files are validated first. A running core restarts and existing connections are interrupted. Failure restores the confirmed core and configuration.")
+            }
+        }
+        onAccepted: root.ui.runtimeCommand(root.pendingCoreCommand, ["confirmed"])
     }
     ThemedDialog {
         id: networkConfirmation
@@ -78,6 +114,20 @@ ScrollView {
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: root.ui.runtimeCommand("rollback_geo", ["confirmed"])
+    }
+    ThemedDialog {
+        id: geoPendingConfirmation
+        theme: root.theme
+        title: qsTr("Apply downloaded Geo snapshot?")
+        modal: true
+        anchors.centerIn: parent
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        Label {
+            width: Math.min(360, root.availableWidth - 40)
+            wrapMode: Text.WordWrap
+            text: qsTr("Both databases are validated again. Applying restarts the engine and interrupts active connections.")
+        }
+        onAccepted: root.ui.runtimeCommand("apply_pending_geo", ["confirmed"])
     }
     ThemedDialog {
         id: geoBundled
@@ -254,6 +304,122 @@ ScrollView {
     ColumnLayout {
         width: root.availableWidth
         spacing: root.theme.gap
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            implicitHeight: coreContent.implicitHeight + 32
+            ColumnLayout {
+                id: coreContent
+                anchors.fill: parent
+                anchors.margins: root.theme.panelPadding
+                spacing: 8
+                Label {
+                    text: qsTr("Core updates")
+                    color: root.theme.text
+                    font.weight: Font.DemiBold
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: qsTr("Running: %1 · Selected: %2 · Compatible catalog: %3").arg(root.ui.runtime.coreVersion || "—").arg((root.ui.runtime.preferences || {}).coreArtifactId || qsTr("Bundled")).arg(root.coreUpdate.version || "—")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: qsTr("Only reviewed official assets in this client catalog can be downloaded. New upstream versions require a compatible catalog. Downloading does not switch the running core.")
+                }
+                ThemedComboBox {
+                    theme: root.theme
+                    Accessible.name: qsTr("Core download path")
+                    model: [qsTr("Direct download"), qsTr("Use current proxy")]
+                    currentIndex: root.coreUpdate.route === "CurrentProxy" ? 1 : 0
+                    enabled: !root.ui.runtime.busy
+                    onActivated: root.ui.runtimeCommand("core_route", [currentIndex === 1 ? "CurrentProxy" : "Direct"])
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Repeater {
+                        model: [
+                            {command: "core_check", label: qsTr("Check compatible core"), confirm: false},
+                            {command: "core_download", label: qsTr("Download or repair core"), confirm: false},
+                            {command: "core_apply", label: qsTr("Apply downloaded core…"), confirm: true},
+                            {command: "core_rollback", label: qsTr("Roll back core…"), confirm: true},
+                            {command: "core_bundled", label: qsTr("Use bundled core…"), confirm: true}
+                        ]
+                        delegate: ActionButton {
+                            required property var modelData
+                            theme: root.theme
+                            text: modelData.label
+                            enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly &&
+                                     (modelData.command !== "core_apply" || root.coreUpdate.state === "Verified") &&
+                                     (modelData.command !== "core_rollback" || (root.ui.runtime.preferences || {}).previousCoreArtifactId !== undefined) &&
+                                     (!modelData.confirm || !!root.ui.runtime.selectedId)
+                            onClicked: {
+                                if (modelData.confirm) { root.pendingCoreCommand = modelData.command; coreConfirmation.open(); }
+                                else root.ui.runtimeCommand(modelData.command);
+                            }
+                        }
+                    }
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Cancel core download")
+                        visible: ["Downloading", "Extracting"].indexOf(root.coreUpdate.state || "") >= 0
+                        onClicked: root.ui.runtimeCommand("core_cancel")
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: ({Available: qsTr("Compatible catalog checked"), Downloading: qsTr("Downloading core…"), Extracting: qsTr("Verifying and extracting core…"), Verified: qsTr("Core verified; ready to apply"), Applying: qsTr("Applying core…"), Applied: qsTr("Core selection saved"), Failed: qsTr("Core update failed; confirmed selection kept"), Cancelled: qsTr("Core download cancelled")})[root.coreUpdate.state] || ""
+                }
+            }
+        }
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            implicitHeight: startupContent.implicitHeight + 32
+            ColumnLayout {
+                id: startupContent
+                anchors.fill: parent
+                anchors.margins: root.theme.panelPadding
+                spacing: 8
+                Label {
+                    text: qsTr("Startup")
+                    color: root.theme.text
+                    font.weight: Font.DemiBold
+                }
+                CheckBox {
+                    text: qsTr("Start QuickClash when I sign in")
+                    checked: !!(root.ui.runtime.startup || {}).requested
+                    palette.windowText: root.theme.text
+                    enabled: root.ui.settingsReady && !!(root.ui.runtime.startup || {}).supported && !root.ui.runtime.readOnly
+                    onClicked: root.ui.runtimeCommand("startup_enabled", [checked ? "true" : "false"])
+                }
+                CheckBox {
+                    text: qsTr("Hide to the tray at sign-in")
+                    checked: (root.ui.runtime.startup || {}).hidden !== false
+                    palette.windowText: root.theme.text
+                    enabled: root.ui.settingsReady && !!(root.ui.runtime.startup || {}).supported && !root.ui.runtime.readOnly
+                    onClicked: root.ui.runtimeCommand("startup_hidden", [checked ? "true" : "false"])
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: qsTr("Registration: %1. Startup restores your saved network intent after the engine is ready.").arg(root.startupStatus((root.ui.runtime.startup || {}).state))
+                }
+                ActionButton {
+                    theme: root.theme
+                    text: qsTr("Refresh startup status")
+                    enabled: root.ui.settingsReady
+                    onClicked: root.ui.runtimeCommand("startup_refresh")
+                }
+            }
+        }
         FlatTile {
             theme: root.theme
             Layout.fillWidth: true
@@ -659,20 +825,44 @@ ScrollView {
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Update Geo databases…")
-                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoConfirmation.open()
                     }
                     ActionButton {
                         theme: root.theme
+                        text: qsTr("Apply downloaded Geo…")
+                        visible: !!(root.ui.runtime.geoUpdate || {}).pending
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onClicked: geoPendingConfirmation.open()
+                    }
+                    ActionButton {
+                        theme: root.theme
                         text: qsTr("Roll back Geo databases…")
-                        enabled: !!root.ui.runtime.selectedId && (root.ui.runtime.preferences || {}).previousGeoSnapshot !== undefined && !root.ui.runtime.busy && !root.ui.runtime.readOnly && root.ui.runtime.tunState !== "On"
+                        enabled: !!root.ui.runtime.selectedId && (root.ui.runtime.preferences || {}).previousGeoSnapshot !== undefined && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoRollback.open()
                     }
                     ActionButton {
                         theme: root.theme
                         text: qsTr("Use bundled Geo databases…")
-                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && root.ui.runtime.tunState !== "On"
+                        enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoBundled.open()
+                    }
+                    ThemedComboBox {
+                        id: geoRoute
+                        theme: root.theme
+                        Accessible.name: qsTr("Geo download path")
+                        model: [qsTr("Direct"), qsTr("Current proxy")]
+                        currentIndex: (((root.ui.runtime.geoUpdate || {}).settings || {}).route || "Direct") === "CurrentProxy" ? 1 : 0
+                        enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onActivated: root.ui.runtimeCommand("geo_settings", [currentIndex === 1 ? "CurrentProxy" : "Direct", String((((root.ui.runtime.geoUpdate || {}).settings || {}).intervalHours || 0))])
+                    }
+                    ThemedComboBox {
+                        theme: root.theme
+                        Accessible.name: qsTr("Geo download schedule")
+                        model: [qsTr("Manual Geo updates"), qsTr("Download Geo daily"), qsTr("Download Geo weekly")]
+                        currentIndex: [0, 24, 168].indexOf((((root.ui.runtime.geoUpdate || {}).settings || {}).intervalHours || 0))
+                        enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                        onActivated: root.ui.runtimeCommand("geo_settings", [(((root.ui.runtime.geoUpdate || {}).settings || {}).route || "Direct"), String([0, 24, 168][currentIndex])])
                     }
                     ActionButton {
                         theme: root.theme
@@ -737,6 +927,12 @@ ScrollView {
                 }
                 Label {
                     Layout.fillWidth: true
+                    wrapMode: Text.WrapAnywhere
+                    color: root.theme.muted
+                    text: qsTr("Geo snapshot: %1 · Last successful download: %2").arg((((root.ui.runtime.geoUpdate || {}).snapshot || {})["geoip.dat"] || {}).revision || qsTr("Bundled")).arg((((root.ui.runtime.geoUpdate || {}).settings || {}).lastSuccess || "—"))
+                }
+                Label {
+                    Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: {
                         const features = root.ui.runtime.features || {};
@@ -755,6 +951,7 @@ ScrollView {
                             Failed: qsTr("DNS cache could not be cleared")
                         };
                         const geoLabels = {
+                            Pending: qsTr("Geo snapshot downloaded; apply when ready"),
                             Downloading: qsTr("Downloading both Geo databases…"),
                             Validating: qsTr("Validating Geo databases…"),
                             Applying: qsTr("Applying Geo databases…"),

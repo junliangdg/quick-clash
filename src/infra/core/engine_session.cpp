@@ -3,6 +3,7 @@
 #include "infra/core/service_protocol.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/json_store.h"
+#include "platform/core_artifacts.h"
 #include "platform/desktop_services.h"
 #include <QCryptographicHash>
 #include <QFile>
@@ -131,7 +132,8 @@ EngineSession::~EngineSession() {
 void EngineSession::start(const QString& executable, const QString& config,
                           const QString& directory, const QByteArray& secret, quint16 mixedPort,
                           quint16 controllerPort, const QString& expectedMode, bool serviceMode,
-                          const QJsonObject& geoSnapshot, const QString& storageRoot) {
+                          const QJsonObject& geoSnapshot, const QString& storageRoot,
+                          const QString& coreArtifactId) {
     const auto platform = platform::desktopPlatformInfo();
     if (platform.capabilities.value(QStringLiteral("core")) != QStringLiteral("Supported")) {
         emit failed(QStringLiteral("CorePlatformUnsupported"));
@@ -143,9 +145,9 @@ void EngineSession::start(const QString& executable, const QString& config,
     }
     if (serviceStopping_) {
         afterServiceStop_ = [this, executable, config, directory, secret, mixedPort, controllerPort,
-                             expectedMode, serviceMode, geoSnapshot, storageRoot] {
+                             expectedMode, serviceMode, geoSnapshot, storageRoot, coreArtifactId] {
             start(executable, config, directory, secret, mixedPort, controllerPort, expectedMode,
-                  serviceMode, geoSnapshot, storageRoot);
+                  serviceMode, geoSnapshot, storageRoot, coreArtifactId);
         };
         return;
     }
@@ -158,10 +160,7 @@ void EngineSession::start(const QString& executable, const QString& config,
         emit failed(QStringLiteral("InvalidCoreSession"));
         return;
     }
-    QFile binary(executable);
-    QCryptographicHash hash(QCryptographicHash::Sha256);
-    if (!binary.open(QIODevice::ReadOnly) || !hash.addData(&binary) ||
-        hash.result().toHex() != platform.coreSha256) {
+    if (!platform::verifyCoreArtifact(executable, coreArtifactId)) {
         emit failed(QStringLiteral("CoreIntegrityFailed"));
         return;
     }
@@ -174,6 +173,8 @@ void EngineSession::start(const QString& executable, const QString& config,
     mixedPort_ = mixedPort;
     controllerPort_ = controllerPort;
     expectedMode_ = expectedMode;
+    expectedVersion_ =
+        platform::coreArtifact(coreArtifactId).value(QStringLiteral("version")).toString();
     ++generation_;
     if (serviceMode) {
         QFile source(config);
@@ -195,6 +196,7 @@ void EngineSession::start(const QString& executable, const QString& config,
              {QStringLiteral("mode"), expectedMode},
              {QStringLiteral("tun"), true},
              {QStringLiteral("dnsMode"), QStringLiteral("profile")},
+             {QStringLiteral("coreArtifactId"), coreArtifactId},
              {QStringLiteral("geo"), QJsonObject{{QStringLiteral("snapshot"), geoSnapshot},
                                                  {QStringLiteral("storageRoot"), storageRoot}}}},
             [this, generation](domain::Result<QJsonObject> result) {
@@ -207,6 +209,10 @@ void EngineSession::start(const QString& executable, const QString& config,
                     return;
                 }
                 const auto value = std::get<QJsonObject>(result);
+                if (value.value(QStringLiteral("version")).toString() != expectedVersion_) {
+                    fail(QStringLiteral("CoreVersionMismatch"));
+                    return;
+                }
                 if (!value.value(QStringLiteral("tun")).toBool()) {
                     fail(QStringLiteral("ServiceTunReadbackFailed"));
                     return;
@@ -216,7 +222,7 @@ void EngineSession::start(const QString& executable, const QString& config,
                 ready_ = true;
                 setTunState(QStringLiteral("On"));
                 servicePoll_.start();
-                emit becameReady(QStringLiteral("v1.19.33"));
+                emit becameReady(value.value(QStringLiteral("version")).toString());
                 refreshGroups();
             });
         return;
@@ -566,7 +572,7 @@ void EngineSession::probe() {
         }
         const auto version =
             std::get<QJsonObject>(result).value(QStringLiteral("version")).toString();
-        if (version != QStringLiteral("v1.19.33")) {
+        if (version != expectedVersion_) {
             fail(QStringLiteral("CoreVersionMismatch"));
             return;
         }

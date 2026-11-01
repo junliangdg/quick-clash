@@ -26,9 +26,11 @@ SingleInstance::SingleInstance(QString key, QObject* parent) : QObject(parent) {
                 }
                 auto message = socket->property("message").toByteArray();
                 message += socket->readAll();
-                if (message == QByteArrayLiteral("activate\n")) {
+                if (message == QByteArrayLiteral("activate\n") ||
+                    message == QByteArrayLiteral("background\n")) {
                     socket->setProperty("handled", true);
-                    emit activationRequested();
+                    if (message == QByteArrayLiteral("activate\n"))
+                        emit activationRequested();
                     socket->write("ok\n");
                     socket->disconnectFromServer();
                 } else if (message.size() > 32 || message.contains('\n')) {
@@ -44,14 +46,14 @@ SingleInstance::SingleInstance(QString key, QObject* parent) : QObject(parent) {
         }
     });
 }
-SingleInstance::Result SingleInstance::start() {
+SingleInstance::Result SingleInstance::start(bool activate) {
     if (!lock_->tryLock(0)) {
         QLocalSocket client;
         client.connectToServer(endpoint_);
         if (!client.waitForConnected(1000)) {
             return Result::Unavailable;
         }
-        client.write("activate\n");
+        client.write(activate ? "activate\n" : "background\n");
         if ((client.bytesToWrite() > 0 && !client.waitForBytesWritten(1000)) ||
             (client.bytesAvailable() == 0 && !client.waitForReadyRead(1000))) {
             return Result::Unavailable;

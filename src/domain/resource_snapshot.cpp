@@ -24,7 +24,8 @@ bool valid(const QJsonObject& process) {
 } // namespace
 QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& serviceObservation,
                              const QJsonObject& core, bool coreExpected,
-                             const QJsonObject& validator, bool validatorExpected) {
+                             const QJsonObject& validator, bool validatorExpected,
+                             const QJsonObject& coreExtractor, bool extractorExpected) {
     QJsonObject memory;
     bool complete = valid(host) && serviceObservation.value(QStringLiteral("complete")).toBool();
     if (valid(host)) {
@@ -35,16 +36,23 @@ QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& service
         memory.insert(QStringLiteral("client"), client);
     }
     const auto service = serviceObservation.value(QStringLiteral("service")).toObject();
-    if (!service.isEmpty()) {
-        complete &= valid(service);
-        if (valid(service)) {
-            memory.insert(QStringLiteral("service"), service);
+    for (const auto& helper : {std::pair{QStringLiteral("service"), service},
+                               std::pair{QStringLiteral("coreExtractor"), coreExtractor}}) {
+        if (helper.second.isEmpty()) {
+            if (helper.first == QStringLiteral("coreExtractor") && extractorExpected)
+                complete = false;
+            continue;
+        }
+        const auto& counters = helper.second;
+        complete &= valid(counters);
+        if (valid(counters)) {
+            memory.insert(helper.first, counters);
             if (valid(host)) {
                 auto client = memory.value(QStringLiteral("client")).toObject();
                 for (const auto* field : metrics) {
                     const auto key = QLatin1String(field);
                     const auto left = client.value(key).toString().toULongLong();
-                    const auto right = service.value(key).toString().toULongLong();
+                    const auto right = counters.value(key).toString().toULongLong();
                     if (right > std::numeric_limits<quint64>::max() - left) {
                         client.remove(key);
                         complete = false;

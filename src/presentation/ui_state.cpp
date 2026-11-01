@@ -463,6 +463,22 @@ QString UiState::runtimeError() const {
                   "package.");
     if (code == QStringLiteral("GeoResourceDownloadFailed"))
         return tr("Unable to download both Geo databases. The previous snapshot is kept.");
+    if (code == QStringLiteral("UpdateProxyUnavailable"))
+        return tr("Start the core before downloading through the current proxy, or select direct "
+                  "download.");
+    if (code == QStringLiteral("StartupRegistrationFailed"))
+        return tr("Unable to save the Windows startup registration. Refresh its status and retry.");
+    if (code == QStringLiteral("StartupUnsupported"))
+        return tr("Login startup is not supported on this platform.");
+    if (code == QStringLiteral("CoreDownloadFailed"))
+        return tr("The core download failed. The confirmed core is kept.");
+    if (code == QStringLiteral("CoreUpdateWriteFailed"))
+        return tr("Unable to write the managed core. Check free space and write access to the "
+                  "portable core directory.");
+    if (code == QStringLiteral("CoreArchiveUnavailable") ||
+        code == QStringLiteral("CoreArchiveFailed"))
+        return tr("Unable to extract the verified core archive with Windows tar. The confirmed "
+                  "core is kept.");
     if (code == QStringLiteral("ProviderCacheUnavailable"))
         return tr("A saved provider resource is missing or damaged. Update the full subscription "
                   "to repair it.");

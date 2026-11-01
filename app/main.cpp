@@ -186,7 +186,7 @@ int main(int argc, char* argv[]) {
         QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
     quickclash::SingleInstance instance(dataDirectory);
     if (!isolated || desktopTest) {
-        switch (instance.start()) {
+        switch (instance.start(!arguments.contains(QStringLiteral("--autostart")))) {
         case quickclash::SingleInstance::Result::Activated:
             return 0;
         case quickclash::SingleInstance::Result::Unavailable:
@@ -265,7 +265,8 @@ int main(int argc, char* argv[]) {
         !host.state().navigate(option(QStringLiteral("--page")))) {
         return 4;
     }
-    if (!host.showWindow()) {
+    if (!(arguments.contains(QStringLiteral("--autostart")) ? host.startAtLogin()
+                                                            : host.showWindow())) {
         return 1;
     }
 #ifdef QUICKCLASH_TEST_PROBES

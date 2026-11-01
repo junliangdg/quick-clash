@@ -6,5 +6,7 @@ namespace quickclash::domain {
 [[nodiscard]] QJsonObject resourceSnapshot(const QJsonObject& host,
                                            const QJsonObject& serviceObservation,
                                            const QJsonObject& core, bool coreExpected,
-                                           const QJsonObject& validator, bool validatorExpected);
+                                           const QJsonObject& validator, bool validatorExpected,
+                                           const QJsonObject& coreExtractor = {},
+                                           bool extractorExpected = false);
 } // namespace quickclash::domain

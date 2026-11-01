@@ -136,6 +136,7 @@ QJsonObject ServiceProtocol::capabilities(const QString& serviceBuild) {
             {QStringLiteral("networkConflictPreflight"), 1},
             {QStringLiteral("lifecycleDiagnostics"), 2},
             {QStringLiteral("portableResources"), 1},
+            {QStringLiteral("managedCoreArtifact"), 1},
             {QStringLiteral("serviceBuild"), serviceBuild},
             {QStringLiteral("proxyRecovery"), QStringLiteral("NotAvailable")},
             {QStringLiteral("reconnectPolicy"), QStringLiteral("StopOwnedSession")}};

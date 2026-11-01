@@ -191,6 +191,51 @@ int geoUpdateProbe() {
                 goodSnapshot,
             "resource references survive reopen"))
         return 15;
+    reopened.featureCommand("bundled_geo", {"confirmed"});
+    if (!check(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }),
+               "bundled before schedule"))
+        return 19;
+    reopened.stop();
+    const auto settings = store.write(
+        "config/geo_update.json",
+        {{"route", "Direct"}, {"intervalHours", 24}, {"lastAttempt", "2000-01-01T00:00:00Z"}});
+    if (std::holds_alternative<domain::Error>(settings))
+        return 20;
+    application::DesktopRuntime scheduled(
+        store, nullptr, nullptr, {},
+        QUrl(QStringLiteral("https://127.0.0.1:%1/").arg(origin.serverPort())));
+    scheduled.initialize();
+    scheduled.enableBackgroundManagement();
+    if (!check(waitFor(
+                   [&] {
+                       return scheduled.snapshot()
+                           .value("geoUpdate")
+                           .toObject()
+                           .value("pending")
+                           .toBool();
+                   },
+                   30000) &&
+                   scheduled.snapshot()
+                       .value("preferences")
+                       .toObject()
+                       .value("geoSnapshot")
+                       .toObject()
+                       .isEmpty() &&
+                   scheduled.snapshot().value("ready").toBool(),
+               "scheduled update validates without activating")) {
+        std::fprintf(stderr, "scheduled state: %s\n",
+                     QJsonDocument(scheduled.snapshot()).toJson().constData());
+        return 21;
+    }
+    const auto scheduledPid = scheduled.snapshot().value("corePid");
+    scheduled.featureCommand("apply_pending_geo", {"confirmed"});
+    if (!check(waitFor([&] { return !scheduled.snapshot().value("busy").toBool(); }) &&
+                   scheduled.snapshot().value("ready").toBool() &&
+                   scheduled.snapshot().value("corePid") != scheduledPid &&
+                   !scheduled.snapshot().value("geoUpdate").toObject().value("pending").toBool(),
+               "explicit pending apply restarts and clears candidate"))
+        return 22;
+    scheduled.stop();
     std::puts("Geo pair transaction, repeat, failure, cancellation, bundled fallback and rollback "
               "passed");
     return 0;

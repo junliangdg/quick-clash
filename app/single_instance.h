@@ -11,7 +11,7 @@ class SingleInstance final : public QObject {
   public:
     enum class Result { Primary, Activated, Unavailable };
     explicit SingleInstance(QString key, QObject* parent = nullptr);
-    [[nodiscard]] Result start();
+    [[nodiscard]] Result start(bool activate = true);
   signals:
     void activationRequested();
 

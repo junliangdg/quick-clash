@@ -111,6 +111,22 @@ int runTrayProbe(ApplicationHost& host) {
     return result;
 }
 int runHostProbe(ApplicationHost& host) {
+    {
+        ApplicationHost login({}, false);
+        if (!login.startAtLogin() ||
+            (login.state().trayAvailable() ? login.window() || login.engineGeneration() != 0
+                                           : !login.window() || !login.window()->isVisible())) {
+            std::fputs(
+                "Login startup must stay engine-free with a tray or show a recovery window\n",
+                stderr);
+            return 10;
+        }
+        if (!login.showWindow() || !login.showWindow() || login.engineGeneration() != 1 ||
+            !login.contentReady()) {
+            std::fputs("Manual activation must create exactly one login window\n", stderr);
+            return 10;
+        }
+    }
     int step = 0;
     int confirmations = 0;
     QPointer<QQuickWindow> previousWindow;

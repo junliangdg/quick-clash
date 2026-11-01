@@ -23,6 +23,7 @@ class ApplicationHost final : public QObject {
         return state_;
     }
     [[nodiscard]] bool showWindow();
+    [[nodiscard]] bool startAtLogin();
     void resizeWindow(const QSize& size);
     void hideWindow(bool confirmed);
     void unloadWindow();
@@ -61,6 +62,7 @@ class ApplicationHost final : public QObject {
     QRect geometry_;
     QSize requestedSize_;
     bool quitting_ = false;
+    bool loginPending_ = false;
     bool waitingForSettings_ = false;
     bool showing_ = false;
     bool unloading_ = false;

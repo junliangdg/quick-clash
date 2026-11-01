@@ -62,6 +62,8 @@ class ServiceHost final : public QObject {
     int requestCount_ = 0;
     QString epoch_;
     QString corePath_;
+    QString expectedCoreVersion_;
+    QString observedCoreVersion_;
     QString configPath_;
     QString directory_;
     QString pipe_;

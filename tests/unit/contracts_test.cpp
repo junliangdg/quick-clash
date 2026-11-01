@@ -158,6 +158,23 @@ int main(int argc, char* argv[]) {
                 host, {{"complete", true}, {"validatorExpected", true}}, {}, false, {}, false);
             check(!missingValidator.value("memoryComplete").toBool(),
                   "missing expected service validator makes the resource sample incomplete");
+            const auto extracting = quickclash::domain::resourceSnapshot(
+                host, {{"service", service}, {"complete", true}}, core, true, {}, false,
+                counters(500), true);
+            check(extracting.value("memoryComplete").toBool() &&
+                      extracting.value("memory").toObject().value("client").toObject().value(
+                          "workingSet") == "803" &&
+                      extracting.value("memory")
+                              .toObject()
+                              .value("coreExtractor")
+                              .toObject()
+                              .value("workingSet") == "501",
+                  "required extractor contributes to client while core stays separate");
+            check(!quickclash::domain::resourceSnapshot(host, {{"complete", true}}, {}, false, {},
+                                                        false, {}, true)
+                       .value("memoryComplete")
+                       .toBool(),
+                  "missing expected extractor makes the sample incomplete");
         }
         {
             const auto safe =

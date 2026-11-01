@@ -263,6 +263,16 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command.startsWith(QStringLiteral("core_"))) {
+        coreUpdateCommand(command, args);
+        return;
+    }
+    if (command == QStringLiteral("startup_enabled") ||
+        command == QStringLiteral("startup_hidden") ||
+        command == QStringLiteral("startup_refresh")) {
+        configureStartup(command, args);
+        return;
+    }
     if (command == QStringLiteral("query_ip")) {
         queryIp(args.value(0));
         return;
@@ -317,13 +327,18 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         return;
     }
     if (command == QStringLiteral("update_geo")) {
+        geoScheduled_ = false;
         updateGeo();
+        return;
+    }
+    if (command == QStringLiteral("geo_settings") ||
+        command == QStringLiteral("apply_pending_geo")) {
+        configureGeo(command, args);
         return;
     }
     if (command == QStringLiteral("rollback_geo")) {
         if (busy_ || store_.readOnly() || selectedId_.isEmpty() ||
             !runtimePreferences_.contains(QStringLiteral("previousGeoSnapshot")) ||
-            runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() ||
             args.value(0) != QStringLiteral("confirmed"))
             return;
         applyGeoSnapshot(
@@ -336,7 +351,6 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
     }
     if (command == QStringLiteral("bundled_geo")) {
         if (busy_ || store_.readOnly() || selectedId_.isEmpty() ||
-            runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() ||
             args.value(0) != QStringLiteral("confirmed"))
             return;
         applyGeoSnapshot({});
