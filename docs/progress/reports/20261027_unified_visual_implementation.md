@@ -68,15 +68,17 @@
 
 ## P3字体与可访问性补验
 
+2026-11-02当前结论更新：Qt6.12开发产物ui_accessibility及_zh均Fail于subscription_url密码输入框的QAccessible名称为空；QML已有Accessible.name声明，不能仅凭声明认定实际可访问性通过。下表2026-10-29名称审计Pass对当前版本Stale；本轮ui_keyboard、视觉/响应式、中英文运行列表/订阅及语言等回归Pass，ui_prototype与host_lifecycle在沙箱内外均Pass。原生tray卸载、实际OS文本/高DPI多屏/读屏均未补验，G1保持Stale。详见[当前复核](../DEVLOG.md#2026-11-02--p3实现与台账复核)。
+
 2026-10-29，P3-27 / Codex / Review。Windows x64 Release、Qt6.8.0、Microsoft YaHei，单屏M27T6S/DPR1.25，默认RHI的Direct3D11（API枚举4）。工作区未提交，最终exe SHA256为F581A251FA00F569FCAD2D803619CC59A5664E9F03DF4E28CDB7AAA5FA610AF5；未更新安装包或安装目录。详细失败、修复与命令见[DEVLOG](../DEVLOG.md#2026-10-29--p3字体与可访问性)，原始输出在忽略的build目录。
 
 | 条件 | 结果 | 依据与限制 |
 |---|---|---|
 | Windows文本缩放接入及共享控件 | Pass（实现/字体注入） | 只读TextScaleFactor、设置通知更新字体，字号/控件行高、组标题、数字框与端口换列同步；14/21/32逻辑px×360/1000宽八路由无QML错误；字体变化不重建引擎，卸载后按当前字体重建。未修改OS设置。 |
-| 键盘、控件名称与模态 | Pass（探针范围） | 最终13/13受影响回归28.51秒；原生探针4.661秒退出0。711条名称记录（含重复场景，非711个唯一控件）覆盖580按钮/开关等、75下拉、12数字框、7多行及37单行输入；Tab/Shift+Tab、编辑器Ctrl+Tab退出、箭头/空格、Escape、Enter默认Cancel、焦点返回及只读预览不逃出模态通过。 |
+| 键盘、控件名称与模态 | Stale（当前名称审计） | 历史13/13受影响回归28.51秒、原生探针4.661秒退出0及711条名称记录保留；Tab/Shift+Tab、编辑器Ctrl+Tab退出、箭头/空格、Escape、Enter默认Cancel、焦点返回及模态边界为历史已测范围。2026-11-02当前ui_keyboard Pass，但中英文名称审计均Fail于subscription_url，不能沿用旧版本的整体Pass。 |
 | 原生字体/代表布局 | Pass（单屏125%DPI） | 8张设置/代理/订阅截图核对；双主题、三档字体、长中英名称换行/省略及滚动；组标题重叠修复。build/p3_accessibility_complete保留截图、results.json与日志；不复制批量图片至reports。 |
 | 资源短测 | Sampled | 本轮早期等效场景单轮10.016秒，专用工作集/总工作集/私有提交字节96600064/195112960/241266688→77705216/176226304/213762048；无核心和本探针辅助进程，既有空闲服务未参与且未聚合。末次名称/键盘和局部几何修复不重复采样，无同版本改前基线，不宣称优化收益、峰值或长期有界。原始build/p3_accessibility_native_2/results.json。 |
 | 真实Windows文本设置、高DPI/多屏迁移、读屏 | NotRun | 仅单屏125%DPI，字号为应用字体注入；QAccessible名称查询不等于Windows读屏实际结果。2026-10-30接续尝试真实设置窗口时Computer Use应用授权超时，未改系统值；用户暂无额外环境，待相应环境补验。 |
-| G1整门 | Stale | G1-A/C/D/E有效历史边界保留；G1-B尚缺上述真实环境条件，P3-27 Review，G2/G3仍NotRun。 |
+| G1整门 | Stale | G1-A/D/E有效历史边界保留；G1-B当前名称审计Fail且缺真实环境条件，G1-C原生tray卸载未复验（ui_prototype/host_lifecycle本轮Pass）；P3-27 Review，G2/G3仍NotRun。 |
 
 最终行为测试为ctest --test-dir build/ci_qt680 --output-on-failure并筛选localization/ui_state/qml_smoke/ui_keyboard/ui_accessibility及_zh/ui_visual/ui_responsive/ui_runtime_lists及_zh/ui_subscriptions及_zh/host_lifecycle；JUnit与命令日志在build/p3_accessibility_final_tests。原生调用quickclash.exe --accessibility-test --probe-language=zh-CN --accessibility-output=…/build/p3_accessibility_complete。早期名称审计曾因匹配QML类名而空跑或仅覆盖ItemDelegate，相关名称证据Stale；最终按Qt控件基类并强制5个代表objectName校验，真实发现并补齐自定义按钮/开关的缺失名称。标准Cancel曾有焦点但Return未激活，已修共享按钮；保留失败事实，不以最终Pass覆盖。

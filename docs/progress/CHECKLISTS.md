@@ -16,12 +16,14 @@
 
 当前内存优化各切片实现Review，专项产品验证NotRun；本机MVP Pass=16/16，G2-A—E证据齐全，G1仍Stale，因此G2/G3整门为NotRun。[逐项验收](reports/windows_validation.md#g2本机mvp逐项验收)不关闭[内存优化专项](reports/20261026_client_memory_optimization.md#验证范围)；阶段范围见[设计01](../design/01-目标范围与阶段计划.md)，MVP条件见[设计19](../design/19-网络测试与信息采集.md)。
 
+2026-11-02按代码、历史有效证据及当前开发产物复核：P3共29项，Done=22、Review=5、Blocked=1、Todo=1。P3-04的TUN实现已存在，修正旧Todo为Blocked（P3-25前置验收未关闭）；不把缺验收等同未开发。当前20项不同测试排除沙箱影响后18项Pass，ui_accessibility及_zh为Fail（subscription_url密码输入框可访问名称为空）；ui_prototype与host_lifecycle本轮Pass，原生tray卸载未复验。详见[复核记录](DEVLOG.md#2026-11-02--p3实现与台账复核)，没有新增整门Pass。
+
 ## 1. 阶段门状态
 
 | ID | 阶段 | 状态 | 证据 | 下一步/阻塞原因 |
 |---|---|---|---|---|
 | G0 | P0 | Pass | [当前验证](reports/windows_validation.md#工程与内核) | Windows 本地 Release/启动/QML/headless、官方内核关键契约和部署通过；跨平台原生与 CI run 后置 P4-06 |
-| G1 | P1 | Stale | [当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准)、[P3补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验) | P3-27字体注入/名称/键盘和125%DPI原生检查已通过并进入Review；实际OS文本设置、高DPI/多屏迁移及读屏NotRun，保留原生命周期/资源边界，不提升整门Pass |
+| G1 | P1 | Stale | [当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准)、[P3补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验) | P3-27字体注入/键盘与125%DPI历史证据保留；当前中英文名称审计Fail于subscription_url，旧名称Pass对此版本Stale。实际OS文本设置、高DPI/多屏及读屏NotRun；ui_prototype/host_lifecycle本轮Pass，原生tray卸载仍未补验 |
 | G2 | P2 | NotRun | [16项逐条件验收](reports/windows_validation.md#g2本机mvp逐项验收) | MVP16/16及G2-A—E通过，P2全部Done；前一门G1 Stale，待P3-27补实际OS可访问性后才能提升整门 |
 | G3 | P3 | NotRun | [Windows方案](reports/windows_validation.md#阶段范围与待补项)、[补证分期](reports/windows_validation.md#阶段范围与待补项) | 八页面/真实转发、TUN/服务、静态兼容及P3-14干净普通用户环境与有限OS/GUI宿主证据；其他平台后置 |
 | G4 | P4 | NotRun | — | 三平台支持/更新/安装/恢复矩阵 |
@@ -40,8 +42,8 @@
 ### G1：UI 与资源路线
 
 - [x] G1-A：桌面左侧八模块入口/路由/嵌入复用独立，导航常驻不创建全部页面，移动只验边界。[当前验证](reports/windows_validation.md#工程与内核)
-- [ ] G1-B：P3-16八页面/双主题/草稿/菜单/确认/错误态历史证据保留；P3-27正文14/21/32px×宽窄窗八路由、中英文名称/键盘、标准Cancel/返回及卸载字体重建、原生D3D11/125%DPI补验通过。实际OS文本设置、高DPI/多屏迁移与读屏NotRun，不能用注入字号替代；本项及G1保持未关闭。[逐项补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验)
-- [ ] G1-C：Stale。单实例/托盘/无托盘退路及100次句柄历史证据保留，当前host_lifecycle通过；2026-10-30额外原生回放tray-test在实验性卸载重建出现theme销毁期QML错误、exit11，修改前后部署包均可复现，不能称该条件当前整体Pass。2026-11-01 ui_prototype在设置页修改前后均出现ReplayList孵化/销毁失败，仍待修复。生产会话Host既有有限证据保留，需定向核对回放销毁与恢复。[原生失败记录](DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展)、[本轮对照](DEVLOG.md#2026-11-01--设置页移除原型数据入口)、[Qt6.8回归](reports/20261027_github_release.md#ci故障与修复)
+- [ ] G1-B：P3-16八页面/双主题/草稿/菜单/确认/错误态历史证据保留；P3-27字体注入/键盘、标准Cancel/返回及原生D3D11/125%DPI历史检查保留，当前ui_keyboard等回归Pass。2026-11-02中英文ui_accessibility均Fail于subscription_url密码输入框名称为空，旧名称审计Pass对此版本Stale。实际OS文本设置、高DPI/多屏迁移与读屏NotRun，不能用注入字号替代；本项及G1保持未关闭。[逐项补验](reports/20261027_unified_visual_implementation.md#p3字体与可访问性补验)、[当前复核](DEVLOG.md#2026-11-02--p3实现与台账复核)
+- [ ] G1-C：Stale。单实例/托盘/无托盘退路及100次句柄历史证据保留；2026-10-30原生回放tray-test在实验性卸载重建出现theme销毁期QML错误、exit11，修改前后部署包均可复现。2026-11-01 ui_prototype的ReplayList孵化/销毁失败保留为历史；2026-11-02当前Qt6.12产物ui_prototype与host_lifecycle在沙箱内外均Pass，不能继续称这两个自动测试当前Fail，但本轮未复验原生tray-test，不能提升整个条件Pass。[原生失败记录](DEVLOG.md#2026-10-30--灵猫q品牌与侧栏收展)、[历史对照](DEVLOG.md#2026-11-01--设置页移除原型数据入口)、[当前复核](DEVLOG.md#2026-11-02--p3实现与台账复核)
 - [x] G1-D：Release环境、三项内存原始数据具备，六场景双主题单轮短测12/12通过，专用工作集49.7—54.9 MB；按1.6无需长时/帧/GPU矩阵。[范围重评](reports/windows_validation.md#原型生命周期与资源)
 - [x] G1-E：已记录原型实测及未来解析、仓库日志、服务更新的资源风险；固定MB分项预留不再作为当前要求，真实组件随交付测量，不将估算称为实测。[原型历史](reports/windows_validation.md#原型生命周期与资源)、[当前资源策略](reports/20261027_unified_visual_implementation.md)
 
@@ -100,6 +102,8 @@
 - 内核受管更新定向Pass：固定官方ZIP/EXE摘要、取消/迟到、下载不切换、确认应用、启动失败补偿、上一选择/随包回退、重开及暂存释放通过；服务协议/独立ID与摘要核对已构建。当前仅v1.19.33同版本受管切换，跨版本、真实服务/TUN在线更新、公网产品下载与P4在线签名清单NotRun。原生设置页及10秒100样本三指标完成，不代表更新过程峰值/长期资源通过，见同一实施记录。
 
 - [ ] P3-14 Review：最终包普通Medium令牌/清开发Qt环境/中文空格路径及缺核心修复、真实托盘五秒卸载/转发/单次重建、整GUI强杀→Job回收→同目录单实例重开，以及独立进程WinINet外部冲突/显式新基线释放/原快照精确还原均Pass；独立验收工具包Package/Flow本机Pass，用户暂无额外环境，干净普通用户机器和一次真实换网或唤醒仍NotRun。[逐项结论](reports/windows_validation.md#p3普通用户宿主补证)
+
+- [ ] P3-04 Blocked：TUN设置入口、服务预检/授权重试、普通与服务模式串行迁移、失败补偿、GUID/LUID观测及清理不确定保护已有实现；历史服务已有用户多次开关、HTTP204与关后适配器移除/普通核心接管记录。当前便携服务替换后真实TUN仍NotRun，P3-25前置验收未关闭；授权拒绝/快速切换/迁移失败、受控节点真实转发及路由/DNS完整清理仍待补证，不标Done。[实现与证据复核](DEVLOG.md#2026-11-02--p3实现与台账复核)
 
 - [ ] P3-25 Review：实际UAC安装及普通用户握手/SCM身份、固定命令、核心控制器/配置隔离、start重放、客户端强杀和服务强杀重启清理通过；跨用户桌面争用未运行，不能以同用户第二连接Busy代替。服务恢复能力明确NotAvailable，TUN/代理即时恢复未获Pass。[验收记录](DEVLOG.md#2026-10-29--p3权限服务)
 
