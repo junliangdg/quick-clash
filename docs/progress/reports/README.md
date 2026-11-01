@@ -7,7 +7,7 @@
 | [Windows阶段验证](windows_validation.md) | 工程/原型、订阅转发/恢复、阶段范围与关键结论 |
 | [真实内存调查](20261026_subscription_memory_investigation.md) | 未关闭字体/私有驻留异常及重要对照 |
 | [内存优化验证范围](20261026_client_memory_optimization.md) | 实现上界、历史静态检查与后续运行证据 |
-| [产品视觉验收](20261027_unified_visual_implementation.md) | 方案C/双主题/八页面实际验证与代表截图 |
+| [产品视觉验收](20261027_unified_visual_implementation.md) | 统一视觉/双主题/八页面实际验证与代表截图 |
 | [CI与持续交付](20261027_github_release.md) | 包内容、CI故障修复及真实发布待验范围 |
 
 ## 留存规则

@@ -218,6 +218,7 @@ if(QUICKCLASH_BUILD_UI)
               resources/icons/sites/github.svg)
     install(FILES resources/licenses/lucide_isc.txt DESTINATION licenses)
     install(FILES resources/licenses/simple_icons_cc0.txt DESTINATION licenses)
+    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE" DESTINATION licenses RENAME quickclash_gpl_3.txt)
     if(WIN32)
         enable_language(RC)
         target_sources(quickclash PRIVATE resources/quickclash.rc)
@@ -500,6 +501,7 @@ if(BUILD_TESTING)
             tests/integration/service_probe.cpp tests/integration/service_probe.h
             tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h
             tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h
+            tests/integration/language_ui_probe.cpp tests/integration/language_ui_probe.h
             tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp
             tests/integration/visual_ui_probe.cpp)
         target_include_directories(quickclash_test_probes PRIVATE app tests/integration src/presentation)
@@ -569,6 +571,11 @@ if(BUILD_TESTING)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
             TIMEOUT 15)
+        add_test(NAME ui_language COMMAND quickclash --language-test)
+        set_tests_properties(ui_language PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
+            TIMEOUT 20)
         set_tests_properties(ui_runtime_lists ui_runtime_lists_zh PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign.*QColor"

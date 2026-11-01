@@ -1,10 +1,10 @@
 <div id="qc-style-review" data-design="minimal" data-appearance="light">
   <div class="review-controls" aria-label="概念预览设置">
-    <span>方案 C · 极简桌面工具风</span>
+    <span>极简桌面工具风</span>
     <label>外观<select id="qc-appearance"><option value="light">Light · 浅色</option><option value="dark">Dark · 深色</option><option value="system">跟随系统</option></select></label>
     <button type="button" id="qc-show-components">控件与状态</button><span class="review-note">概念预览 · 全部为演示数据</span>
   </div>
-  <section class="qc-window" aria-label="QuickClash 界面方案预览">
+  <section class="qc-window" aria-label="QuickClash 界面预览">
     <header class="window-bar"><span class="app-mark"><!-- brand_icon --></span><span>QuickClash</span><span class="window-label">CONCEPT PREVIEW</span><span class="window-chrome" aria-hidden="true"><span class="qc-symbol" aria-hidden="true">−</span><span class="qc-symbol" aria-hidden="true">□</span><span class="qc-symbol" aria-hidden="true">×</span></span></header>
     <div class="app-body">
       <nav class="app-nav" aria-label="预览页面">
@@ -59,7 +59,7 @@
         <div id="qc-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
       </main>
     </div>
-    <footer class="app-status"><span id="qc-style-label">方案 C · 极简桌面工具风</span><span>Light / Dark · 统一页面与控件</span></footer>
+    <footer class="app-status"><span id="qc-style-label">极简桌面工具风</span><span>Light / Dark · 统一页面与控件</span></footer>
   </section>
 </div>
 <style>
@@ -334,7 +334,7 @@
     root.dataset.page = state.page;
     root.dataset.design = state.design; root.dataset.appearance = state.appearance === 'system' ? (systemAppearance.matches ? 'dark' : 'light') : state.appearance; root.querySelector('.qc-window').style.colorScheme = root.dataset.appearance;
     appearance.value = state.appearance; themeSelect.value = state.appearance;
-    root.querySelector('#qc-style-label').textContent = '方案 C · 极简桌面工具风';
+    root.querySelector('#qc-style-label').textContent = '极简桌面工具风';
     root.querySelector('#qc-page-title').textContent = titles[state.page];
     root.querySelector('#qc-breadcrumb').textContent = '工作空间 / ' + (state.page === 'home' ? '概览' : titles[state.page]);
     root.querySelectorAll('.app-nav button[data-page]').forEach(b=> {if(b.dataset.page===state.page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});

@@ -6,6 +6,7 @@ struct UiPreferences {
     QString theme = QStringLiteral("system");
     bool unloadWhenHidden = false;
     bool closeAcknowledged = false;
+    QString language = QStringLiteral("system");
     QJsonObject dashboard{
         {QStringLiteral("curve"), true},    {QStringLiteral("ip"), true},
         {QStringLiteral("sites"), true},    {QStringLiteral("resources"), false},

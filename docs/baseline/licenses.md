@@ -1,9 +1,10 @@
 # 依赖与许可基线
 
-P0 记录来源和义务；项目自身许可等待真实发布选择。P5-02 完整核对第三方清单、对应源码与包内容。
+QuickClash 自有代码与资源以 GPL-3.0-only 发布，完整许可见[LICENSE](../../LICENSE)。P0 记录依赖来源和义务；P5-02 完整核对第三方清单、对应源码与包内容。
 
 | 依赖 | 版本/方式 | 许可与分发动作 |
 |---|---|---|
+| QuickClash 自有代码与资源 | 仓库源码、QML、构建/打包脚本、品牌与预览 | GPL-3.0-only；保留 [LICENSE](../../LICENSE)，分发二进制时提供对应源码；第三方组件不因本项目的 GPL 授权改变自身许可 |
 | Qt Core/Gui/Network/Qml/Quick/QuickControls2 | 6.8.0，动态链接候选，Basic | 按实际模块 LGPL-3.0/GPL-3.0/商业许可核对；开源发行提供许可、Qt 源码获取及动态替换/调试权利，保留 Qt 内第三方 notices；工具不统一当 LGPL |
 | yaml-cpp | 0.9.0 固定 release，静态候选 | MIT，保留版权及完整许可；[LICENSE](https://github.com/jbeder/yaml-cpp/blob/yaml-cpp-0.9.0/LICENSE) 已从校验包读取 |
 | Qt Svg | 6.8.0，动态链接；本地图标SVG解码 | 随Qt插件部署，按实际Qt Svg模块许可保留源代码获取与动态替换义务；不在headless引入GUI依赖 |

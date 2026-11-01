@@ -15,10 +15,26 @@ $taskDestination = [IO.Path]::GetFullPath($Destination, $taskRepo)
 if (Test-Path -LiteralPath $taskDestination) { throw 'Use a new destination to preserve prior evidence.' }
 $taskMatrixPath = Join-Path $taskRepo 'docs/baseline/release_matrix.json'
 $taskMatrix = Get-Content -LiteralPath $taskMatrixPath -Raw | ConvertFrom-Json
+$taskProjectLicense = Join-Path $taskRepo 'LICENSE'
+if ($taskMatrix.license -cne 'GPL-3.0-only' -or -not (Test-Path -LiteralPath $taskProjectLicense -PathType Leaf)) {
+    throw 'Project license metadata or LICENSE file is missing.'
+}
+function Copy-SourceObligations([string]$Source, [string]$Destination) {
+    $taskText = Get-Content -LiteralPath $Source -Raw
+    $taskText = $taskText.Replace('](../../LICENSE)', '](quickclash_gpl_3.txt)')
+    $taskText = $taskText.Replace('](../../resources/licenses/lucide_isc.txt)', '](lucide_isc.txt)')
+    $taskText = $taskText.Replace('](../../resources/licenses/simple_icons_cc0.txt)', '](simple_icons_cc0.txt)')
+    $taskText = $taskText.Replace('[预览说明](../reference/README.md)', '预览说明（仓库 docs/reference/README.md）')
+    Set-Content -LiteralPath $Destination -Value $taskText -Encoding utf8NoBOM -NoNewline
+}
 $taskCore = Join-Path $taskRepo '.cache/mihomo/mihomo.exe'
 if ((Get-FileHash -LiteralPath $taskCore -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskMatrix.mihomo.windows.executable_sha256) { throw 'Official Mihomo hash mismatch.' }
 if (-not (Test-Path -LiteralPath $MihomoLicense)) { throw 'Provide the frozen official Mihomo license text.' }
 & (Join-Path $PSScriptRoot 'deploy_windows.ps1') -BuildDirectory $BuildDirectory -Destination $taskDestination -CMake $CMake
+$taskPackagedLicense = Join-Path $taskDestination 'licenses/quickclash_gpl_3.txt'
+if (-not (Test-Path -LiteralPath $taskPackagedLicense -PathType Leaf)) {
+    throw 'Packaged project license is missing.'
+}
 New-Item -ItemType Directory -Path (Join-Path $taskDestination 'core'), (Join-Path $taskDestination 'licenses'), (Join-Path $taskDestination 'metadata') -Force | Out-Null
 Copy-Item -LiteralPath $taskCore -Destination (Join-Path $taskDestination 'core/mihomo.exe')
 New-Item -ItemType Directory -Path (Join-Path $taskDestination 'geo') | Out-Null
@@ -45,7 +61,7 @@ foreach ($taskLicense in Get-ChildItem -LiteralPath $taskQtLicenses -File) {
 Copy-Item -LiteralPath $taskMatrixPath -Destination (Join-Path $taskDestination 'metadata/release_matrix.json')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/config_policy.json') -Destination (Join-Path $taskDestination 'metadata/config_policy.json')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/windows_user_guide.md') -Destination (Join-Path $taskDestination 'readme.md')
-Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/licenses.md') -Destination (Join-Path $taskDestination 'licenses/source_obligations.md')
+Copy-SourceObligations (Join-Path $taskRepo 'docs/baseline/licenses.md') (Join-Path $taskDestination 'licenses/source_obligations.md')
 $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | ForEach-Object {
     [ordered]@{ path = [IO.Path]::GetRelativePath($taskDestination, $_.FullName).Replace('\', '/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
 })

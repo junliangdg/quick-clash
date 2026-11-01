@@ -27,10 +27,22 @@ if ($taskCache -notmatch '(?m)^BUILD_TESTING:BOOL=OFF\r?$' -or
 }
 $taskMatrixPath = Join-Path $taskRepo 'docs/baseline/release_matrix.json'
 $taskMatrix = Get-Content -LiteralPath $taskMatrixPath -Raw | ConvertFrom-Json
+if ($taskMatrix.license -cne 'GPL-3.0-only' -or
+    -not (Test-Path -LiteralPath (Join-Path $taskRepo 'LICENSE') -PathType Leaf)) {
+    throw 'Project license metadata or LICENSE file is missing.'
+}
 function Assert-Hash([string]$Path, [string]$Expected) {
     if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Expected) {
         throw "Package dependency hash mismatch: $Path"
     }
+}
+function Copy-SourceObligations([string]$Source, [string]$Destination) {
+    $taskText = Get-Content -LiteralPath $Source -Raw
+    $taskText = $taskText.Replace('](../../LICENSE)', '](quickclash_gpl_3.txt)')
+    $taskText = $taskText.Replace('](../../resources/licenses/lucide_isc.txt)', '](lucide_isc.txt)')
+    $taskText = $taskText.Replace('](../../resources/licenses/simple_icons_cc0.txt)', '](simple_icons_cc0.txt)')
+    $taskText = $taskText.Replace('[预览说明](../reference/README.md)', '预览说明（仓库 docs/reference/README.md）')
+    Set-Content -LiteralPath $Destination -Value $taskText -Encoding utf8NoBOM -NoNewline
 }
 $taskCore = Join-Path $taskRepo '.cache/mihomo/mihomo.exe'
 $taskCoreLicense = Join-Path $taskRepo '.cache/mihomo/license.txt'
@@ -53,7 +65,7 @@ foreach ($taskAsset in @($taskMatrix.geo.geoip, $taskMatrix.geo.geosite)) {
 Copy-Item -LiteralPath $taskCoreLicense -Destination (Join-Path $taskDestination 'licenses/mihomo_gpl_3.txt')
 Copy-Item -LiteralPath (Join-Path $taskRepo '.cache/geo/license.txt') -Destination (Join-Path $taskDestination 'licenses/meta_rules_dat_gpl_3.txt')
 Copy-Item -LiteralPath (Join-Path $taskBuild '_deps/yaml_cpp-src/LICENSE') -Destination (Join-Path $taskDestination 'licenses/yaml_cpp_mit.txt')
-Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/licenses.md') -Destination (Join-Path $taskDestination 'licenses/source_obligations.md')
+Copy-SourceObligations (Join-Path $taskRepo 'docs/baseline/licenses.md') (Join-Path $taskDestination 'licenses/source_obligations.md')
 foreach ($taskLicense in Get-ChildItem -LiteralPath (Join-Path $taskRepo 'resources/licenses') -File) {
     Copy-Item -LiteralPath $taskLicense.FullName -Destination (Join-Path $taskDestination 'licenses')
 }
@@ -86,7 +98,7 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskDestination -File -Recurse
         throw "Non-runtime content in release package: $taskRelative"
     }
 }
-foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe')) {
+foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe', 'licenses/quickclash_gpl_3.txt')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskDestination $taskRequired) -PathType Leaf)) { throw "Missing runtime file: $taskRequired" }
 }
 $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | Sort-Object FullName | ForEach-Object {

@@ -40,9 +40,9 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 
 默认UI开发构建目录为`build/dev`，headless为`build/headless`，本地独立发行默认`build/release`；Windows CI完成测试后在同一`build/dev`切换为无测试发行配置以复用编译结果，详见下节。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
-快速迭代阶段，[日常CI](../../.github/workflows/build.yml)只将Windows设为发布门：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
+快速迭代阶段，[日常CI](../../.github/workflows/build.yml)当前自动发布门禁仅覆盖Windows：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
 
-Windows使用windows-2022/Qt6.8.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞Windows发布。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+Windows使用windows-2022/Qt6.8.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
 Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核、AppContainer或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
@@ -82,11 +82,11 @@ clang-format 21.1.2 处理自有 C++；clang-tidy 21.1.2 配置已可解析，�
 
 ## P2 离线验证包
 
-P0定义布局，P2-16交付本机完整离线包并核对清开发Qt PATH后的本地导入/Ready，P3-14在G3前补无Qt/开发工具的普通用户干净环境；清PATH不代表干净机器。包包括bin/quickclash.exe、Qt DLL/platforms/styles/TLS/QML imports、CRT、core/mihomo.exe、metadata/release_matrix.json、licenses/第三方许可与源码获取说明，已声明固定Geo资源也须随包。范围见[G2复核](../progress/reports/windows_validation.md#阶段范围与待补项)。
+P0定义布局，P2-16交付本机完整离线包并核对清开发Qt PATH后的本地导入/Ready，P3-14在G3前补无Qt/开发工具的普通用户干净环境；清PATH不代表干净机器。包包括bin/quickclash.exe、Qt DLL/platforms/styles/TLS/QML imports、CRT、core/mihomo.exe、metadata/release_matrix.json、licenses/项目GPL-3.0-only与第三方许可、源码获取说明，已声明固定Geo资源也须随包。范围见[G2复核](../progress/reports/windows_validation.md#阶段范围与待补项)。
 
 运行 `pwsh -NoProfile -File scripts/deploy_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p1_validated`，工具不在PATH时补-CMake。脚本将prefix解析为绝对路径，通过qt_generate_deploy_qml_app_script收集Qt/QML，移除开发Qt PATH后用随包Windows插件执行smoke并留结果。P2-16核对完整依赖/CRT/内核及启动证据，P3-14补干净环境TLS/运行路径；Mihomo字节校验后单独加入，不构建Go源码。当前固定Geo范围见P3-10，许可义务见[台账](licenses.md)。
 
-P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境由P3-14在G3前验收，未按本机清PATH放行。
+P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入项目GPL-3.0-only许可、VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境由P3-14在G3前验收，未按本机清PATH放行。
 
 安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
 

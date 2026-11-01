@@ -1,24 +1,109 @@
 # QuickClash
 
-仓库目录名统一为 `quick-clash`，本机目标工作路径为 `D:/repos/quick-clash`；应用显示名为 `QuickClash`，CMake project/程序基础名/命名空间使用 `quickclash`。本轮已观测实际目录迁移完成，状态及迁移后的构建处理见 [迁移记录](docs/progress/reports/windows_validation.md#工程与内核)。
+[English](README.md) | [简体中文](README.zh-CN.md)
 
-基于C++20/Qt Quick的Mihomo客户端，使用官方预编译内核。P0/P1完成，Windows已有订阅—官方内核—系统代理真实链路、窄窗三底栏、中英文及主流协议/自动组支持，当前本机包为dist/g2_recovery/bin/quickclash.exe，需保留完整目录并退出旧版本后启动，见[Windows指南](docs/baseline/windows_user_guide.md)。按设计1.9的[G2范围复核](docs/progress/reports/windows_validation.md#阶段范围与待补项)，G2聚焦本机最小闭环，P2现21Done/2Review/1Todo，G2 NotRun待证据汇总；干净普通用户环境与有限真实OS/GUI宿主补证归P3-14/G3。完整Windows日常功能仍在开发，未宣称可交付。当前运行事实见[恢复报告](docs/progress/reports/windows_validation.md#恢复与本地包)，跨平台原生/CI后置P4，不统一要求全协议握手或故障/性能穷举矩阵。
+**A cross-platform Mihomo client built with C++20 and Qt Quick.**
 
-- [设计文档与范围](docs/design/README.md)：模块、UI、配置/订阅/内核/平台代理、恢复与阶段计划。
-- [开发进度入口](docs/progress/README.md)：任务台账、G0—G5 清单、16 项 MVP 结果、报告与接续日志。
-- [任务台账](docs/progress/TASKS.md) / [验收 checklist](docs/progress/CHECKLISTS.md)：当前任务状态、剩余步骤、阶段门与实际验收结果。
-- [P0 实施报告](docs/progress/reports/windows_validation.md#工程与内核) / [构建说明](docs/baseline/build_and_package.md)：已有代码、验证证据、构建限制与接续命令。
-- [C++ 与源码规范](docs/development/cpp_style.md)：现代 C++20/Qt 实践，自有源码目录/文件小写下划线，类型与磁盘文件名分开。
+QuickClash is designed for the three desktop platforms Windows, Linux, and macOS; Android and iOS remain future host targets. It uses the official precompiled Mihomo core to provide local proxy capabilities and brings subscriptions, configurations, the core, proxy groups, connection status, and available system network controls into one interface. The Qt Quick shell adapts its navigation to the window width, from a full sidebar to bottom navigation. The project focuses on clear status feedback, responsive layouts, and predictable, reclaimable resource lifecycles.
 
-先执行 P0 工程/工具链/官方资产/API 验证，再完成 P1 UI 与资源原型，随后交付 Windows 订阅—代理 MVP。其他桌面平台分期落地；移动只预留边界。客户端以小内存占用为设计目标，保持 Qt Quick 默认 RHI/GPU 渲染，不设跨机器统一的固定内存门槛。Windows 同时记录客户端进程组专用工作集、总工作集与私有提交，内核单列；以真实负载、同环境基线和有界生命周期评价资源变化。
+> **Development status**: The current build is version `0.1.0`. All 16 Windows local MVP conditions have passed, while P3/G3 day-to-day use validation is still in progress. No stable release is available yet, and Linux and macOS have not been natively built or functionally validated.
 
-仓库根目录可用的文档与进度检查：
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/reference/quickclash_minimal_dark.png">
+    <img src="docs/reference/quickclash_minimal_light.png" alt="QuickClash UI design preview" width="1100">
+  </picture>
+</p>
+
+<p align="center"><sub>UI design preview. Open the <a href="docs/reference/quickclash_minimal_preview.html">offline interactive concept page</a> to explore the eight pages and key control states.</sub></p>
+
+## Main capabilities
+
+- **Subscriptions and configuration**: Supports standard HTTPS subscriptions and local Mihomo YAML import. Source, name, update schedule, and automatic-apply policy are editable. Configuration overrides, version rollback, conditional caching, bad-update retention, and provider snapshot/runtime modes each have dedicated entry points.
+- **Core and proxies**: Bundles the official precompiled Mihomo core, with version and digest verification before launch, readiness checks, controlled restarts, failure compensation, and crash backoff. The Proxies page shows groups and nodes, runs manual or batch latency tests, and switches between Rule, Global, and Direct modes.
+- **System integration (Windows)**: On Windows, current-user system proxy settings are tracked with a lease and restored on exit, restart, and conflict. TUN is installed and run through a dedicated privileged service. Port conflicts, proxy conflicts, adapter naming, and external TUN scenarios all have explicit errors and fallback paths.
+- **Runtime visibility**: The dashboard shows live traffic, the current egress, network tools, and runtime status. Connections, Rules, and Logs provide filtering, inline details, and bounded retention; client and core memory are reported separately.
+- **Interface and responsive layout**: Eight pages: Dashboard, Proxies, Subscriptions, Connections, Rules, Logs, Tests, and Settings. The app supports light, dark, and system themes; Simplified Chinese, English, and system language; keyboard navigation; and DPI scaling. The same Qt Quick shell switches from a labeled sidebar to an icon rail and then to bottom navigation as width decreases; the minimum window size is `360×480`. This compact layout is window adaptation, not mobile support.
+- **Security and recovery**: On Windows, sensitive subscription data is encrypted with the current user's DPAPI; secure storage and system integration for Linux and macOS remain to be implemented. Downloads and file reads are size-limited, and configurations are activated only after validation by the official core. System proxy, settings storage, configuration transactions, and diagnostic export all preserve previous values on failure.
+
+## Current status
+
+| Scope | Status |
+| --- | --- |
+| Windows x64 | Native implementation and current validation platform; P3/G3 day-to-day delivery is in progress |
+| Windows local MVP | All 16 G2 local validation conditions pass; the stage gate remains `NotRun` in the [validation checklist](docs/progress/CHECKLISTS.md) |
+| Linux / macOS | Planned desktop targets; shared boundaries and candidate build configuration are retained; native builds, system integration, and functional validation are all `NotRun` |
+| Mobile | Future Android and iOS host targets; architecture boundaries only; no mobile project, runtime, or validation |
+| Distribution | No stable release yet; `continuous` in [GitHub Releases](https://github.com/junliangdg/quick-clash/releases) is a CI snapshot of the default branch, not a formal release |
+
+Compact bottom navigation is a responsive desktop window layout. It does not indicate Android or iOS support.
+
+Validation is still pending for real TUN operation, the privileged service, and a clean standard-user environment. We are also investigating font and memory residency issues after subscription updates. Screen-reader support, full accessibility, and some host-environment scenarios do not yet have final conclusions. See the [task ledger](docs/progress/TASKS.md) and [validation checklist](docs/progress/CHECKLISTS.md) for current status and evidence.
+
+## Build from source
+
+The currently validated build environment is Windows x64, PowerShell 7.2+, CMake 3.24+, Ninja, the Visual Studio MSVC x64 toolchain, and Qt 6.8 or newer. The frozen reference environment is Qt `6.8.0 msvc2022_64`. Linux and macOS retain candidate build configuration, but native build and functional validation have not been completed.
+
+Run these commands from the repository root:
+
+```powershell
+# Fetch version- and SHA-256-pinned yaml-cpp, Mihomo, and Geo assets
+pwsh -NoProfile -File scripts/fetch_dependencies.ps1
+
+# Configure, build, run QML lint, and run affected tests
+pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.8.0/msvc2022_64
+
+# Launch the development build
+build/dev/quickclash.exe
+```
+
+Network access is required for the initial dependency fetch; cached assets are still verified against their digests. After changing Qt kits or compilers, or moving the repository, use a fresh build directory or pass `-Fresh` to the build script. See [Build and offline packaging](docs/baseline/build_and_package.md) for dependencies, deployment, packaging, and CI.
+
+Documentation or repository-structure changes can run these checks independently:
 
 ```powershell
 pwsh -NoProfile -File scripts/build_design_docs.ps1 -Check
 pwsh -NoProfile -File scripts/check_progress.ps1
 pwsh -NoProfile -File scripts/check_source_layout.ps1
+pwsh -NoProfile -File scripts/check_platform_boundaries.ps1
 git diff --check
 ```
 
-这些脚本检查文档/台账/命名，不替代实际构建、测试或性能检查。具体工具链、构建命令和支持矩阵见 P0 基线；任务数量不表示产品完成百分比。
+These scripts validate design documents, task tracking, source naming, and platform boundaries. They do not replace real builds, functional tests, or performance validation.
+
+## Project layout
+
+```text
+app/        Application host, single-instance handling, tray, probes, and service entry points
+src/        Domain, application, infrastructure, platform adapters, and presentation
+qml/        Pages, shared components, and window shell
+resources/  Icons, translations, metadata, and third-party licenses
+tests/      Unit, integration, contract, visual, and script tests
+docs/       Design, progress, baseline, and reference material
+scripts/    Dependency fetching, builds, checks, packaging, and releases
+```
+
+## Documentation
+
+| Document | Contents |
+| --- | --- |
+| [Design documents](docs/design/README.md) | Product scope, architecture, data and interface contracts, platform strategy, and acceptance criteria |
+| [Development progress](docs/progress/README.md) | Status rules, task ledger, stage checklists, development log, and report index |
+| [Windows user guide](docs/baseline/windows_user_guide.md) | Operation, recovery, and known limitations of the current development build |
+| [Build and offline packaging](docs/baseline/build_and_package.md) | Toolchain, dependencies, builds, tests, deployment, packaging, and CI |
+| [UI design preview](docs/reference/quickclash_minimal_preview.html) | Offline interactive concept page |
+| [C++ and source conventions](docs/development/cpp_style.md) | C++20, Qt lifetime management, naming, testing, and documentation synchronization |
+| [License baseline](docs/baseline/licenses.md) | Sources and obligations for Qt, Mihomo, Geo, icons, and other dependencies |
+
+## Support scope and limitations
+
+- Input must be standard Mihomo YAML; Base64 subscription payloads and share links are not converted automatically. Supported fields are defined by the bundled `metadata/config_policy.json` and runtime capability diagnostics. The core accepting a configuration does not guarantee that every remote node is reachable.
+- The system proxy applies to WinINet settings for the current Windows user. WinHTTP, software that manages its own proxy, and programs that ignore the system proxy are not covered by this switch. Real network takeover and failure recovery for TUN remain subject to the validation ledger.
+- Resource use varies with Qt, graphics drivers, fonts, DPI, OS version, and actual workload. The project does not impose a fixed cross-machine memory threshold, and a single short test cannot prove long-term CPU, power, or memory stability.
+- Platforms other than Windows currently have only static boundaries and candidate configurations. They should not be considered supported. This includes Linux and macOS; Android and iOS are future host targets, not current mobile support.
+
+## License and feedback
+
+QuickClash is released under the GNU General Public License version 3 only (`GPL-3.0-only`). See [LICENSE](LICENSE) for the complete terms. Bundled third-party components such as Qt, Mihomo, and Geo remain under their own licenses; their notices and source/distribution obligations are documented in the [license baseline](docs/baseline/licenses.md). When distributing binaries, provide the corresponding source required by GPLv3.
+
+Please report issues and suggestions through [GitHub Issues](https://github.com/junliangdg/quick-clash/issues). Remove subscription URLs, credentials, node names, and other sensitive details from logs before sharing them.

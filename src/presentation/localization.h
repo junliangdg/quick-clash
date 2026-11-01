@@ -9,6 +9,8 @@ class Localization final {
   public:
     [[nodiscard]] static QString languageFor(const QStringList& preferences);
     [[nodiscard]] bool load(const QStringList& preferences = QLocale::system().uiLanguages());
+    // "system" follows QLocale; "en" and "zh" select a bundled catalog.
+    [[nodiscard]] bool loadPreference(const QString& preference);
     [[nodiscard]] QString language() const {
         return language_;
     }

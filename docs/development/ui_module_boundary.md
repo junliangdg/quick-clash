@@ -8,6 +8,6 @@ P2-24由main.qml明确侧栏宽度/底栏高度，以锚点确定页面矩形；
 
 页面通过注入的 UiState 和 ThemeTokens 访问展示状态与路由意图；PageHost 不持有业务服务，完整页不能嵌入首页。EmbeddedHost 使用稳定 contentId / 独立 instanceKey，每个可见实例申请自己的需求，隐藏或销毁释放；参数或实例键变更先释放旧实例，无效上下文清空内容。P1 仅实现代理摘要这一代表内容。未来同模块多业务上下文须扩展状态键及有界投影，不能直接共享完整页对象。
 
-方案C的Light/Dark颜色、尺寸和状态集中在ThemeTokens；ActionButton、ThemedField/TextArea、ThemedSwitch/CheckBox/ComboBox/SpinBox、ThemedDialog/ToolTip/Progress及StateSurface/FocusRing供全部页面复用。字体由宿主以完整QFont注入，保留Qt字体回退与符号图标。强调色前景属性名为accentForeground，避免onAccent被QML当作信号处理器；主题变化只更新token绑定，不重建页面或引擎、不提交表单草稿。流量由UiState维护固定60点、1Hz的有界窗口，页面只绘制上下行曲线。
+界面的 Light/Dark 颜色、尺寸和状态集中在ThemeTokens；ActionButton、ThemedField/TextArea、ThemedSwitch/CheckBox/ComboBox/SpinBox、ThemedDialog/ToolTip/Progress及StateSurface/FocusRing供全部页面复用。字体由宿主以完整QFont注入，保留Qt字体回退与符号图标。强调色前景属性名为accentForeground，避免onAccent被QML当作信号处理器；主题变化只更新token绑定，不重建页面或引擎、不提交表单草稿。流量由UiState维护固定60点、1Hz的有界窗口，页面只绘制上下行曲线。
 
 P1 使用 ui.ini 保存主题/关闭偏好；UiState 只保留最多 32 份轻量筛选/滚动状态，不持有跨引擎 QML 对象。P2 的业务设置、事务和数据存储另行接入。

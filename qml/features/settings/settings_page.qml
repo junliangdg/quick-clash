@@ -445,12 +445,6 @@ ScrollView {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                Label {
-                    text: qsTr("Language follows the system: English or Chinese. Other languages use English. Restart after changing the system language.")
-                    color: root.theme.muted
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
                 Flow {
                     Layout.fillWidth: true
                     Layout.preferredHeight: implicitHeight
@@ -478,6 +472,49 @@ ScrollView {
                             selected: root.ui.themeMode === modelData.key
                             enabled: root.ui.settingsReady
                             onClicked: root.ui.themeMode = modelData.key
+                        }
+                    }
+                }
+                Label {
+                    objectName: "appearance_language_heading"
+                    text: qsTr("Language")
+                    color: root.theme.text
+                    font.weight: Font.DemiBold
+                    Layout.fillWidth: true
+                }
+                Label {
+                    text: qsTr("Choose the interface language. Follow system uses your system's preferred language; other languages use English. Changes apply immediately.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: implicitHeight
+                    spacing: 8
+                    Repeater {
+                        model: [
+                            {
+                                "key": "system",
+                                "label": qsTr("Follow system")
+                            },
+                            {
+                                "key": "en",
+                                "label": "English"
+                            },
+                            {
+                                "key": "zh",
+                                "label": "简体中文"
+                            }
+                        ]
+                        delegate: ActionButton {
+                            required property var modelData
+                            objectName: "appearance_language_" + modelData.key
+                            theme: root.theme
+                            text: modelData.label
+                            selected: root.ui.languageMode === modelData.key
+                            enabled: root.ui.settingsReady
+                            onClicked: root.ui.languageMode = modelData.key
                         }
                     }
                 }

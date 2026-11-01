@@ -7,6 +7,10 @@ bool validTheme(const QString& theme) {
     return theme == QStringLiteral("system") || theme == QStringLiteral("light") ||
            theme == QStringLiteral("dark");
 }
+bool validLanguage(const QString& language) {
+    return language == QStringLiteral("system") || language == QStringLiteral("en") ||
+           language == QStringLiteral("zh");
+}
 } // namespace
 domain::Result<UiPreferences> SettingsRepository::load() {
     const auto result = store_.read(kSettings);
@@ -23,9 +27,16 @@ domain::Result<UiPreferences> SettingsRepository::load() {
         store_.freeze();
         return storageError("SettingsRecoveryRequired");
     }
+    const auto languageValue = object->value(QStringLiteral("language"));
+    if (!languageValue.isUndefined() &&
+        (!languageValue.isString() || !validLanguage(languageValue.toString()))) {
+        store_.freeze();
+        return storageError("SettingsRecoveryRequired");
+    }
     UiPreferences preferences{object->value(QStringLiteral("theme")).toString(),
                               object->value(QStringLiteral("unloadWhenHidden")).toBool(),
-                              object->value(QStringLiteral("closeAcknowledged")).toBool()};
+                              object->value(QStringLiteral("closeAcknowledged")).toBool(),
+                              languageValue.toString(QStringLiteral("system"))};
     const auto dashboard = object->value(QStringLiteral("dashboard"));
     if (!dashboard.isUndefined() && !dashboard.isObject()) {
         store_.freeze();
@@ -48,10 +59,14 @@ domain::CommandResult SettingsRepository::save(const UiPreferences& preferences)
     if (!validTheme(preferences.theme)) {
         return storageError("InvalidTheme");
     }
+    if (!validLanguage(preferences.language)) {
+        return storageError("InvalidLanguage");
+    }
     return store_.write(kSettings,
                         {{QStringLiteral("theme"), preferences.theme},
                          {QStringLiteral("unloadWhenHidden"), preferences.unloadWhenHidden},
                          {QStringLiteral("closeAcknowledged"), preferences.closeAcknowledged},
+                         {QStringLiteral("language"), preferences.language},
                          {QStringLiteral("dashboard"), preferences.dashboard}});
 }
 QJsonObject SettingsRepository::runtimeDefaults() {

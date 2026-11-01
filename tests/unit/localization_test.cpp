@@ -65,5 +65,21 @@ int main(int argc, char* argv[]) {
         QCoreApplication::translate("runtime_overview", "Client memory") != "客户端内存" ||
         QCoreApplication::translate("runtime_overview", "Copy address") != "复制地址")
         return 11;
+    if (!localization.loadPreference("zh") ||
+        QCoreApplication::translate("settings_page", "Language") != "语言" ||
+        QCoreApplication::translate(
+            "settings_page",
+            "Choose the interface language. Follow system uses your system's preferred language; "
+            "other languages use English. Changes apply immediately.") !=
+            "选择界面语言。跟随系统使用系统首选语言，其他语言默认使用英文；更改会立即生效。")
+        return 12;
+    if (!localization.loadPreference("en") ||
+        QCoreApplication::translate("settings_page", "Language") != "Language")
+        return 13;
+    if (localization.loadPreference("fr") || localization.language() != "en")
+        return 14;
+    if (!localization.loadPreference("system") ||
+        localization.language() != Localization::languageFor(QLocale::system().uiLanguages()))
+        return 15;
     std::cout << "Locale preference, Chinese catalog, English and unsupported fallback passed\n";
 }

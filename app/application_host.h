@@ -13,6 +13,10 @@
 #include <QTimer>
 #include <memory>
 
+namespace quickclash::presentation {
+class Localization;
+}
+
 namespace quickclash {
 class ApplicationHost final : public QObject {
     Q_OBJECT
@@ -24,6 +28,7 @@ class ApplicationHost final : public QObject {
     }
     [[nodiscard]] bool showWindow();
     [[nodiscard]] bool startAtLogin();
+    void setLanguageController(presentation::Localization* localization);
     void resizeWindow(const QSize& size);
     void hideWindow(bool confirmed);
     void unloadWindow();
@@ -47,17 +52,27 @@ class ApplicationHost final : public QObject {
 
   private:
     void setupTray(bool noTray);
+    void applyLanguageMode(const QString& mode);
+    void retranslateTray();
+    void updateTrayStatus();
     void updateTrayIcon();
     [[nodiscard]] bool recoverableFromTray() const;
     [[nodiscard]] bool backgroundWindow() const;
     void updateDeferredUnload();
     void centerInitialWindow();
     presentation::UiState state_;
+    presentation::Localization* localization_ = nullptr;
     SystemEvents systemEvents_;
     std::unique_ptr<QQmlApplicationEngine> engine_;
     QPointer<QQuickWindow> window_;
     std::unique_ptr<QMenu> trayMenu_;
     std::unique_ptr<QSystemTrayIcon> tray_;
+    QAction* trayOpenAction_ = nullptr;
+    QAction* trayStatusAction_ = nullptr;
+    QAction* traySystemProxyAction_ = nullptr;
+    QAction* trayTunAction_ = nullptr;
+    QAction* traySettingsAction_ = nullptr;
+    QAction* trayQuitAction_ = nullptr;
     DeferredUiUnload deferredUnload_;
     QRect geometry_;
     QSize requestedSize_;

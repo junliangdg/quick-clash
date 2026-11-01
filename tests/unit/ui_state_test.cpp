@@ -469,6 +469,11 @@ int main(int argc, char* argv[]) {
             ready(state);
             state.setSystemDark(true);
             check(!state.dark(), "explicit preference wins");
+            state.setLanguageMode("zh");
+            ready(state);
+            check(state.languageMode() == "zh", "language preference applies");
+            state.setLanguageMode("fr");
+            check(state.languageMode() == "zh", "unsupported language is ignored");
             check(!state.navigate("unknown") && state.currentPage() == "home",
                   "bad route keeps current page");
             state.setReplay(true);
@@ -519,6 +524,7 @@ int main(int argc, char* argv[]) {
         UiState reopened(settings);
         ready(reopened);
         check(reopened.themeMode() == "light", "theme persists across process facade lifetime");
+        check(reopened.languageMode() == "zh", "language persists across process facade lifetime");
         std::cout << "UI state contracts passed\n";
         return 0;
     } catch (const std::exception& error) {

@@ -38,4 +38,13 @@ bool Localization::load(const QStringList& preferences) {
         QCoreApplication::installTranslator(&qtDeclarative_);
     return QCoreApplication::installTranslator(&application_);
 }
+bool Localization::loadPreference(const QString& preference) {
+    if (preference == QStringLiteral("system")) {
+        return load();
+    }
+    if (preference == QStringLiteral("en") || preference == QStringLiteral("zh")) {
+        return load({preference});
+    }
+    return false;
+}
 } // namespace quickclash::presentation

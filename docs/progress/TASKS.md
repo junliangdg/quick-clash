@@ -8,6 +8,7 @@
 
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
+| 界面语言设置与即时切换 | Done | Codex | Pass（界面语言定向范围） | [验收记录](DEVLOG.md#2026-11-01--界面语言设置与即时切换)：设置→外观新增跟随系统/English/简体中文，保存后持久化并即时刷新QML、导航、页面标题、C++派生状态和托盘，不重建QML引擎或网络内核；旧设置缺字段兼容`system`，非法值进入恢复。Windows构建/lint、语言/存储/状态4项与现有UI4项回归、原生语言及托盘探针通过；新版`build/language_settings_bin`。系统语言切换后重启及跨平台NotRun |
 | 设置页移除原型数据入口 | Done | Codex | Pass（设置页定向范围） | [验收记录](DEVLOG.md#2026-11-01--设置页移除原型数据入口)：移除回放卡片及三条专用翻译，保留开发回放与既有测试；Windows增量构建/lint及6项现有回归通过，ui_prototype修改前后同样失败，保留G1-C限制；新版build/settings_cleanup_bin，旧含原型卡片截图Stale |
 | 复选框主题统一 | Done | Codex | Pass（样式定向范围） | [验收记录](DEVLOG.md#2026-11-01--复选框主题统一)：设置页两个登录选项复用ThemedCheckBox，保留滑动开关及原有状态/命令绑定，窄窗标签可换行；Windows增量构建/lint及4项现有UI回归通过，新版build/dense_pages_bin；旧登录选项默认样式截图Stale |
 | 连接规则日志高密度表格 | Done | Codex | Pass（Windows定向范围） | [验收记录](DEVLOG.md#2026-11-01--连接规则日志高密度表格)：连接新增链路/下载/上传列，整行点击详情且行尾不设重复查看按钮；规则保序表格，整行展开、无查看列，提供者保留更新；日志分列与行内展开；共享虚拟表格固定表头、窄窗水平滚动。Windows构建/lint、8项定向回归与60张原生双主题/宽窄截图通过；旧三页布局截图Stale，双语可访问性探针仍停在未修改的订阅URL输入框，三页读屏NotRun |
@@ -55,7 +56,7 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P0-09 | P0 | W02, W18 | 构建/部署/内核获取与 P2 离线包方案 | Done | Codex | P0-02, P0-06 | [当前验证](reports/windows_validation.md#工程与内核) | 构建/部署脚本执行通过；脱离开发 Qt PATH 启动通过，普通用户完整产品包仍在 P2-16 |
 | P1-01 | P1 | W04 | 单实例/托盘/窗口宿主 | Done | Codex | P0-06, P0-08 | [当前验证](reports/windows_validation.md#工程与内核) | IPC、无托盘关闭退路、真实 Windows 托盘关闭确认/隐藏/恢复探针通过 |
 | P1-02 | P1 | W05 | 模块注册/导航投影/路由与嵌入边界 | Done | Codex | P0-05, P0-08, P1-01 | [当前验证](reports/windows_validation.md#工程与内核) | 八页面/双主题自动加载、路由/嵌入/导航投影通过；移动只验接口边界 |
-| P1-03 | P1 | W05 | 双主题与代表页面回放基础 | Done | Codex | P1-02 | [原型功能证据](reports/windows_validation.md#原型生命周期与资源)、[当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准) | 原型功能与资源证据按版本保留；视觉结论Stale，方案C产品迁移/双主题与实际字体验收归P3-16 |
+| P1-03 | P1 | W05 | 双主题与代表页面回放基础 | Done | Codex | P1-02 | [原型功能证据](reports/windows_validation.md#原型生命周期与资源)、[当前视觉基准](reports/20261027_unified_visual_implementation.md#设计基准) | 原型功能与资源证据按版本保留；视觉结论Stale，产品视觉迁移/双主题与实际字体验收归P3-16 |
 | P1-04 | P1 | W04, W05 | 显示/隐藏/卸载重建与需求释放 | Done | Codex | P1-01, P1-02 | [当前验证](reports/windows_validation.md#原型生命周期与资源)、[流量修订](DEVLOG.md#2026-10-31--实时流量跨页与最小化连续记录) | 当前最小化只保留轻量流量，隐藏/卸载全部释放；定向宿主与真实核心通过。旧100次句柄779→779、QObject133为历史证据，G1-C回放卸载限制仍保留 |
 | P1-05 | P1 | W06 | 性能采集脚本与可重复场景 | Done | Codex | P1-03, P1-04 | [当前验证](reports/windows_validation.md#工程与内核) | 双主题六场景均运行/留证，超限正确退出 1；采集交付不代表资源准入通过 |
 | P1-06 | P1 | W06 | G1 原型短测报告与未来组件工程预留 | Done | Codex | P1-05 | [范围重评](reports/windows_validation.md#原型生命周期与资源) | 按用户要求和1.6范围，已有12/12短测49.7—54.9 MB及工程预留满足G1；长时/帧/GPU专项后置，转P2-01开发 |
@@ -76,8 +77,8 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P2-15 | P2 | W07, W08, W09, W11, W13 | 首次失败/事务中断/核心崩溃/强杀恢复 | Done | Codex | P2-07, P2-09, P2-10, P2-14 | [G2恢复开发](reports/windows_validation.md#恢复与本地包) | 首次关键失败/停止打断/worker强杀→Job及真实WinINet下次租约/事务恢复、manifest前后、连续四次受管恢复及系统客户端回归通过；非全故障矩阵，真实OS事件独立归P2-11 |
 | P2-16 | P2 | W18 | Windows本机完整离线包与依赖/启动核对 | Done | Codex | P0-09, P2-03, P2-04, P2-07, P2-10, P2-12, P2-14 | [当前包验收](reports/windows_validation.md#恢复与本地包) | 当前完整包187文件hash/x64/CRT/官方核心/Qt/QML/Schannel齐备；清开发Qt环境后中文空格路径导入Ready及缺核心修复入口Pass，说明随包；干净机器归P3-14 |
 | P2-17 | P2 | W06, W19, W20 | G2本机16项MVP证据与单场景资源汇总 | Done | Codex | P2-11, P2-12, P2-13, P2-15, P2-16, P2-21, P2-22, P2-23, P1-05 | [16项逐条件验收](reports/windows_validation.md#g2本机mvp逐项验收) | 真实GUI订阅/节点/模式/系统代理、两种独立客户端HTTPS及重开通过；6/6定向回归、原生worker强杀恢复、最终包及10秒三指标完成，MVP16/16 Pass。G1 Stale仍约束G2整门NotRun；继续P3环境项/TUN前置 |
-| P2-18 | P2 | W05 | 窄窗竖屏布局与导航投影 | Done | Codex | P2-06 | [响应式行为](reports/windows_validation.md#订阅与代理功能)、[缩放修复](reports/windows_validation.md#订阅与代理功能) | 360×480、600断点和路由/状态保留已有技术证据；当前四入口与方案C视觉由P3-16统一验收 |
-| P2-19 | P2 | W05, W15 | 英文源文案/中文翻译/自动系统语言 | Done | Codex | P2-18 | [本轮交付](reports/windows_validation.md#订阅与代理功能) | Qt词表内嵌，系统首选序匹配/英文回退、172条翻译和中英文截图通过 |
+| P2-18 | P2 | W05 | 窄窗竖屏布局与导航投影 | Done | Codex | P2-06 | [响应式行为](reports/windows_validation.md#订阅与代理功能)、[缩放修复](reports/windows_validation.md#订阅与代理功能) | 360×480、600断点和路由/状态保留已有技术证据；当前四入口与统一视觉由P3-16统一验收 |
+| P2-19 | P2 | W05, W15 | 英文源文案/中文翻译/系统与显式语言选择 | Done | Codex | P2-18 | [语言设置验收](DEVLOG.md#2026-11-01--界面语言设置与即时切换)、[历史基础](reports/windows_validation.md#订阅与代理功能) | Qt词表内嵌及系统首选序/英文回退；设置页可持久化选择跟随系统/English/简体中文，保存后即时刷新QML、导航、派生状态与托盘且不重建引擎。Windows构建/lint、语言/存储/状态4项和现有UI4项回归、原生语言及托盘探针通过；系统语言切换重启、跨平台NotRun |
 | P2-20 | P2 | W11 | 标准HTTPS订阅链接协商/内容识别/错误说明 | Done | Codex | P2-07 | [本轮交付](reports/windows_validation.md#订阅与代理功能) | 默认UA/Accept、头覆盖/空白、误标MIME与坏更新保留通过；4个私有样本仅识别，配置能力待扩展 |
 | P2-21 | P2 | W09, W10 | Hysteria2/Trojan/VLESS/VMess基础协议与常用TLS/Reality传输 | Done | Codex | P2-20 | [协议交付](reports/windows_validation.md#订阅与代理功能) | 逐协议/嵌套字段、官方隔离-t/Ready/选择重启、身份与脱敏通过；未测新增协议公网握手 |
 | P2-22 | P2 | W09, W10 | url-test/fallback组与能力化展示 | Done | Codex | P2-21 | [协议交付](reports/windows_validation.md#订阅与代理功能) | Selector/URLTest/Fallback能力映射、健康检查跳过REJECT、嵌套/引用保护与界面通过 |
@@ -95,11 +96,11 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P3-09 | P3 | W09, W10 | TUIC及已声明传输字段/load-balance策略核对 | Done | Codex | P2-21, P2-22, P2-23 | [开发与验收](DEVLOG.md#2026-10-28--p3协议与负载均衡) | 字段/认证互斥、TUIC原生UDP及负载均衡无单一当前成员完成；官方v4/v5和三策略加载/能力/拒手选，Windows4项及headless5项Pass；不代表公网全协议握手 |
 | P3-10 | P3 | W09, W10, W11, W20 | 代表订阅的受管Geo/最小DNS兼容及真实节点HTTPS链路 | Done | Codex | P2-07, P2-21, P2-22, P2-23 | [订阅闭环](reports/windows_validation.md#订阅与代理功能) | S3导入56节点/3组，VLESS全局HTTPS200/1MiB/TLS及所选节点链通过；Geo缺失/损坏拒绝、Windows包及单轮短测通过；完整资源P3-19/20及DNS P3-08继续开发 |
 | P3-11 | P3 | W10, W11, W18, W20 | Windows日常订阅调度/自动应用/节点筛选与可用包 | Done | Codex | P3-10, P2-08, P2-09 | [日常链路](reports/windows_validation.md#订阅与代理功能) | 定时更新/退避/自动应用/补偿与筛选完成；WinINet转发/精确恢复及私有56节点VLESS HTTPS/更新后转发通过；dist/p3_daily，完整G3仍待后续 |
-| P3-12 | P3 | W02, W03, W19 | G3 Windows优先方案、三/五平台路线与验收边界 | Done | Codex | — | [方案调整](reports/windows_validation.md#阶段范围与待补项) | 设计1.8与任务/清单同步；仅文档方案交付，未改变G2/G3或产品兼容结论 |
+| P3-12 | P3 | W02, W03, W19 | G3 跨平台定位、三/五平台路线与验收边界 | Done | Codex | — | [方案调整](reports/windows_validation.md#阶段范围与待补项) | 设计1.8与任务/清单同步；仅文档方案交付，未改变G2/G3或产品兼容结论 |
 | P3-13 | P3 | W02, W03, W16 | 跨平台静态兼容核对与Windows耦合收敛 | Done | Codex | P3-12 | [静态边界验收](reports/windows_validation.md#跨平台静态边界) | 职责接口/infra组装、按平台选源/私有SDK库及明确Unsupported完成；路径/导航/翻译/取消核对，Windows14项回归及最终真实runtime、headless5项与10秒采样Pass；Linux/macOS原生与移动系统能力NotRun归P4 |
 | P3-14 | P3 | W04, W13, W17, W18 | Windows普通用户包与有限OS/GUI宿主集成补证 | Review | Codex | P1-04, P2-11, P2-15, P2-16 | [宿主补证](reports/windows_validation.md#p3普通用户宿主补证) | 当前包普通权限/中文空格路径/缺核心修复、真实GUI运行隐藏重建及转发、整体强杀/Job清理/同目录重开、独立进程实际WinINet冲突/新基线释放/原快照还原Pass；独立验收工具包Package/Flow本机Pass。用户暂无额外环境，干净机器及真实换网或唤醒仍NotRun |
-| P3-15 | P3 | W01, W05 | 方案C统一视觉规范与双主题离线概念预览 | Done | Codex | — | [设计与预览验证](reports/20261027_unified_visual_implementation.md#设计基准) | 规范/预览/旧参考清理及浏览器、对比度、生成/一致性、进度/命名/diff检查通过；产品迁移见P3-16 |
-| P3-16 | P3 | W05 | 方案C共享组件、八页面与双主题产品迁移 | Done | Codex | P3-15 | [实施与验证](reports/20261027_unified_visual_implementation.md) | Windows构建、10项测试及末次布局3项回归通过；本机125%DPI原生GPU的26张界面/弹层/错误态截图核对，含360/800/1000/1200宽；60点流量、预览符号/文字及右上运行状态完成；固定MB门槛已移除，完整功能/高DPI矩阵按原任务继续 |
+| P3-15 | P3 | W01, W05 | 统一视觉规范与双主题离线概念预览 | Done | Codex | — | [设计与预览验证](reports/20261027_unified_visual_implementation.md#设计基准) | 规范/预览/旧参考清理及浏览器、对比度、生成/一致性、进度/命名/diff检查通过；产品迁移见P3-16 |
+| P3-16 | P3 | W05 | 共享组件、八页面与双主题产品迁移 | Done | Codex | P3-15 | [实施与验证](reports/20261027_unified_visual_implementation.md) | Windows构建、10项测试及末次布局3项回归通过；本机125%DPI原生GPU的26张界面/弹层/错误态截图核对，含360/800/1000/1200宽；60点流量、预览符号/文字及右上运行状态完成；固定MB门槛已移除，完整功能/高DPI矩阵按原任务继续 |
 | P3-17 | P3 | W09, W11 | 配置原文/覆盖编辑、草稿冲突与版本回退 | Done | Codex | P2-05, P2-07, P2-23, P3-16 | [开发与验收](DEVLOG.md#2026-10-28--p3配置编辑) | 原文/覆盖分离、持久草稿冲突/副本/脱敏比较、历史选择/摘要及失败补偿完成；Windows构建/lint、8项回归、真实runtime107.41秒及最终编辑专项11.17秒、headless5项Pass；24秒GPU文本释放通过但Qt缓存峰值仍高，未关闭内存专项 |
 | P3-18 | P3 | W11 | 订阅下载路径/安全重定向与条件缓存 | Done | Codex | P2-07, P3-11 | [开发与验收](DEVLOG.md#2026-10-28--p3订阅下载兼容) | 三路径持久化/实际路径、安全5跳、认证/Cookie隔离、ETag/Last-Modified与304损坏/缺失恢复完成；Windows构建/lint、真实runtime及最终下载/双语UI回归Pass，整链截止/超限/停止与删除迟到通过；worker短测有三指标，G3仍待汇总 |
 | P3-19 | P3 | W09, W11 | 受管proxy/rule-provider与RULE-SET生命周期 | Done | Codex | P2-23, P3-10 | [开发与验收](DEVLOG.md#2026-10-28--p3提供者生命周期) | 快照单资源缓存/摘要与更新、运行时use/RULE-SET热刷新、独立缓存/停止GC、固定服务命令白名单、动态身份不恢复及备份fallback完成；Windows构建/lint、完整runtime/专项/双语UI、headless5项及10秒短测Pass。真实安装服务/TUN归P3-25；按用户要求停止，不启动后续任务 |
@@ -116,8 +117,8 @@ ID 固定不复用；新增子任务用 P2-18 等下一序号，拆分前保留�
 | P4-01 | P4 | W16, W18 | Linux代理/托盘/服务与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中Linux原生基线就绪后逐项实现，记录GNOME/KDE/X11/Wayland及安装/更新范围；不等待macOS完成 |
 | P4-02 | P4 | W16, W18 | macOS菜单栏/代理/helper与平台发行集成 | Todo | 未分配 | P3-07 | — | P4-06中macOS原生基线就绪后逐项实现，记录多网络服务/签名/公证/授权与安装更新；不等待Linux完成 |
 | P4-03 | P4 | W17 | 三平台网络/电源矩阵 | Todo | 未分配 | P4-01, P4-02 | — | 运行休眠、换网、时钟/会话变化用例 |
-| P4-04 | P4 | W18 | Windows正式安装器/签名/应用与内核更新恢复 | Todo | 未分配 | P3-07 | — | Windows先行完成来源、防重放、schema与独立回退；不依赖Linux/macOS，其他平台发行集成归P4-01/02 |
+| P4-04 | P4 | W18 | Windows正式安装器/签名/应用与内核更新恢复 | Todo | 未分配 | P3-07 | — | Windows 版本完成来源、防重放、schema与独立回退；不依赖Linux/macOS，其他平台发行集成归P4-01/02 |
 | P4-05 | P4 | W06, W19 | G4 三平台 Beta/功能与资源矩阵 | Todo | 未分配 | P4-03, P4-04, P4-06 | — | 正式支持范围与各平台真实负载证据齐全 |
-| P4-06 | P4 | W02, W16 | Linux/macOS 原生空壳与多平台 CI 实际运行 | Todo | 未分配 | P0-07 | [当前验证](reports/windows_validation.md#工程与内核) | 从 P0-07 后置；按冻结工具链原生构建/启动、无 UI/QML 测试与 CI run 留证，不阻塞 Windows 首版 |
+| P4-06 | P4 | W02, W16 | Linux/macOS 原生空壳与多平台 CI 实际运行 | Todo | 未分配 | P0-07 | [当前验证](reports/windows_validation.md#工程与内核) | 从 P0-07 后置；按冻结工具链原生构建/启动、无 UI/QML 测试与 CI run 留证，不阻塞当前 G3 里程碑 |
 | P5-01 | P5 | W19 | 代表性持续运行/关键故障与升级回归 | Todo | 未分配 | P4-05 | — | 按发布风险选取持续运行与资源抽查；24/72小时、全组合、帧/GPU和压力专项不统一强制，出现问题再扩展 |
-| P5-02 | P5 | W19 | 候选发布/许可源码/用户说明与 G5 | Todo | 未分配 | P5-01 | — | 核验签名/来源、恢复说明与最终报告 |
+| P5-02 | P5 | W19 | 候选发布/许可源码/用户说明与 G5 | Todo | 未分配 | P5-01 | [许可实施记录](DEVLOG.md#2026-11-01--gplv3-许可与发布包) | 项目已采用GPL-3.0-only并加入根LICENSE；签名/来源、Qt/Mihomo/Geo完整对应源码、恢复说明与最终G5仍待P5-01 |

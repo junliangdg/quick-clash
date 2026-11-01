@@ -1392,8 +1392,13 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="333" />
-      <source>Language follows the system: English or Chinese. Other languages use English. Restart after changing the system language.</source>
-      <translation>语言自动跟随系统，支持英文和中文，其他语言默认使用英文。更改系统语言后请重新启动。</translation>
+      <source>Language</source>
+      <translation>语言</translation>
+    </message>
+    <message>
+      <location filename="../../qml/features/settings/settings_page.qml" line="483" />
+      <source>Choose the interface language. Follow system uses your system's preferred language; other languages use English. Changes apply immediately.</source>
+      <translation>选择界面语言。跟随系统使用系统首选语言，其他语言默认使用英文；更改会立即生效。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="346" />

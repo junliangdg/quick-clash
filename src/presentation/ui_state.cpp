@@ -690,6 +690,28 @@ void UiState::setThemeMode(const QString& mode) {
     }
     persist(QStringLiteral("theme"), mode);
 }
+void UiState::setLanguageMode(const QString& mode) {
+    if ((mode != QStringLiteral("system") && mode != QStringLiteral("en") &&
+         mode != QStringLiteral("zh")) ||
+        mode == languageMode_) {
+        return;
+    }
+    persist(QStringLiteral("language"), mode);
+}
+void UiState::retranslateUi() {
+    registry_ = FeatureRegistry{};
+    if (!routeError_.isEmpty()) {
+        routeError_ = tr("Unable to open page: invalid route or parameters");
+        emit routeErrorChanged();
+    }
+    rebuildProxyStates();
+    emit delaysChanged();
+    emit navigationChanged();
+    emit routeChanged();
+    emit hostChanged();
+    // Derived C++ status strings are not retranslated by a QML language change alone.
+    emit runtimeChanged();
+}
 void UiState::setSystemDark(bool dark) {
     if (systemDark_ == dark) {
         return;
@@ -894,7 +916,8 @@ void UiState::persist(const QString& key, const QVariant& value) {
     if (!settingsReady_) {
         return;
     }
-    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_, dashboard_};
+    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_,
+                                     languageMode_, dashboard_};
     if (key == QStringLiteral("dashboard"))
         preferences.dashboard = QJsonObject::fromVariantMap(value.toMap());
     if (key == QStringLiteral("theme")) {
@@ -906,24 +929,32 @@ void UiState::persist(const QString& key, const QVariant& value) {
     if (key == QStringLiteral("close_acknowledged")) {
         preferences.closeAcknowledged = value.toBool();
     }
+    if (key == QStringLiteral("language")) {
+        preferences.language = value.toString();
+    }
     if (settings_) {
         settingsReady_ = false;
         emit storageChanged();
         settings_->save(preferences);
     } else {
         applyPreferences(preferences.theme, preferences.unloadWhenHidden,
-                         preferences.closeAcknowledged, preferences.dashboard);
+                         preferences.closeAcknowledged, preferences.language,
+                         preferences.dashboard);
     }
 }
 void UiState::applyPreferences(const QString& theme, bool unload, bool acknowledged,
-                               const QJsonObject& dashboard) {
+                               const QString& language, const QJsonObject& dashboard) {
+    const bool languageChanged = languageMode_ != language;
     themeMode_ = theme;
     unloadWhenHidden_ = unload;
     closeAcknowledged_ = acknowledged;
+    languageMode_ = language;
     dashboard_ = dashboard;
     storageError_.clear();
     settingsReady_ = true;
     emit themeChanged();
+    if (languageChanged)
+        emit languageModeChanged(language);
     emit hostChanged();
     emit storageChanged();
 }

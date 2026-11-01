@@ -17,8 +17,8 @@ class UiState : public QObject {
     Q_OBJECT
     QML_ELEMENT
     QML_UNCREATABLE("Owned by ApplicationHost")
-    Q_PROPERTY(QVariantList navigation READ navigation CONSTANT)
-    Q_PROPERTY(QVariantList compactNavigation READ compactNavigation CONSTANT)
+    Q_PROPERTY(QVariantList navigation READ navigation NOTIFY navigationChanged)
+    Q_PROPERTY(QVariantList compactNavigation READ compactNavigation NOTIFY navigationChanged)
     Q_PROPERTY(QString runtimeStatus READ runtimeStatus NOTIFY runtimeChanged)
     Q_PROPERTY(QString runtimeError READ runtimeError NOTIFY runtimeChanged)
     Q_PROPERTY(QString currentPage READ currentPage NOTIFY routeChanged)
@@ -26,6 +26,8 @@ class UiState : public QObject {
     Q_PROPERTY(QUrl pageSource READ pageSource NOTIFY routeChanged)
     Q_PROPERTY(QString routeError READ routeError NOTIFY routeErrorChanged)
     Q_PROPERTY(QString themeMode READ themeMode WRITE setThemeMode NOTIFY themeChanged)
+    Q_PROPERTY(
+        QString languageMode READ languageMode WRITE setLanguageMode NOTIFY languageModeChanged)
     Q_PROPERTY(bool dark READ dark NOTIFY themeChanged)
     Q_PROPERTY(bool uiVisible READ uiVisible NOTIFY uiVisibleChanged)
     Q_PROPERTY(bool replay READ replay WRITE setReplay NOTIFY replayChanged)
@@ -149,6 +151,11 @@ class UiState : public QObject {
     }
     [[nodiscard]] bool dark() const;
     void setThemeMode(const QString& mode);
+    [[nodiscard]] QString languageMode() const {
+        return languageMode_;
+    }
+    void setLanguageMode(const QString& mode);
+    void retranslateUi();
     void setSystemDark(bool dark);
     [[nodiscard]] bool uiVisible() const {
         return uiVisible_;
@@ -234,6 +241,8 @@ class UiState : public QObject {
     void filterChanged(const QString& pageId, const QString& text);
     void routeErrorChanged();
     void themeChanged();
+    void languageModeChanged(const QString& mode);
+    void navigationChanged();
     void uiVisibleChanged();
     void uiAboutToHide();
     void replayChanged();
@@ -256,11 +265,12 @@ class UiState : public QObject {
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
     void applyPreferences(const QString& theme, bool unload, bool acknowledged,
-                          const QJsonObject& dashboard);
+                          const QString& language, const QJsonObject& dashboard);
     FeatureRegistry registry_;
     QString currentPage_ = QStringLiteral("home");
     QString routeError_;
     QString themeMode_ = QStringLiteral("system");
+    QString languageMode_ = QStringLiteral("system");
     bool systemDark_ = false;
     bool uiVisible_ = false;
     bool uiMinimized_ = false;

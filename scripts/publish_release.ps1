@@ -29,6 +29,8 @@ Windows x64 portable Release build from commit $Commit. Download the ZIP, extrac
 
 Includes the pinned official Mihomo core, Geo resources, Qt/MSVC runtime dependencies and licenses. Tests, test probes, build tools, logs and source files are excluded. The package is currently unsigned.
 
+QuickClash is licensed under GPL-3.0-only. The corresponding source for this build is available at https://github.com/$Repository/tree/$Commit. Bundled Mihomo and Geo resources remain under GPL-3.0; see the licenses included in the package.
+
 Linux/macOS validation is available in a separate manual workflow. They are not included in this release.
 "@ | Set-Content -LiteralPath $taskNotes -Encoding utf8NoBOM
 if ($taskContinuous) {

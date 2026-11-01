@@ -16,7 +16,13 @@ the deployed app needs no SDK or network language download.
 
 At startup Localization reads QLocale::system().uiLanguages() in preference order.
 English variants use source text; all Chinese variants currently share Simplified
-Chinese. If no supported language matches, English is used. Restart the app after
-changing the system language. Unit tests cover preference order and fallback.
+Chinese. If no supported language matches, English is used. The Appearance section
+also offers Follow system, English and Simplified Chinese as a saved preference.
+After the preference is saved, the running UI, navigation, derived status text and
+tray menu are retranslated in place. Restart after changing the system language in
+Follow system mode. Unit tests cover preference order, explicit selection and fallback.
 The development-only --probe-language option requires isolated mode and is used
 for repeatable UI evidence; it is not a saved user preference.
+
+The committed catalog is curated and may not match a wholesale lupdate rewrite.
+Review the diff and merge new or changed messages instead of replacing the file.

@@ -1,4 +1,5 @@
 #include "application_host.h"
+#include "presentation/localization.h"
 #include "ui_font.h"
 #include <QAction>
 #include <QApplication>
@@ -112,21 +113,21 @@ void ApplicationHost::setupTray(bool noTray) {
         return;
     }
     trayMenu_ = std::make_unique<QMenu>();
-    trayMenu_->addAction(tr("Open QuickClash"), this, [this] { (void)showWindow(); });
-    auto* status = trayMenu_->addAction(tr("Waiting for a valid profile"));
-    status->setEnabled(false);
-    connect(&state_, &presentation::UiState::runtimeChanged, status, [this, status] {
-        const auto runtime = state_.runtime();
-        status->setText(runtime.value(QStringLiteral("ready")).toBool() ? tr("Network engine ready")
-                        : runtime.value(QStringLiteral("selectedId")).toString().isEmpty()
-                            ? tr("Waiting for a valid profile")
-                            : tr("Network engine starting or recovering"));
-    });
-    auto* systemProxy = trayMenu_->addAction(tr("System proxy"));
-    auto* tun = trayMenu_->addAction(tr("Virtual network adapter (TUN)"));
-    systemProxy->setCheckable(true);
-    tun->setCheckable(true);
-    const auto syncNetwork = [this, systemProxy, tun] {
+    trayOpenAction_ =
+        trayMenu_->addAction(tr("Open QuickClash"), this, [this] { (void)showWindow(); });
+    trayStatusAction_ = trayMenu_->addAction(tr("Waiting for a valid profile"));
+    trayStatusAction_->setEnabled(false);
+    connect(&state_, &presentation::UiState::runtimeChanged, this,
+            &ApplicationHost::updateTrayStatus);
+    traySystemProxyAction_ = trayMenu_->addAction(tr("System proxy"));
+    trayTunAction_ = trayMenu_->addAction(tr("Virtual network adapter (TUN)"));
+    traySystemProxyAction_->setCheckable(true);
+    trayTunAction_->setCheckable(true);
+    const auto syncNetwork = [this] {
+        auto* systemProxy = traySystemProxyAction_;
+        auto* tun = trayTunAction_;
+        if (!systemProxy || !tun)
+            return;
         const auto runtime = state_.runtime();
         const auto preferences = runtime.value(QStringLiteral("preferences")).toMap();
         const bool enabled = !runtime.value(QStringLiteral("selectedId")).toString().isEmpty() &&
@@ -143,22 +144,22 @@ void ApplicationHost::setupTray(bool noTray) {
                             QStringLiteral("On") ||
                         preferences.value(QStringLiteral("tunDesired")).toBool());
     };
-    connect(&state_, &presentation::UiState::runtimeChanged, systemProxy, syncNetwork);
-    connect(systemProxy, &QAction::triggered, this, [this](bool checked) {
+    connect(&state_, &presentation::UiState::runtimeChanged, traySystemProxyAction_, syncNetwork);
+    connect(traySystemProxyAction_, &QAction::triggered, this, [this](bool checked) {
         state_.runtimeCommand(QStringLiteral("system_proxy"),
                               {checked ? QStringLiteral("true") : QStringLiteral("false")});
     });
-    connect(tun, &QAction::triggered, this, [this](bool checked) {
+    connect(trayTunAction_, &QAction::triggered, this, [this](bool checked) {
         state_.runtimeCommand(QStringLiteral("tun"),
                               {checked ? QStringLiteral("true") : QStringLiteral("false")});
     });
     syncNetwork();
     trayMenu_->addSeparator();
-    trayMenu_->addAction(tr("Settings"), this, [this] {
+    traySettingsAction_ = trayMenu_->addAction(tr("Settings"), this, [this] {
         (void)state_.navigate(QStringLiteral("settings"));
         (void)showWindow();
     });
-    trayMenu_->addAction(tr("Quit"), this, &ApplicationHost::quit);
+    trayQuitAction_ = trayMenu_->addAction(tr("Quit"), this, &ApplicationHost::quit);
     tray_ = std::make_unique<QSystemTrayIcon>();
     updateTrayIcon();
     tray_->setToolTip(QStringLiteral("QuickClash"));
@@ -171,6 +172,48 @@ void ApplicationHost::setupTray(bool noTray) {
             });
     tray_->show();
     state_.setTrayAvailable(true);
+}
+void ApplicationHost::setLanguageController(presentation::Localization* localization) {
+    if (!localization)
+        return;
+    localization_ = localization;
+    connect(&state_, &presentation::UiState::languageModeChanged, this,
+            &ApplicationHost::applyLanguageMode, Qt::UniqueConnection);
+    applyLanguageMode(state_.languageMode());
+}
+void ApplicationHost::applyLanguageMode(const QString& mode) {
+    if (!localization_)
+        return;
+    (void)localization_->loadPreference(mode);
+    state_.retranslateUi();
+    if (engine_)
+        engine_->retranslate();
+    retranslateTray();
+}
+void ApplicationHost::retranslateTray() {
+    if (!trayMenu_)
+        return;
+    if (trayOpenAction_)
+        trayOpenAction_->setText(tr("Open QuickClash"));
+    if (traySystemProxyAction_)
+        traySystemProxyAction_->setText(tr("System proxy"));
+    if (trayTunAction_)
+        trayTunAction_->setText(tr("Virtual network adapter (TUN)"));
+    if (traySettingsAction_)
+        traySettingsAction_->setText(tr("Settings"));
+    if (trayQuitAction_)
+        trayQuitAction_->setText(tr("Quit"));
+    updateTrayStatus();
+}
+void ApplicationHost::updateTrayStatus() {
+    if (!trayStatusAction_)
+        return;
+    const auto runtime = state_.runtime();
+    trayStatusAction_->setText(runtime.value(QStringLiteral("ready")).toBool()
+                                   ? tr("Network engine ready")
+                               : runtime.value(QStringLiteral("selectedId")).toString().isEmpty()
+                                   ? tr("Waiting for a valid profile")
+                                   : tr("Network engine starting or recovering"));
 }
 void ApplicationHost::updateTrayIcon() {
     if (tray_) {

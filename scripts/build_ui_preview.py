@@ -32,7 +32,7 @@ def main():
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; font-src 'none'; base-uri 'none'; form-action 'none'">
-<title>QuickClash · 方案 C 概念预览</title>
+<title>QuickClash · 界面概念预览</title>
 <style>
 html {color-scheme:light dark;background:light-dark(#FAFAFB,#101114);}
 body {margin:0;padding:16px;}

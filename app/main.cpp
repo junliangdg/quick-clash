@@ -7,6 +7,7 @@
 #include "desktop_probe.h"
 #include "desktop_proxy_probe.h"
 #include "host_probe.h"
+#include "language_ui_probe.h"
 #include "runtime_ui_probe.h"
 #include "service_probe.h"
 #include "subscription_memory_probe.h"
@@ -141,9 +142,10 @@ int main(int argc, char* argv[]) {
     const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
     const bool pageMemoryTest = arguments.contains(QStringLiteral("--page-memory-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
+    const bool languageTest = arguments.contains(QStringLiteral("--language-test"));
     const bool isolated = desktopTest || smoke || prototype || hostTest || trayTest ||
                           keyboardTest || accessibilityTest || responsiveTest || visualTest ||
-                          runtimeListTest || subscriptionUiTest || pageMemoryTest ||
+                          runtimeListTest || subscriptionUiTest || languageTest || pageMemoryTest ||
                           arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
 #else
@@ -171,7 +173,7 @@ int main(int argc, char* argv[]) {
             quickclash::test::desktopProbeSettings(option(QStringLiteral("--desktop-root")));
         if (probeSettings.isEmpty())
             return 15;
-    } else if (isolated && (!runtimeProbe.isEmpty() ||
+    } else if (isolated && (!runtimeProbe.isEmpty() || languageTest ||
                             arguments.contains(QStringLiteral("--subscription-memory-test")))) {
         probeDirectory = std::make_unique<QTemporaryDir>();
         if (!probeDirectory->isValid())
@@ -205,6 +207,13 @@ int main(int argc, char* argv[]) {
         (isolated && !trayTest && !desktopTest) || arguments.contains(QStringLiteral("--no-tray")));
 #else
         isolated || arguments.contains(QStringLiteral("--no-tray")));
+#endif
+#ifdef QUICKCLASH_TEST_PROBES
+    // Probe language is an explicit test override; saved preferences must not replace it.
+    if (probeLanguage.isEmpty())
+        host.setLanguageController(&localization);
+#else
+    host.setLanguageController(&localization);
 #endif
     QObject::connect(&instance, &quickclash::SingleInstance::activationRequested, &host,
                      [&host] { (void)host.showWindow(); });
@@ -350,6 +359,9 @@ int main(int argc, char* argv[]) {
     }
     if (subscriptionUiTest) {
         return quickclash::runSubscriptionUiProbe(host);
+    }
+    if (languageTest) {
+        return quickclash::runLanguageUiProbe(host);
     }
     if (runtimeListTest) {
         return quickclash::runRuntimeListProbe(host);

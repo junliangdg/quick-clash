@@ -424,7 +424,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 验证：通过 VsDevCmd x64 环境增量构建 `--target quickclash`（Qt 6.12.0），`runtime_list_model.cpp.obj` 编译并链接 `quickclash.exe` 成功，退出 0。Qt 6.8 分支本机无环境未实测（NotRun），仅经头文件核对 API 存在性；运行时过滤行为、QML 渲染与内存预算未测，保持 NotRun。
 - 下一步：运行时过滤/排序行为验证归入后续功能测试；Qt 6.8 分支待有环境时补编译验证；若 Qt 后续调整 `beginFilterChange` 签名需复核 `refilter()`。
 
-## 2026-10-27 / 方案 C 统一视觉系统与概念预览
+## 2026-10-27 / 统一视觉系统与概念预览
 
 - Codex；P3-15/W01/W05。按用户确认采用极简桌面工具风，设计1.10统一Light/Dark、token、字体/尺寸、共享控件及状态、八页面模板、响应式导航、Qt Quick边界和验收。设计17嵌入明暗概念图并链接离线交互预览，相关分册/入口/合并版同步。
 - 直接替换旧界面参考，移除原截图/参考台账/专用布局报告及相关旧日志，不建立旧方案归档；保留无关工程/内核/功能原始证据。旧产品视觉结论标Stale，G1-B撤销，G1 Stale；P3-16跟踪QML迁移，G2/G3 NotRun、MVP Pass=0/16不变。
@@ -432,7 +432,7 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 检查修正浅色危险按下态对比度、分数像素断点；Windows PowerShell 5.1误读UTF-8脚本，改用本机pwsh 7.6.5通过。既有旧包断链改为明确包缺失/Stale文字，不创建占位二进制。产品源码/QML未改动，未运行产品构建/CTest或资源测量；未提交。
 - P3-15 Done。下一步P3-16按设计17迁移ThemeTokens、共享组件与八页面，完成Windows增量构建/受影响检查及实际主题/字体/状态验收；本轮不扩大为产品实现。
 
-## 2026-10-27 / 方案C产品迁移启动
+## 2026-10-27 / 产品视觉迁移启动
 
 - Codex承接P3-16，统一共享控件、侧栏与八页面；保留已有业务/页面按需加载，将流量历史改为最近60秒60点。
 - 实施中；构建/测试/实际界面/资源短测NotRun，下一步完成改造后补真实证据，见[实施报告](reports/20261027_unified_visual_implementation.md)。
@@ -1107,3 +1107,25 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 沙箱外同组复验6/7 Pass、19.88秒（build/settings_cleanup_tests_final.log/XML）：ui_state恢复通过，加载/键盘/视觉/响应式/本地化均通过；ui_prototype仍在ReplayList孵化/销毁处失败。同环境CTest对照修改前build/dense_pages_bin（SHA256 703f18678f1ae5d2f818ec455ea19c59e31a41dc2e7c3866df5d765ef7fd1f2a）和本轮产物，两者均同样失败（build/settings_cleanup_compare.log/XML，2.10秒），确认既有问题，补入G1-C及现有报告，未更改测试或回放实现。
 - 专项Done/Pass仅设置页清理范围；设计12/合并版、使用指南、TASKS/CHECKLISTS及既有视觉/Windows报告同步，ui_prototype失败未写Pass。未新增原生截图、资源或真实网络测量，沿用未受影响的业务/资源边界，全局阶段门不变。新版build/settings_cleanup_bin/quickclash.exe SHA256 145672a1be8a88036dc616b6b8bbe3ccce4615c1f743b1e3fd72016f71bda606；保留用户运行中的旧程序，需退出后启动新版查看。未提交Git或更新发行包；下一步完成最终静态检查，后续按既有G1-C及P3/P4台账继续。
 - 最终交付检查Pass：设计19章生成及-Check、check_progress、check_source_layout（44目录/337文件）、check_platform_boundaries、git diff --check通过；源码和中文词表确认三条原型卡片文案已清除。设置页清理无待修阻断，既有回放生命周期失败继续归G1-C；下一步按原台账推进。
+
+## 2026-11-01 / 界面语言设置与即时切换
+
+- 用户要求补上缺失的多语言设置。Codex负责，开始Doing/NotRun，保留全部既有工作区改动。范围是外观卡中的跟随系统/English/简体中文选择、异步设置持久化，以及切换时刷新QML、导航和托盘；`--probe-language`继续作为测试构建的固定语言覆盖。下一步同步设计/使用说明，实现设置状态、运行时翻译刷新和定向测试。
+- 实现具备、验证中：`UiPreferences.language`接受`system`/`en`/`zh`并持久化，旧设置缺失字段继续跟随系统，非法类型或值进入设置恢复；`UiState`提供受限语言属性，保存成功后更新语言控制器并重译QML、导航、页面标题、代理派生状态和托盘，不重建QML引擎或网络内核。设置页外观卡标注三个选项并保留失败时不误切；`--probe-language`仍为测试构建的固定覆盖，新增`ui_language`探针实际切换中英文并核对页面/引擎保持。设计01/04/12/16/17/18、使用指南、中文词表说明及TASKS/CHECKLISTS同步。
+- Windows Qt6.12/MSVC增量构建与qmllint Pass（`build/language_settings_build.ps1`、`build/language_settings_build.log`），仅保留订阅页47/502/516三条既存类型推断提示。最终回归：localization/storage/ui_state/ui_language 4/4 Pass 4.18秒；同一产品源码的qml_smoke/ui_keyboard/ui_visual/ui_responsive 4/4 Pass 18.07秒。最终构建原生`--language-test`退出0（0.76秒），独立`--tray-test`退出0（0.71秒）；组合参数会被托盘分支先行处理，因此不作为语言切换证据。已跟踪C++文件及新增探针的clang-format `--dry-run --Werror`通过；新增探针初次检查发现一处缩进偏差，格式化后重建复验。
+- 专项Done/Pass仅界面语言定向范围。新增语言文案的中文词表经构建生成并通过资源加载；未重跑全局lupdate，避免重写既有词表。未新增原生双语截图或资源测量，沿用未受影响的设置页采样边界；未验证真实系统语言切换后重启、托盘菜单逐项原生文本断言、长稳或跨平台原生构建。最终EXE `build/language_settings_bin/quickclash.exe` SHA256 `595979A2E9A4BDEF6CE9D1BFBA69CFB9B42F8CDA0C1AFF18424FC964A8930F19`；未提交Git或更新发行包。下一步完成最终静态交付检查，后续按原P3/P4台账继续。
+- 最终静态交付检查Pass：设计19章生成及-Check、check_progress、check_source_layout（44目录/339文件）、check_platform_boundaries、本次修改C++ clang-format `--dry-run --Werror`及git diff --check全部通过。TASKS/CHECKLISTS与Windows/统一视觉既有报告摘要同步；本项无待修阻断，全局阶段门、G1既有约束及未测范围不变。
+
+## 2026-11-01 / GPLv3 许可与发布包
+
+- 用户要求添加 GPL-3.0 许可；项目采用 SPDX `GPL-3.0-only`。根 `LICENSE` 使用 GPLv3 完整正文，与既有 `resources/licenses/qt_gpl_3.txt` 逐字节一致（35,821字节，SHA-256 `0b383d5a63da644f628d99c33976ea6487ed89aaa59f0b3257992deac1171e6b`）；未填写未经确认的版权持有人。
+- README 英文/中文版、许可基线、使用指南及构建说明同步许可标识；CMake 将根许可安装为 `licenses/quickclash_gpl_3.txt`，Windows 打包/发布入口核对 `GPL-3.0-only`、根 `LICENSE` 和包内文件，Release notes 提供对应构建提交的源码链接。
+- 验证通过：Windows Qt 6.12/MSVC 增量构建及全新安装目录 `build/license_install_20261101_final` 安装成功，包内许可大小/摘要与根文件一致（安装后EXE SHA-256 `2fa265c30fe47eca2f63ad4b0fe55d92ffdba5832563954ba423b76d65956d31`）；本地验证包 `build/license_package_20261101_final` 实际打包成功，部署 smoke 返回 `page_ready=true`/`qml_errors=0`，包内许可摘要仍一致，包内许可说明的4个本地链接无断链。4份受影响PowerShell脚本语法解析通过，README各有17个链接（15个本地链接）且无断链，进度/源码命名/平台边界/设计检查与 `git diff --check` 通过。
+- P5-02 保持 Todo，依赖 P5-01；签名、来源核验、Qt/Mihomo/Geo 完整对应源码与第三方通知、恢复说明和最终 G5 仍未完成。本轮本地验证包为 `BUILD_TESTING=ON` 的开发验证产物，未生成无测试发行ZIP/Release、未提交或推送。
+
+## 2026-11-01 / 跨平台定位与响应式界面说明
+
+- 用户纠正项目定位为跨平台而非 Windows 优先，并指出未来移动端与按宽度自适应导航。Codex 将英文/中文 README 的产品标识改为“跨平台 Mihomo 客户端”，明确当前桌面目标为 Windows/Linux/macOS；Windows 是已有原生实现与验收证据的平台，Linux/macOS 原生构建、系统集成和功能验收为 `NotRun`，Android/iOS 仅为远期宿主边界。
+- README 的窄窗底栏、构建环境和 Windows 专属能力均补充了范围说明：底部导航只证明桌面窗口响应式布局，不能当作 Android/iOS 支持；当前可复现构建入口仍是 Windows，Linux/macOS 仅有候选配置。
+- 同步设计入口、01、10、13、14、16、17、19、构建基线及 TASKS 中的定位措辞，移除“Windows 优先/主平台/首版基准平台”等表述；保留 Windows 当前实现与验收事实，未改写历史 DEVLOG/报告。
+- 本次仅文档修改，按约定不重跑产品构建；设计合并生成及 `-Check`、`check_progress`、`check_source_layout`、`check_platform_boundaries`、`git diff --check` 与两份 README 本地链接检查均通过（各 18 个链接、16 个本地链接、0 断链）。未提交 Git 或创建远端事项，Linux/macOS 原生与移动宿主验证仍为 `NotRun`。

@@ -248,10 +248,20 @@ int main(int argc, char* argv[]) {
             infra::SettingsRepository settings(store);
             check(std::get<infra::UiPreferences>(settings.load()).theme == "system",
                   "safe UI default");
+            check(std::get<infra::UiPreferences>(settings.load()).language == "system",
+                  "language follows the system by default");
             check(!std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
                   "low-memory unload remains off by default");
-            check(good(settings.save({"dark", true, true})), "preferences committed");
+            check(good(store.write(QStringLiteral("config/settings.json"),
+                                   {{QStringLiteral("theme"), QStringLiteral("system")},
+                                    {QStringLiteral("unloadWhenHidden"), false},
+                                    {QStringLiteral("closeAcknowledged"), false}})),
+                  "legacy settings fixture without a language field");
+            check(std::get<infra::UiPreferences>(settings.load()).language == "system",
+                  "legacy settings retain the system-language default");
+            check(good(settings.save({"dark", true, true, "zh"})), "preferences committed");
             auto dashboard = std::get<infra::UiPreferences>(settings.load());
+            check(dashboard.language == "zh", "explicit language survives reload");
             check(!dashboard.dashboard.value("resources").toBool() &&
                       dashboard.dashboard.value("ip").toBool(),
                   "dashboard safe defaults");
@@ -264,11 +274,15 @@ int main(int argc, char* argv[]) {
                   "preferences reload");
             check(std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
                   "existing true unload preference retained without schema migration");
-            check(good(settings.save({"dark", false, true})), "disable unload preference");
+            check(good(settings.save({"dark", false, true, "zh"})), "disable unload preference");
             check(!std::get<infra::UiPreferences>(settings.load()).unloadWhenHidden,
                   "existing false unload preference retained");
             check(std::holds_alternative<domain::Error>(settings.save({"invalid", false, false})),
                   "invalid preferences retain saved values");
+            check(std::holds_alternative<domain::Error>(settings.save({"dark", false, true, "fr"})),
+                  "unsupported language is rejected");
+            check(std::get<infra::UiPreferences>(settings.load()).language == "zh",
+                  "invalid language retains the saved choice");
 #ifdef Q_OS_WIN
             const auto credentials = platform::makeCredentialStore(store);
             const auto reference = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -293,6 +307,19 @@ int main(int argc, char* argv[]) {
                 "failed commit is reported");
             check(std::get<infra::UiPreferences>(settings.load()).theme == "dark",
                   "old settings intact");
+        }
+        {
+            QTemporaryDir invalidLanguageRoot;
+            check(QDir().mkpath(invalidLanguageRoot.filePath("config")),
+                  "invalid-language fixture directory");
+            rawWrite(invalidLanguageRoot.filePath("config/settings.json"),
+                     "{\"schemaVersion\":1,\"theme\":\"system\",\"unloadWhenHidden\":false,"
+                     "\"closeAcknowledged\":false,\"language\":7}");
+            infra::JsonStore store(invalidLanguageRoot.path());
+            check(good(store.open()), "open settings with an invalid language type");
+            infra::SettingsRepository settings(store);
+            check(std::holds_alternative<domain::Error>(settings.load()) && store.readOnly(),
+                  "non-string language requires settings recovery");
         }
         {
             infra::JsonStore store(temporary.path());
