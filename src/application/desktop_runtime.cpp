@@ -313,6 +313,13 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
                                 group.value(QStringLiteral("current")));
             }
             groups_ = infra::orderedProxyGroups(configuredGroups_, objects);
+            groupDelayTargets_.clear();
+            for (const auto& value : groups_) {
+                const auto name = value.toObject().value("name").toString();
+                const auto target = objects.value(name).toObject().value("testUrl").toString();
+                if (!target.isEmpty() && target.size() <= 8192)
+                    groupDelayTargets_.insert(name, target);
+            }
             QJsonArray liveNodes;
             for (auto it = objects.begin(); it != objects.end(); ++it) {
                 const auto node = it.value().toObject();
@@ -328,6 +335,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
                                                  {QStringLiteral("udp"), node.value("udp")}});
             }
             featureState_.insert(QStringLiteral("nodes"), liveNodes);
+            proxyLatency_.ingest(objects, clock_());
+            syncDelayViews();
             // API descriptors omit endpoint credentials. Permit explicit live selection,
             // but never persist/restore a dynamic node using its display name as identity.
             QSet<QString> liveNames;
@@ -791,6 +800,7 @@ QJsonObject DesktopRuntime::snapshot() const {
     result.insert(QStringLiteral("droppedLogs"),
                   logs_.status().value(QStringLiteral("droppedLogs")));
     result.insert(QStringLiteral("delays"), delays_);
+    result.insert(QStringLiteral("delay_details"), delayDetails_);
     result.insert(QStringLiteral("groups"), groups_);
     result.insert(QStringLiteral("coreUptimeSeconds"),
                   engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0);
@@ -870,6 +880,7 @@ void DesktopRuntime::flushData() {
         {QStringLiteral("groups"), groups_},
         {QStringLiteral("nodes"), featureState_.value(QStringLiteral("nodes")).toArray()},
         {QStringLiteral("delays"), delays_},
+        {QStringLiteral("delay_details"), delayDetails_},
         {QStringLiteral("connections"), connections_},
         {QStringLiteral("rules"), rules_},
         {QStringLiteral("providers"), providers_},
@@ -1785,6 +1796,9 @@ void DesktopRuntime::launch() {
     providerPageState_ = {};
     providerResults_ = {};
     delays_ = {};
+    proxyLatency_.clear();
+    groupDelayTargets_.clear();
+    delayDetails_ = {};
     delayTimes_.clear();
     featureState_.remove(QStringLiteral("delayTest"));
     featureState_.remove(QStringLiteral("traffic"));
@@ -2011,6 +2025,8 @@ void DesktopRuntime::confirmed() {
     if (selectedId_ != applyingId_) {
         cancelDelayTests();
         delays_ = {};
+        proxyLatency_.clear();
+        delayDetails_ = {};
         delayTimes_.clear();
         featureState_.remove(QStringLiteral("delayTest"));
     }

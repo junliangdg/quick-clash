@@ -26,6 +26,11 @@ int main(int argc, char* argv[]) {
         QCoreApplication::translate("proxies_page", "Automatic failover · fallback") ==
             "Automatic failover · fallback")
         return 5;
+    if (QCoreApplication::translate("quickclash::presentation::UiState", "Core probe") !=
+            "内核探测" ||
+        QCoreApplication::translate("quickclash::presentation::UiState", "Group probe target") !=
+            "组探测目标")
+        return 10;
     if (QCoreApplication::translate("subscriptions_page", "Apply updates when selected") ==
             "Apply updates when selected" ||
         QCoreApplication::translate("proxies_page", "%1 members") == "%1 members")

@@ -1,3 +1,4 @@
+#include "domain/proxy_latency.h"
 #include "presentation/feature_registry.h"
 #include "presentation/ui_state.h"
 #include <QCoreApplication>
@@ -29,6 +30,95 @@ int main(int argc, char* argv[]) {
     using namespace quickclash::presentation;
     try {
         FeatureRegistry registry;
+        {
+            UiState proxies;
+            const auto groupTarget =
+                quickclash::domain::ProxyLatency::targetHash("https://group.invalid/");
+            const QJsonObject groupRecord{{"state", "Success"},
+                                          {"delayMs", 42},
+                                          {"source", "Core"},
+                                          {"targetHash", groupTarget},
+                                          {"time", "2026-11-01T00:00:00Z"}};
+            const QJsonObject manual{{"state", "Success"},
+                                     {"delayMs", 88},
+                                     {"source", "Manual"},
+                                     {"targetHash", "other"},
+                                     {"time", "2026-11-01T00:01:00Z"}};
+            QJsonArray groups{QJsonObject{{"name", "parent"},
+                                          {"type", "Selector"},
+                                          {"members", QJsonArray{"auto", "node"}},
+                                          {"current", "auto"}},
+                              QJsonObject{{"name", "auto"},
+                                          {"type", "URLTest"},
+                                          {"members", QJsonArray{"node"}},
+                                          {"current", "node"},
+                                          {"testTargetHash", groupTarget}},
+                              QJsonObject{{"name", "balance"},
+                                          {"type", "LoadBalance"},
+                                          {"members", QJsonArray{"node"}},
+                                          {"current", "node"}}};
+            proxies.applyData(
+                {1,
+                 "proxy",
+                 {{"groups", groups},
+                  {"nodes", QJsonArray{QJsonObject{{"name", "node"}}}},
+                  {"delay_details",
+                   QJsonObject{
+                       {"node", QJsonObject{{"latest", manual},
+                                            {"records", QJsonArray{groupRecord, manual}}}}}}}});
+            check(proxies.proxyState("parent").value("result") == "42 ms" &&
+                      proxies.proxyState("auto").value("node") == "node" &&
+                      proxies.proxyState("node", "auto").value("result") == "42 ms" &&
+                      proxies.proxyState("node").value("result") == "88 ms",
+                  "shared proxy view resolves nested groups and keeps test targets distinct");
+            check(proxies.proxyState("auto").value("label").toString().contains("42 ms") &&
+                      proxies.proxyState("balance").value("node").toString().isEmpty(),
+                  "dropdown label shares latency while balancing does not invent a leaf");
+            auto pending = groupRecord;
+            pending.insert("source", "Manual");
+            pending.insert("state", "Testing");
+            auto twin = groups[1].toObject();
+            twin.insert("name", "twin");
+            groups.append(twin);
+            proxies.applyData(
+                {1,
+                 "proxy",
+                 {{"groups", groups},
+                  {"delay_details",
+                   QJsonObject{{"node", QJsonObject{{"latest", manual},
+                                                    {"records", QJsonArray{pending, manual}}}}}}}});
+            check(proxies.proxyState("node", "auto").value("result") == "Testing" &&
+                      proxies.proxyState("node", "twin").value("result") == "Testing" &&
+                      proxies.proxyState("parent").value("result") == "Testing" &&
+                      proxies.proxyState("node").value("result") == "88 ms",
+                  "all same-target group views share pending state without masking other targets");
+            pending.insert("state", "Cancelled");
+            proxies.applyData(
+                {1,
+                 "proxy",
+                 {{"delay_details",
+                   QJsonObject{{"node", QJsonObject{{"latest", manual},
+                                                    {"records", QJsonArray{pending, manual}}}}}}}});
+            check(proxies.proxyState("auto").value("result") == "Cancelled" &&
+                      proxies.proxyState("node", "twin").value("result") == "Cancelled",
+                  "cancelled target is shared by nested exits and repeated group members");
+            auto changed = groups[1].toObject();
+            changed.insert("current", "absent");
+            groups[1] = changed;
+            proxies.applyData({1, "proxy", {{"groups", groups}}});
+            check(proxies.proxyState("parent").value("node").toString().isEmpty(),
+                  "missing current member is not presented as an exit node");
+            changed.insert("current", "parent");
+            changed.insert("members", QJsonArray{"parent"});
+            groups[1] = changed;
+            proxies.applyData({1, "proxy", {{"groups", groups}}});
+            check(proxies.proxyState("parent").value("node").toString().isEmpty(),
+                  "cyclic group chain terminates without fabricated latency");
+            proxies.applyControl({{"publicationGeneration", "2"}, {"epoch", "new-proxy"}});
+            check(proxies.delayDetails().isEmpty() && proxies.delays().isEmpty() &&
+                      proxies.proxyState("node").value("result").toString().isEmpty(),
+                  "new epoch clears latency before its replacement baseline arrives");
+        }
         {
             UiState errors;
             for (const auto* code :

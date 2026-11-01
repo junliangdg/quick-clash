@@ -2,6 +2,7 @@
 #include "application/desktop_services.h"
 #include "application/runtime_update.h"
 #include "domain/log_buffer.h"
+#include "domain/proxy_latency.h"
 #include "infra/config/config_preflight.h"
 #include "infra/core/engine_session.h"
 #include "infra/storage/config_repository.h"
@@ -228,7 +229,16 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void resetConnectionClose();
     void closeConnectionTarget(const QString& id, const QString& epoch,
                                std::function<void(const QString&)> completion);
-    void startDelayTests(const QStringList& names);
+    struct DelayProbe {
+        QString name;
+        QString target;
+        [[nodiscard]] QString key() const {
+            return name + QChar(0) + domain::ProxyLatency::targetHash(target);
+        }
+    };
+    [[nodiscard]] std::optional<DelayProbe> delayProbe(const QString& name,
+                                                       const QString& context) const;
+    void startDelayTests(const QList<DelayProbe>& probes);
     void pumpDelayTests();
     void cancelDelayTests();
     struct WebsiteProbe {
@@ -323,11 +333,16 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QJsonObject logExportFrozen_;
     QString logExportToken_;
     QTimer logPublicationTimer_;
+    void syncDelayViews();
+    domain::ProxyLatency proxyLatency_;
+    QJsonObject delayDetails_;
+    QDateTime delayExpiry_;
     QJsonObject delays_;
     QHash<QString, QDateTime> delayTimes_;
     bool delayRunning_ = false;
-    QStringList delayQueue_;
-    QSet<QString> activeDelays_;
+    QList<DelayProbe> delayQueue_;
+    QHash<QString, DelayProbe> activeDelays_;
+    QHash<QString, QString> groupDelayTargets_;
     QString delayTarget_ = QStringLiteral("https://www.gstatic.com/generate_204");
     quint64 delayGeneration_ = 0;
     bool closingConnections_ = false;

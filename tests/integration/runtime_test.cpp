@@ -9,6 +9,7 @@
 #include "native_proxy_client.h"
 #include "network_fixture.h"
 #include "provider_probe.h"
+#include "proxy_latency_probe.h"
 #include "subscription_download_probe.h"
 #include "subscription_memory_probe.h"
 #include "subscription_probe.h"
@@ -67,6 +68,8 @@ bool require(bool value, const char* message, quickclash::application::DesktopRu
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--proxy-latency-test")))
+        return quickclash::test::proxyLatencyProbe();
     if (app.arguments().contains(QStringLiteral("--core-update-test")))
         return quickclash::test::coreUpdateProbe();
     if (app.arguments().contains(QStringLiteral("--provider-test")))

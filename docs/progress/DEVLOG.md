@@ -1036,3 +1036,33 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 专项Done/Pass仅限Windows定向交付，设计07/11/12/14、指南、TASKS/CHECKLISTS已同步；真实注销/系统重启、Explorer初始托盘暂缺、公网产品下载、真实TUN在线更新/新服务实际执行及跨版本兼容仍NotRun，后续归现有P3/P4任务；不修改全局阶段门。当前内核清单仅官方v1.19.33，在线Ed25519清单/应用更新仍后置P4。下一步完成最终静态交付核对；无提交或远端事项。
 - 最终补验Pass：engine_startup现有监听/版本/Ready正反契约1/1（13.06秒，build/engine_compatibility_tests.log），最终Windows增量构建及qmllint通过。汇总14项不同受影响测试通过，清单修订另4项复验；仅既存订阅页3条lint和重复Refresh翻译提示。最终EXE build/delay_concurrency/quickclash.exe SHA256 998ed74569937cd541701ae7b5183a4e1d5df5755f394d9f1f1be5676d7c889f；末次代码调整仅非Windows编译保护，不改变已核对原生视觉/资源路径。
 - 交付检查Pass：19章设计合并生成及-Check、check_progress.ps1、check_source_layout.ps1（44目录/327文件）、check_platform_boundaries.ps1、全部修改/新增C++ clang-format --dry-run --Werror和git diff --check通过。原始日志/截图/夹具在忽略的build，未生成日常报告。设计及指南说明当前兼容清单边界，任务Done仅本次定向范围；后续按现有P3/P4补真实系统/TUN、公网与跨版本验证。
+
+## 2026-11-01 / 全客户端代理状态与内核延迟同步
+
+- Codex承接用户授权，工作区起始干净。统一/proxies与provider节点的内核延迟、手动测速、组当前成员投影，代理页/仪表盘/出口下拉读取共享数据；区分目标、来源和时间，复用可见需求刷新、不新增测速/Timer。实现进行中，验证中/NotRun；下一步有界缓存、迟到/取消/配置失效和Windows定向验收。
+- 实现具备，验证中/NotRun：新增ProxyLatency有界会话缓存、delay_details完整通道及UiState统一组链/目标解析；自动组/节点下拉保持原始选择值，显示共享延迟/来源/时间，负载均衡不猜叶节点。内核刷新同会话串行合并；取消迟到、目标隔离、过期/移除有定向断言。沙箱内CMake停滞，停止本次配置PID4032后授权重跑已进入编译；原始输出在build/proxy_latency_*。下一步完成构建/回归和原生核验。
+- Windows Qt6.12/MSVC增量构建及qmllint通过，只有既存订阅页3条lint和重复Refresh翻译提示。首轮编译因视觉探针局部popup重名失败，改名后通过；首轮14项CTest为13Pass/1Fail（245.99秒，build/proxy_latency_tests.log），新增真实内核探测夹具未处理HTTP CONNECT，修正隧道握手后runtime_proxy_latency 1/1 Pass（3.99秒，build/proxy_latency_core_test.log）。实际覆盖官方v1.19.33被动健康检查成功/失败、自动选good、嵌套出口、目标hash/来源/时间、10次合并只读刷新不增加探测和停机清空；没有改变内核。
+- 14项不同受影响测试均已通过：contracts/runtime/runtime_proxy_latency/runtime_provider/runtime_publication/localization/ui_state/qml_smoke/ui_keyboard/ui_visual/ui_responsive/ui_runtime_lists/ui_runtime_lists_zh/host_lifecycle。补查发现控制通道先到达新会话时旧延迟可短暂留存，已在UiState代次切换即时清空并补断言；修订后ui_state及smoke/双语500节点列表/host_lifecycle 5/5 Pass（13.84秒，build/proxy_latency_final_tests.log）。既有runtime验证手动6并发、队列取消、迟到回调、10分钟过期与配置切换清除；缓存单测验证多目标上限8、旧观察不覆盖、URL不发布及节点移除。
+- 原生双主题/DPR1.25/D3D11共53张曝光截图通过；目视核对浅色出口下拉与深色代理页，38ms/不可用/未测速一致，360宽首页正常。build/proxy_latency_native/visual保留原图，8条既存Qt颜色undefined提示保留。最后扩展视觉夹具为delay_details来源/时间及currentText原始成员值，Windows构建/lint和原生53张复验Pass（build/proxy_latency_native/visual_final），目视核对深色下拉；此末次仅测试夹具变化，既有产品资源证据仍适用。
+- 单轮10秒100样本资源/生命周期短测Pass：真实本地owned内核、无系统代理/TUN，首页→设置→最小化→恢复，隐藏/卸载释放、内核保持及60点上限通过，QML错误0。客户端专用工作集/总工作集/私有提交MiB首85.18/179.49/233.47→末90.88/187.02/216.27、峰96.52/192.25/233.50；内核首7.53/26.02/61.01→末及峰7.60/26.08/61.02。同环境上轮峰82.59/181.62/220.45，本轮峰增加13.93/10.63/13.05MiB；单轮有波动且最小夹具未填满新延迟缓存，不归因为缓存开销，不证明长期无增长。原始build/proxy_latency_native/resource.json；真实大订阅缓存/服务模式资源及长稳未测。
+- 专项Done/Pass仅限已测Windows范围，设计03/08、合并版、用户指南、TASKS/CHECKLISTS及既有windows_validation摘要已同步。最终EXE build/delay_concurrency/quickclash.exe SHA256 d07f20b2a7b20fb3fdaaa4060cd6599394e11b51ef583df2f727f494e4ca16bd；无提交/远端事项。真实服务/TUN自动探测与大订阅长稳未验；下一步按现有P3/P4任务补验，不把本项通过扩展为G1/G3整门通过。
+- 最终交付检查Pass：build_design_docs.ps1生成19章及-Check、check_progress.ps1、check_source_layout.ps1（44目录/331文件）、check_platform_boundaries.ps1、全部修改/新增C++ clang-format --dry-run --Werror与git diff --check通过。原始日志/截图/资源JSON在忽略的build中，未新增日常报告；保留首次失败原因和修正结果。
+
+## 2026-11-01 / 节点测速显示样式统一
+
+- 用户要求包括规则出口下拉在内的节点测速数值统一样式。保留上一项所有未提交修改；新增DelayLabel共用字体/12px随字号缩放/DemiBold与主题延迟配色，接入代理页、仪表盘和下拉当前值/选项。下拉节点名与延迟分列，名称省略不截断延迟，选中态只改变名称颜色；raw currentText与激活命令保持。共享投影增加nameLabel/hasDelay，业务延迟与测速行为未改。实现具备，验证中/NotRun；下一步Windows构建、现有UI回归及原生截图核对。
+- Windows Qt6.12/MSVC增量构建及qmllint最终Pass（build/delay_style_build.log），仅订阅页3条既存lint提示。前两次链接出现LNK1104无法打开quickclash.exe；只读核对未发现仍运行的QuickClash进程，重试链接成功，未终止用户进程。命名小写delay_label.qml通过CMake显式QT_QML_SOURCE_TYPENAME导出DelayLabel；代理页移除重复配色函数并合并每节点投影读取。
+- 现有ui_state/qml_smoke/ui_keyboard/ui_visual/ui_responsive/ui_runtime_lists/ui_runtime_lists_zh/ui_subscriptions/ui_subscriptions_zh 9/9 Pass（26.09秒，build/delay_style_tests.log/JUnit）。未为纯样式新增镜像测试，仅扩展现有视觉探针的出口卡滚动定位与宽窄截图；下拉currentText仍为原始成员的现有断言通过，双语500节点池与其他通用下拉所在页回归通过。
+- 原生59张截图Pass（build/delay_style_native、build/delay_style_native.log），全部exposed、默认D3D11 graphicsApi=4/DPR1.25；目视核对深色代理页/选中下拉、浅色出口卡与360宽出口卡：38ms同字号/字重及绿，不可用红，未测速弱化，当前值/选项右对齐且不随选中变紫。8条既存Qt颜色undefined提示保留，无新增绑定循环/类型错误。旧整行同色下拉视觉证据Stale，其业务验证仍有效。
+- 此次只调整显示组件和共享投影显示字段，无新增网络/Timer/业务缓存，节点和下拉延迟对象随现有控件池/弹层释放；复用上一专项10秒三指标/生命周期证据（详见上条专项），不把它称为本次重新资源实测，不扩展到长期内存/帧/GPU或OS字号验收。设计08、指南、TASKS/CHECKLISTS与既有Windows摘要同步；最终EXE build/delay_concurrency/quickclash.exe SHA256 02598fe8dd11342ac80c055032499c4e6f12dde6a68e924a9fba1dbd320f3c0d。下一步完成静态交付检查，后续仍按P3/P4补已列场景；无提交/远端事项。
+- 最终静态交付检查Pass：设计19章生成/-Check、check_progress、check_source_layout（44目录/332文件）、check_platform_boundaries、修改C++格式及git diff --check全部通过；专项Done/Pass仅当前显示范围，原有系统/TUN/长稳及阶段门状态不变。后续按现有P3/P4台账继续，无本次待修问题。
+
+## 2026-11-01 / 手动测速组上下文与跨组同步修复
+
+- 用户授权修复自动组内手动测速看似无效及跨组同步。已定位请求始终使用全局目标，而显示严格匹配组目标；保留全部既有工作区修改。负责人Codex，Doing/NotRun；按节点与目标共享队列/状态，组上下文只传组名，原始组URL保留worker，完成后读取核心出口，不调用会清除固定选择的组测速接口。下一步实现、Windows增量构建和定向回归。
+- 实现具备、验证中：代理页节点按钮携带直接所属组，仪表盘携带出口策略并沿current解析；批量逐分支继承目标、按节点/目标去重，单批500组合/每节点8目标。手动队列、活动请求及缓存操作状态均按该维度维护，完成后合并回读核心；全局目标变更只失效旧目标手动记录，组目标只从当前会话核心描述解析HTTP/HTTPS，未开放QML任意URL。设计03/08、合并版及使用指南已同步。
+- 首次沙箱内构建停在Ninja启动，终止自有构建后外部重跑；链接LNK1104因用户仍运行旧build/delay_concurrency/quickclash.exe（PID22716），保留用户进程，将CMAKE_RUNTIME_OUTPUT_DIRECTORY置于忽略的build/delay_context_bin，复用缓存后Windows构建/lint Pass（build/delay_context_build.log，仅既存3条订阅页lint）。首轮8项实际运行通过（contracts/runtime_proxy_latency/runtime_provider/runtime_publication/ui_state/qml_smoke/双语ui_runtime_lists），service_protocol因新输出目录未构建测试程序NotRun，已补构建并待补验；不将该次9项写成全Pass。
+- 真实官方v1.19.33专项4.35秒通过：自动组HTTP目标手动成功、嵌套策略当前节点、两个同目标组加一个不同目标组批量总4组合而成功端点各只增1请求、两目标Testing/取消/迟到及重试、全局目标改变不影响组结果、非法上下文拒绝、只读刷新不测速及停机清空。缓存/UI单测补同节点多目标独立排队/取消、跨组/嵌套投影、目标定向失效与取消记录8目标上限。下一步完整runtime/服务协议/UI补验及最终交付检查。
+- 单轮10秒100样本原生资源/生命周期Pass（build/delay_context_native/resource.json）：D3D11/api4、QML错误0，首页→设置→最小化/恢复、隐藏/卸载释放，60点保持；客户端专用工作集/总工作集/私有提交MiB首81.94/176.55/231.42→末86.99/183.39/217.50、峰92.55/188.55/231.42，核心首7.20/25.65/60.40→末及峰7.36/25.81/60.56。上轮同环境峰96.52/192.25/233.50与7.60/26.08/61.02，仅单轮比较不作优化结论；最小夹具未填满多目标缓存，真实服务/TUN、大订阅及长稳仍NotRun。
+- 补验runtime/localization/service_protocol/ui_keyboard/ui_responsive 5/5 Pass（142.85秒，runtime137.34秒，build/delay_context_followup_tests.log/XML），其中服务协议补建后0.10秒Pass；累计13项不同回归通过。完整runtime保留6并发/2秒、队列取消、迟到回调、10分钟过期及配置切换清除断言。最终EXE build/delay_context_bin/quickclash.exe SHA256 cb7f2b8ee8a7bf18314a33620b3efab2690c571a5165b408a14513aaa7191ca0；旧用户进程继续运行，需启动新版才应用修复。专项Done/Pass仅此Windows范围，未提交Git或创建远端事项；下一步完成最终静态检查，后续按现有P3/P4补服务/TUN、大订阅及长稳。
+- 最终静态交付检查Pass：设计19章生成/-Check、check_progress、check_source_layout（44目录/332文件）、check_platform_boundaries、本次修改C++ clang-format --dry-run --Werror与git diff --check通过。TASKS/CHECKLISTS、设计/指南和既有Windows报告摘要同步；本项无待修问题，保留全局阶段门与未测范围。

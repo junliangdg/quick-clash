@@ -14,6 +14,7 @@
 #include <QTcpServer>
 #include <QUrl>
 #include <QUrlQuery>
+#include <utility>
 
 namespace quickclash::infra {
 namespace {
@@ -252,6 +253,8 @@ void EngineSession::start(const QString& executable, const QString& config,
 }
 void EngineSession::stop() {
     ++generation_;
+    groupsPending_ = false;
+    groupsQueued_ = false;
     ready_ = false;
     setTunState(QStringLiteral("Off"));
     const bool stopService = serviceMode_;
@@ -612,8 +615,20 @@ void EngineSession::refreshGroups() {
     if (!ready_) {
         return;
     }
+    if (groupsPending_) {
+        groupsQueued_ = true;
+        return;
+    }
+    groupsPending_ = true;
     const auto generation = generation_;
-    request("GET", "/proxies", {}, [this, generation](domain::Result<QJsonObject> result) {
+    const auto finish = [this, generation] {
+        if (generation != generation_)
+            return;
+        groupsPending_ = false;
+        if (std::exchange(groupsQueued_, false))
+            refreshGroups();
+    };
+    request("GET", "/proxies", {}, [this, generation, finish](domain::Result<QJsonObject> result) {
         if (!ready_ || generation != generation_)
             return;
         if (const auto* value = std::get_if<QJsonObject>(&result)) {
@@ -621,7 +636,7 @@ void EngineSession::refreshGroups() {
             // /proxies omits provider-only nodes in the pinned core. Include their safe
             // descriptors for capabilities and conservative identity handling.
             request("GET", "/providers/proxies", {},
-                    [this, generation,
+                    [this, generation, finish,
                      objects = std::move(objects)](domain::Result<QJsonObject> providers) mutable {
                         if (!ready_ || generation != generation_)
                             return;
@@ -650,12 +665,15 @@ void EngineSession::refreshGroups() {
                             // A partial read cannot prove static/dynamic name collisions safe
                             // for restoring saved selections. Keep the previous confirmed view.
                             emit groupsRefreshFailed(std::get<domain::Error>(providers).code);
+                            finish();
                             return;
                         }
                         emit groupsChanged(objects);
+                        finish();
                     });
         } else {
             emit groupsRefreshFailed(std::get<domain::Error>(result).code);
+            finish();
         }
     });
 }

@@ -2465,4 +2465,20 @@
     <message><source>Execution: %1</source><translation>运行方式：%1</translation></message>
     <message><source>Local process</source><translation>本地进程</translation></message>
   </context>
+  <context><name>quickclash::presentation::UiState</name>
+    <message><source>Timed out</source><translation>超时</translation></message>
+    <message><source>Unavailable</source><translation>不可用</translation></message>
+    <message><source>Testing…</source><translation>测速中…</translation></message>
+    <message><source>Queued</source><translation>排队中</translation></message>
+    <message><source>Cancelled</source><translation>已取消</translation></message>
+    <message><source>Expired</source><translation>已过期</translation></message>
+    <message><source>Not tested</source><translation>未测速</translation></message>
+    <message><source>Manual probe</source><translation>手动测速</translation></message>
+    <message><source>Core probe</source><translation>内核探测</translation></message>
+    <message><source>Unknown probe target</source><translation>探测目标未知</translation></message>
+    <message><source>Node probe target</source><translation>节点探测目标</translation></message>
+    <message><source>Group probe target</source><translation>组探测目标</translation></message>
+    <message><source>Load balancing</source><translation>负载均衡</translation></message>
+    <message><source>Waiting for core confirmation</source><translation>等待内核确认</translation></message>
+  </context>
 </TS>

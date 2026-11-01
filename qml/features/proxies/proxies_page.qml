@@ -15,7 +15,7 @@ Item {
     readonly property var runtime: ui.runtime
     readonly property var groups: ui.groups.filter(group => group.name !== "GLOBAL" || (runtime.preferences || {}).mode === "global" || ui.groups.length === 1)
     readonly property var nodes: ui.nodes
-    readonly property var delays: ui.delays
+    readonly property var states: ui.proxyStates
     readonly property var progress: (runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
     readonly property bool active: ui.uiVisible && visible && !ui.replay
@@ -53,21 +53,6 @@ Item {
         ui.saveState(stateKey, {
             groups: expandedGroups
         });
-    }
-    function delayText(name): string {
-        const result = delays[name];
-        return result === "Queued" ? qsTr("Queued") : result === "Testing" ? qsTr("Testing…") : result === "Timeout" ? qsTr("Timed out") : result === "Failed" ? qsTr("Unavailable") : result === "Cancelled" ? qsTr("Cancelled") : result === "Stale" ? qsTr("Expired") : result || "—";
-    }
-    function delayColor(name): color {
-        const result = delays[name];
-        if (result === "Failed" || result === "Timeout")
-            return theme.error;
-        if (result === "Testing")
-            return theme.warning;
-        const value = parseInt(result);
-        if (isNaN(value))
-            return theme.muted;
-        return value < 300 ? theme.success : value < 800 ? theme.warning : theme.error;
     }
     function nodeDetails(name): string {
         const node = nodeByName[name];
@@ -320,6 +305,7 @@ Item {
                                     readonly property int slotRow: Math.floor(index / groupTile.nodeColumns)
                                     readonly property int memberIndex: (nodeGrid.firstRow + (slotRow + nodeGrid.rowShift) % nodeGrid.poolRows) * groupTile.nodeColumns + index % groupTile.nodeColumns
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
+                                    readonly property var proxyState: { const shared = root.states; return root.ui.proxyState(modelData, groupTile.modelData.name); }
                                     readonly property bool current: groupTile.modelData.current === modelData
                                     readonly property bool testable: !(modelData in root.groupNames) && !["DIRECT", "REJECT"].includes(modelData)
                                     readonly property bool inWindow: memberIndex >= nodeGrid.firstIndex && memberIndex < nodeGrid.endIndex
@@ -377,11 +363,12 @@ Item {
                                                 elide: Text.ElideRight
                                                 textFormat: Text.PlainText
                                             }
-                                            Label {
-                                                text: root.delayText(nodeTile.modelData)
-                                                color: root.delayColor(nodeTile.modelData)
-                                                font.weight: Font.DemiBold
-                                                font.pixelSize: root.theme.supportingSize
+                                            DelayLabel {
+                                                theme: root.theme
+                                                text: nodeTile.proxyState.text
+                                                result: nodeTile.proxyState.result
+                                                stale: !!(root.runtime.features || {}).groupsStale
+                                                Accessible.description: nodeTile.proxyState.description
                                             }
                                             ActionButton {
                                                 id: testNode
@@ -397,7 +384,7 @@ Item {
                                                 enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
                                                 Accessible.name: qsTr("Test delay")
                                                 ThemedToolTip { theme: root.theme; visible: testNode.hovered; text: qsTr("Test delay") }
-                                                onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData])
+                                                onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData, groupTile.modelData.name])
                                             }
                                         }
                                     }

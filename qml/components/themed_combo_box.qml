@@ -1,23 +1,46 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import QuickClash.Ui
 
 ComboBox {
     id: control
     required property ThemeTokens theme
+    // Display labels may include shared runtime state; activation still uses raw names.
+    property var optionLabels: []
+    property var optionDescriptions: []
+    property var optionDelays: []
+    property bool delaysStale: false
+    readonly property var currentDelay: currentIndex >= 0 && optionDelays.length > currentIndex ? optionDelays[currentIndex] : ({})
+    readonly property string currentLabel: currentIndex >= 0 && optionLabels.length > currentIndex ? optionLabels[currentIndex] : currentText
+    displayText: currentLabel + (currentDelay.hasDelay ? " · " + currentDelay.text : "")
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: theme.controlHeight
     leftPadding: 12
     rightPadding: 30
     activeFocusOnTab: true
-    contentItem: Text {
-        text: control.displayText
-        font: control.font
-        color: control.enabled ? control.theme.text : control.theme.muted
-        verticalAlignment: Text.AlignVCenter
-        elide: Text.ElideRight
+    contentItem: RowLayout {
+        spacing: 12
+        Text {
+            text: control.currentLabel
+            font: control.font
+            color: control.enabled ? control.theme.text : control.theme.muted
+            verticalAlignment: Text.AlignVCenter
+            elide: Text.ElideRight
+            textFormat: Text.PlainText
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+        }
+        DelayLabel {
+            theme: control.theme
+            visible: !!control.currentDelay.hasDelay
+            text: control.currentDelay.text || ""
+            result: control.currentDelay.result || ""
+            stale: control.delaysStale
+            Layout.minimumWidth: implicitWidth
+        }
     }
     indicator: Text {
         x: control.width - width - 10
@@ -40,14 +63,32 @@ ComboBox {
         width: ListView.view.width
         height: control.theme.rowHeight
         highlighted: control.highlightedIndex === index
-        text: control.textRole ? model[control.textRole] : model.modelData
+        readonly property string nameLabel: control.optionLabels.length > index ? control.optionLabels[index] : control.textRole ? model[control.textRole] : model.modelData
+        readonly property var delay: control.optionDelays.length > index ? control.optionDelays[index] : ({})
+        text: nameLabel + (delay.hasDelay ? " · " + delay.text : "")
+        Accessible.description: control.optionDescriptions.length > index ? control.optionDescriptions[index] : ""
+        ThemedToolTip { theme: control.theme; visible: entry.hovered && text.length > 0; text: control.optionDescriptions.length > entry.index ? control.optionDescriptions[entry.index] : "" }
         font: control.font
-        contentItem: Text {
-            text: entry.text
-            font: entry.font
-            color: entry.highlighted ? control.theme.onSelection : control.theme.text
-            verticalAlignment: Text.AlignVCenter
-            elide: Text.ElideRight
+        contentItem: RowLayout {
+            spacing: 12
+            Text {
+                text: entry.nameLabel
+                font: entry.font
+                color: entry.highlighted ? control.theme.onSelection : control.theme.text
+                verticalAlignment: Text.AlignVCenter
+                elide: Text.ElideRight
+                textFormat: Text.PlainText
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+            }
+            DelayLabel {
+                theme: control.theme
+                visible: !!entry.delay.hasDelay
+                text: entry.delay.text || ""
+                result: entry.delay.result || ""
+                stale: control.delaysStale
+                Layout.minimumWidth: implicitWidth
+            }
         }
         background: StateSurface {
             theme: control.theme

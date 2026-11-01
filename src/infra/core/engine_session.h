@@ -143,5 +143,7 @@ class EngineSession final : public QObject {
     bool probing_ = false;
     bool listenersPending_ = false;
     bool configPending_ = false;
+    bool groupsPending_ = false;
+    bool groupsQueued_ = false;
 };
 } // namespace quickclash::infra

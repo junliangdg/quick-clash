@@ -22,6 +22,9 @@ constexpr int kDelayConcurrencyDirect = 6;
 void DesktopRuntime::loadOfflineGroups() {
     if (engine_.ready())
         return;
+    proxyLatency_.clear();
+    groupDelayTargets_.clear();
+    syncDelayViews();
     groups_ = {};
     configuredGroups_ = {};
     defaultPolicy_.clear();
@@ -196,15 +199,35 @@ void DesktopRuntime::appendLog(const QString& source, const QString& level, cons
     if (!logPublicationTimer_.isActive())
         logPublicationTimer_.start();
 }
-void DesktopRuntime::pollFeatures() {
-    for (auto it = delayTimes_.begin(); it != delayTimes_.end();) {
-        if (it.value().secsTo(clock_()) >= 600) {
-            delays_.insert(it.key(), QStringLiteral("Stale"));
-            it = delayTimes_.erase(it);
-        } else {
-            ++it;
+void DesktopRuntime::syncDelayViews() {
+    const auto now = clock_();
+    delayDetails_ = proxyLatency_.details(now);
+    delayExpiry_ = {};
+    delays_ = {};
+    delayTimes_.clear();
+    for (auto it = delayDetails_.begin(); it != delayDetails_.end(); ++it) {
+        auto records = it.value().toObject().value("records").toArray();
+        const auto latest = it.value().toObject().value("latest").toObject();
+        records.append(latest);
+        for (const auto& value : records) {
+            const auto record = value.toObject();
+            const auto expiry =
+                QDateTime::fromString(record.value("time").toString(), Qt::ISODateWithMs)
+                    .addSecs(600);
+            if (record.value("state") != "Queued" && record.value("state") != "Testing" &&
+                expiry > now && (!delayExpiry_.isValid() || expiry < delayExpiry_))
+                delayExpiry_ = expiry;
         }
+        delays_.insert(it.key(), domain::ProxyLatency::text(latest));
+        if (latest.value("state") != "Stale" && latest.value("state") != "Queued" &&
+            latest.value("state") != "Testing")
+            delayTimes_.insert(it.key(), QDateTime::fromString(latest.value("time").toString(),
+                                                               Qt::ISODateWithMs));
     }
+}
+void DesktopRuntime::pollFeatures() {
+    if (delayExpiry_.isValid() && clock_() >= delayExpiry_)
+        syncDelayViews();
     if (featureDemands_.contains(QStringLiteral("resources")) &&
         (!resourceSampleClock_.isValid() || resourceSampleClock_.elapsed() >= 5000)) {
         resourceSampleClock_.start();
@@ -475,10 +498,9 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
             error(failure->code);
             return;
         }
+        proxyLatency_.invalidateManual(delayTarget_);
         delayTarget_ = targetText;
-        for (auto it = delays_.begin(); it != delays_.end(); ++it)
-            it.value() = QStringLiteral("Stale");
-        delayTimes_.clear();
+        syncDelayViews();
         featureState_.remove(QStringLiteral("delayTest"));
         publish();
         return;
@@ -655,35 +677,58 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         cancelDelayTests();
         publish();
     } else if (command == QStringLiteral("delay")) {
-        startDelayTests({args.value(0)});
+        if (const auto probe = delayProbe(args.value(0), args.value(1)))
+            startDelayTests({*probe});
     } else if (command == QStringLiteral("delay_batch")) {
-        QStringList names;
+        QList<DelayProbe> probes;
         QSet<QString> visited;
-        std::function<void(const QString&)> expand = [&](const QString& name) {
-            if (visited.contains(name))
-                return;
-            visited.insert(name);
-            for (const auto& value : groups_) {
-                const auto group = value.toObject();
-                if (group.value(QStringLiteral("name")) == name) {
-                    for (const auto& member : group.value(QStringLiteral("members")).toArray())
-                        expand(member.toString());
+        bool valid = true;
+        std::function<void(const QString&, const QString&, int)> expand =
+            [&](const QString& name, const QString& inheritedTarget, int depth) {
+                if (depth > 32 || probes.size() > 500 || visited.size() > 16000) {
+                    valid = false;
                     return;
                 }
-            }
-            for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
-                if (node.toObject().value(QStringLiteral("name")) == name) {
-                    names.append(name);
-                    return;
+                auto target = inheritedTarget;
+                for (const auto& value : groups_) {
+                    const auto group = value.toObject();
+                    if (group.value(QStringLiteral("name")) == name) {
+                        if (!group.value("testTargetHash").toString().isEmpty()) {
+                            target = groupDelayTargets_.value(name);
+                            if (target.isEmpty()) {
+                                valid = false;
+                                return;
+                            }
+                        }
+                        const auto key = DelayProbe{name, target}.key();
+                        if (visited.contains(key))
+                            return;
+                        visited.insert(key);
+                        for (const auto& member : group.value(QStringLiteral("members")).toArray())
+                            expand(member.toString(), target, depth + 1);
+                        return;
+                    }
                 }
-        };
+                if (name == "DIRECT" || name == "REJECT")
+                    return;
+                for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
+                    if (node.toObject().value(QStringLiteral("name")) == name) {
+                        const DelayProbe probe{name, target};
+                        if (!visited.contains(probe.key())) {
+                            visited.insert(probe.key());
+                            probes.append(probe);
+                        }
+                        return;
+                    }
+            };
         if (args.value(0).isEmpty()) {
             for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
-                expand(node.toObject().value(QStringLiteral("name")).toString());
+                expand(node.toObject().value(QStringLiteral("name")).toString(), delayTarget_, 0);
         } else {
-            expand(args.value(0));
+            expand(args.value(0), delayTarget_, 0);
         }
-        startDelayTests(names);
+        if (valid)
+            startDelayTests(probes);
     } else if (command == QStringLiteral("update_provider")) {
         updateProvider(args.value(0), args.value(1));
     } else if (command == QStringLiteral("flush_dns")) {
@@ -704,40 +749,90 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
                     });
     }
 }
-void DesktopRuntime::startDelayTests(const QStringList& names) {
-    const QUrl target(delayTarget_);
-    if (delayRunning_ || busy_ || !engine_.ready() || names.isEmpty() || names.size() > 500 ||
-        !target.isValid() || target.scheme() != QStringLiteral("https") ||
-        target.host().isEmpty() || !target.userInfo().isEmpty() || target.hasFragment() ||
-        delayTarget_.size() > 8192)
+std::optional<DesktopRuntime::DelayProbe> DesktopRuntime::delayProbe(const QString& name,
+                                                                     const QString& context) const {
+    auto target = delayTarget_;
+    const auto findGroup = [this](const QString& groupName) {
+        for (const auto& value : groups_)
+            if (value.toObject().value("name") == groupName)
+                return value.toObject();
+        return QJsonObject{};
+    };
+    if (!context.isEmpty()) {
+        const auto group = findGroup(context);
+        if (!group.value("members").toArray().contains(name))
+            return std::nullopt;
+        if (!group.value("testTargetHash").toString().isEmpty()) {
+            target = groupDelayTargets_.value(context);
+            if (target.isEmpty())
+                return std::nullopt;
+        }
+    }
+    auto current = name;
+    QSet<QString> visited;
+    while (true) {
+        const auto group = findGroup(current);
+        if (group.isEmpty())
+            break;
+        if (visited.contains(current) || visited.size() >= 32)
+            return std::nullopt;
+        visited.insert(current);
+        if (group.value("type") == "LoadBalance")
+            return std::nullopt;
+        if (!group.value("testTargetHash").toString().isEmpty()) {
+            target = groupDelayTargets_.value(current);
+            if (target.isEmpty())
+                return std::nullopt;
+        }
+        const auto members = group.value("members").toArray();
+        const auto next = group.value("current").toString();
+        if (next.isEmpty() || !members.contains(next))
+            return std::nullopt;
+        current = next;
+    }
+    return DelayProbe{current, target};
+}
+void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes) {
+    if (delayRunning_ || busy_ || !engine_.ready() || probes.isEmpty() || probes.size() > 500)
         return;
     QSet<QString> testable;
     for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
         testable.insert(node.toObject().value(QStringLiteral("name")).toString());
-    for (const auto& name : names)
-        if (!identities_.contains(name) || !testable.contains(name) ||
-            name == QStringLiteral("DIRECT") || name == QStringLiteral("REJECT"))
+    QList<DelayProbe> queue;
+    QSet<QString> keys;
+    QHash<QString, int> targetsPerNode;
+    QSet<QString> targets;
+    for (const auto& probe : probes) {
+        const QUrl target(probe.target);
+        if (!identities_.contains(probe.name) || !testable.contains(probe.name) ||
+            !target.isValid() || (target.scheme() != "https" && target.scheme() != "http") ||
+            target.host().isEmpty() || !target.userInfo().isEmpty() || target.hasFragment() ||
+            probe.target.size() > 8192)
             return;
+        if (keys.contains(probe.key()))
+            continue;
+        keys.insert(probe.key());
+        if (++targetsPerNode[probe.name] > 8)
+            return;
+        targets.insert(domain::ProxyLatency::targetHash(probe.target));
+        queue.append(probe);
+    }
     ++delayGeneration_;
-    delayQueue_ = names;
-    delayQueue_.removeDuplicates();
-    for (const auto& name : delayQueue_) {
-        delays_.insert(name, QStringLiteral("Queued"));
-        delayTimes_.remove(name);
+    delayQueue_ = std::move(queue);
+    for (const auto& probe : delayQueue_) {
+        proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Queued"), clock_());
     }
     activeDelays_.clear();
     delayRunning_ = true;
     featureState_.insert(
         QStringLiteral("delayTest"),
-        QJsonObject{{QStringLiteral("state"), QStringLiteral("Running")},
-                    {QStringLiteral("total"), delayQueue_.size()},
-                    {QStringLiteral("completed"), 0},
-                    {QStringLiteral("failed"), 0},
-                    {QStringLiteral("targetHash"),
-                     QString::fromLatin1(
-                         QCryptographicHash::hash(delayTarget_.toUtf8(), QCryptographicHash::Sha256)
-                             .toHex())},
-                    {QStringLiteral("startedAt"), clock_().toString(Qt::ISODate)}});
+        QJsonObject{
+            {QStringLiteral("state"), QStringLiteral("Running")},
+            {QStringLiteral("total"), delayQueue_.size()},
+            {QStringLiteral("completed"), 0},
+            {QStringLiteral("failed"), 0},
+            {QStringLiteral("targetHash"), targets.size() == 1 ? *targets.begin() : QString{}},
+            {QStringLiteral("startedAt"), clock_().toString(Qt::ISODate)}});
     pumpDelayTests();
 }
 void DesktopRuntime::pumpDelayTests() {
@@ -746,50 +841,51 @@ void DesktopRuntime::pumpDelayTests() {
     const auto concurrency =
         engine_.usingService() ? kDelayConcurrencyService : kDelayConcurrencyDirect;
     while (delayRunning_ && activeDelays_.size() < concurrency && !delayQueue_.isEmpty()) {
-        const auto name = delayQueue_.takeFirst();
-        activeDelays_.insert(name);
-        delays_.insert(name, QStringLiteral("Testing"));
-        engine_.api(
-            "GET",
-            "/proxies/" + QUrl::toPercentEncoding(name) +
-                "/delay?timeout=" + QByteArray::number(infra::kNodeDelayTimeoutMs) +
-                "&url=" + QUrl::toPercentEncoding(delayTarget_),
-            {}, [this, name, generation, epoch](domain::Result<QJsonObject> result) {
-                if (generation != delayGeneration_ || epoch != epoch_)
-                    return;
-                activeDelays_.remove(name);
-                const auto* value = std::get_if<QJsonObject>(&result);
-                const bool valid = value && value->value(QStringLiteral("delay")).isDouble() &&
-                                   value->value(QStringLiteral("delay")).toInt(-1) >= 0;
-                const auto* failure = std::get_if<domain::Error>(&result);
-                const bool timeout =
-                    failure && (failure->code == QStringLiteral("CoreRequestTimeout") ||
-                                failure->code == QStringLiteral("ServiceTimeout"));
-                delays_.insert(
-                    name, valid ? QString::number(value->value(QStringLiteral("delay")).toInt()) +
-                                      QStringLiteral(" ms")
-                          : timeout ? QStringLiteral("Timeout")
-                                    : QStringLiteral("Failed"));
-                delayTimes_.insert(name, clock_());
-                auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
-                progress.insert(QStringLiteral("completed"),
-                                progress.value(QStringLiteral("completed")).toInt() + 1);
-                if (!valid)
-                    progress.insert(QStringLiteral("failed"),
-                                    progress.value(QStringLiteral("failed")).toInt() + 1);
-                featureState_.insert(QStringLiteral("delayTest"), progress);
-                QTimer::singleShot(0, this, [this, generation, epoch] {
-                    if (generation == delayGeneration_ && epoch == epoch_)
-                        pumpDelayTests();
-                });
-            });
+        const auto probe = delayQueue_.takeFirst();
+        activeDelays_.insert(probe.key(), probe);
+        proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Testing"), clock_());
+        engine_.api("GET",
+                    "/proxies/" + QUrl::toPercentEncoding(probe.name) +
+                        "/delay?timeout=" + QByteArray::number(infra::kNodeDelayTimeoutMs) +
+                        "&url=" + QUrl::toPercentEncoding(probe.target),
+                    {}, [this, probe, generation, epoch](domain::Result<QJsonObject> result) {
+                        if (generation != delayGeneration_ || epoch != epoch_)
+                            return;
+                        activeDelays_.remove(probe.key());
+                        const auto* value = std::get_if<QJsonObject>(&result);
+                        const bool valid = value &&
+                                           value->value(QStringLiteral("delay")).isDouble() &&
+                                           value->value(QStringLiteral("delay")).toInt(-1) > 0;
+                        const auto* failure = std::get_if<domain::Error>(&result);
+                        const bool timeout =
+                            failure && (failure->code == QStringLiteral("CoreRequestTimeout") ||
+                                        failure->code == QStringLiteral("ServiceTimeout"));
+                        proxyLatency_.manual(probe.name, probe.target,
+                                             valid     ? QStringLiteral("Success")
+                                             : timeout ? QStringLiteral("Timeout")
+                                                       : QStringLiteral("Failed"),
+                                             clock_(), valid ? value->value("delay").toInt() : -1);
+                        auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
+                        progress.insert(QStringLiteral("completed"),
+                                        progress.value(QStringLiteral("completed")).toInt() + 1);
+                        if (!valid)
+                            progress.insert(QStringLiteral("failed"),
+                                            progress.value(QStringLiteral("failed")).toInt() + 1);
+                        featureState_.insert(QStringLiteral("delayTest"), progress);
+                        QTimer::singleShot(0, this, [this, generation, epoch] {
+                            if (generation == delayGeneration_ && epoch == epoch_)
+                                pumpDelayTests();
+                        });
+                    });
     }
-    if (delayQueue_.isEmpty() && activeDelays_.isEmpty()) {
+    if (delayRunning_ && delayQueue_.isEmpty() && activeDelays_.isEmpty()) {
         delayRunning_ = false;
         auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
         progress.insert(QStringLiteral("state"), QStringLiteral("Completed"));
         featureState_.insert(QStringLiteral("delayTest"), progress);
+        engine_.refreshGroups();
     }
+    syncDelayViews();
     publish();
 }
 void DesktopRuntime::cancelDelayTests() {
@@ -797,12 +893,13 @@ void DesktopRuntime::cancelDelayTests() {
     if (!delayRunning_)
         return;
     delayRunning_ = false;
-    for (const auto& name : activeDelays_)
-        delays_.insert(name, QStringLiteral("Cancelled"));
-    for (const auto& name : delayQueue_)
-        delays_.insert(name, QStringLiteral("Cancelled"));
+    for (const auto& probe : activeDelays_)
+        proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Cancelled"), clock_());
+    for (const auto& probe : delayQueue_)
+        proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Cancelled"), clock_());
     activeDelays_.clear();
     delayQueue_.clear();
+    syncDelayViews();
     auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
     if (!progress.isEmpty()) {
         progress.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));

@@ -1,6 +1,7 @@
 #include "application/ports.h"
 #include "domain/connection_snapshot.h"
 #include "domain/log_buffer.h"
+#include "domain/proxy_latency.h"
 #include "domain/resource_snapshot.h"
 #include "domain/rule_snapshot.h"
 #include "domain/subscription_usage.h"
@@ -59,6 +60,116 @@ int main(int argc, char* argv[]) {
         return std::holds_alternative<Error>(result) ? 1 : 0;
     }
     try {
+        {
+            ProxyLatency latency;
+            const auto now = QDateTime::fromString("2026-11-01T00:00:00Z", Qt::ISODate);
+            const auto history = [&](int delay, int offset) {
+                return QJsonArray{QJsonObject{
+                    {"delay", delay}, {"time", now.addSecs(offset).toString(Qt::ISODateWithMs)}}};
+            };
+            const auto objects = [&](int delay, int offset) {
+                return QJsonObject{
+                    {"node",
+                     QJsonObject{
+                         {"extra", QJsonObject{{"https://private.invalid/?secret=x",
+                                                QJsonObject{{"history", history(delay, offset)}}},
+                                               {"https://other.invalid/",
+                                                QJsonObject{{"history", history(0, -2)}}}}}}}};
+            };
+            const auto latest = [&] {
+                return latency.details(now).value("node").toObject().value("latest").toObject();
+            };
+            latency.ingest(objects(41, -1), now);
+            check(latest().value("delayMs") == 41 && latest().value("source") == "Core" &&
+                      latency.details(now)
+                              .value("node")
+                              .toObject()
+                              .value("records")
+                              .toArray()
+                              .size() == 2,
+                  "core latency retains separate targets and latest timestamp");
+            check(!QJsonDocument(latency.details(now)).toJson().contains("secret=x"),
+                  "probe targets do not leak into shared data");
+            latency.ingest(objects(12, -10), now);
+            check(latest().value("delayMs") == 41,
+                  "older core response cannot overwrite newer observation");
+            latency.manual("node", "https://other.invalid/", "Testing", now);
+            latency.ingest(objects(21, 1), now.addSecs(1));
+            check(latest().value("state") == "Testing", "refresh preserves active manual test");
+            latency.manual("node", "https://other.invalid/", "Cancelled", now.addSecs(2));
+            auto cancelled = objects(21, 1);
+            auto node = cancelled.value("node").toObject();
+            node.insert("extra", QJsonObject{{"https://other.invalid/",
+                                              QJsonObject{{"history", history(9, 3)}}}});
+            cancelled.insert("node", node);
+            latency.ingest(cancelled, now.addSecs(3));
+            check(latest().value("state") == "Cancelled",
+                  "late controller probe cannot undo cancellation");
+            latency.manual("node", "https://manual.invalid/", "Success", now.addSecs(4), 88);
+            latency.invalidateManual();
+            check(latest().value("state") == "Stale",
+                  "manual target change invalidates manual result");
+            check(latency.details(now.addSecs(700))
+                          .value("node")
+                          .toObject()
+                          .value("latest")
+                          .toObject()
+                          .value("state") == "Stale",
+                  "results expire by observation time rather than refresh time");
+            latency.clear();
+            latency.ingest({{"node", QJsonObject{{"history", history(0, 0)}}}}, now);
+            check(latest().value("state") == "Failed" && ProxyLatency::text(latest()) != "0 ms",
+                  "zero in core history denotes failure");
+            latency.clear();
+            latency.ingest({{"node", QJsonObject{{"history", history(34, 200)}}}}, now);
+            check(latency.details(now).isEmpty(), "future observations are rejected");
+            for (int i = 0; i < 20; ++i)
+                latency.manual("node", QString("https://target%1.invalid/").arg(i), "Success",
+                               now.addSecs(i), i + 1);
+            check(latency.details(now.addSecs(20))
+                          .value("node")
+                          .toObject()
+                          .value("records")
+                          .toArray()
+                          .size() == 8,
+                  "per-node target cache is bounded");
+            latency.ingest({}, now);
+            check(latency.details(now).isEmpty(), "removed nodes release latency observations");
+            const auto record = [&](const QString& target) {
+                const auto records =
+                    latency.details(now).value("node").toObject().value("records").toArray();
+                for (const auto& value : records)
+                    if (value.toObject().value("targetHash") == ProxyLatency::targetHash(target))
+                        return value.toObject();
+                return QJsonObject{};
+            };
+            latency.manual("node", "https://one.invalid/", "Testing", now);
+            latency.manual("node", "https://two.invalid/", "Queued", now);
+            check(record("https://one.invalid/").value("state") == "Testing" &&
+                      record("https://two.invalid/").value("state") == "Queued",
+                  "same node exposes independent in-flight states for each target");
+            latency.manual("node", "https://one.invalid/", "Cancelled", now.addSecs(1));
+            latency.manual("node", "https://two.invalid/", "Success", now.addSecs(2), 62);
+            latency.ingest(
+                {{"node",
+                  QJsonObject{{"extra", QJsonObject{{"https://one.invalid/",
+                                                     QJsonObject{{"history", history(9, 3)}}}}}}}},
+                now.addSecs(3));
+            check(record("https://one.invalid/").value("state") == "Cancelled" &&
+                      record("https://two.invalid/").value("delayMs") == 62,
+                  "cancelled target stays fenced while another target completes");
+            latency.invalidateManual("https://two.invalid/");
+            check(record("https://one.invalid/").value("state") == "Cancelled" &&
+                      record("https://two.invalid/").value("state") == "Stale",
+                  "changing global target invalidates only its manual observations");
+            latency.clear();
+            for (int i = 0; i < 20; ++i)
+                latency.manual("node", QString("https://cancel%1.invalid/").arg(i), "Cancelled",
+                               now.addSecs(i));
+            check(latency.details(now).value("node").toObject().value("records").toArray().size() ==
+                      8,
+                  "cancelled target records also obey the eight-target bound");
+        }
         {
             const QString secret =
                 "private-marker https://user:password@internal.test/path?token=123\nAuthorization: "

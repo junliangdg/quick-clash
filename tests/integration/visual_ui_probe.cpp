@@ -199,6 +199,19 @@ int runVisualProbe(ApplicationHost& host) {
                    {"memorySample", QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}}},
               {"delays", QJsonObject{{members.first().toString(), "38 ms"},
                                      {members[1].toString(), "Failed"}}},
+              {"delay_details",
+               QJsonObject{
+                   {members.first().toString(),
+                    QJsonObject{{"latest", QJsonObject{{"state", "Success"},
+                                                       {"delayMs", 38},
+                                                       {"source", "Core"},
+                                                       {"targetHash", "visual-target"},
+                                                       {"time", "2026-11-01T05:00:00Z"}}}}},
+                   {members[1].toString(),
+                    QJsonObject{{"latest", QJsonObject{{"state", "Failed"},
+                                                       {"source", "Core"},
+                                                       {"targetHash", "visual-target"},
+                                                       {"time", "2026-11-01T05:00:00Z"}}}}}}},
               {"connections",
                QJsonArray{QJsonObject{{"id", "one"},
                                       {"epoch", "visual-fixture"},
@@ -296,6 +309,27 @@ int runVisualProbe(ApplicationHost& host) {
         const auto selector = objects("home_proxy_selector");
         if (selector.size() != 1 || !selector.first()->isVisible())
             return 125;
+        const auto delayValues = objects("home_delay_value");
+        if (!selector.first()->property("displayText").toString().contains("38 ms") ||
+            selector.first()->property("currentText").toString() != members.first().toString() ||
+            delayValues.size() != 1 || delayValues.first()->property("text") != "38 ms" ||
+            ui.proxyState(members.first().toString()).value("description").toString().isEmpty())
+            return 131;
+        const auto proxyCards = objects("home_proxy_card");
+        auto* proxyViewport = proxyCards.first()->parentItem();
+        while (proxyViewport && !proxyViewport->inherits("QQuickFlickable"))
+            proxyViewport = proxyViewport->parentItem();
+        if (!proxyViewport)
+            return 131;
+        proxyViewport->setProperty("contentY", proxyCards.first()->y());
+        if (!capture(theme + "_proxy_card"))
+            return 131;
+        auto* proxyPopup = selector.first()->property("popup").value<QObject*>();
+        if (!proxyPopup || !QMetaObject::invokeMethod(proxyPopup, "open") ||
+            !capture(theme + "_proxy_dropdown"))
+            return 131;
+        QMetaObject::invokeMethod(proxyPopup, "close");
+        proxyViewport->setProperty("contentY", 0);
         const auto resourceGeneration = ui.dataDemands().generations.value("resources");
         ui.setDashboardOption("resources", true);
         QTest::qWait(20);
@@ -479,6 +513,17 @@ int runVisualProbe(ApplicationHost& host) {
         ui.navigate("home");
         QTest::qWait(50);
         populate();
+        const auto proxyPanels = objects("home_proxy_card");
+        if (proxyPanels.size() != 1)
+            return 127;
+        auto* proxyViewport = proxyPanels.first()->parentItem();
+        while (proxyViewport && !proxyViewport->inherits("QQuickFlickable"))
+            proxyViewport = proxyViewport->parentItem();
+        if (!proxyViewport)
+            return 127;
+        proxyViewport->setProperty("contentY", proxyPanels.first()->y());
+        if (!capture(QStringLiteral("dark_proxy_card_%1").arg(width)))
+            return 127;
         const auto panels = objects("home_tools_card");
         if (panels.size() != 1)
             return 127;

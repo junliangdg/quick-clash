@@ -1,4 +1,5 @@
 #include "presentation/ui_state.h"
+#include "domain/proxy_latency.h"
 #include <QClipboard>
 #include <QDateTime>
 #include <QFileInfo>
@@ -59,6 +60,12 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
         return epoch == liveEpoch_;
     publicationGeneration_ = generation;
     liveEpoch_ = epoch;
+    delays_.clear();
+    delayDetails_.clear();
+    appliedData_.remove(QStringLiteral("delays"));
+    appliedData_.remove(QStringLiteral("delay_details"));
+    emit delaysChanged();
+    rebuildProxyStates();
     for (const auto& channel : application::scopedChannels())
         clearChannel(channel);
     // A new session epoch invalidates the accumulated traffic curve; demand
@@ -82,6 +89,7 @@ void UiState::applyControl(const QJsonObject& control) {
 void UiState::applyData(const application::RuntimeUpdate& update) {
     if (!acceptGeneration(update.generation, update.epoch))
         return;
+    bool proxiesChanged = false;
     for (const auto& channel : update.invalidated) {
         const auto stream = application::channelStream(channel);
         if (!stream.isEmpty() && update.demandGenerations.value(stream) != 0 &&
@@ -111,12 +119,19 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
             emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
             groups_ = it.value().toArray().toVariantList();
+            proxiesChanged = true;
             emit groupsChanged();
         } else if (it.key() == QStringLiteral("nodes")) {
             nodes_ = it.value().toArray().toVariantList();
+            proxiesChanged = true;
             emit nodesChanged();
         } else if (it.key() == QStringLiteral("delays")) {
             delays_ = it.value().toObject().toVariantMap();
+            proxiesChanged = true;
+            emit delaysChanged();
+        } else if (it.key() == QStringLiteral("delay_details")) {
+            delayDetails_ = it.value().toObject().toVariantMap();
+            proxiesChanged = true;
             emit delaysChanged();
         } else if (it.key() == QStringLiteral("connections")) {
             connectionRows_.apply(it.value().toArray());
@@ -130,8 +145,114 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
                 logRows_.apply(pendingLogs_);
         }
     }
+    if (proxiesChanged)
+        rebuildProxyStates();
     if (telemetryChanged)
         refreshTelemetry();
+}
+QVariantMap UiState::proxyState(const QString& name, const QString& context) const {
+    auto current = name;
+    auto target = proxyGroups_.value(context).value("testTargetHash").toString();
+    QSet<QString> visited;
+    QStringList chain;
+    bool balanced = false;
+    while (proxyGroups_.contains(current) && !visited.contains(current) && visited.size() < 32) {
+        visited.insert(current);
+        chain.append(current);
+        const auto group = proxyGroups_.value(current);
+        if (group.value("type").toString().compare("LoadBalance", Qt::CaseInsensitive) == 0) {
+            balanced = true;
+            current.clear();
+            break;
+        }
+        if (!group.value("testTargetHash").toString().isEmpty())
+            target = group.value("testTargetHash").toString();
+        const auto next = group.value("current").toString();
+        current = group.value("members").toList().contains(next) ? next : QString{};
+    }
+    if (proxyGroups_.contains(current))
+        current.clear(); // Cyclic or excessive depth; never invent a leaf.
+    auto detail = delayDetails_.value(current).toMap().value("latest").toMap();
+    if (!target.isEmpty()) {
+        detail.clear();
+        const auto entry = delayDetails_.value(current).toMap();
+        for (const auto& value : entry.value("records").toList()) {
+            const auto record = value.toMap();
+            if (record.value("targetHash") == target) {
+                detail = record;
+                break;
+            }
+        }
+        const auto latest = entry.value("latest").toMap();
+        if (latest.value("targetHash") == target)
+            detail = latest;
+    }
+    const auto result = detail.isEmpty()
+                            ? (target.isEmpty() ? delays_.value(current).toString() : QString{})
+                            : domain::ProxyLatency::text(QJsonObject::fromVariantMap(detail));
+    const auto text = result == "Timeout"     ? tr("Timed out")
+                      : result == "Failed"    ? tr("Unavailable")
+                      : result == "Testing"   ? tr("Testing…")
+                      : result == "Queued"    ? tr("Queued")
+                      : result == "Cancelled" ? tr("Cancelled")
+                      : result == "Stale"     ? tr("Expired")
+                      : result.isEmpty()      ? tr("Not tested")
+                                              : result;
+    const auto source = detail.value("source") == "Manual" ? tr("Manual probe")
+                        : detail.value("source") == "Core" ? tr("Core probe")
+                                                           : QString{};
+    const auto time = QDateTime::fromString(detail.value("time").toString(), Qt::ISODateWithMs);
+    const auto targetText = detail.isEmpty() ? QString{}
+                            : detail.value("targetHash").toString().isEmpty()
+                                ? tr("Unknown probe target")
+                            : target.isEmpty() ? tr("Node probe target")
+                                               : tr("Group probe target");
+    QStringList description;
+    if (!source.isEmpty())
+        description.append(source);
+    if (!targetText.isEmpty())
+        description.append(targetText);
+    if (time.isValid())
+        description.append(time.toLocalTime().toString("yyyy-MM-dd HH:mm:ss"));
+    if (balanced)
+        description.append(tr("Load balancing"));
+    else if (current.isEmpty())
+        description.append(tr("Waiting for core confirmation"));
+    else if (current != name)
+        description.prepend(current);
+    const bool builtin = current == "DIRECT" || current == "REJECT";
+    const auto nameLabel = balanced ? name + " · " + tr("Load balancing")
+                           : current.isEmpty()
+                               ? name + " · " + tr("Waiting for core confirmation")
+                               : name + (current == name ? QString{} : " → " + current);
+    return {{"node", current},
+            {"balanced", balanced},
+            {"chain", chain},
+            {"result", result},
+            {"text", text},
+            {"source", source},
+            {"time", time.isValid() ? time.toLocalTime().toString("HH:mm:ss") : QString{}},
+            {"description", description.join(" · ")},
+            {"nameLabel", nameLabel},
+            {"hasDelay", !current.isEmpty() && !builtin},
+            {"label", nameLabel + (current.isEmpty() || builtin ? QString{} : " · " + text)}};
+}
+void UiState::rebuildProxyStates() {
+    proxyGroups_.clear();
+    for (const auto& value : groups_) {
+        const auto group = value.toMap();
+        proxyGroups_.insert(group.value("name").toString(), group);
+    }
+    QVariantMap next;
+    for (const auto& value : nodes_) {
+        const auto name = value.toMap().value("name").toString();
+        next.insert(name, proxyState(name));
+    }
+    for (auto it = proxyGroups_.cbegin(); it != proxyGroups_.cend(); ++it)
+        next.insert(it.key(), proxyState(it.key()));
+    proxyStates_ = next;
+    // A non-default target may change without changing the default label.
+    emit proxyStatesChanged();
 }
 void UiState::clearChannel(const QString& channel) {
     appliedData_.remove(channel);

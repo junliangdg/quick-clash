@@ -35,6 +35,7 @@ target_include_directories(quickclash_domain PUBLIC src)
 target_sources(quickclash_domain PRIVATE src/domain/resource_snapshot.cpp src/domain/resource_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/rule_snapshot.cpp src/domain/rule_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/support_report.cpp src/domain/support_report.h)
+target_sources(quickclash_domain PRIVATE src/domain/proxy_latency.cpp src/domain/proxy_latency.h)
 target_link_libraries(quickclash_domain PUBLIC Qt6::Core)
 quickclash_warnings(quickclash_domain)
 add_library(quickclash_application INTERFACE)
@@ -242,6 +243,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/themed_switch.qml
         qml/components/themed_check_box.qml
         qml/components/themed_combo_box.qml
+        qml/components/delay_label.qml
         qml/components/themed_spin_box.qml
         qml/components/themed_dialog.qml
         qml/components/themed_tool_tip.qml
@@ -386,7 +388,10 @@ if(BUILD_TESTING)
             set_tests_properties(proxy_lease PROPERTIES TIMEOUT 15)
             target_link_libraries(runtime_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
             quickclash_warnings(runtime_test)
+            target_sources(runtime_test PRIVATE tests/integration/proxy_latency_probe.cpp)
             add_test(NAME runtime COMMAND runtime_test)
+            add_test(NAME runtime_proxy_latency COMMAND runtime_test --proxy-latency-test)
+            set_tests_properties(runtime_proxy_latency PROPERTIES TIMEOUT 40)
             add_test(NAME runtime_config_editor COMMAND runtime_test --config-editor-test)
             add_test(NAME runtime_backup COMMAND runtime_test --backup-test)
             add_test(NAME runtime_provider COMMAND runtime_test --provider-test)

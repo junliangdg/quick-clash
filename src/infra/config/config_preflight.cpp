@@ -1,4 +1,5 @@
 #include "infra/config/config_preflight.h"
+#include "domain/proxy_latency.h"
 #include "infra/config/config_metadata.h"
 #include "infra/config/config_schema.h"
 #include <QJsonArray>
@@ -357,6 +358,10 @@ QJsonArray orderedProxyGroups(const QJsonArray& configured, const QJsonObject& l
                                             ? QJsonValue{}
                                             : value.value(QStringLiteral("now"))},
             {QStringLiteral("members"), value.value(QStringLiteral("all"))},
+            {QStringLiteral("testTargetHash"),
+             value.value("testUrl").toString().isEmpty()
+                 ? QString{}
+                 : domain::ProxyLatency::targetHash(value.value("testUrl").toString())},
             {QStringLiteral("sources"),
              configuredGroup.value(QStringLiteral("sources")).toArray()}});
     };

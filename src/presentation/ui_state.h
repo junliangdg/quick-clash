@@ -45,6 +45,8 @@ class UiState : public QObject {
     Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
     Q_PROPERTY(QVariantList nodes READ nodes NOTIFY nodesChanged)
     Q_PROPERTY(QVariantMap delays READ delays NOTIFY delaysChanged)
+    Q_PROPERTY(QVariantMap delayDetails READ delayDetails NOTIFY delaysChanged)
+    Q_PROPERTY(QVariantMap proxyStates READ proxyStates NOTIFY proxyStatesChanged)
     Q_PROPERTY(
         quickclash::presentation::RuntimeListModel* liveConnections READ liveConnections CONSTANT)
     Q_PROPERTY(quickclash::presentation::RuntimeListModel* liveRules READ liveRules CONSTANT)
@@ -91,6 +93,13 @@ class UiState : public QObject {
     [[nodiscard]] QVariantMap delays() const {
         return delays_;
     }
+    [[nodiscard]] QVariantMap delayDetails() const {
+        return delayDetails_;
+    }
+    [[nodiscard]] QVariantMap proxyStates() const {
+        return proxyStates_;
+    }
+    Q_INVOKABLE QVariantMap proxyState(const QString& name, const QString& group = {}) const;
     [[nodiscard]] RuntimeListModel* liveConnections() {
         return &liveConnections_;
     }
@@ -218,6 +227,7 @@ class UiState : public QObject {
     void groupsChanged();
     void nodesChanged();
     void delaysChanged();
+    void proxyStatesChanged();
     void operationCompleted(const QUuid& id, domain::OperationState state,
                             const QString& errorCode);
     void filterChanged(const QString& pageId, const QString& text);
@@ -275,6 +285,10 @@ class UiState : public QObject {
     QVariantList groups_;
     QVariantList nodes_;
     QVariantMap delays_;
+    QVariantMap delayDetails_;
+    QVariantMap proxyStates_;
+    QHash<QString, QVariantMap> proxyGroups_;
+    void rebuildProxyStates();
     QVariantMap telemetry_;
     QJsonObject appliedData_;
     quint64 publicationGeneration_ = 0;
