@@ -32,6 +32,8 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         connect(settings_.get(), &infra::SettingsService::runtimeChanged, this,
                 &UiState::applyControl);
         connect(settings_.get(), &infra::SettingsService::dataChanged, this, &UiState::applyData);
+        connect(settings_.get(), &infra::SettingsService::subscriptionUrlReady, this,
+                &UiState::subscriptionUrlReady);
         connect(settings_.get(), &infra::SettingsService::operationCompleted, this,
                 &UiState::operationCompleted);
         connect(settings_.get(), &infra::SettingsService::failed, this,

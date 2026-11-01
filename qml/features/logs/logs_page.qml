@@ -19,6 +19,12 @@ Item {
     readonly property var exportPreview: (runtime.features || {}).logExportPreview || ({})
     property bool exporting: false
     readonly property bool exportReady: !!exportPreview.token && exportPreview.messagesHidden === hideLogMessages.checked
+    readonly property var columns: [
+        { "title": qsTr("Time"), "weight": 0.9 },
+        { "title": qsTr("Level"), "weight": 0.6 },
+        { "title": qsTr("Source"), "weight": 0.7 },
+        { "title": qsTr("Message"), "weight": 4.7 }
+    ]
     Binding {
         target: logExport.standardButton(Dialog.Save)
         property: "enabled"
@@ -108,37 +114,76 @@ Item {
         ui.setDemand(demandKey + ":view", "logs", false);
         ui.setLogsPaused(false);
     }
+    function levelColor(entry): color {
+        if (entry.level === "error")
+            return root.theme.error;
+        if (entry.level === "warning")
+            return root.theme.warning;
+        if (entry.level === "debug" || entry.level === "unknown" || entry.level === "silent")
+            return root.theme.muted;
+        return root.theme.text;
+    }
+    function cellText(entry, index): string {
+        switch (index) {
+        case 0:
+            return format.time(entry.time);
+        case 1:
+            return entry.level || "—";
+        case 2:
+            return entry.source || "—";
+        case 3:
+            return (entry.message || "") + (entry.truncated ? " …" : "");
+        }
+        return "";
+    }
+    function cellColor(entry, index): color {
+        return index === 1 ? root.levelColor(entry) : index === 3 ? root.theme.text : root.levelColor(entry);
+    }
+    function describe(entry): string {
+        return format.time(entry.time) + " · " + (entry.level || "—") + " · " + (entry.source || "—") + "\n" + (entry.message || "") + (entry.truncated ? "\n" + qsTr("[Message truncated]") : "");
+    }
+    RuntimeFormat { id: format }
     ColumnLayout {
         anchors.fill: parent
-        Flow {
+        spacing: 8
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            Label {
+                text: qsTr("Logs") + " · " + root.ui.liveLogs.count
+                color: root.theme.text
+                font.pixelSize: root.theme.bodySize
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+            Label {
+                text: root.paused ? qsTr("Reception paused") : root.runtime.ready ? qsTr("Receiving") : qsTr("Start the core to view logs")
+                color: root.paused ? root.theme.warning : root.runtime.ready ? root.theme.muted : root.theme.warning
+                font.pixelSize: root.theme.supportingSize
+                elide: Text.ElideRight
+            }
+        }
+        RowLayout {
             Layout.fillWidth: true
             spacing: 8
+            RuntimeFilter {
+                theme: root.theme
+                listModel: root.ui.liveLogs
+                placeholderText: qsTr("Search messages, sources or levels")
+                Layout.fillWidth: true
+                Layout.minimumWidth: root.theme.scaledSize(160)
+            }
             ActionButton {
                 theme: root.theme
                 text: root.paused ? qsTr("Resume receiving") : qsTr("Pause receiving")
                 objectName: "pause_logs"
                 onClicked: root.paused = !root.paused
             }
-            ActionButton {
-                theme: root.theme
-                text: qsTr("Clear buffer")
-                onClicked: root.ui.runtimeCommand("clear_logs")
-            }
-            ActionButton {
-                theme: root.theme
-                text: qsTr("Export redacted logs…")
-                objectName: "preview_log_export"
-                onClicked: {
-                    root.exporting = true;
-                    root.ui.runtimeCommand("preview_logs", ["hide_messages"]);
-                }
-            }
-            ActionButton {
-                theme: root.theme
-                text: qsTr("Open diagnostics")
-                visible: !!(root.runtime.features || {}).exportUrl
-                onClicked: Qt.openUrlExternally(root.runtime.features.exportUrl)
-            }
+        }
+        Flow {
+            Layout.fillWidth: true
+            spacing: 8
             ThemedComboBox {
                 id: source
                 Accessible.name: qsTr("Log source")
@@ -160,23 +205,48 @@ Item {
                 text: qsTr("Follow latest")
                 checked: true
             }
-        }
-        Label {
-            text: qsTr("Dropped: %1 · Truncated: %2 · Gaps: %3 · Buffer: %4 bytes").arg(root.telemetry.droppedLogs || 0).arg(root.telemetry.truncatedLogs || 0).arg(root.telemetry.logGaps || 0).arg(root.telemetry.logBytes || 0)
-            color: root.theme.muted
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Clear buffer")
+                onClicked: root.ui.runtimeCommand("clear_logs")
+            }
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Export redacted logs…")
+                objectName: "preview_log_export"
+                onClicked: {
+                    root.exporting = true;
+                    root.ui.runtimeCommand("preview_logs", ["hide_messages"]);
+                }
+            }
+            ActionButton {
+                theme: root.theme
+                text: qsTr("Open diagnostics")
+                visible: !!(root.runtime.features || {}).exportUrl
+                onClicked: Qt.openUrlExternally(root.runtime.features.exportUrl)
+            }
         }
         RuntimeList {
-            theme: root.theme
             Layout.fillWidth: true
             Layout.fillHeight: true
-            heading: qsTr("Logs")
-            followTail: follow.checked && !root.paused
+            theme: root.theme
             listModel: root.ui.liveLogs
-            describe: function (entry) {
-                return entry.time + " · " + entry.source + " · " + entry.level + "\n" + entry.message + (entry.truncated ? "\n" + qsTr("[Message truncated]") : "");
-            }
+            columns: root.columns
+            rowHeight: root.theme.rowHeight
+            minimumWidth: root.theme.scaledSize(620)
+            cellText: root.cellText
+            cellColor: root.cellColor
+            describe: root.describe
+            expandable: true
+            actionText: ""
+            followTail: follow.checked && !root.paused
+        }
+        Label {
+            Layout.fillWidth: true
+            text: qsTr("Dropped: %1 · Truncated: %2 · Gaps: %3 · Buffer: %4 bytes").arg(root.telemetry.droppedLogs || 0).arg(root.telemetry.truncatedLogs || 0).arg(root.telemetry.logGaps || 0).arg(root.telemetry.logBytes || 0)
+            color: root.theme.muted
+            font.pixelSize: root.theme.supportingSize
+            elide: Text.ElideRight
         }
     }
 }

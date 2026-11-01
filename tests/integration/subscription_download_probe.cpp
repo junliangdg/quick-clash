@@ -73,14 +73,38 @@ int subscriptionDownloadProbe() {
                    runtime.snapshot().value("profiles").toArray().isEmpty(),
                "proxy requires ready core"))
         return 4;
-    runtime.addSubscription(source, "Cache fixture");
+    origin.extraHeaders.insert("/subscription",
+                               "profile-title: base64:5py65Zy6\r\n"
+                               "Content-Disposition: attachment; filename=other.yaml\r\n");
+    runtime.addSubscription(source, "  ");
     if (!check(done() && error().isEmpty() && !profile().isEmpty(), "first direct import"))
         return 5;
     const auto id = profile().value("id").toString();
+    if (!check(profile().value("name") == QString::fromUtf8("机场"),
+               "server title used for blank name"))
+        return 34;
+    QString returnedUrl, returnedId, returnedToken;
+    QObject::connect(&runtime, &application::DesktopRuntime::subscriptionUrlReady, &runtime,
+                     [&](const QString& item, const QString& token, const QString& url) {
+                         returnedId = item;
+                         returnedToken = token;
+                         returnedUrl = url;
+                     });
+    runtime.requestSubscriptionUrl(id, "explicit-request");
+    if (!check(returnedUrl == source && returnedId == id && returnedToken == "explicit-request" &&
+                   !QJsonDocument(runtime.snapshot()).toJson().contains(source.toUtf8()),
+               "explicit URL read is separate from published state"))
+        return 35;
+    runtime.requestSubscriptionUrl("missing", "missing-request");
+    if (!check(returnedUrl.isEmpty(), "missing profile never returns a URL"))
+        return 36;
+    runtime.renameProfile(id, "Cache fixture");
+    origin.extraHeaders.insert("/subscription", "profile-title: Changed by provider\r\n");
     runtime.configureSubscription(id, 0, false);
     const auto originalHash = profile().value("sourceHash");
     runtime.updateProfile(id);
-    if (!check(done() && error().isEmpty() && profile().value("sourceHash") == originalHash &&
+    if (!check(done() && error().isEmpty() && profile().value("name") == "Cache fixture" &&
+                   profile().value("sourceHash") == originalHash &&
                    origin.requestHeaders.last().toObject().value("if-none-match") ==
                        "\"public-v1\"" &&
                    origin.requestHeaders.last().toObject().contains("if-modified-since") &&
@@ -281,7 +305,30 @@ int subscriptionDownloadProbe() {
                    runtime.snapshot().value("profiles").toArray().isEmpty(),
                "deleting an updating source cancels it and late replies never revive it"))
         return 33;
-    std::puts("subscription download paths, redirects, validators, repair, bounds and cancellation "
+    origin.extraHeaders.insert("/subscription", "profile-title: Provider name\r\n");
+    runtime.addSubscription(source, "  My name  ");
+    if (!check(done() && error().isEmpty() && profile().value("name") == "My name",
+               "explicit name overrides provider"))
+        return 37;
+    runtime.deleteProfile(profile().value("id").toString());
+    origin.extraHeaders.remove("/subscription");
+    runtime.addSubscription(source, {});
+    if (!check(done() && error().isEmpty() && !profile().value("name").toString().isEmpty(),
+               "missing title keeps generic fallback"))
+        return 38;
+    runtime.deleteProfile(profile().value("id").toString());
+    other.extraHeaders.insert("/final", "Content-Disposition: attachment; "
+                                        "filename*=UTF-8''%E6%9C%BA%E5%9C%BA.yaml\r\n");
+    origin.redirects.insert(
+        "/named", QStringLiteral("https://127.0.0.1:%1/final").arg(other.serverPort()).toUtf8());
+    origin.extraHeaders.insert("/named", "profile-title: Ignore redirect metadata\r\n");
+    runtime.addSubscription(source.left(source.lastIndexOf('/')) + "/named", {});
+    if (!check(done() && error().isEmpty() && profile().value("name") == QString::fromUtf8("机场"),
+               "only final successful response supplies filename"))
+        return 39;
+    runtime.deleteProfile(profile().value("id").toString());
+    std::puts("subscription names, explicit URL reads, paths, redirects, validators, repair, "
+              "bounds and cancellation "
               "passed");
     return 0;
 }

@@ -392,17 +392,19 @@ ScrollView {
                     color: root.theme.text
                     font.weight: Font.DemiBold
                 }
-                CheckBox {
+                ThemedCheckBox {
+                    theme: root.theme
+                    Layout.fillWidth: true
                     text: qsTr("Start QuickClash when I sign in")
                     checked: !!(root.ui.runtime.startup || {}).requested
-                    palette.windowText: root.theme.text
                     enabled: root.ui.settingsReady && !!(root.ui.runtime.startup || {}).supported && !root.ui.runtime.readOnly
                     onClicked: root.ui.runtimeCommand("startup_enabled", [checked ? "true" : "false"])
                 }
-                CheckBox {
+                ThemedCheckBox {
+                    theme: root.theme
+                    Layout.fillWidth: true
                     text: qsTr("Hide to the tray at sign-in")
                     checked: (root.ui.runtime.startup || {}).hidden !== false
-                    palette.windowText: root.theme.text
                     enabled: root.ui.settingsReady && !!(root.ui.runtime.startup || {}).supported && !root.ui.runtime.readOnly
                     onClicked: root.ui.runtimeCommand("startup_hidden", [checked ? "true" : "false"])
                 }
@@ -1026,38 +1028,6 @@ ScrollView {
                 Label {
                     font.family: root.theme.fontFamily
                     text: qsTr("State %1 · Active views %2 · Streams %3").arg(root.ui.hostStatus).arg(root.ui.activeDemandCount).arg(root.ui.activeStreamCount)
-                    color: root.theme.muted
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
-            }
-        }
-        FlatTile {
-            theme: root.theme
-            Layout.fillWidth: true
-            implicitHeight: replay.implicitHeight + 32
-            ColumnLayout {
-                id: replay
-                anchors.fill: parent
-                anchors.margins: root.theme.panelPadding
-                spacing: 10
-                Label {
-                    font.family: root.theme.fontFamily
-                    text: qsTr("Prototype data")
-                    font.pixelSize: root.theme.bodySize
-                    font.weight: Font.DemiBold
-                    color: root.theme.text
-                }
-                ThemedCheckBox {
-                    theme: root.theme
-                    font.family: root.theme.fontFamily
-                    text: qsTr("Replay 500 nodes / %1 connections").arg(root.ui.replayConnections)
-                    checked: root.ui.replay
-                    onToggled: root.ui.replay = checked
-                }
-                Label {
-                    font.family: root.theme.fontFamily
-                    text: qsTr("Synthetic records preview the interface without starting the core or changing the system proxy.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

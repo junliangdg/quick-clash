@@ -218,6 +218,7 @@ class UiState : public QObject {
         emit unloadRequested();
     }
   signals:
+    void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
     void routeChanged();
     void storageChanged();
     void runtimeChanged();

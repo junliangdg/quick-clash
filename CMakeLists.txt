@@ -30,6 +30,7 @@ FetchContent_MakeAvailable(yaml_cpp)
 add_library(quickclash_domain src/domain/contracts.h src/domain/operation.cpp src/domain/operation.h
     src/domain/log_buffer.cpp src/domain/log_buffer.h
     src/domain/subscription_usage.cpp src/domain/subscription_usage.h
+    src/domain/subscription_name.cpp src/domain/subscription_name.h
     src/domain/connection_snapshot.cpp src/domain/connection_snapshot.h)
 target_include_directories(quickclash_domain PUBLIC src)
 target_sources(quickclash_domain PRIVATE src/domain/resource_snapshot.cpp src/domain/resource_snapshot.h)
@@ -251,6 +252,9 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/deferred_content.qml
         qml/components/replay_list.qml
         qml/components/runtime_list.qml
+        qml/components/runtime_filter.qml
+        qml/components/runtime_format.qml
+        qml/components/table_cell.qml
         qml/components/subscription_details.qml
         qml/components/profile_editor.qml
         qml/components/subscription_card.qml

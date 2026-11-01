@@ -1453,21 +1453,6 @@
       <translation>保存延迟测试地址</translation>
     </message>
     <message>
-      <location filename="../../qml/features/settings/settings_page.qml" line="429" />
-      <source>Prototype data</source>
-      <translation>原型数据</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/settings/settings_page.qml" line="436" />
-      <source>Replay 500 nodes / %1 connections</source>
-      <translation>启用 500 节点 / %1 连接回放</translation>
-    </message>
-    <message>
-      <location filename="../../qml/features/settings/settings_page.qml" line="442" />
-      <source>Synthetic records preview the interface without starting the core or changing the system proxy.</source>
-      <translation>合成记录仅用于页面与资源验证，不启动内核、不修改系统代理。</translation>
-    </message>
-    <message>
       <source>Unavailable</source>
       <translation>不可用</translation>
     </message>
@@ -1560,6 +1545,14 @@
   </context>
   <context>
     <name>subscriptions_page</name>
+    <message><source>Saved subscription URL</source><translation>已保存的订阅地址</translation></message>
+    <message><source>Hidden</source><translation>已隐藏</translation></message>
+    <message><source>Hide URL</source><translation>隐藏地址</translation></message>
+    <message><source>Show URL</source><translation>显示地址</translation></message>
+    <message><source>Copy URL</source><translation>复制地址</translation></message>
+    <message><source>URL copied</source><translation>地址已复制</translation></message>
+    <message><source>Could not read the saved URL</source><translation>无法读取已保存的地址</translation></message>
+    <message><source>Leave the name blank to use the subscription title or filename supplied by the server.</source><translation>名称留空时，自动使用订阅服务返回的标题或文件名。</translation></message>
     <message><source>Provider mode: import snapshot</source><translation>提供者模式：导入快照</translation></message>
     <message><source>Provider mode: core runtime</source><translation>提供者模式：内核运行时</translation></message>
     <message><source>Provider mode</source><translation>提供者模式</translation></message>
@@ -2480,5 +2473,60 @@
     <message><source>Group probe target</source><translation>组探测目标</translation></message>
     <message><source>Load balancing</source><translation>负载均衡</translation></message>
     <message><source>Waiting for core confirmation</source><translation>等待内核确认</translation></message>
+  </context>
+  <context><name>connections_page</name>
+    <message><source>Process unavailable</source><translation>进程不可用</translation></message>
+    <message><source>View</source><translation>查看</translation></message>
+    <message><source>Chain</source><translation>链路</translation></message>
+    <message><source>Close all…</source><translation>全部关闭…</translation></message>
+    <message><source>Close filtered…</source><translation>关闭筛选结果…</translation></message>
+    <message><source>Down %1 · Up %2</source><translation>下行 %1 · 上行 %2</translation></message>
+    <message><source>Download</source><translation>下载</translation></message>
+    <message><source>Download %1 · Upload %2</source><translation>下载 %1 · 上传 %2</translation></message>
+    <message><source>Duration</source><translation>时长</translation></message>
+    <message><source>Host, process, chain or rule</source><translation>主机、进程、链路或规则</translation></message>
+    <message><source>Process</source><translation>进程</translation></message>
+    <message><source>Rate</source><translation>速率</translation></message>
+    <message><source>Raw JSON</source><translation>原始 JSON</translation></message>
+    <message><source>Rule</source><translation>规则</translation></message>
+    <message><source>Target</source><translation>目标</translation></message>
+    <message><source>Transferred</source><translation>累计流量</translation></message>
+    <message><source>Upload</source><translation>上传</translation></message>
+  </context>
+  <context><name>rules_page</name>
+    <message><source>View</source><translation>查看</translation></message>
+    <message><source>Details</source><translation>详情</translation></message>
+    <message><source>Edit overrides…</source><translation>编辑覆盖…</translation></message>
+    <message><source>Effective order</source><translation>生效顺序</translation></message>
+    <message><source>Items</source><translation>条目</translation></message>
+    <message><source>One update at a time</source><translation>一次仅更新一项</translation></message>
+    <message><source>Payload</source><translation>匹配内容</translation></message>
+    <message><source>Profile snapshot</source><translation>配置快照</translation></message>
+    <message><source>Provider</source><translation>提供者</translation></message>
+    <message><source>Provider or type</source><translation>提供者或类型</translation></message>
+    <message><source>Proxy</source><translation>出口</translation></message>
+    <message><source>Type</source><translation>类型</translation></message>
+    <message><source>Type, payload or proxy</source><translation>类型、匹配内容或出口</translation></message>
+    <message><source>Update</source><translation>更新</translation></message>
+    <message><source>Updated</source><translation>更新时间</translation></message>
+  </context>
+  <context><name>logs_page</name>
+    <message><source>Level</source><translation>级别</translation></message>
+    <message><source>Message</source><translation>消息</translation></message>
+    <message><source>Receiving</source><translation>正在接收</translation></message>
+    <message><source>Reception paused</source><translation>接收已暂停</translation></message>
+    <message><source>Search messages, sources or levels</source><translation>搜索消息、来源或级别</translation></message>
+    <message><source>Source</source><translation>来源</translation></message>
+    <message><source>Start the core to view logs</source><translation>启动内核后查看日志</translation></message>
+    <message><source>Time</source><translation>时间</translation></message>
+  </context>
+  <context><name>RuntimeFormat</name>
+    <message><source>Process unavailable</source><translation>进程不可用</translation></message>
+  </context>
+  <context><name>runtime_list</name>
+    <message><source>Details</source><translation>详情</translation></message>
+  </context>
+  <context><name>runtime_filter</name>
+    <message><source>Filter</source><translation>筛选</translation></message>
   </context>
 </TS>

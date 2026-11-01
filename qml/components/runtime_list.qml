@@ -1,124 +1,176 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
-import QtQuick.Layouts
 import QuickClash.Ui
 
-// Declare the theme on this type: Qt 6.8's compiled child bindings can fail
-// when it is inherited from the composite FlatTile type.
 Item {
     id: root
     required property ThemeTokens theme
     required property RuntimeListModel listModel
-    property string heading: ""
-    property string filterName: qsTr("Filter list")
-    property string actionText: ""
-    property string secondaryActionText: ""
-    property bool actionsEnabled: true
+    property var columns: []
+    property var cellText: function(entry, column) { return ""; }
+    property var supportingText: function(entry, column) { return ""; }
     property var describe: function(entry) { return JSON.stringify(entry); }
-    readonly property string query: listModel.query
+    property var cellColor: function(entry, column) { return root.theme.text; }
+    property int minimumWidth: theme.scaledSize(700)
+    property int rowHeight: theme.rowHeight
+    property string actionText: qsTr("Details")
+    property bool actionsEnabled: true
+    property bool activateRow: true
+    property string selectedKey: ""
+    property bool expandable: false
+    property string expandedKey: ""
     property bool followTail: false
     property bool userFollowing: true
-    onFollowTailChanged: { if (followTail) { userFollowing = true; if (tail) tail.restart(); } }
-    onListModelChanged: { if (debounce && search) { debounce.stop(); search.text = listModel.query; } }
-    Component.onCompleted: { if (followTail) tail.restart(); }
+    readonly property real totalWeight: columns.reduce(function(sum, column) { return sum + column.weight; }, 0) || 1
+    readonly property string query: listModel.query
     signal invoked(var entry)
-    signal secondaryInvoked(var entry)
-    Timer { id: debounce; interval: 150; onTriggered: root.listModel.query = search.text }
+    function columnWidth(index): real { return (viewport.contentWidth - (actionText ? root.theme.scaledSize(76) : 0)) * columns[index].weight / totalWeight; }
+    function activate(entry, key): void {
+        if (expandable)
+            expandedKey = expandedKey === key ? "" : key;
+        else
+            invoked(entry);
+    }
+    onFollowTailChanged: { if (followTail) { userFollowing = true; tail.restart(); } }
+    onListModelChanged: expandedKey = ""
+    Component.onCompleted: { if (followTail) tail.restart(); }
     Timer { id: tail; interval: 0; onTriggered: { if (root.followTail && root.userFollowing) list.positionViewAtEnd(); } }
     Connections {
         target: root.listModel
         function onCountChanged(): void { if (root.followTail && root.userFollowing) tail.restart(); }
     }
-    FlatTile {
+    FlatTile { anchors.fill: parent; theme: root.theme }
+    Flickable {
+        id: viewport
         anchors.fill: parent
-        theme: root.theme
-    }
-    ColumnLayout {
-        anchors.fill: parent
-        anchors.margins: root.theme.panelPadding
-        spacing: 12
-        Label {
-            // Pages can host the heading row themselves (for example to place a
-            // sorting selector next to it); an empty heading hides this label.
-            visible: root.heading.length > 0
-            text: root.heading + " · " + root.listModel.count
-            color: root.theme.text
-            font.pixelSize: root.theme.bodySize
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-        }
-        ThemedField {
-            theme: root.theme
-            id: search
-            objectName: "runtime_filter"
-            Accessible.name: root.filterName
-            text: root.listModel.query
-            placeholderText: qsTr("Filter")
-            maximumLength: 128
-            onTextChanged: debounce.restart()
-            Layout.fillWidth: true
-        }
-        Label {
-            visible: root.listModel.count === 0
-            text: qsTr("No entries")
-            color: root.theme.muted
-        }
-        ListView {
-            id: list
-            objectName: "runtime_view"
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            clip: true
-            spacing: 0
-            reuseItems: true
-            model: root.listModel
-            onMovementStarted: root.userFollowing = false
-            onMovementEnded: root.userFollowing = atYEnd
-            ScrollBar.vertical: ScrollBar {}
-            delegate: Rectangle {
-                id: tile
-                required property var entry
-                width: list.width
-                implicitHeight: content.implicitHeight + 28
-                color: "transparent"
-                Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: root.theme.border }
-                ColumnLayout {
-                    id: content
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 14
-                    Label {
-                        text: root.describe(tile.entry)
-                        color: root.theme.text
-                        Layout.fillWidth: true
-                        wrapMode: Text.WrapAnywhere
-                        textFormat: Text.PlainText
-                    }
-                    Flow {
-                        Layout.fillWidth: true
-                        spacing: 8
-                        ActionButton {
+        anchors.margins: 1
+        clip: true
+        contentWidth: Math.max(width, root.minimumWidth)
+        contentHeight: height
+        flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.horizontal: ScrollBar {}
+        Column {
+            width: viewport.contentWidth
+            height: viewport.height - (viewport.contentWidth > viewport.width ? 12 : 0)
+            Rectangle {
+                width: parent.width
+                height: root.theme.scaledSize(32)
+                color: root.theme.inset
+                Row {
+                    anchors.fill: parent
+                    Repeater {
+                        model: root.columns
+                        TableCell {
+                            required property var modelData
+                            required property int index
                             theme: root.theme
-                            text: root.actionText
-                            ghost: true
-                            destructive: root.actionText.length > 0 && root.actionText === qsTr("Close connection")
-                            visible: text.length > 0
-                            enabled: root.actionsEnabled
-                            onClicked: root.invoked(tile.entry)
+                            width: root.columnWidth(index)
+                            height: parent.height
+                            text: modelData.title
+                            numeric: modelData.numeric === true
+                            heading: true
                         }
-                        ActionButton {
-                            theme: root.theme
-                            text: root.secondaryActionText
-                            enabled: root.actionsEnabled
-                            ghost: true
-                            visible: text.length > 0
-                            onClicked: root.secondaryInvoked(tile.entry)
+                    }
+                    TableCell {
+                        visible: root.actionText.length > 0
+                        width: root.theme.scaledSize(76)
+                        height: parent.height
+                        theme: root.theme
+                        text: root.actionText
+                        heading: true
+                    }
+                }
+            }
+            ListView {
+                id: list
+                objectName: "runtime_view"
+                width: parent.width
+                height: parent.height - y
+                clip: true
+                reuseItems: true
+                model: root.listModel
+                boundsBehavior: Flickable.StopAtBounds
+                onMovementStarted: root.userFollowing = false
+                onMovementEnded: root.userFollowing = atYEnd
+                ScrollBar.vertical: ScrollBar { x: Math.min(viewport.width, list.width) - width + viewport.contentX }
+                delegate: ItemDelegate {
+                    id: tile
+                    required property var entry
+                    required property string stableKey
+                    readonly property bool expanded: root.expandable && root.expandedKey === stableKey
+                    width: list.width
+                    height: root.rowHeight + (expanded ? expandedText.implicitHeight + 20 : 0)
+                    padding: 0
+                    hoverEnabled: true
+                    Accessible.name: root.describe(entry)
+                    activeFocusOnTab: true
+                    HoverHandler { cursorShape: root.activateRow ? Qt.PointingHandCursor : Qt.ArrowCursor }
+                    onClicked: { if (root.activateRow) root.activate(entry, stableKey); }
+                    Keys.onReturnPressed: { if (root.activateRow) root.activate(entry, stableKey); }
+                    background: StateSurface {
+                        theme: root.theme
+                        focused: tile.activeFocus
+                        color: root.theme.stateColor(root.selectedKey === tile.stableKey, tile.hovered, tile.down)
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: root.theme.border }
+                    }
+                    contentItem: Item {
+                        Row {
+                            width: parent.width
+                            height: root.rowHeight
+                            Repeater {
+                                model: root.columns
+                                TableCell {
+                                    required property int index
+                                    required property var modelData
+                                    theme: root.theme
+                                    width: root.columnWidth(index)
+                                    height: root.rowHeight
+                                    text: root.cellText(tile.entry, index)
+                                    supporting: root.supportingText(tile.entry, index)
+                                    numeric: modelData.numeric === true
+                                    foreground: root.selectedKey === tile.stableKey ? root.theme.onSelection : root.cellColor(tile.entry, index)
+                                }
+                            }
+                            ActionButton {
+                                visible: root.actionText.length > 0
+                                theme: root.theme
+                                width: root.theme.scaledSize(76)
+                                height: root.rowHeight
+                                text: root.actionText
+                                enabled: root.actionsEnabled
+                                ghost: true
+                                Accessible.name: root.actionText + " · " + root.describe(tile.entry)
+                                onClicked: root.activate(tile.entry, tile.stableKey)
+                            }
+                        }
+                        TextArea {
+                            id: expandedText
+                            visible: tile.expanded
+                            x: 10
+                            y: root.rowHeight
+                            width: Math.max(0, Math.min(viewport.width, tile.width) - 20)
+                            text: tile.expanded ? root.describe(tile.entry) : ""
+                            textFormat: TextEdit.PlainText
+                            readOnly: true
+                            selectByMouse: true
+                            wrapMode: TextEdit.WrapAnywhere
+                            font.family: root.theme.fontFamily
+                            font.pixelSize: root.theme.bodySize
+                            color: root.theme.text
+                            background: Item {}
                         }
                     }
                 }
             }
         }
+    }
+    Label {
+        anchors.centerIn: parent
+        visible: root.listModel.count === 0
+        text: qsTr("No entries")
+        color: root.theme.muted
+        font.pixelSize: root.theme.bodySize
     }
 }

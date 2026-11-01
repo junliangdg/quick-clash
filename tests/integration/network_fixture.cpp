@@ -134,6 +134,7 @@ void TlsFixture::incomingConnection(qintptr descriptor) {
             body.clear();
         const auto header =
             QByteArray("HTTP/1.1 ") + QByteArray::number(status) + " Fixture\r\n" +
+            extraHeaders.value(path) +
             (redirect.isEmpty() ? QByteArray{} : QByteArray("Location: ") + redirect + "\r\n") +
             (etag.isEmpty() ? QByteArray{} : QByteArray("ETag: ") + etag + "\r\n") +
             (modified.isEmpty() ? QByteArray{}

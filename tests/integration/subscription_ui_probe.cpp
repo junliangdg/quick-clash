@@ -1,9 +1,13 @@
 #include "subscription_ui_probe.h"
 #include "application_host.h"
 #include "domain/subscription_usage.h"
+#include <QClipboard>
+#include <QDir>
+#include <QGuiApplication>
 #include <QJSValue>
 #include <QPointer>
 #include <QQuickItem>
+#include <QSGRendererInterface>
 #include <QSignalSpy>
 #include <QTest>
 #include <cstdio>
@@ -34,6 +38,16 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     // Synthetic delivery only: no SettingsService, subscription, core or platform command
     // execution.
     auto& ui = host.state();
+    QString visualOutput;
+    for (const auto& argument : QCoreApplication::arguments())
+        if (argument.startsWith("--subscription-visual-output="))
+            visualOutput = argument.mid(QStringLiteral("--subscription-visual-output=").size());
+    if (!visualOutput.isEmpty()) {
+        host.window()->hide();
+        host.window()->show();
+        if (!QDir().mkpath(visualOutput) || !QTest::qWaitForWindowExposed(host.window(), 5000))
+            return 112;
+    }
     ui.applyControl({{"publicationGeneration", "1"}, {"epoch", "fixture"}, {"selectedId", "p0"}});
     QJsonArray profiles;
     for (int i = 0; i < 1000; ++i)
@@ -113,6 +127,78 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!dialog || !dialog->property("visible").toBool() ||
         page->property("managedId") != managedId)
         return 87;
+    auto* savedUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_saved_url"));
+    auto* showUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_show_url"));
+    auto* copyUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_copy_url"));
+    const auto fixtureUrl = QStringLiteral("https://fixture.invalid/sub?token=private%2Bvalue");
+    const auto request = [&](QObject* button) {
+        QMetaObject::invokeMethod(button, "clicked");
+        return page->property("urlRequestToken").toString();
+    };
+    if (!savedUrl || !showUrl || !copyUrl || !savedUrl->property("text").toString().isEmpty())
+        return 105;
+    auto token = request(showUrl);
+    ui.subscriptionUrlReady("another-profile", token, fixtureUrl);
+    if (token.isEmpty() || !savedUrl->property("text").toString().isEmpty())
+        return 106;
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (savedUrl->property("text") != fixtureUrl)
+        return 107;
+    QMetaObject::invokeMethod(showUrl, "clicked");
+    token = request(copyUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (QGuiApplication::clipboard()->text() != fixtureUrl ||
+        !savedUrl->property("text").toString().isEmpty() || page->property("urlResult") != "Copied")
+        return 108;
+    token = request(showUrl);
+    ui.setUiVisible(false);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (!savedUrl->property("text").toString().isEmpty() ||
+        !page->property("urlRequestToken").toString().isEmpty())
+        return 109;
+    ui.setUiVisible(true);
+    if (!visualOutput.isEmpty()) {
+        for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+            ui.setThemeMode(theme);
+            for (const auto& size : {QSize(1500, 850), QSize(360, 640)}) {
+                host.resizeWindow(size);
+                QTest::qWait(100);
+                for (const bool reveal : {false, true}) {
+                    if (reveal) {
+                        token = request(showUrl);
+                        ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+                    } else {
+                        QMetaObject::invokeMethod(page, "clearSavedUrl");
+                    }
+                    QTest::qWait(60);
+                    const auto name = QStringLiteral("%1_%2_%3.png")
+                                          .arg(theme)
+                                          .arg(size.width())
+                                          .arg(reveal ? "shown" : "hidden");
+                    if (!host.window()->isExposed() ||
+                        !host.window()->grabWindow().save(QDir(visualOutput).filePath(name)))
+                        return 113;
+                }
+            }
+        }
+        std::printf("Subscription visual: exposed=%d api=%d dpr=%.2f, 8 captures\n",
+                    host.window()->isExposed(),
+                    static_cast<int>(host.window()->rendererInterface()->graphicsApi()),
+                    host.window()->devicePixelRatio());
+        host.resizeWindow({1500, 850});
+        QTest::qWait(50);
+    }
+    token = request(showUrl);
+    QMetaObject::invokeMethod(dialog, "close");
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (!savedUrl->property("text").toString().isEmpty())
+        return 110;
+    QMetaObject::invokeMethod(dialog, "open");
+    QTest::qWait(30);
+    token = request(showUrl);
+    ui.subscriptionUrlReady(managedId, token, {});
+    if (page->property("urlResult") != "Failed")
+        return 111;
     auto* downloadRoute =
         host.window()->findChild<QObject*>(QStringLiteral("subscription_download_route"));
     if (!downloadRoute || downloadRoute->property("count").toInt() != 3 ||

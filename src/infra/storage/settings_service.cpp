@@ -27,6 +27,8 @@ SettingsService::SettingsService(QString root, QObject* parent)
             return;
         }
         state->runtime = std::make_unique<application::DesktopRuntime>(*state->store);
+        connect(state->runtime.get(), &application::DesktopRuntime::subscriptionUrlReady, this,
+                &SettingsService::subscriptionUrlReady);
         connect(state->runtime.get(), &application::DesktopRuntime::changed, this,
                 &SettingsService::runtimeChanged);
         // The direct producer only touches the mailbox's locked value state, never GUI models.
@@ -137,6 +139,8 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
                                           argument(2) == QStringLiteral("true"));
         } else if (name == QStringLiteral("source")) {
             runtime.changeProfileSource(argument(0), argument(1), argument(2));
+        } else if (name == QStringLiteral("subscription_url")) {
+            runtime.requestSubscriptionUrl(argument(0), argument(1));
         } else if (name == QStringLiteral("select")) {
             runtime.selectProfile(argument(0));
         } else if (name == QStringLiteral("rename")) {

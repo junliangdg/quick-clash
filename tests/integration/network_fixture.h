@@ -26,6 +26,7 @@ class TlsFixture final : public QTcpServer {
     QHash<QByteArray, int> responseDelays;
     QHash<QByteArray, int> responseStatuses;
     QHash<QByteArray, QByteArray> entityTags, lastModified;
+    QHash<QByteArray, QByteArray> extraHeaders;
     QJsonArray requestHeaders;
     QByteArray lastCookie;
     bool invalidSubscription = false;

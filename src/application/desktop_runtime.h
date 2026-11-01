@@ -44,6 +44,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void updateProfile(const QString& id);
     void configureSubscription(const QString& id, int intervalMinutes, bool autoApply);
     void changeProfileSource(const QString& id, const QString& url, const QString& headers);
+    void requestSubscriptionUrl(const QString& id, const QString& token);
     void selectProfile(const QString& id);
     void renameProfile(const QString& id, const QString& name);
     void deleteProfile(const QString& id);
@@ -70,6 +71,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     // Explicit diagnostic API. Production UI publications never call this method.
     [[nodiscard]] QJsonObject snapshot() const;
   signals:
+    // One-shot reply to an explicit management action; never part of published state.
+    void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
     // Reliable compact control state, not a complete diagnostic snapshot.
     void changed(const QJsonObject& state);
     void dataPublished(const quickclash::application::RuntimeUpdate& update);

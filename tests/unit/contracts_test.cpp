@@ -4,6 +4,7 @@
 #include "domain/proxy_latency.h"
 #include "domain/resource_snapshot.h"
 #include "domain/rule_snapshot.h"
+#include "domain/subscription_name.h"
 #include "domain/subscription_usage.h"
 #include "domain/support_report.h"
 #include "infra/config/config_metadata.h"
@@ -387,6 +388,30 @@ int main(int argc, char* argv[]) {
                       .isEmpty(),
                   "unsafe integer, overflow and unrepresentable date rejected");
             check(parseSubscriptionUsage(QByteArray(1025, '1')).isEmpty(), "usage header limit");
+            using quickclash::domain::subscriptionName;
+            check(subscriptionName("base64:5py65Zy6", "attachment; filename=fallback.yaml") ==
+                      QString::fromUtf8("机场"),
+                  "base64 title takes precedence");
+            check(subscriptionName("  Plain title  ", {}) == "Plain title", "plain title");
+            check(subscriptionName({}, "attachment; filename=old.yaml; "
+                                       "filename*=UTF-8'zh'%E6%9C%BA%E5%9C%BA.yml") ==
+                      QString::fromUtf8("机场"),
+                  "extended UTF-8 filename preferred");
+            check(subscriptionName("base64:!", "attachment; filename=\"Team; West.yaml\"") ==
+                      "Team; West",
+                  "invalid base64 falls back to quoted filename");
+            check(subscriptionName({}, "attachment; filename=fallback.yml; "
+                                       "filename*=UTF-8''bad%XY") == "fallback",
+                  "invalid percent encoding falls back");
+            check(subscriptionName({}, "attachment; filename=../Team.YAML") == "Team",
+                  "filename has no path or YAML suffix");
+            check(subscriptionName("base64:/w==", {}).isEmpty() &&
+                      subscriptionName({}, "attachment; filename*=UTF-8''%FF").isEmpty(),
+                  "invalid UTF-8 ignored");
+            check(subscriptionName(QByteArray(4097, 'a'), QByteArray(4097, 'b')).isEmpty() &&
+                      subscriptionName(QByteArray(90, 'x'), {}).size() == 80 &&
+                      subscriptionName("\tTitle\r\n", {}) == "Title",
+                  "name size and control characters bounded");
             const auto exhausted = subscriptionUsageStatus(
                 parseSubscriptionUsage("upload = 10; download=90; total=100; expire=1800000000"),
                 now);

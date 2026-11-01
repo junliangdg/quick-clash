@@ -13,6 +13,19 @@ Item {
     property bool active: visible && ui.uiVisible && !ui.replay
     readonly property var pageState: section.currentIndex === 0 ? (ui.telemetry.rulePage || {}) : (ui.telemetry.providerPage || {})
     readonly property bool canRefresh: !!ui.runtime.ready && !ui.runtime.busy && !pageState.loading
+    readonly property RuntimeListModel pageModel: section.currentIndex === 0 ? ui.liveRules : ui.liveProviders
+    readonly property var ruleColumns: [
+        { "title": "#", "weight": 0.45, "numeric": true },
+        { "title": qsTr("Type"), "weight": 1.3 },
+        { "title": qsTr("Payload"), "weight": 2.8 },
+        { "title": qsTr("Proxy"), "weight": 1.5 }
+    ]
+    readonly property var providerColumns: [
+        { "title": qsTr("Provider"), "weight": 2.2 },
+        { "title": qsTr("Type"), "weight": 1.4 },
+        { "title": qsTr("Items"), "weight": 0.6, "numeric": true },
+        { "title": qsTr("Updated"), "weight": 1.6 }
+    ]
     function syncDemand(): void {
         ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : "providers", active);
     }
@@ -41,6 +54,37 @@ Item {
         }
         return entry.name + " · " + (entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Selected profile snapshot")) + " · " + entry.kind + (entry.type ? " · " + entry.type : "") + (entry.behavior ? " · " + entry.behavior : "") + "\n" + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + "\n" + resultText(entry.lastResult) + (entry.lastError ? " · " + entry.lastError : "") + (entry.stale ? " · " + qsTr("Stale data") : "");
     }
+    function cellText(entry, index): string {
+        if (section.currentIndex === 0) {
+            switch (index) {
+            case 0:
+                return entry.position !== undefined ? String(entry.position) : "—";
+            case 1:
+                return entry.type || "—";
+            case 2:
+                return entry.payload || "—";
+            case 3:
+                return entry.proxy || "—";
+            }
+            return "";
+        }
+        switch (index) {
+        case 0:
+            return entry.name || "—";
+        case 1:
+            return [entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Profile snapshot"), entry.kind, entry.type, entry.behavior].filter(part => !!part).join(" · ");
+        case 2:
+            return typeof entry.count === "number" ? String(entry.count) : qsTr("Unknown");
+        case 3:
+            return entry.updatedAt || qsTr("Unknown");
+        }
+        return "";
+    }
+    function rowColor(entry, index): color {
+        if (section.currentIndex === 1 && index === 3)
+            return entry.stale ? theme.warning : theme.muted;
+        return theme.text;
+    }
     onActiveChanged: {
         syncDemand();
         if (!active && editor)
@@ -56,7 +100,27 @@ Item {
     }
     ColumnLayout {
         anchors.fill: parent
-        Flow {
+        spacing: 8
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+            Label {
+                text: (section.currentIndex === 0 ? qsTr("Rules") : qsTr("Providers")) + " · " + root.pageModel.count
+                color: root.theme.text
+                font.pixelSize: root.theme.bodySize
+                font.weight: Font.DemiBold
+                Layout.fillWidth: true
+                elide: Text.ElideRight
+            }
+            Label {
+                text: !root.ui.runtime.ready ? qsTr("Start the core to view rules")
+                    : section.currentIndex === 0 ? qsTr("Effective order") : qsTr("One update at a time")
+                color: root.theme.muted
+                font.pixelSize: root.theme.supportingSize
+                elide: Text.ElideRight
+            }
+        }
+        RowLayout {
             Layout.fillWidth: true
             spacing: 8
             ThemedComboBox {
@@ -77,22 +141,25 @@ Item {
             ActionButton {
                 theme: root.theme
                 objectName: "edit_rules"
-                text: qsTr("Edit selected profile overrides…")
+                text: qsTr("Edit overrides…")
                 enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                 onClicked: editor.edit(root.ui.runtime.selectedId, "overlay")
             }
-        }
-        Label {
-            text: !root.ui.runtime.ready ? qsTr("Start the core to view rules") : section.currentIndex === 0 ? qsTr("Filtering keeps the effective rule order unchanged. Source details and hit counts are limited by the core API.") : qsTr("Runtime metadata describes the active core. Selected profile snapshots may be pending apply. Updates run one at a time.")
-            color: root.theme.muted
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
+            RuntimeFilter {
+                id: ruleFilter
+                theme: root.theme
+                listModel: root.pageModel
+                placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Provider or type")
+                Layout.fillWidth: true
+                Layout.minimumWidth: root.theme.scaledSize(160)
+            }
         }
         Label {
             objectName: "rules_status"
-            visible: !!root.pageState.error || !!root.pageState.proxyError || !!root.pageState.ruleError || !!root.pageState.sampleAt
+            visible: text.length > 0
             text: (root.pageState.stale ? qsTr("Read failed; previous data retained") + " · " : "") + (root.pageState.error || "") + (root.pageState.proxyError ? qsTr("Proxy providers: %1").arg(root.pageState.proxyError) + " · " : "") + (root.pageState.ruleError ? qsTr("Rule providers: %1").arg(root.pageState.ruleError) + " · " : "") + (root.pageState.sampleAt ? qsTr("Read at %1").arg(root.pageState.sampleAt) : "")
             color: root.pageState.stale || root.pageState.error ? root.theme.error : root.theme.muted
+            font.pixelSize: root.theme.supportingSize
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
             textFormat: Text.PlainText
@@ -101,13 +168,20 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
-            heading: section.currentText
-            listModel: section.currentIndex === 0 ? root.ui.liveRules : root.ui.liveProviders
-            actionText: section.currentIndex === 1 ? qsTr("Update provider") : ""
-            actionsEnabled: root.canRefresh
+            listModel: root.pageModel
+            columns: section.currentIndex === 0 ? root.ruleColumns : root.providerColumns
+            rowHeight: root.theme.rowHeight
+            minimumWidth: root.theme.scaledSize(620)
+            cellText: root.cellText
+            cellColor: root.rowColor
             describe: root.describeEntry
+            expandable: section.currentIndex === 0
+            activateRow: section.currentIndex === 0
+            actionText: section.currentIndex === 0 ? "" : qsTr("Update")
+            actionsEnabled: root.canRefresh
             onInvoked: function (entry) {
-                root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);
+                if (section.currentIndex === 1)
+                    root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);
             }
         }
     }

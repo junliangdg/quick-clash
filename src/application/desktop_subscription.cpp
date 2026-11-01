@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "domain/subscription_name.h"
 #include "domain/subscription_usage.h"
 #include "infra/io/bounded_read.h"
 #include <QCryptographicHash>
@@ -34,6 +35,22 @@ QString validator(const QByteArray& value) {
     return QString::fromLatin1(value);
 }
 } // namespace
+
+void DesktopRuntime::requestSubscriptionUrl(const QString& id, const QString& token) {
+    QString url;
+    const auto reference = profile(id).value(QStringLiteral("secretRef")).toString();
+    if (!reference.isEmpty() && !token.isEmpty() && token.size() <= 80) {
+        const auto secret = credentials_->read(reference);
+        if (const auto* bytes = std::get_if<QByteArray>(&secret)) {
+            const auto envelope = QJsonDocument::fromJson(*bytes).object();
+            url = envelope.isEmpty() ? QString::fromUtf8(*bytes)
+                                     : envelope.value(QStringLiteral("url")).toString();
+            if (url.size() > 8192)
+                url.clear();
+        }
+    }
+    emit subscriptionUrlReady(id, token, url);
+}
 
 void DesktopRuntime::setSubscriptionRoute(const QString& id, const QString& route) {
     if (busy_ || store_.readOnly() || !validRoute(route) ||
@@ -369,7 +386,10 @@ void DesktopRuntime::finishSubscription(const std::shared_ptr<SubscriptionDownlo
         }
         return;
     }
-    resolveImport(std::exchange(context->bytes, {}), context->name, secretRef, context->id,
-                  metadata);
+    auto name = context->name.trimmed();
+    if (context->id.isEmpty() && name.isEmpty())
+        name = domain::subscriptionName(reply->rawHeader("profile-title"),
+                                        reply->rawHeader("Content-Disposition"));
+    resolveImport(std::exchange(context->bytes, {}), name, secretRef, context->id, metadata);
 }
 } // namespace quickclash::application

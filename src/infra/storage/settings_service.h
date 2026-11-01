@@ -17,6 +17,7 @@ class SettingsService final : public QObject {
     void setDemands(const application::RuntimeDemands& demands);
     void command(const QString& name, const QStringList& arguments = {});
   signals:
+    void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
     void loaded(const QString& theme, bool unload, bool acknowledged, const QJsonObject& dashboard);
     void saved(const QString& theme, bool unload, bool acknowledged, const QJsonObject& dashboard);
     void failed(const QString& code);

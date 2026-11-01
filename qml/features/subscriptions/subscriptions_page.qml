@@ -13,6 +13,21 @@ ListView {
     property string managedId: ""
     property var managedProfile: ({})
     property string importName: ""
+    property string urlRequestToken: ""
+    property string urlRequestAction: ""
+    property string urlResult: ""
+    function clearSavedUrl() {
+        urlRequestToken = "";
+        urlRequestAction = "";
+        urlResult = "";
+        savedUrl.clear();
+    }
+    function requestSavedUrl(action) {
+        clearSavedUrl();
+        urlRequestAction = action;
+        urlRequestToken = Date.now().toString() + ":" + Math.random().toString();
+        ui.runtimeCommand("subscription_url", [managedId, urlRequestToken]);
+    }
     property int historyIndex: 0
     property string historyBase: ""
     readonly property var downloadRoutes: ["Direct", "RunningProxy", "Auto"]
@@ -36,7 +51,10 @@ ListView {
     Keys.onUpPressed: focusRow(currentIndex - 1)
     function refreshManaged() {
         const previousName = managedProfile.name || "";
+        const previousSource = managedProfile.secretRef || "";
         managedProfile = ui.profileModel.profile(managedId);
+        if ((managedProfile.secretRef || "") !== previousSource)
+            clearSavedUrl();
         if (!managedProfile.id) {
             rollbackConfirmation.close();
             deleteConfirmation.close();
@@ -47,6 +65,7 @@ ListView {
         }
     }
     function manage(profileId) {
+        clearSavedUrl();
         managedId = profileId;
         refreshManaged();
         if (managedId)
@@ -58,6 +77,32 @@ ListView {
             if (profileId === root.managedId)
                 root.refreshManaged();
         }
+    }
+    Connections {
+        target: root.ui
+        function onUiVisibleChanged() {
+            if (!root.ui.uiVisible)
+                root.clearSavedUrl();
+        }
+        function onSubscriptionUrlReady(profileId: string, token: string, url: string) {
+            if (!management.visible || !root.visible || !root.ui.uiVisible || profileId !== root.managedId || token !== root.urlRequestToken || !token)
+                return;
+            const action = root.urlRequestAction;
+            root.urlRequestToken = "";
+            root.urlRequestAction = "";
+            if (!url) {
+                root.urlResult = "Failed";
+            } else if (action === "copy") {
+                root.ui.copyText(url);
+                root.urlResult = "Copied";
+            } else {
+                savedUrl.text = url;
+            }
+        }
+    }
+    onVisibleChanged: {
+        if (!visible)
+            clearSavedUrl();
     }
     onCardColumnsChanged: ui.profileRows.columns = cardColumns
     Component.onCompleted: ui.profileRows.columns = cardColumns
@@ -121,15 +166,19 @@ ListView {
         width: Math.min(520, root.availableWidth - 16)
         height: Math.min(650, root.height - 24)
         standardButtons: Dialog.Close
+        onAboutToHide: root.clearSavedUrl()
         onOpened: {
+            root.clearSavedUrl();
             itemName.text = root.managedProfile.name || "";
             sourceUrl.clear();
             sourceHeaders.clear();
         }
         contentItem: ScrollView {
+            id: managementScroll
             contentWidth: availableWidth
+            clip: true
             ColumnLayout {
-                width: parent.availableWidth
+                width: managementScroll.availableWidth
                 spacing: 12
                 ThemedField {
                     id: itemName
@@ -144,6 +193,53 @@ ListView {
                     text: qsTr("Rename")
                     enabled: !root.ui.runtime.busy && itemName.text.trim().length > 0
                     onClicked: root.ui.runtimeCommand("rename", [root.managedId, itemName.text])
+                }
+                Label {
+                    visible: !!root.managedProfile.secretRef
+                    text: qsTr("Saved subscription URL")
+                    color: root.theme.muted
+                }
+                ThemedField {
+                    id: savedUrl
+                    objectName: "subscription_saved_url"
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    visible: !!root.managedProfile.secretRef
+                    readOnly: true
+                    selectByMouse: true
+                    placeholderText: qsTr("Hidden")
+                    Accessible.name: qsTr("Saved subscription URL")
+                }
+                Flow {
+                    visible: !!root.managedProfile.secretRef
+                    Layout.fillWidth: true
+                    spacing: 8
+                    ActionButton {
+                        objectName: "subscription_show_url"
+                        theme: root.theme
+                        text: savedUrl.text ? qsTr("Hide URL") : qsTr("Show URL")
+                        enabled: !root.urlRequestToken
+                        onClicked: {
+                            if (savedUrl.text)
+                                root.clearSavedUrl();
+                            else
+                                root.requestSavedUrl("show");
+                        }
+                    }
+                    ActionButton {
+                        objectName: "subscription_copy_url"
+                        theme: root.theme
+                        text: qsTr("Copy URL")
+                        enabled: !root.urlRequestToken
+                        onClicked: root.requestSavedUrl("copy")
+                    }
+                }
+                Label {
+                    visible: !!root.urlResult
+                    text: root.urlResult === "Copied" ? qsTr("URL copied") : qsTr("Could not read the saved URL")
+                    color: root.urlResult === "Copied" ? root.theme.muted : root.theme.error
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
                 }
                 ThemedComboBox {
                     id: updateInterval
@@ -212,6 +308,7 @@ ListView {
                     objectName: "subscription_source_url"
                     Layout.fillWidth: true
                     placeholderText: qsTr("New HTTPS URL (leave blank to keep source)")
+                    Accessible.name: qsTr("New HTTPS URL (leave blank to keep source)")
                     echoMode: TextInput.Password
                     maximumLength: 8192
                 }
@@ -309,6 +406,7 @@ ListView {
                     theme: root.theme
                     objectName: "subscription_url"
                     placeholderText: qsTr("HTTPS subscription URL")
+                    Accessible.name: qsTr("HTTPS subscription URL")
                     Layout.fillWidth: true
                     echoMode: TextInput.PasswordEchoOnEdit
                     maximumLength: 8192
@@ -343,6 +441,12 @@ ListView {
                     enabled: !root.ui.runtime.busy
                     model: root.downloadRouteLabels
                     Accessible.name: qsTr("Download path")
+                }
+                Label {
+                    text: qsTr("Leave the name blank to use the subscription title or filename supplied by the server.")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
                 }
                 Label {
                     text: qsTr("Standard HTTPS subscriptions request Clash Meta (mihomo) YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.")

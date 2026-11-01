@@ -1066,3 +1066,44 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 单轮10秒100样本原生资源/生命周期Pass（build/delay_context_native/resource.json）：D3D11/api4、QML错误0，首页→设置→最小化/恢复、隐藏/卸载释放，60点保持；客户端专用工作集/总工作集/私有提交MiB首81.94/176.55/231.42→末86.99/183.39/217.50、峰92.55/188.55/231.42，核心首7.20/25.65/60.40→末及峰7.36/25.81/60.56。上轮同环境峰96.52/192.25/233.50与7.60/26.08/61.02，仅单轮比较不作优化结论；最小夹具未填满多目标缓存，真实服务/TUN、大订阅及长稳仍NotRun。
 - 补验runtime/localization/service_protocol/ui_keyboard/ui_responsive 5/5 Pass（142.85秒，runtime137.34秒，build/delay_context_followup_tests.log/XML），其中服务协议补建后0.10秒Pass；累计13项不同回归通过。完整runtime保留6并发/2秒、队列取消、迟到回调、10分钟过期及配置切换清除断言。最终EXE build/delay_context_bin/quickclash.exe SHA256 cb7f2b8ee8a7bf18314a33620b3efab2690c571a5165b408a14513aaa7191ca0；旧用户进程继续运行，需启动新版才应用修复。专项Done/Pass仅此Windows范围，未提交Git或创建远端事项；下一步完成最终静态检查，后续按现有P3/P4补服务/TUN、大订阅及长稳。
 - 最终静态交付检查Pass：设计19章生成/-Check、check_progress、check_source_layout（44目录/332文件）、check_platform_boundaries、本次修改C++ clang-format --dry-run --Werror与git diff --check通过。TASKS/CHECKLISTS、设计/指南和既有Windows报告摘要同步；本项无待修问题，保留全局阶段门与未测范围。
+
+## 2026-11-01 / 订阅地址查看复制与导入自动命名
+
+- 用户提出订阅管理查看/复制地址与空名自动取服务名称。Codex实现：独立worker一次性URL读取，管理弹窗默认隐藏、显示/隐藏与直接复制；令牌/稳定ID核对，关闭/离页/隐藏/来源变化清空，迟到忽略，URL不进常规快照/列表。空名按最终响应profile-title（含base64）及Content-Disposition filename*/filename提取，有界清理、去路径/YAML后缀；手填/更新名称优先，缺失沿用通用名。
+- 设计07/12、使用指南、TASKS/CHECKLISTS同步，实现具备、验证中/NotRun。扩展既有contracts/真实下载/双语UI探针验证名称优先级、重定向最终头、私密快照、复制/隐藏及迟到边界；下一步Windows增量构建/lint与定向回归。
+- Windows Qt6.12/MSVC构建/lint通过（仅既存三条订阅类型推断提示）；11项定向回归49.67秒全通过，真实HTTPS下载名称、最终响应头、私密快照、复制/隐藏/迟到及双语界面具备证据。首轮沙箱Ninja停在启动阶段，外部重跑；中间contracts沙箱受限及ui_state尚未产出NotRun已由最终回归替代。
+- 原生D3D11/DPR1.25八张双主题/1500与360宽截图及探针通过，目视发现既有管理滚动容器子布局取parent.availableWidth导致长内容水平裁切；改为明确引用ScrollView可用宽度并裁剪视口，验证中。
+- 最终管理宽度修订Windows构建/lint Pass（build/subscription_details_build.log，仅47/502/516三条既存类型推断提示）。布局复验qml_smoke/ui_responsive/ui_subscriptions/ui_subscriptions_zh 4/4、5.78秒通过（build/subscription_details_final_ui.log/XML）；前轮11项不同回归及真实下载33.41秒仍有效，探针截图可选分支也已编入最终产品。
+- 原生最终八张截图Pass（build/subscription_details_visual_final，light/dark、1500/360、hidden/shown，exposed=true、D3D11/api4、DPR1.25）；目视宽窗字段右边框/下拉完整，提供者说明自动换行，窄窗显示/复制按钮完整，长URL可横向选取且复制保留查询字节。stderr两条既存Qt颜色undefined提示，无新增QML错误。
+- 本次只新增用户动作的一次性有界凭据读取与最多两个4KiB响应头解析，无新增Timer、常驻采样或列表秘密副本；复用前轮10秒三指标及隐藏/卸载生命周期证据，不记作本次重新资源测量，也不提升长稳/真实服务/TUN范围。最终build/subscription_details_bin/quickclash.exe SHA256 5eb8ade2ab817a77ef33800b6f650f87892a057e1685f069e1266c23c009eaec；专项Done/Pass（Windows定向范围），未提交或创建远端事项。下一步完成静态交付检查，后续按原P3/P4台账；当前使用需启动新版。
+- 最终交付检查Pass：设计19章生成/-Check、check_progress、check_source_layout（44目录/334文件）、check_platform_boundaries、本次13份C++/头文件clang-format --dry-run --Werror及git diff --check全部通过。TASKS/CHECKLISTS、设计/指南与既有Windows摘要同步；本项无待修阻断，原阶段门及未测范围不变。
+
+## 2026-11-01 / 连接规则日志高密度表格
+
+- Codex按用户确认的三页示意实施，保留工作区既有订阅改动；连接含独立下载/上传速率及链路，规则保留原始顺序，日志分列与展开。共享虚拟表格复用既有C++模型、筛选防抖、epoch与需求生命周期。
+- 实现完成，验证中：新增共用 RuntimeList（固定表头、虚拟化行、可选操作列、行内展开、尾部跟随、水平滚动）及 RuntimeFilter、RuntimeFormat、TableCell；连接列改为目标/进程、链路、下载、上传与详情，关闭操作集中工具栏；规则按原序号/类型/匹配内容/出口展示并展开来源；日志按时间/级别/来源/消息展示，长消息展开只读可复制。用户指南与设计09/17同步，中文词表补齐三页及组件新字符串。首次增量构建暴露连接标题行 Layout.maximumWidth 引用父布局导致递归重排，改为引用页面宽度后通过。
+- Windows Qt6.12/MSVC增量构建与qmllint Pass（build/dense_pages_build.log、dense_pages_rebuild.log），仅剩订阅页3条既有lint提示；首次沙箱内Ninja停在启动阶段，终止自建进程后于沙箱外重跑。首次CTest因连接页递归重排失败；修复后 qml_smoke/ui_runtime_lists/ui_runtime_lists_zh/ui_visual/ui_responsive/ui_keyboard/localization/runtime_list_model 8/8 Pass（23.14秒），ui_prototype 1/1 Pass。
+- 原生D3D11/DPR1.25双主题60张截图Pass（build/dense_pages_visual，探针确认全部曝光），目视核对连接/规则/日志宽窗中文文案、链路与速率列、规则序号列、日志分列及工具栏换行；本轮替代旧三页布局截图。双语可访问性探针仍在未修改的订阅URL输入框缺少名称处失败，未执行到三页，三页读屏NotRun；长稳、真实1000连接/2000日志交互与资源未重新测量，沿用既有虚拟化证据。下一步完成静态交付检查。
+- 首次原生截图发现进程缺失文案、列头与操作仍为英文，规则类型列在1000宽下省略，连接夹具无速率；已在三页与组件词表补齐中文，规则类型列加宽，行内动作改为“查看”，并给视觉夹具补充链路、规则载荷、上下行速率及规则序号后重抓60张。另将连接选中行键改为 epoch+NUL+id，首次内联 NUL 转义使 qmlcache 生成非法字符串，改用 String.fromCharCode(0) 后通过；最终5项UI复验及60张截图复抓通过。
+- 用户指出连接、规则页点击条目已经弹层或展开详情，行尾“查看”重复且占宽度。已移除两页的查看入口：连接固定目标/进程、链路、下载、上传四列，规则固定序号、类型、匹配内容、出口四列；整行点击与键盘回车作为唯一详情入口，鼠标悬停显示手形。提供者表保留“更新”按钮，但整行不触发更新，仅按钮提交，避免滚动或点选时误发网络请求；读取或刷新期间按钮沿用 canRefresh 禁用，防止重复提交。
+- 同步设计09/17、使用指南、TASKS/CHECKLISTS与合并设计；规则展开仍显示来源、计数、更新时间及有限信息，连接详情仍优先可读字段、原始JSON默认折叠。实现具备且完成验证：Windows Qt6.12/MSVC增量构建与qmllint Pass（仅订阅页3条既存提示），qml_smoke/ui_runtime_lists/ui_runtime_lists_zh/ui_visual/ui_responsive/ui_keyboard/localization/runtime_list_model 8/8 Pass（23.87秒）。
+- 原生D3D11/DPR1.25双主题59张截图Pass（build/dense_pages_visual，探针报告八页/双主题/宽窄全部通过）；目视连接与规则表头均无查看列、四列铺满，行内容与速率对齐正常。双语可访问性探针仍停在未修改的订阅URL输入框缺少名称处，未执行到三页，三页读屏NotRun；长稳与真实大连接/日志量未重新测量。最终EXE build/dense_pages_bin/quickclash.exe SHA256 d14e0fc121fb79ce4fb43b352e2b357c9d7317f28680229b4acc0fd6875d117f；未提交Git或创建远端事项。
+- 最终静态交付检查Pass：设计19章生成及-Check、check_progress、check_source_layout（44目录/337文件）、check_platform_boundaries、git diff --check通过；本轮仅改QML与文档，未新增C++格式问题。旧带查看列的三页截图Stale，由本轮四列布局替代；全局阶段门与未测范围不变。
+
+## 2026-11-01 / 复选框主题统一
+
+- 用户确认保留主题复选框与滑动开关两种控件。Codex将设置页“登录时启动”“登录时隐藏到托盘”从默认CheckBox改为ThemedCheckBox，注入共享ThemeTokens并以Layout.fillWidth允许窄窗标签换行；保留checked/enabled和startup_enabled/startup_hidden命令绑定。全仓QML仅共享组件内部继承基础CheckBox/Switch，页面统一使用主题类型。
+- 实现具备、验证中/NotRun：设计17明确两类控件语义及复选框主题复用要求，TASKS/CHECKLISTS同步；旧登录选项默认样式截图对此外观Stale。下一步Windows增量构建/lint及qml_smoke、ui_keyboard、ui_responsive、ui_visual现有回归；不新增低风险样式镜像测试，不重跑无关资源/网络矩阵。
+- Windows Qt6.12/MSVC增量构建与QML lint Pass（pwsh -NoProfile -File build/checkbox_theme_build.ps1，build/checkbox_theme_build.log）；首轮沙箱内Ninja停在启动阶段，停止本轮自建cmake/ninja后获准在沙箱外重跑成功。仅订阅页47/502/516三条既存lint提示，无新增警告。
+- 现有界面回归Pass：ctest --test-dir build/delay_concurrency --output-on-failure -R '^(qml_smoke|ui_keyboard|ui_responsive|ui_visual)$'，4/4、21.46秒，日志/JUnit见build/checkbox_theme_tests.log/XML；覆盖界面加载、键盘导航、双主题视觉与宽窄窗口。未新增镜像测试，未重测真实登录启动、原生截图、资源或网络，沿用原业务与生命周期证据的既有边界。
+- 设计17/合并版、使用指南、TASKS/CHECKLISTS及既有视觉报告摘要同步，专项Done/Pass仅此样式范围。产物build/dense_pages_bin/quickclash.exe SHA256 703f18678f1ae5d2f818ec455ea19c59e31a41dc2e7c3866df5d765ef7fd1f2a；未提交Git或更新发行包。下一步完成最终静态交付检查，使用新版EXE查看统一样式；后续按原P3/P4台账继续。
+- 最终静态交付检查Pass：设计19章生成及-Check、check_progress、check_source_layout（44目录/337文件）、check_platform_boundaries、git diff --check全部通过；全仓基础CheckBox/Switch仅在共享主题组件内部使用，无遗漏的默认页面样式。本项无待修阻断，全局阶段门和既有未验范围不变；下一步按原P3/P4台账选择任务。
+
+## 2026-11-01 / 设置页移除原型数据入口
+
+- 用户确认执行：移除设置页“原型数据”卡片及其专用翻译，保留开发测试构建的--replay入口、ReplayModel/ReplayList和ui_prototype生命周期测试。Codex负责，开始Doing/NotRun，保留全部既有工作区改动。当前用户运行build/dense_pages_bin/quickclash.exe，构建采用独立输出目录build/settings_cleanup_bin。下一步同步设计/使用说明，实现并运行Windows增量构建、现有UI/回放定向回归及交付检查。
+- 实现具备、验证中/NotRun：设置页删除整个末尾回放卡片，中文词表清理三条专用文案；设计12、使用指南、TASKS/CHECKLISTS与既有视觉报告摘要同步。旧含原型卡片的设置页截图对此展示Stale；不新增测试、计时器或数据模型，沿用原有资源/业务证据边界。下一步Windows增量构建/lint与qml_smoke、ui_keyboard、ui_responsive、ui_visual、ui_prototype、ui_state、localization现有回归。
+- Windows Qt6.12/MSVC增量构建与QML lint Pass（build/settings_cleanup_configure.log、settings_cleanup_build.log）；沙箱内Ninja停于启动阶段，停止本轮自有进程后获准在沙箱外完成。保留订阅页三条既存lint提示，lrelease另提示未修改的代理页Refresh重复词条。首轮沙箱CTest为5/7 Pass、21.97秒：ui_state在异步偏好读取处失败，ui_prototype在回放组件销毁/孵化处失败；其余加载/键盘/视觉/响应式/本地化通过。结果见build/settings_cleanup_tests.log/XML，专项仍验证中，下一步沙箱外复验区分环境限制与回归。
+- 沙箱外同组复验6/7 Pass、19.88秒（build/settings_cleanup_tests_final.log/XML）：ui_state恢复通过，加载/键盘/视觉/响应式/本地化均通过；ui_prototype仍在ReplayList孵化/销毁处失败。同环境CTest对照修改前build/dense_pages_bin（SHA256 703f18678f1ae5d2f818ec455ea19c59e31a41dc2e7c3866df5d765ef7fd1f2a）和本轮产物，两者均同样失败（build/settings_cleanup_compare.log/XML，2.10秒），确认既有问题，补入G1-C及现有报告，未更改测试或回放实现。
+- 专项Done/Pass仅设置页清理范围；设计12/合并版、使用指南、TASKS/CHECKLISTS及既有视觉/Windows报告同步，ui_prototype失败未写Pass。未新增原生截图、资源或真实网络测量，沿用未受影响的业务/资源边界，全局阶段门不变。新版build/settings_cleanup_bin/quickclash.exe SHA256 145672a1be8a88036dc616b6b8bbe3ccce4615c1f743b1e3fd72016f71bda606；保留用户运行中的旧程序，需退出后启动新版查看。未提交Git或更新发行包；下一步完成最终静态检查，后续按既有G1-C及P3/P4台账继续。
+- 最终交付检查Pass：设计19章生成及-Check、check_progress、check_source_layout（44目录/337文件）、check_platform_boundaries、git diff --check通过；源码和中文词表确认三条原型卡片文案已清除。设置页清理无待修阻断，既有回放生命周期失败继续归G1-C；下一步按原台账推进。
