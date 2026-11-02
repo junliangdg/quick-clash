@@ -1,5 +1,7 @@
 # 阶段与 MVP 验收记录
 
+- 仪表盘当前订阅显示修复：Pass（Windows定向范围），负责人Codex。[记录](DEVLOG.md#2026-11-02--仪表盘当前订阅显示修复)：Windows增量构建/lint及11项不同定向测试通过；模拟控制先于订阅列表、非首项、更新、重排、切页重建和空选择，断言实际绘制文本、选中索引与详情；旧仪表盘订阅显示证据对此问题Stale，真实个人配置重启未单测，全局阶段门不变。
+
 - 设置页移除原型数据入口：Pass（设置页定向范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-01--设置页移除原型数据入口)：删除回放卡片及三条专用翻译，保留开发回放和既有测试；Windows增量构建/lint、qml_smoke/ui_keyboard/ui_responsive/ui_visual/ui_state/localization六项通过。ui_prototype在修改前后均出现回放组件孵化/销毁失败，不记作通过；旧设置页含原型卡片截图对此展示Stale，全局阶段门不变。
 
 - ActionButton启动加载契约修复：Pass（启动范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-02--actionbutton启动加载契约修复)：Qt6.9下ActionButton给IconLabel赋不存在的defaultIconColor，使QML根组件加载失败且先建立的托盘仍可见；移除后Windows增量构建、正常启动窗口句柄/标题、隔离Visible/page_ready/qml_errors=0诊断及qml_smoke/host_lifecycle/ui_prototype 3/3通过。原生tray卸载、G1-C及全局阶段门不变。

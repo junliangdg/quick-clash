@@ -2,6 +2,7 @@
 #include "host_probe.h"
 #include <QColor>
 #include <QDateTime>
+#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QImage>
@@ -176,6 +177,28 @@ int runVisualProbe(ApplicationHost& host) {
                                     {"quota", 107374182400.0},
                                     {"expiresAt", "2026-12-31T06:00:00Z"}}},
         {"usage", QJsonObject{{"total", 107374182400.0}, {"download", 21474836480.0}}}};
+    const auto profileVisible = [&](const QString& name, int index, const QString& id) {
+        const auto selectors = objects("home_profile_selector");
+        const auto details = objects("home_subscription_details");
+        if (selectors.size() != 1 || details.size() != 1) {
+            qWarning() << "Missing dashboard subscription controls" << selectors.size()
+                       << details.size();
+            return false;
+        }
+        auto* content = selectors.first()->property("contentItem").value<QQuickItem*>();
+        const auto rendered = content && !content->childItems().isEmpty()
+                                  ? content->childItems().first()->property("text").toString()
+                                  : QString{};
+        const auto actualId = details.first()->property("profile").toMap().value("id").toString();
+        const auto actualIndex = selectors.first()->property("currentIndex").toInt();
+        const auto displayText = selectors.first()->property("displayText").toString();
+        if (actualIndex != index || displayText != name || rendered != name || actualId != id) {
+            qWarning() << "Dashboard subscription mismatch: expected" << name << index << id
+                       << "actual" << displayText << rendered << actualIndex << actualId;
+            return false;
+        }
+        return true;
+    };
     const auto populate = [&] {
         ui.applyData(
             {1,
@@ -262,6 +285,61 @@ int runVisualProbe(ApplicationHost& host) {
         }
     };
     host.resizeWindow({1000, 640});
+    ui.navigate("home");
+    QTest::qWait(50);
+    // Control state can arrive before profiles; the selected name must still be drawn.
+    if (!profileVisible("日常订阅 · Everyday", -1, ""))
+        return 132;
+    const QJsonObject alternate{{"id", "alternate"}, {"name", "备用订阅"}};
+    const auto applyProfiles = [&](const QJsonArray& profiles) {
+        ui.applyData({1, "visual-fixture", {{"profiles", profiles}}, ui.dataDemands().generations});
+        QTest::qWait(20);
+    };
+    applyProfiles({alternate, profile});
+    if (!profileVisible("日常订阅 · Everyday", 1, "visual"))
+        return 133;
+    const auto originalControl = ui.runtime();
+    auto changedControl = originalControl;
+    changedControl.insert("selectedName", "");
+    ui.applyControl(QJsonObject::fromVariantMap(changedControl));
+    if (!profileVisible("日常订阅 · Everyday", 1, "visual"))
+        return 134;
+    auto renamed = profile;
+    renamed.insert("name", "已更新订阅");
+    renamed.insert("secretRef", "updated-fixture");
+    applyProfiles({alternate, renamed});
+    if (!profileVisible("已更新订阅", 1, "visual") ||
+        objects("home_subscription_details")
+                .first()
+                ->property("profile")
+                .toMap()
+                .value("secretRef") != "updated-fixture")
+        return 135;
+    applyProfiles({renamed, alternate});
+    if (!profileVisible("已更新订阅", 0, "visual"))
+        return 136;
+    changedControl.insert("selectedId", "alternate");
+    changedControl.insert("selectedName", "备用订阅");
+    ui.applyControl(QJsonObject::fromVariantMap(changedControl));
+    if (!profileVisible("备用订阅", 1, "alternate"))
+        return 137;
+    ui.navigate("settings");
+    QTest::qWait(50);
+    ui.navigate("home");
+    QTest::qWait(50);
+    if (!profileVisible("备用订阅", 1, "alternate"))
+        return 138;
+    changedControl.insert("selectedId", "");
+    changedControl.insert("selectedName", "");
+    ui.applyControl(QJsonObject::fromVariantMap(changedControl));
+    const auto emptySelectors = objects("home_profile_selector");
+    const auto emptyDetails = objects("home_subscription_details");
+    if (emptySelectors.size() != 1 || emptyDetails.size() != 1 ||
+        emptySelectors.first()->property("displayText").toString().isEmpty() ||
+        !profileVisible(emptySelectors.first()->property("displayText").toString(), -1, "") ||
+        emptyDetails.first()->isVisible())
+        return 139;
+    ui.applyControl(QJsonObject::fromVariantMap(originalControl));
     populate();
     const auto generation = host.engineGeneration();
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
@@ -444,7 +522,9 @@ int runVisualProbe(ApplicationHost& host) {
         ui.navigate("home");
         QTest::qWait(50);
         const auto combos = objects("home_profile_selector");
-        if (combos.size() != 1)
+        if (combos.size() != 1 ||
+            combos.first()->property("currentText").toString() != "日常订阅 · Everyday" ||
+            !profileVisible("日常订阅 · Everyday", 0, "visual"))
             return 116;
         auto* popup = combos.first()->property("popup").value<QObject*>();
         if (!popup || !QMetaObject::invokeMethod(popup, "open") ||

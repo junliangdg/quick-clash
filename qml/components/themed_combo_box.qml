@@ -14,7 +14,8 @@ ComboBox {
     property bool delaysStale: false
     readonly property var currentDelay: currentIndex >= 0 && optionDelays.length > currentIndex ? optionDelays[currentIndex] : ({})
     readonly property string currentLabel: currentIndex >= 0 && optionLabels.length > currentIndex ? optionLabels[currentIndex] : currentText
-    displayText: currentLabel + (currentDelay.hasDelay ? " · " + currentDelay.text : "")
+    readonly property string defaultDisplayText: currentLabel + (currentDelay.hasDelay ? " · " + currentDelay.text : "")
+    displayText: defaultDisplayText
     font.family: theme.fontFamily
     font.pixelSize: theme.bodySize
     implicitHeight: theme.controlHeight
@@ -24,7 +25,7 @@ ComboBox {
     contentItem: RowLayout {
         spacing: 12
         Text {
-            text: control.currentLabel
+            text: control.displayText === control.defaultDisplayText ? control.currentLabel : control.displayText
             font: control.font
             color: control.enabled ? control.theme.text : control.theme.muted
             verticalAlignment: Text.AlignVCenter

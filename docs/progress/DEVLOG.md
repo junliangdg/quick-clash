@@ -1148,3 +1148,16 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 验证：Windows x64 Release增量构建完成；修复前隔离启动因上述QML错误exit1，修复后同命令exit0且诊断为`host_state=Visible`、`page_ready=true`、`qml_errors=0`、`engine_generation=1`、窗口1000×640。正常参数启动后进程响应，`MainWindowHandle`非零且标题`QuickClash`。`ctest --test-dir build/dev -R '^(qml_smoke|host_lifecycle|ui_prototype)$'` 3/3 Pass、22.55秒（qml_smoke正则改动后重新配置并复跑通过），JUnit在忽略的`build/dev/action_button_fix_tests.xml`，三指标未采。QML lint对本次移除项无报错，仍保留既有模型绑定/颜色等警告，不扩大为无警告或整门Pass。
 - 产物/限制：修复版`build/dev/quickclash.exe` SHA256 `37123AE15E0F8A5438C9BCF2A800B09E05959103B1160BA9C4E9D4FE72985A56`。未提交Git，未生成report，未新增服务/网络系统变更；原生tray-test卸载、真实登录启动、旧发布包与G1-C整体状态均未因本修复改变。
 - 下一步：如仍出现仅托盘，先用`--isolated --no-tray --quit-after-ms=3500 --diagnostics=...`确认QML/窗口状态，再从托盘“Open QuickClash”恢复；G1-C继续补原生tray卸载与读屏/高DPI多屏证据。
+
+## 2026-11-02 / 仪表盘当前订阅显示修复
+
+- 用户反馈启动和切回仪表盘时当前订阅空白。Codex负责，开始Doing/NotRun；工作区已有`home_page.qml`、`themed_combo_box.qml`及`visual_ui_probe.cpp`未提交修改，保留并检查。下一步核对显示文本、订阅模型发布及切页初始化，补充针对实际显示内容和订阅变更的回归。
+- 实现具备，验证中/NotRun：共享下拉的实际名称遵循调用方`displayText`，默认代理下拉仍将延迟保留在可访问显示值并单独绘制；仪表盘在组件完成、所选ID变更及模型发布时刷新详情，并在模型重排后重新定位当前索引。扩展现有视觉探针，核对控制状态先于列表、第二项选择、名称/详情更新、重排、切页和空选择，实际绘制文本也纳入断言。下一步执行Windows增量构建与相关回归。
+- 首次`build/dev`增量构建停在yaml-cpp提取目录为空，产品尚未编译；将按冻结SHA-256核对本地依赖归档并恢复该忽略目录后重试。
+- yaml-cpp归档摘要与冻结值一致，恢复源码并将`build/dev`显式指向已校验提取目录后重新生成；沙箱内Ninja启动后停滞，沙箱外Windows增量构建通过。首轮新增`ui_visual`回归在切页返回断言退出138，正在定位页面异步加载或状态同步，尚不标Pass。
+- 定位返回页面时名称及详情正确但`currentIndex=-1`：下拉框首次绑定求值早于其模型/角色完全就绪。已在控件完成及数量/角色变化时重新求值，验证中/NotRun。
+- 修订后`ui_visual` 1/1 Pass（10.59秒）：覆盖先有控制状态、列表晚到且选中非首项、名称和详情更新、重排、切页重建及无选择；同时现有代理下拉延迟断言通过。空态实际绘制断言随后补强，尚待最终构建及回归。
+- 最终Windows增量构建及QML lint通过，仅保留订阅页3条既存类型推断提示；11项定向测试沙箱内10项通过，`ui_state`在异步偏好读取处失败，正在排除沙箱限制后复验；`ui_visual`及其新增空态实际绘制断言通过。既有视觉探针中与本次无关的JSON夹具有clang-format差异，本次改动范围另行检查。
+- `ui_state`在沙箱外复验Pass（0.16秒），排除沙箱对异步偏好读取的影响；11项不同定向测试均通过：profile_model、ui_state、qml_smoke、ui_keyboard、ui_visual、ui_responsive、ui_runtime_lists及_zh、ui_subscriptions及_zh、host_lifecycle。沙箱内首轮结果10/11（29.33秒），JUnit保存在`build/dev/dashboard_subscription_tests.xml`及`dashboard_subscription_ui_state.xml`。本次视觉探针的修改范围clang-format检查通过，完整文件仍有既存JSON夹具格式差异。
+- 专项Done/Pass仅限模拟数据的Windows定向范围，真实个人配置重启、其他平台和长期资源未单测；现有设计08已规定显示所选订阅，无设计方案或使用说明变更。最终`build/dev/quickclash.exe` SHA-256 `adf63f340471293cca97ff47ba44275a57aadd63c7558a15a044a794145aadde`。已保留原有工作区修改，无提交或远端事项；下一步运行进度、源码布局和差异检查，后续按现有台账补环境验收。
+- 最终交付检查Pass：`check_progress.ps1`、`check_source_layout.ps1`（44目录/339文件）、本次C++改动范围clang-format及`git diff --check`通过。下一步按现有P3/P4台账补真实环境验收。

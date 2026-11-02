@@ -8,6 +8,7 @@
 
 | 专项 | 实现状态 | 负责人 | 产品验证 | 证据/下一步 |
 |---|---|---|---|---|
+| 仪表盘当前订阅显示修复 | Done | Codex | Pass（Windows定向范围） | [记录](DEVLOG.md#2026-11-02--仪表盘当前订阅显示修复)：修复下拉绘制及页面重建/模型更新时的选择和详情同步；Windows增量构建/lint、11项不同定向测试通过，真实个人配置重启未单测 |
 | 界面语言设置与即时切换 | Done | Codex | Pass（界面语言定向范围） | [验收记录](DEVLOG.md#2026-11-01--界面语言设置与即时切换)：设置→外观新增跟随系统/English/简体中文，保存后持久化并即时刷新QML、导航、页面标题、C++派生状态和托盘，不重建QML引擎或网络内核；旧设置缺字段兼容`system`，非法值进入恢复。Windows构建/lint、语言/存储/状态4项与现有UI4项回归、原生语言及托盘探针通过；新版`build/language_settings_bin`。系统语言切换后重启及跨平台NotRun |
 | 设置页移除原型数据入口 | Done | Codex | Pass（设置页定向范围） | [验收记录](DEVLOG.md#2026-11-01--设置页移除原型数据入口)：移除回放卡片及三条专用翻译，保留开发回放与既有测试；Windows增量构建/lint及6项现有回归通过，ui_prototype修改前后同样失败，保留G1-C限制；新版build/settings_cleanup_bin，旧含原型卡片截图Stale |
 | 复选框主题统一 | Done | Codex | Pass（样式定向范围） | [验收记录](DEVLOG.md#2026-11-01--复选框主题统一)：设置页两个登录选项复用ThemedCheckBox，保留滑动开关及原有状态/命令绑定，窄窗标签可换行；Windows增量构建/lint及4项现有UI回归通过，新版build/dense_pages_bin；旧登录选项默认样式截图Stale |

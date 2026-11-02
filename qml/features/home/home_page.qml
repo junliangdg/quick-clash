@@ -18,13 +18,24 @@ ScrollView {
         onTriggered: root.now = Date.now()
     }
     readonly property string selectedId: ui.runtime.selectedId || ""
-    property var selectedProfile: ui.profileModel.profile(selectedId)
-    onSelectedIdChanged: selectedProfile = ui.profileModel.profile(selectedId)
+    property double profileRevision: 0
+    property var selectedProfile: ({
+        "id": "",
+        "name": ""
+    })
+    function refreshSelectedProfile(): void {
+        selectedProfile = ui.profileModel.profile(selectedId);
+    }
+    onSelectedIdChanged: refreshSelectedProfile()
     Connections {
         target: root.ui.profileModel
-        function onProfileChanged(profileId: string) {
-            if (profileId === root.ui.runtime.selectedId)
-                root.selectedProfile = root.ui.profileModel.profile(profileId);
+        function onPublicationApplied(): void {
+            root.profileRevision += 1;
+            root.refreshSelectedProfile();
+        }
+        function onProfileChanged(profileId: string): void {
+            if (profileId === root.selectedId)
+                root.refreshSelectedProfile();
         }
     }
     clip: true
@@ -48,7 +59,10 @@ ScrollView {
             now = Date.now();
         syncDemand();
     }
-    Component.onCompleted: syncDemand()
+    Component.onCompleted: {
+        refreshSelectedProfile();
+        syncDemand();
+    }
     Component.onDestruction: {
         ui.setDemand("home:traffic", "traffic", false);
         ui.setDemand("home:proxies", "proxies", false);
@@ -84,6 +98,7 @@ ScrollView {
                         Layout.fillWidth: true
                     }
                     ThemedComboBox {
+                        id: profileSelector
                         theme: root.theme
                         objectName: "home_profile_selector"
                         Accessible.name: qsTr("Current subscription")
@@ -91,11 +106,17 @@ ScrollView {
                         model: root.ui.profileModel
                         textRole: "name"
                         valueRole: "profileId"
-                        currentIndex: indexOfValue(root.selectedId)
-                        displayText: root.ui.runtime.selectedName || qsTr("Start with a subscription")
+                        currentIndex: {
+                            // indexOfValue does not track model updates or initial role setup.
+                            if (root.profileRevision === 0 || profileSelector.count === 0 || profileSelector.valueRole !== "profileId")
+                                return -1;
+                            return indexOfValue(root.selectedId);
+                        }
+                        displayText: root.selectedId ? (root.ui.runtime.selectedName || root.selectedProfile.name || qsTr("Start with a subscription")) : qsTr("Start with a subscription")
                         font.weight: Font.DemiBold
                         enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly && root.ui.profileModel.count > 0
                         onActivated: root.ui.runtimeCommand("select", [currentValue])
+                        Component.onCompleted: root.profileRevision += 1
                     }
                     Label {
                         text: qsTr("%1 proxy groups · %2 nodes").arg(root.ui.groups.length).arg(root.ui.nodes.length)
@@ -105,6 +126,7 @@ ScrollView {
                         wrapMode: Text.WordWrap
                     }
                     SubscriptionDetails {
+                        objectName: "home_subscription_details"
                         visible: !!root.selectedId
                         Layout.fillWidth: true
                         theme: root.theme
