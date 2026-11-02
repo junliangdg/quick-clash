@@ -1141,3 +1141,10 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 结论/同步：P3共29项，Done22、Review5（14/25/27/28/29）、Blocked1（04）、Todo1（07阶段汇总）。主要业务实现已具备，仍有当前可访问性失败与服务/TUN/宿主环境验收缺口，不能认定P3全部完成。TASKS/CHECKLISTS、Windows验证摘要和统一视觉既有报告同步；G1 Stale、G2/G3 NotRun及MVP历史16/16不变。无设计方案变更，无服务安装、网络设置或系统环境变更。
 - 下一步：先修复subscription_url实际可访问名称并定向复验，补原生tray卸载；再按环境完成P3-25/28权限与安装条件、当前便携服务P3-04/29 TUN验收及P3-14/27宿主环境补证，最后由P3-07汇总G3-A—E。
 - 最终静态交付检查：`check_progress.ps1`、`check_source_layout.ps1`、`check_platform_boundaries.ps1`与`git diff --check`均退出0；进度脚本确认P3 Done22/Review5/Blocked1/Todo1和阶段门未提升，命名覆盖44目录/339文件。仅5份进度/报告文档有差异，没有产品源码改动；Git另提示既有ui_font文件的行尾规范化，但无源码差异。无设计变更，不触发设计重建或产品构建。
+## 2026-11-02 / ActionButton启动加载契约修复
+
+- 现象与根因：普通启动后托盘存在但无主界面。当前Qt6.9.0开发产物在`QQmlApplicationEngine::loadFromModule`阶段报`main.qml`引用的`ActionButton`无法设置不存在属性`defaultIconColor`，根对象创建数为0；托盘在`showWindow()`创建引擎前已建立，因此残留托盘与窗口创建失败可同时发生。不是登录自启隐藏、单实例驻留、屏幕外geometry或QML资源路径问题。
+- 实现：`qml/components/action_button.qml`的`IconLabel.defaultIconColor`并非Qt6.9属性，移除该无效赋值；图标颜色仍由Button的`icon.color`和IconLabel的`color`共同使用现有主题`foregroundColor`，不改变按钮视觉/交互契约。qml_smoke的失败正则补充`Could not find property`，让同类组件启动期属性契约错误直接使定向测试Fail。
+- 验证：Windows x64 Release增量构建完成；修复前隔离启动因上述QML错误exit1，修复后同命令exit0且诊断为`host_state=Visible`、`page_ready=true`、`qml_errors=0`、`engine_generation=1`、窗口1000×640。正常参数启动后进程响应，`MainWindowHandle`非零且标题`QuickClash`。`ctest --test-dir build/dev -R '^(qml_smoke|host_lifecycle|ui_prototype)$'` 3/3 Pass、22.55秒（qml_smoke正则改动后重新配置并复跑通过），JUnit在忽略的`build/dev/action_button_fix_tests.xml`，三指标未采。QML lint对本次移除项无报错，仍保留既有模型绑定/颜色等警告，不扩大为无警告或整门Pass。
+- 产物/限制：修复版`build/dev/quickclash.exe` SHA256 `37123AE15E0F8A5438C9BCF2A800B09E05959103B1160BA9C4E9D4FE72985A56`。未提交Git，未生成report，未新增服务/网络系统变更；原生tray-test卸载、真实登录启动、旧发布包与G1-C整体状态均未因本修复改变。
+- 下一步：如仍出现仅托盘，先用`--isolated --no-tray --quit-after-ms=3500 --diagnostics=...`确认QML/窗口状态，再从托盘“Open QuickClash”恢复；G1-C继续补原生tray卸载与读屏/高DPI多屏证据。

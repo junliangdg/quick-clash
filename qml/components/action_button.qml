@@ -56,7 +56,6 @@ Button {
         mirrored: control.mirrored
         display: control.display
         icon: control.icon
-        defaultIconColor: control.foregroundColor
         text: control.text
         font: control.font
         color: control.foregroundColor

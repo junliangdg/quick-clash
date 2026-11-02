@@ -2,6 +2,8 @@
 
 - 设置页移除原型数据入口：Pass（设置页定向范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-01--设置页移除原型数据入口)：删除回放卡片及三条专用翻译，保留开发回放和既有测试；Windows增量构建/lint、qml_smoke/ui_keyboard/ui_responsive/ui_visual/ui_state/localization六项通过。ui_prototype在修改前后均出现回放组件孵化/销毁失败，不记作通过；旧设置页含原型卡片截图对此展示Stale，全局阶段门不变。
 
+- ActionButton启动加载契约修复：Pass（启动范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-02--actionbutton启动加载契约修复)：Qt6.9下ActionButton给IconLabel赋不存在的defaultIconColor，使QML根组件加载失败且先建立的托盘仍可见；移除后Windows增量构建、正常启动窗口句柄/标题、隔离Visible/page_ready/qml_errors=0诊断及qml_smoke/host_lifecycle/ui_prototype 3/3通过。原生tray卸载、G1-C及全局阶段门不变。
+
 - 复选框主题统一：Pass（样式定向范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-01--复选框主题统一)：设置页两个登录选项复用主题复选框，保留滑动开关；Windows增量构建/QML lint及qml_smoke、ui_keyboard、ui_visual、ui_responsive 4/4通过。旧登录选项默认样式截图对此外观Stale，本轮未新增原生截图、真实登录启动或资源测量，全局阶段门不变。
 
 - 订阅地址查看复制与导入自动命名：Pass（Windows定向范围），负责人Codex。[验收记录](DEVLOG.md#2026-11-01--订阅地址查看复制与导入自动命名)：Windows构建/lint、11项回归及布局修订4项复验通过；真实HTTPS验证标题/文件名/手填优先、更新保名、最终响应头及独立URL读取；双语UI验证复制、隐藏和迟到隔离，原生D3D11八张宽窄双主题截图核对通过。旧无地址/空名通用名称及管理长文裁切截图对此范围Stale；全局阶段门不变。

@@ -593,7 +593,7 @@ if(BUILD_TESTING)
             TIMEOUT 15)
         set_tests_properties(qml_smoke PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
-            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;is not a type;is not installed;Required property;Error loading QML"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;Could not find property;is not a type;is not installed;Required property;Error loading QML"
             TIMEOUT 15)
     endif()
     if(WIN32)
