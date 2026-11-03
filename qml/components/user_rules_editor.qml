@@ -36,7 +36,7 @@ Item {
 
     Component.onCompleted: {
         const draft = ui.userRulesDraft || ({});
-        if (draft.baseRevision) {
+        if (typeof draft.baseRevision === "string" && draft.baseRevision.length > 0) {
             globalDraft = copy(draft.global);
             localDraft = copy(draft.local);
             baseRevision = draft.baseRevision;
