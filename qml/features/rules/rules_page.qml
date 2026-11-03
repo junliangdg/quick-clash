@@ -27,7 +27,7 @@ Item {
         { "title": qsTr("Updated"), "weight": 1.6 }
     ]
     function syncDemand(): void {
-        ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : "providers", active);
+        ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : section.currentIndex === 1 ? "providers" : "user_rules", active);
     }
     function resultText(value): string {
         switch (value) {
@@ -105,14 +105,16 @@ Item {
             Layout.fillWidth: true
             spacing: 12
             Label {
-                text: (section.currentIndex === 0 ? qsTr("Rules") : qsTr("Providers")) + " · " + root.pageModel.count
+                text: section.currentIndex === 2 ? qsTr("Custom rules") : (section.currentIndex === 0 ? qsTr("Rules") : qsTr("Providers")) + " · " + root.pageModel.count
                 color: root.theme.text
                 font.pixelSize: root.theme.bodySize
                 font.weight: Font.DemiBold
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 elide: Text.ElideRight
             }
             Label {
+                visible: section.currentIndex !== 2 && root.width >= root.theme.scaledSize(520)
                 text: !root.ui.runtime.ready ? qsTr("Start the core to view rules")
                     : section.currentIndex === 0 ? qsTr("Effective order") : qsTr("One update at a time")
                 color: root.theme.muted
@@ -121,6 +123,24 @@ Item {
                 Layout.minimumWidth: 0
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
+            }
+            ActionButton {
+                id: customRulesButton
+                objectName: "open_custom_rules"
+                theme: root.theme
+                visible: section.currentIndex !== 2
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: root.width * 0.7
+                text: qsTr("Custom rules…")
+                contentItem: Text {
+                    text: customRulesButton.text
+                    font: customRulesButton.font
+                    color: customRulesButton.foregroundColor
+                    elide: Text.ElideRight
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                onClicked: section.currentIndex = 2
             }
         }
         GridLayout {
@@ -135,12 +155,13 @@ Item {
                 Accessible.name: qsTr("Rules or providers")
                 theme: root.theme
                 objectName: "rules_section"
-                model: [qsTr("Rules"), qsTr("Providers")]
+                model: [qsTr("Rules"), qsTr("Providers"), qsTr("Custom rules")]
                 onCurrentIndexChanged: root.syncDemand()
             }
             ActionButton {
                 theme: root.theme
                 objectName: "refresh_rules"
+                visible: section.currentIndex !== 2
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 text: root.pageState.loading ? qsTr("Loading…") : qsTr("Refresh")
@@ -150,14 +171,16 @@ Item {
             ActionButton {
                 theme: root.theme
                 objectName: "edit_rules"
+                visible: section.currentIndex !== 2
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                text: qsTr("Edit overrides…")
+                text: qsTr("Advanced overrides…")
                 enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                 onClicked: editor.edit(root.ui.runtime.selectedId, "overlay")
             }
             RuntimeFilter {
                 id: ruleFilter
+                visible: section.currentIndex !== 2
                 theme: root.theme
                 listModel: root.pageModel
                 placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Provider or type")
@@ -167,7 +190,7 @@ Item {
         }
         Label {
             objectName: "rules_status"
-            visible: text.length > 0
+            visible: section.currentIndex !== 2 && text.length > 0
             text: (root.pageState.stale ? qsTr("Read failed; previous data retained") + " · " : "") + (root.pageState.error || "") + (root.pageState.proxyError ? qsTr("Proxy providers: %1").arg(root.pageState.proxyError) + " · " : "") + (root.pageState.ruleError ? qsTr("Rule providers: %1").arg(root.pageState.ruleError) + " · " : "") + (root.pageState.sampleAt ? qsTr("Read at %1").arg(root.pageState.sampleAt) : "")
             color: root.pageState.stale || root.pageState.error ? root.theme.error : root.theme.muted
             font.pixelSize: root.theme.supportingSize
@@ -176,6 +199,7 @@ Item {
             textFormat: Text.PlainText
         }
         RuntimeList {
+            visible: section.currentIndex !== 2
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
@@ -194,6 +218,13 @@ Item {
                 if (section.currentIndex === 1)
                     root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);
             }
+        }
+        UserRulesEditor {
+            visible: section.currentIndex === 2
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            ui: root.ui
+            theme: root.theme
         }
     }
 }

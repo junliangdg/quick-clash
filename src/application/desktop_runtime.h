@@ -214,6 +214,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void refreshCustomGroupContext();
     void finishCustomGroupPreview(const std::shared_ptr<ConfigTransaction>& context);
     void finishCustomGroupOperation();
+    void userRuleCommand(const QString& command, const QStringList& arguments);
+    [[nodiscard]] QJsonObject userRuleBook() const;
+    void refreshUserRuleContext();
+    void finishUserRuleOperation();
     void editorCommand(const QString& command, const QStringList& arguments);
     void openEditor(const QString& id, const QString& kind, bool discard = false);
     bool saveEditorDraft(const QString& token, const QString& text);
@@ -228,6 +232,9 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         std::shared_ptr<ConfigCandidates> candidates;
         QString token;
         QString catalogHash;
+        QJsonArray globalRules;
+        bool hasGlobalRules = false;
+        bool restoreGlobalRules = false;
         quint64 generation = 0;
         bool active = false;
     };
@@ -263,7 +270,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
                        int status);
     void invalidateWebsiteTest();
     void cancelIpQueries(bool stale);
-    void restoreBackup(const QString& token);
+    void restoreBackup(const QString& token, bool restoreGlobalRules = false);
     void restoreNext(const std::shared_ptr<BackupRestore>& context, qsizetype index);
     void updateGeo();
     void fetchGeo(int index, QJsonObject snapshot, quint64 generation);
@@ -386,6 +393,13 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QJsonObject customGroupDraft_;
     QJsonObject customGroupActivation_;
     bool customGroupApplying_ = false;
+    QJsonObject userRuleState_;
+    QJsonObject userRuleTargets_;
+    QString userRuleContextRevision_;
+    QString userRuleResult_;
+    quint64 userRuleAttempt_ = 0;
+    bool userRuleApplying_ = false;
+    bool userRuleBackupApplying_ = false;
     QJsonArray groups_;
     QJsonArray configuredGroups_;
     QString defaultPolicy_;

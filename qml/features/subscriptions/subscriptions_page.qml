@@ -278,7 +278,7 @@ ListView {
         standardButtons: Dialog.Ok | Dialog.Cancel
         Label {
             width: Math.min(340, root.availableWidth - 60)
-            text: qsTr("Deleting the selected subscription restores network settings and stops its session. Other subscriptions are kept.")
+            text: qsTr("Deleting the selected subscription restores network settings and stops its session. Its custom rules and proxy binding are removed; global rules and other subscriptions are kept.")
             wrapMode: Text.WordWrap
         }
         onAccepted: {

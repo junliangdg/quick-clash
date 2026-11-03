@@ -202,6 +202,113 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto* refreshRules = host.window()->findChild<QObject*>(QStringLiteral("refresh_rules"));
     if (!refreshRules || refreshRules->property("enabled").toBool())
         return 81;
+    const auto beforeCustomRulesSize = host.window()->size();
+    host.resizeWindow({360, 640});
+    QTest::qWait(40);
+    auto* customRulesEntry = host.window()->findChild<QQuickItem*>("open_custom_rules");
+    const auto entryPosition =
+        customRulesEntry ? customRulesEntry->mapToScene(QPointF(0, 0)) : QPointF(-1, -1);
+    if (!customRulesEntry || !customRulesEntry->isVisible() || entryPosition.x() < 0 ||
+        entryPosition.x() + customRulesEntry->width() > host.window()->width())
+        return 199;
+    if (!click(host, "open_custom_rules"))
+        return 196;
+    host.resizeWindow(beforeCustomRulesSize);
+    QTest::qWait(30);
+    if (!ui.dataDemands().active.contains("user_rules") ||
+        ui.dataDemands().active.contains("rules"))
+        return 182;
+    const QJsonObject customRuleView{{"revision", "revision-1"},
+                                     {"profileId", "selected-fixture"},
+                                     {"profileName", "Fixture"},
+                                     {"global", QJsonArray{}},
+                                     {"local", QJsonArray{QJsonObject{{"id", "local"},
+                                                                      {"type", "RULE-SET"},
+                                                                      {"value", "second"},
+                                                                      {"target", "DIRECT"},
+                                                                      {"enabled", true}}}},
+                                     {"groups", QJsonArray{"Alpha"}},
+                                     {"providers", QJsonArray{"first", "second"}}};
+    ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
+    QTest::qWait(40);
+    auto* ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    auto* ruleScope = host.window()->findChild<QObject*>("user_rule_scope");
+    auto* saveRules = host.window()->findChild<QObject*>("user_rule_save");
+    auto* ruleDialog = host.window()->findChild<QObject*>("user_rule_dialog");
+    if (!ruleEditor || !ruleScope || !saveRules || !ruleDialog ||
+        !click(host, QStringLiteral("user_rule_add")))
+        return 183;
+    auto* ruleValue = host.window()->findChild<QObject*>("user_rule_value");
+    if (!ruleValue || !ruleDialog->property("visible").toBool())
+        return 184;
+    ruleValue->setProperty("text", "example.com");
+    QMetaObject::invokeMethod(ruleDialog, "accept");
+    QTest::qWait(40);
+    if (!ruleEditor->property("globalDirty").toBool() || !saveRules->property("enabled").toBool())
+        return 185;
+    ruleScope->setProperty("currentIndex", 1);
+    QTest::qWait(30);
+    if (saveRules->property("enabled").toBool() ||
+        !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(0))))
+        return 186;
+    auto* providerChoice = host.window()->findChild<QObject*>("user_rule_provider");
+    if (!providerChoice || providerChoice->property("currentIndex").toInt() != 1)
+        return 187;
+    QMetaObject::invokeMethod(ruleDialog, "reject");
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"selectedId", "selected-fixture"},
+                     {"status", "Ready"},
+                     {"features", QJsonObject{{"userRuleBinding",
+                                               QJsonObject{{"profileId", "other"},
+                                                           {"profileName", "Other"},
+                                                           {"groups", QJsonArray{}}}}}}});
+    QTest::qWait(30);
+    auto* bindingDialog = host.window()->findChild<QObject*>("user_rule_binding_dialog");
+    auto* bindingGroup = host.window()->findChild<QObject*>("user_rule_binding_group");
+    if (!bindingDialog || !bindingDialog->property("visible").toBool() || !bindingGroup ||
+        bindingGroup->property("count").toInt() != 1)
+        return 194;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"selectedId", "selected-fixture"},
+                     {"status", "Ready"},
+                     {"features", QJsonObject{}}});
+    QTest::qWait(30);
+    if (bindingDialog->property("visible").toBool())
+        return 195;
+    const auto oldSize = host.window()->size();
+    host.resizeWindow({360, 640});
+    QTest::qWait(50);
+    if (!test::checkVisibleFocusFrames(host.window()))
+        return 188;
+    host.resizeWindow(oldSize);
+    QTest::qWait(30);
+    if (!ui.navigate("home"))
+        return 189;
+    QTest::qWait(40);
+    if (!ui.userRulesDraft().value("globalDirty").toBool() || !ui.navigate("rules"))
+        return 190;
+    QTest::qWait(50);
+    section = host.window()->findChild<QObject*>(QStringLiteral("rules_section"));
+    view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
+    if (!section || !view)
+        return 191;
+    section->setProperty("currentIndex", 2);
+    QTest::qWait(30);
+    ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    if (!ruleEditor || !ruleEditor->property("globalDirty").toBool())
+        return 192;
+    auto restoredDraft = ruleEditor->property("globalDraft");
+    if (restoredDraft.metaType() == QMetaType::fromType<QJSValue>())
+        restoredDraft = restoredDraft.value<QJSValue>().toVariant();
+    if (restoredDraft.toList().size() != 1 ||
+        restoredDraft.toList().first().toMap().value("value") != "example.com")
+        return 197;
     section->setProperty("currentIndex", 1);
     QTest::qWait(30);
     if (ui.liveRules()->count() != 0 || ui.dataDemands().active.contains("rules") ||
@@ -514,6 +621,28 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (backupDialog->property("visible").toBool())
         return 87;
     ui.setUiVisible(true);
+    ui.applyControl(
+        {{"publicationGeneration", "2"}, {"epoch", "next"}, {"features", QJsonObject{}}});
+    const QJsonObject globalOnlyPreview{{"token", "global-only"},
+                                        {"scope", "offline"},
+                                        {"decodedBytes", "100"},
+                                        {"profiles", QJsonArray{}},
+                                        {"hasGlobalRules", true}};
+    ui.applyControl({{"publicationGeneration", "2"},
+                     {"epoch", "next"},
+                     {"features", QJsonObject{{"backupPreview", globalOnlyPreview}}}});
+    QTest::qWait(40);
+    auto* restoreGlobal = host.window()->findChild<QQuickItem*>("backup_restore_global_rules");
+    auto* restoreAccept = host.window()->findChild<QQuickItem*>("backup_restore_accept");
+    if (!backupDialog->property("visible").toBool() ||
+        !backupDialog->property("globalOnly").toBool() || !restoreGlobal || !restoreAccept ||
+        restoreGlobal->property("checked").toBool() || restoreAccept->isEnabled())
+        return 193;
+    restoreGlobal->setProperty("checked", true);
+    QTest::qWait(20);
+    if (!restoreAccept->isEnabled())
+        return 198;
+    QMetaObject::invokeMethod(backupDialog, "reject");
     QTest::qWait(150);
     if (host.qmlErrorCount() != 0 || !host.contentReady())
         return 58;

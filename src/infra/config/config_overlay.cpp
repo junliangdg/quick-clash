@@ -1,7 +1,9 @@
 #include "infra/config/config_overlay.h"
 #include "infra/config/config_metadata.h"
+#include <QHostAddress>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QSet>
 #include <QStringList>
 #include <set>
 #include <yaml-cpp/yaml.h>
@@ -130,5 +132,122 @@ domain::Result<QByteArray> composeOverlay(const QByteArray& source, const QJsonO
     } catch (const YAML::Exception&) {
         return invalid();
     }
+}
+
+domain::Result<QJsonObject> userRuleTargets(const QByteArray& source) {
+    const auto metadata = configMetadata(source, true);
+    if (const auto* error = std::get_if<domain::Error>(&metadata))
+        return *error;
+    try {
+        const auto root = YAML::Load(std::get<ConfigMetadata>(metadata).fieldsYaml.toStdString());
+        QJsonArray groups, providers;
+        if (root["proxy-groups"]) {
+            for (const auto& group : root["proxy-groups"]) {
+                if (group["name"] && group["name"].IsScalar())
+                    groups.append(QString::fromStdString(group["name"].Scalar()));
+            }
+        }
+        if (root["rule-providers"] && root["rule-providers"].IsMap()) {
+            for (const auto& provider : root["rule-providers"]) {
+                if (provider.first.IsScalar())
+                    providers.append(QString::fromStdString(provider.first.Scalar()));
+            }
+        }
+        return QJsonObject{{QStringLiteral("groups"), groups},
+                           {QStringLiteral("providers"), providers}};
+    } catch (const YAML::Exception&) {
+        return invalid();
+    }
+}
+
+domain::Result<QByteArray> composeUserRules(const QByteArray& source, const QJsonObject& rulebook,
+                                            const QString& profileId) {
+    if (rulebook.isEmpty())
+        return source;
+    auto failure = [](const QString& code) {
+        auto result = invalid();
+        result.code = code;
+        result.userMessageKey = code;
+        result.stage = QStringLiteral("user_rules");
+        return result;
+    };
+    if (QJsonDocument(rulebook).toJson(QJsonDocument::Compact).size() > 256 * 1024 ||
+        (rulebook.contains("global") && !rulebook.value("global").isArray()) ||
+        (rulebook.contains("profiles") && !rulebook.value("profiles").isObject()))
+        return failure(QStringLiteral("InvalidUserRules"));
+    const auto targets = userRuleTargets(source);
+    if (const auto* error = std::get_if<domain::Error>(&targets))
+        return *error;
+    const auto available = std::get<QJsonObject>(targets);
+    const auto groups = available.value("groups").toArray();
+    const auto providers = available.value("providers").toArray();
+    const auto profiles = rulebook.value("profiles").toObject();
+    if (profiles.contains(profileId) && !profiles.value(profileId).isObject())
+        return failure(QStringLiteral("InvalidUserRules"));
+    const auto profile = profiles.value(profileId).toObject();
+    if ((profile.contains("rules") && !profile.value("rules").isArray()) ||
+        (profile.contains("proxy") && !profile.value("proxy").isString()))
+        return failure(QStringLiteral("InvalidUserRules"));
+    const auto proxy = profile.value("proxy").toString();
+    QJsonArray result;
+    QSet<QString> ids;
+    const auto append = [&](const QJsonArray& rules, bool global) -> QString {
+        for (const auto& entry : rules) {
+            if (!entry.isObject())
+                return QStringLiteral("InvalidUserRules");
+            const auto rule = entry.toObject();
+            const auto id = rule.value("id").toString();
+            const auto type = rule.value("type").toString();
+            const auto value = rule.value("value").toString().trimmed();
+            auto target = rule.value("target").toString();
+            if (id.isEmpty() || id.size() > 128 || ids.contains(id) ||
+                !rule.value("enabled").isBool() || value.isEmpty() || value.size() > 2048 ||
+                value.contains(QLatin1Char(',')) || value.contains(QLatin1Char('\n')) ||
+                value.contains(QLatin1Char('\r')) || value.contains(QChar::Null))
+                return QStringLiteral("InvalidUserRules");
+            ids.insert(id);
+            if (!QStringList{"DOMAIN", "DOMAIN-SUFFIX", "DOMAIN-KEYWORD", "IP-CIDR", "IP-CIDR6",
+                             "GEOIP", "GEOSITE", "RULE-SET"}
+                     .contains(type) ||
+                (global && type == QStringLiteral("RULE-SET")))
+                return QStringLiteral("InvalidUserRules");
+            if (type != QStringLiteral("RULE-SET")) {
+                for (const auto character : value)
+                    if (character.isSpace())
+                        return QStringLiteral("InvalidUserRules");
+            }
+            if (type == QStringLiteral("IP-CIDR") || type == QStringLiteral("IP-CIDR6")) {
+                const auto network = QHostAddress::parseSubnet(value);
+                if (network.second < 0 ||
+                    (type == QStringLiteral("IP-CIDR") &&
+                     network.first.protocol() != QAbstractSocket::IPv4Protocol) ||
+                    (type == QStringLiteral("IP-CIDR6") &&
+                     network.first.protocol() != QAbstractSocket::IPv6Protocol))
+                    return QStringLiteral("InvalidUserRules");
+            }
+            if (!rule.value("enabled").toBool())
+                continue;
+            if (type == QStringLiteral("RULE-SET") && !providers.contains(value))
+                return QStringLiteral("UserRuleProviderMissing");
+            if (global && target == QStringLiteral("PROXY")) {
+                if (proxy.isEmpty() || !groups.contains(proxy))
+                    return QStringLiteral("UserRuleProxyMissing");
+                target = proxy;
+            } else if (target != QStringLiteral("DIRECT") && target != QStringLiteral("REJECT") &&
+                       (global || !groups.contains(target))) {
+                return QStringLiteral("UserRuleTargetMissing");
+            }
+            result.append(type + QLatin1Char(',') + value + QLatin1Char(',') + target);
+        }
+        return {};
+    };
+    auto issue = append(profile.value("rules").toArray(), false);
+    if (issue.isEmpty())
+        issue = append(rulebook.value("global").toArray(), true);
+    if (!issue.isEmpty())
+        return failure(issue);
+    if (result.isEmpty())
+        return source;
+    return composeOverlay(source, {{"rules", QJsonObject{{"mode", "prepend"}, {"items", result}}}});
 }
 } // namespace quickclash::infra

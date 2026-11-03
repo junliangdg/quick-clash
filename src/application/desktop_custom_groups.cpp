@@ -227,4 +227,201 @@ void DesktopRuntime::finishCustomGroupOperation() {
             selectProxy(intent.value("parent").toString(), intent.value("member").toString());
     });
 }
+
+QJsonObject DesktopRuntime::userRuleBook() const {
+    auto book = runtimePreferences_.value("userRules").toObject();
+    auto rulesByProfile = book.value("profiles").toObject();
+    QSet<QString> currentIds;
+    for (const auto& value : profiles_) {
+        const auto item = value.toObject();
+        const auto id = item.value("id").toString();
+        currentIds.insert(id);
+        if (!rulesByProfile.contains(id) && item.value("restoredUserRules").isObject())
+            rulesByProfile.insert(id, item.value("restoredUserRules"));
+    }
+    for (const auto& id : rulesByProfile.keys())
+        if (!currentIds.contains(id))
+            rulesByProfile.remove(id);
+    if (!rulesByProfile.isEmpty() || book.contains("profiles"))
+        book.insert("profiles", rulesByProfile);
+    return book;
+}
+
+void DesktopRuntime::refreshUserRuleContext() {
+    if (!featureDemands_.contains(QStringLiteral("user_rules")))
+        return;
+    const auto item = profile(selectedId_);
+    const auto contextRevision = selectedId_ + QLatin1Char(':') + profileRevision(item);
+    if (contextRevision != userRuleContextRevision_) {
+        userRuleContextRevision_ = contextRevision;
+        userRuleTargets_ = {};
+        if (!item.isEmpty()) {
+            const auto ref = item.contains("snapshotRef") ? "snapshotRef" : "sourceRef";
+            const auto checksum = item.contains("snapshotRef") ? "snapshotHash" : "sourceHash";
+            const auto bytes = store_.readBytes(item.value(QLatin1String(ref)).toString());
+            if (const auto* input = std::get_if<QByteArray>(&bytes);
+                input && digest(*input) == item.value(QLatin1String(checksum))) {
+                const auto composed = infra::composeProfileConfig(*input, item);
+                if (const auto* base = std::get_if<QByteArray>(&composed)) {
+                    const auto targets = infra::userRuleTargets(*base);
+                    if (const auto* value = std::get_if<QJsonObject>(&targets))
+                        userRuleTargets_ = *value;
+                }
+            }
+        }
+    }
+    const auto book = userRuleBook();
+    const auto local = book.value("profiles").toObject().value(selectedId_).toObject();
+    // Changes to another profile's rules must not invalidate an unrelated draft.
+    const auto revision =
+        digest(QJsonDocument(QJsonObject{{"global", book.value("global")}, {"local", local}})
+                   .toJson(QJsonDocument::Compact) +
+               contextRevision.toUtf8());
+    userRuleState_ = {{"revision", revision},
+                      {"profileId", selectedId_},
+                      {"profileName", item.value("name")},
+                      {"global", book.value("global").toArray()},
+                      {"local", local.value("rules").toArray()},
+                      {"proxy", local.value("proxy").toString()},
+                      {"groups", userRuleTargets_.value("groups").toArray()},
+                      {"providers", userRuleTargets_.value("providers").toArray()},
+                      {"attempt", QString::number(userRuleAttempt_)},
+                      {"result", userRuleResult_}};
+}
+
+void DesktopRuntime::finishUserRuleOperation() {
+    if (!userRuleApplying_ || busy_)
+        return;
+    userRuleApplying_ = false;
+    userRuleResult_ = lastError_.isEmpty() ? QStringLiteral("Saved") : QStringLiteral("Failed");
+    if (userRuleBackupApplying_) {
+        userRuleBackupApplying_ = false;
+        featureState_.insert("backupResult",
+                             lastError_.isEmpty() ? "RulesRestored" : "RulesFailed");
+    }
+}
+
+void DesktopRuntime::userRuleCommand(const QString& command, const QStringList& args) {
+    if (command == QStringLiteral("user_rules_cancel_binding")) {
+        featureState_.remove(QStringLiteral("userRuleBinding"));
+        publish();
+        return;
+    }
+    if (command == QStringLiteral("user_rules_save"))
+        ++userRuleAttempt_;
+    if (busy_ || store_.readOnly()) {
+        if (command == QStringLiteral("user_rules_save")) {
+            userRuleResult_ = QStringLiteral("Failed");
+            error(QStringLiteral("OperationUnavailable"));
+        }
+        return;
+    }
+    if (command == QStringLiteral("user_rules_bind")) {
+        const auto pending = featureState_.value("userRuleBinding").toObject();
+        const auto id = pending.value("profileId").toString();
+        const auto proxy = args.value(0);
+        if (id.isEmpty() || !pending.value("groups").toArray().contains(proxy)) {
+            error(QStringLiteral("UserRuleProxyMissing"));
+            return;
+        }
+        auto book = userRuleBook();
+        auto profiles = book.value("profiles").toObject();
+        auto local = profiles.value(id).toObject();
+        local.insert("proxy", proxy);
+        profiles.insert(id, local);
+        book.insert("profiles", profiles);
+        previousPreferences_ = runtimePreferences_;
+        runtimePreferences_.insert("userRules", book);
+        featureState_.remove(QStringLiteral("userRuleBinding"));
+        lastError_.clear();
+        applyProfile(id, engine_.ready());
+        return;
+    }
+    if (command != QStringLiteral("user_rules_save") ||
+        !featureDemands_.contains(QStringLiteral("user_rules")))
+        return;
+    userRuleResult_ = QStringLiteral("Failed");
+    refreshUserRuleContext();
+    if (args.value(0) != userRuleState_.value("revision") || args.value(2) != selectedId_ ||
+        (args.value(1) != QStringLiteral("global") && args.value(1) != QStringLiteral("local"))) {
+        error(QStringLiteral("UserRuleConflict"));
+        return;
+    }
+    const auto encoded = args.value(3).toUtf8();
+    const auto document = QJsonDocument::fromJson(encoded);
+    if (encoded.size() > 256 * 1024 || !document.isArray() ||
+        (args.value(1) == QStringLiteral("local") && selectedId_.isEmpty())) {
+        error(QStringLiteral("InvalidUserRules"));
+        return;
+    }
+    auto book = userRuleBook();
+    if (args.value(1) == QStringLiteral("global"))
+        book.insert("global", document.array());
+    auto profiles = book.value("profiles").toObject();
+    if (!selectedId_.isEmpty()) {
+        auto local = profiles.value(selectedId_).toObject();
+        if (args.value(1) == QStringLiteral("local"))
+            local.insert("rules", document.array());
+        local.insert("proxy", args.value(4));
+        profiles.insert(selectedId_, local);
+    }
+    book.insert("profiles", profiles);
+
+    QByteArray base("proxies: []\nproxy-groups: [{name: Validation, type: select, "
+                    "proxies: [DIRECT]}]\nrules: ['MATCH,DIRECT']\n");
+    auto checkBook = book;
+    auto checkId = selectedId_;
+    if (selectedId_.isEmpty()) {
+        checkId = QStringLiteral("validation");
+        auto testProfiles = checkBook.value("profiles").toObject();
+        testProfiles.insert(checkId, QJsonObject{{"proxy", "Validation"}});
+        checkBook.insert("profiles", testProfiles);
+    } else {
+        const auto item = profile(selectedId_);
+        const auto ref = item.contains("snapshotRef") ? "snapshotRef" : "sourceRef";
+        const auto checksum = item.contains("snapshotRef") ? "snapshotHash" : "sourceHash";
+        const auto bytes = store_.readBytes(item.value(QLatin1String(ref)).toString());
+        if (!std::holds_alternative<QByteArray>(bytes) ||
+            digest(std::get<QByteArray>(bytes)) != item.value(QLatin1String(checksum))) {
+            error(QStringLiteral("SourceIntegrityFailed"));
+            return;
+        }
+        const auto composed = infra::composeProfileConfig(std::get<QByteArray>(bytes), item);
+        if (const auto* failure = std::get_if<domain::Error>(&composed)) {
+            configError(*failure);
+            return;
+        }
+        base = std::get<QByteArray>(composed);
+    }
+    const auto checked = infra::composeUserRules(base, checkBook, checkId);
+    if (const auto* failure = std::get_if<domain::Error>(&checked)) {
+        userRuleResult_ = QStringLiteral("Failed");
+        configError(*failure);
+        return;
+    }
+    if (book == runtimePreferences_.value("userRules")) {
+        userRuleResult_ = QStringLiteral("Saved");
+        publish();
+        return;
+    }
+    previousPreferences_ = runtimePreferences_;
+    runtimePreferences_.insert("userRules", book);
+    lastError_.clear();
+    userRuleApplying_ = true;
+    userRuleResult_ = QStringLiteral("Applying");
+    if (!selectedId_.isEmpty()) {
+        applyProfile(selectedId_, engine_.ready());
+    } else {
+        const auto result =
+            store_.write(QStringLiteral("config/runtime_defaults.json"), runtimePreferences_);
+        if (const auto* failure = std::get_if<domain::Error>(&result)) {
+            restorePreferences();
+            error(failure->code);
+            return;
+        }
+        previousPreferences_ = {};
+        savedPreferences_ = runtimePreferences_;
+        publish();
+    }
+}
 } // namespace quickclash::application

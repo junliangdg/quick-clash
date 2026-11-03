@@ -263,6 +263,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/subscription_details.qml
         qml/components/profile_editor.qml
         qml/components/custom_group_editor.qml
+        qml/components/user_rules_editor.qml
         qml/components/subscription_card.qml
         qml/components/outbound_status.qml
         qml/components/traffic_sparkline.qml
@@ -404,7 +405,10 @@ if(BUILD_TESTING)
             target_link_libraries(runtime_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
             quickclash_warnings(runtime_test)
             target_sources(runtime_test PRIVATE tests/integration/proxy_latency_probe.cpp
-                tests/integration/custom_groups_probe.cpp tests/integration/custom_groups_probe.h)
+                tests/integration/custom_groups_probe.cpp tests/integration/custom_groups_probe.h
+                tests/integration/user_rules_probe.cpp tests/integration/user_rules_probe.h)
+            add_test(NAME runtime_user_rules COMMAND runtime_test --user-rules-test)
+            set_tests_properties(runtime_user_rules PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_custom_groups COMMAND runtime_test --custom-groups-test)
             set_tests_properties(runtime_custom_groups PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime COMMAND runtime_test)

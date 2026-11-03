@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "custom_groups_probe.h"
+#include "user_rules_probe.h"
 #ifdef Q_OS_WIN
 #include "platform/windows/system_proxy.h"
 #endif
@@ -69,6 +70,8 @@ bool require(bool value, const char* message, quickclash::application::DesktopRu
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--user-rules-test")))
+        return quickclash::test::userRulesProbe();
     if (app.arguments().contains(QStringLiteral("--custom-groups-test")))
         return quickclash::test::customGroupsProbe();
     if (app.arguments().contains(QStringLiteral("--proxy-latency-test")))

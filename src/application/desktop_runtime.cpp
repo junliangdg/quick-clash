@@ -680,8 +680,12 @@ domain::Generation DesktopRuntime::selectionGeneration() const {
 }
 QJsonObject DesktopRuntime::controlState() const {
     auto runtimePreferences = runtimePreferences_;
+    runtimePreferences.remove(QStringLiteral("userRules"));
+    auto savedPreferences = savedPreferences_;
+    savedPreferences.remove(QStringLiteral("userRules"));
     runtimePreferences.insert(QStringLiteral("systemProxyDesired"), persistedProxyIntent_);
     auto effective = engine_.ready() ? effectivePreferences_ : QJsonObject{};
+    effective.remove(QStringLiteral("userRules"));
     effective.insert(QStringLiteral("systemProxy"), proxyLease_->active());
     effective.insert(QStringLiteral("tun"), engine_.tunActive());
     auto features = featureState_;
@@ -754,7 +758,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("preferences"), runtimePreferences},
         {QStringLiteral("settingsState"),
          QJsonObject{{QStringLiteral("requested"), runtimePreferences},
-                     {QStringLiteral("saved"), savedPreferences_},
+                     {QStringLiteral("saved"), savedPreferences},
                      {QStringLiteral("effective"), effective},
                      {QStringLiteral("running"), engine_.ready()},
                      {QStringLiteral("pending"), runtimePreferences_ != savedPreferences_},
@@ -820,6 +824,7 @@ QJsonObject DesktopRuntime::snapshot() const {
 }
 void DesktopRuntime::publish() {
     finishCustomGroupOperation();
+    finishUserRuleOperation();
     if (coreOperationActive_ && !busy_) {
         coreOperationActive_ = false;
         coreUpdateState_.insert(QStringLiteral("state"), lastError_.isEmpty()
@@ -878,6 +883,7 @@ void DesktopRuntime::publish() {
 }
 void DesktopRuntime::flushData() {
     refreshCustomGroupContext();
+    refreshUserRuleContext();
     QJsonObject samples;
     samples.insert(QStringLiteral("coreUptimeSeconds"),
                    engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0);
@@ -904,6 +910,7 @@ void DesktopRuntime::flushData() {
         {QStringLiteral("logs"), logs_.entries()},
         {QStringLiteral("editor"), editor_},
         {QStringLiteral("custom_groups"), customGroupState_},
+        {QStringLiteral("user_rules"), userRuleState_},
         {QStringLiteral("traffic"), fields({QStringLiteral("traffic")})},
         {QStringLiteral("resources"),
          fields({QStringLiteral("memory"), QStringLiteral("memorySample"),
@@ -1082,11 +1089,13 @@ QJsonArray DesktopRuntime::profileViews() const {
         view.insert(QStringLiteral("revision"), profileRevision(view));
         view.remove(QStringLiteral("overlay"));
         view.remove(QStringLiteral("providerResources"));
+        view.remove(QStringLiteral("restoredUserRules"));
         auto history = view.value(QStringLiteral("history")).toArray();
         for (qsizetype i = 0; i < history.size(); ++i) {
             auto version = history[i].toObject();
             version.remove(QStringLiteral("overlay"));
             version.remove(QStringLiteral("providerResources"));
+            version.remove(QStringLiteral("restoredUserRules"));
             history[i] = version;
         }
         view.insert(QStringLiteral("history"), history);
@@ -1533,6 +1542,14 @@ void DesktopRuntime::deleteProfile(const QString& id) {
         stop();
         if (!stopFailure_.isEmpty())
             return;
+        // Once the selection is cleared, startup reads defaults instead of the selected
+        // revision's preference snapshot. Preserve global rules before clearing it.
+        const auto defaults = store_.write(QStringLiteral("config/runtime_defaults.json"),
+                                           runtimePreferences_);
+        if (const auto* failure = std::get_if<domain::Error>(&defaults)) {
+            error(failure->code);
+            return;
+        }
         auto target = repository_.manifest();
         for (const auto* key : {"selection", "activeRevision", "lastGoodRevision"})
             target.insert(QLatin1String(key), QJsonValue::Null);
@@ -1556,6 +1573,21 @@ void DesktopRuntime::deleteProfile(const QString& id) {
         }
     }
     if (saveCatalog(catalog)) {
+        if (selectedId_.isEmpty()) {
+            const auto cleanedRules = userRuleBook();
+            if (cleanedRules != runtimePreferences_.value(QStringLiteral("userRules")).toObject()) {
+                auto updated = runtimePreferences_;
+                updated.insert(QStringLiteral("userRules"), cleanedRules);
+                const auto saved =
+                    store_.write(QStringLiteral("config/runtime_defaults.json"), updated);
+                if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+                    error(failure->code);
+                    return;
+                }
+                runtimePreferences_ = updated;
+                savedPreferences_ = updated;
+            }
+        }
         collectGarbage();
         publish();
     }
@@ -1567,6 +1599,7 @@ void DesktopRuntime::discardConfigTransaction() {
 }
 void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     backgroundSuppressed_ = false;
+    featureState_.remove(QStringLiteral("userRuleBinding"));
     effectivePreview_.clear();
     const auto item = profile(id);
     if (item.isEmpty()) {
@@ -1576,12 +1609,24 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
         error(QStringLiteral("ProfileNotFound"));
         return;
     }
+    // Restored profile rules are staged with their new catalog identity. Include
+    // those layers in the preference snapshot committed with the runtime revision.
+    const auto currentRules = userRuleBook();
+    if (currentRules != runtimePreferences_.value(QStringLiteral("userRules")).toObject()) {
+        if (previousPreferences_.isEmpty())
+            previousPreferences_ = runtimePreferences_;
+        runtimePreferences_.insert(QStringLiteral("userRules"), currentRules);
+    }
     const auto selected = repository_.manifest().value(QStringLiteral("selection")).toObject();
-    const bool adjustSelected = id == selectedId_ && !previousPreferences_.isEmpty();
+    const bool adjustSelected =
+        id == selectedId_ && !previousPreferences_.isEmpty() &&
+        previousPreferences_.value(QStringLiteral("userRules")) ==
+            runtimePreferences_.value(QStringLiteral("userRules"));
     auto context = configTransaction_;
     const bool trusted = context && context->validated &&
                          context->generation == operationGeneration_ && context->profileId == id &&
                          context->preferences == runtimePreferences_ && !adjustSelected &&
+                         userRuleBook().isEmpty() &&
                          context->imported.value(QStringLiteral("sourceRef")) ==
                              item.value(QStringLiteral("sourceRef")) &&
                          context->imported.value(QStringLiteral("sourceHash")) ==
@@ -1656,6 +1701,27 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             restorePreferences();
             configError(*failure);
             return;
+        }
+        if (!adjustSelected) {
+            const auto withRules = infra::composeUserRules(
+                std::get<QByteArray>(overlaid),
+                userRuleBook(), id);
+            if (const auto* failure = std::get_if<domain::Error>(&withRules)) {
+                if (failure->code == QStringLiteral("UserRuleProxyMissing") && !userRuleApplying_) {
+                    const auto targets = infra::userRuleTargets(std::get<QByteArray>(overlaid));
+                    if (const auto* value = std::get_if<QJsonObject>(&targets))
+                        featureState_.insert(
+                            QStringLiteral("userRuleBinding"),
+                            QJsonObject{{"profileId", id},
+                                        {"profileName", item.value("name")},
+                                        {"groups", value->value("groups")}});
+                }
+                busy_ = false;
+                restorePreferences();
+                configError(*failure);
+                return;
+            }
+            overlaid = withRules;
         }
         auto composed = infra::preflightConfig(std::get<QByteArray>(overlaid), preferences());
         if (const auto* failure = std::get_if<domain::Error>(&composed)) {

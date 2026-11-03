@@ -241,6 +241,11 @@ ThemedScrollView {
                     wrapMode: Text.WordWrap
                     text: qsTr("The backup contains node credentials as plain text. It excludes saved subscription credentials, generated session secrets and system proxy leases. Original YAML may contain resource URLs. Keep it private.")
                 }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("Includes global rules, profile rules and proxy group bindings. Without profiles, only global rules are backed up.")
+                }
                 ThemedComboBox {
                     id: backupScope
                     Accessible.name: qsTr("Backup content")
@@ -260,15 +265,23 @@ ThemedScrollView {
     ThemedDialog {
         id: restoreConfirmation
         objectName: "backup_restore_confirmation"
+        readonly property bool globalOnly: (root.pendingBackupPreview.profiles || []).length === 0
         theme: root.theme
         parent: Overlay.overlay
-        title: qsTr("Import profiles from this backup?")
+        title: globalOnly ? qsTr("Restore global rules from this backup?") : qsTr("Import profiles from this backup?")
         modal: true
         anchors.centerIn: parent
         standardButtons: Dialog.Ok | Dialog.Cancel
         width: Math.min(560, parent.width - 32)
         height: Math.min(550, parent.height - 32)
         implicitHeight: height
+        onOpened: {
+            restoreGlobalRules.checked = false;
+            standardButton(Dialog.Ok).objectName = "backup_restore_accept";
+            standardButton(Dialog.Ok).enabled = Qt.binding(function () {
+                return !restoreConfirmation.globalOnly || restoreGlobalRules.checked;
+            });
+        }
         contentItem: ThemedScrollView {
             theme: root.theme
             form: restoreBodyForm
@@ -278,9 +291,24 @@ ThemedScrollView {
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    text: qsTr("Verified profiles are added as new offline profiles. Existing profiles, running sessions and proxy settings are preserved.")
+                    text: restoreConfirmation.globalOnly ? qsTr("This backup contains only global rules. Select the checkbox to restore them.") : qsTr("Verified profiles are added as new offline profiles. Existing profiles, running sessions and proxy settings are preserved.")
+                }
+                ThemedCheckBox {
+                    id: restoreGlobalRules
+                    objectName: "backup_restore_global_rules"
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    visible: !!root.pendingBackupPreview.hasGlobalRules
+                    text: restoreConfirmation.globalOnly ? qsTr("Restore global rules (may restart the core)") : qsTr("Also restore global rules (may restart the core)")
                 }
                 Label {
+                    visible: restoreGlobalRules.visible
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    text: qsTr("By default, existing global rules are kept. Restoring them replaces the current global rules and is applied separately.")
+                }
+                Label {
+                    visible: !restoreConfirmation.globalOnly
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("Contains node credentials. Scope: %1 · Decoded bytes: %2. Original YAML may include provider URLs. No history, drafts, Geo files, settings or old sessions are restored.").arg(root.pendingBackupPreview.scope === "source" ? qsTr("Original YAML and overrides") : qsTr("Offline expanded profiles")).arg(root.pendingBackupPreview.decodedBytes || "—")
@@ -297,7 +325,7 @@ ThemedScrollView {
             }
         }
         onRejected: root.ui.runtimeCommand("cancel_backup_restore")
-        onAccepted: root.ui.runtimeCommand("restore_backup", [root.pendingBackupPreview.token || "", "confirmed"])
+        onAccepted: root.ui.runtimeCommand("restore_backup", [root.pendingBackupPreview.token || "", "confirmed", restoreGlobalRules.checked ? "global_rules" : ""])
         onClosed: root.pendingBackupPreview = ({})
     }
     ColumnLayout {
@@ -968,7 +996,7 @@ ThemedScrollView {
                     ActionButton {
                         width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
-                        text: qsTr("Back up profiles…")
+                        text: qsTr("Back up profiles and rules…")
                         enabled: !root.ui.runtime.busy
                         onClicked: backupConfirmation.open()
                     }
@@ -1034,7 +1062,10 @@ ThemedScrollView {
                             Preview: qsTr("Review the backup before importing"),
                             Restoring: qsTr("Validating profiles for restore…"),
                             Restored: qsTr("Profiles restored"),
-                            Failed: qsTr("Profile restore failed; existing profiles kept"),
+                            RulesApplying: qsTr("Applying global rules…"),
+                            RulesRestored: qsTr("Global rules restored"),
+                            RulesFailed: qsTr("Global rules could not be applied; existing rules kept"),
+                            Failed: root.ui.runtime.error === "UserRuleBackupUnavailable" ? qsTr("Backup cannot preserve a custom rule's provider or group in an offline profile. Review the profile's custom rules first.") : qsTr("Profile restore failed; existing profiles kept"),
                             Cancelled: qsTr("Profile restore cancelled")
                         };
                         return (labels[status] || "") + " · " + (backupLabels[(root.ui.runtime.features || {}).backupResult] || "") + " · " + (geoLabels[(root.ui.runtime.features || {}).geoResult] || "");

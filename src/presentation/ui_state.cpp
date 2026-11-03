@@ -119,6 +119,8 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
             emit profilesChanged();
         } else if (it.key() == QStringLiteral("custom_groups")) {
             emit customGroupsChanged();
+        } else if (it.key() == QStringLiteral("user_rules")) {
+            emit userRulesChanged();
         } else if (it.key() == QStringLiteral("editor")) {
             emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
@@ -262,6 +264,8 @@ void UiState::clearChannel(const QString& channel) {
     appliedData_.remove(channel);
     if (channel == QStringLiteral("custom_groups"))
         emit customGroupsChanged();
+    if (channel == QStringLiteral("user_rules"))
+        emit userRulesChanged();
     if (channel == QStringLiteral("editor"))
         emit editorChanged();
     if (channel == QStringLiteral("connections"))

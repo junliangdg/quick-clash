@@ -1537,6 +1537,10 @@
     <message><source>Verifying and extracting core…</source><translation>正在校验并解压内核…</translation></message>
   </context>
   <context>
+    <name>subscriptions_page</name>
+    <message><source>Deleting the selected subscription restores network settings and stops its session. Its custom rules and proxy binding are removed; global rules and other subscriptions are kept.</source><translation>删除所选订阅会恢复网络设置并停止其会话，同时移除此配置的专属规则和代理组绑定；全局规则和其他订阅不受影响。</translation></message>
+  </context>
+  <context>
     <name>subscription_details</name>
     <message><source>Subscription quota exhausted</source><translation>订阅流量已耗尽</translation></message>
     <message><source>10% quota remaining or less</source><translation>订阅剩余流量不超过10%</translation></message>
@@ -2818,5 +2822,91 @@
       <source> (showing first 100)</source>
       <translation>（仅显示前 100 个）</translation>
     </message>
+  </context>
+  <context>
+    <name>rules_page</name>
+    <message><source>Custom rules</source><translation>自定义规则</translation></message>
+    <message><source>Custom rules…</source><translation>自定义规则…</translation></message>
+    <message><source>Advanced overrides…</source><translation>高级覆写…</translation></message>
+  </context>
+  <context>
+    <name>settings_page</name>
+    <message><source>Also restore global rules (may restart the core)</source><translation>同时恢复全局规则（可能重启内核）</translation></message>
+    <message><source>Back up profiles and rules…</source><translation>备份配置和规则…</translation></message>
+    <message><source>Includes global rules, profile rules and proxy group bindings. Without profiles, only global rules are backed up.</source><translation>包含全局规则、配置专属规则和代理组绑定。没有配置时仅备份全局规则。</translation></message>
+    <message><source>Restore global rules from this backup?</source><translation>从此备份恢复全局规则？</translation></message>
+    <message><source>This backup contains only global rules. Select the checkbox to restore them.</source><translation>此备份仅包含全局规则，请勾选下方选项进行恢复。</translation></message>
+    <message><source>Restore global rules (may restart the core)</source><translation>恢复全局规则（可能重启内核）</translation></message>
+    <message><source>Applying global rules…</source><translation>正在应用全局规则…</translation></message>
+    <message><source>Global rules restored</source><translation>全局规则已恢复</translation></message>
+    <message><source>Global rules could not be applied; existing rules kept</source><translation>全局规则应用失败；已保留原有规则</translation></message>
+    <message><source>By default, existing global rules are kept. Restoring them replaces the current global rules and is applied separately.</source><translation>默认保留本机全局规则；选择恢复将替换当前全局规则并单独应用。</translation></message>
+    <message><source>Profiles restored; applying global rules…</source><translation>配置已恢复，正在应用全局规则…</translation></message>
+    <message><source>Profiles and global rules restored</source><translation>配置和全局规则已恢复</translation></message>
+    <message><source>Profiles restored, but global rules could not be applied; existing rules kept</source><translation>配置已恢复，但全局规则应用失败；已保留原有规则</translation></message>
+    <message><source>Backup cannot preserve a custom rule's provider or group in an offline profile. Review the profile's custom rules first.</source><translation>离线配置无法保留某条自定义规则引用的规则提供者或代理组，备份前请检查该配置的自定义规则。</translation></message>
+  </context>
+  <context>
+    <name>main</name>
+    <message><source>Choose a proxy group</source><translation>选择代理组</translation></message>
+    <message><source>Choose a group</source><translation>请选择代理组</translation></message>
+    <message><source>Global proxy rules need a group for %1.</source><translation>全局代理规则需要为“%1”选择代理组。</translation></message>
+    <message><source>This profile has no proxy groups. Choose another profile or add a group first.</source><translation>此配置没有代理组，请选择其他配置或先添加代理组。</translation></message>
+  </context>
+  <context>
+    <name>user_rules_editor</name>
+    <message><source>Exact domain</source><translation>精确域名</translation></message>
+    <message><source>Domain and subdomains</source><translation>域名及子域名</translation></message>
+    <message><source>Domain keyword</source><translation>域名关键词</translation></message>
+    <message><source>IPv4 network</source><translation>IPv4 网段</translation></message>
+    <message><source>IPv6 network</source><translation>IPv6 网段</translation></message>
+    <message><source>Geo IP</source><translation>Geo IP</translation></message>
+    <message><source>Geo domain</source><translation>Geo 域名</translation></message>
+    <message><source>Existing rule set</source><translation>已有规则集</translation></message>
+    <message><source>Direct</source><translation>直连</translation></message>
+    <message><source>Reject</source><translation>拒绝</translation></message>
+    <message><source>Proxy</source><translation>代理</translation></message>
+    <message><source>Profile rules run first, then global rules, then the profile's original rules.</source><translation>配置专属规则优先，其次是全局规则，最后是配置原有规则。</translation></message>
+    <message><source>Applying changes may restart the core and interrupt connections.</source><translation>应用修改可能重启内核并中断连接。</translation></message>
+    <message><source>Custom rules only control traffic in rule mode.</source><translation>自定义规则仅在规则模式下控制流量。</translation></message>
+    <message><source>Rule scope</source><translation>规则范围</translation></message>
+    <message><source>Match value</source><translation>匹配内容</translation></message>
+    <message><source>No custom rules in this scope yet.</source><translation>此范围尚无自定义规则。</translation></message>
+    <message><source>The previously selected proxy group is unavailable. Choose another group.</source><translation>之前选择的代理组已不可用，请重新选择。</translation></message>
+    <message><source>Global rules</source><translation>全局规则</translation></message>
+    <message><source>Current profile rules</source><translation>当前配置专属规则</translation></message>
+    <message><source>Add rule</source><translation>添加规则</translation></message>
+    <message><source>Applies to all profiles.</source><translation>适用于所有配置。</translation></message>
+    <message><source>Profile: %1</source><translation>配置：%1</translation></message>
+    <message><source>Select a profile first</source><translation>请先选择配置</translation></message>
+    <message><source>The selected profile changed. Reload before saving.</source><translation>所选配置已改变，请重新加载后再保存。</translation></message>
+    <message><source>Global proxy group</source><translation>全局代理规则使用的代理组</translation></message>
+    <message><source>Choose a group</source><translation>请选择代理组</translation></message>
+    <message><source>Enabled</source><translation>启用</translation></message>
+    <message><source>Up</source><translation>上移</translation></message>
+    <message><source>Down</source><translation>下移</translation></message>
+    <message><source>Edit</source><translation>编辑</translation></message>
+    <message><source>Delete</source><translation>删除</translation></message>
+    <message><source>Applying…</source><translation>正在应用…</translation></message>
+    <message><source>Applied</source><translation>已应用</translation></message>
+    <message><source>Saved for next start</source><translation>已保存，下次启动时生效</translation></message>
+    <message><source>Reload</source><translation>重新加载</translation></message>
+    <message><source>Save and apply</source><translation>保存并应用</translation></message>
+    <message><source>Discard unsaved rule changes?</source><translation>放弃未保存的规则修改？</translation></message>
+    <message><source>Reloading discards the edits in both rule scopes.</source><translation>重新加载将放弃全局和配置专属规则的未保存修改。</translation></message>
+    <message><source>Edit rule</source><translation>编辑规则</translation></message>
+    <message><source>Match type</source><translation>匹配类型</translation></message>
+    <message><source>Domain, keyword, network or Geo code</source><translation>域名、关键词、网段或 Geo 代码</translation></message>
+    <message><source>Example: example.com matches the domain and its subdomains.</source><translation>例如 example.com 会匹配该域名及其子域名。</translation></message>
+    <message><source>Example: 192.0.2.0/24</source><translation>例如：192.0.2.0/24</translation></message>
+    <message><source>Example: 2001:db8::/32</source><translation>例如：2001:db8::/32</translation></message>
+    <message><source>Enter a match value, such as example.com or CN.</source><translation>请输入匹配内容，例如 example.com 或 CN。</translation></message>
+    <message><source>Rule provider</source><translation>规则提供者</translation></message>
+    <message><source>Rule target</source><translation>规则出口</translation></message>
+    <message><source>The configuration or rules changed. Reload and check your edits.</source><translation>配置或规则已改变，请重新加载并检查修改。</translation></message>
+    <message><source>Check the rule type and match value, including network prefixes.</source><translation>请检查规则类型和匹配内容，包括网段前缀。</translation></message>
+    <message><source>Choose a proxy group for this profile.</source><translation>请为此配置选择代理组。</translation></message>
+    <message><source>A selected proxy group is no longer available.</source><translation>所选代理组已不可用。</translation></message>
+    <message><source>A selected rule provider is no longer available.</source><translation>所选规则提供者已不可用。</translation></message>
   </context>
 </TS>

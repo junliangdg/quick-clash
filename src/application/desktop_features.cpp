@@ -173,6 +173,10 @@ void DesktopRuntime::releaseFeature(const QString& stream) {
         cancelDelayTests();
     } else if (stream == QStringLiteral("editor")) {
         editor_ = {};
+    } else if (stream == QStringLiteral("user_rules")) {
+        userRuleState_ = {};
+        userRuleTargets_ = {};
+        userRuleContextRevision_.clear();
     }
 }
 RuntimeRequest DesktopRuntime::beginFeatureRequest(const QString& stream) {
@@ -301,6 +305,10 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command.startsWith(QStringLiteral("user_rules_"))) {
+        userRuleCommand(command, args);
+        return;
+    }
     if (command.startsWith(QStringLiteral("custom_group_"))) {
         customGroupCommand(command, args);
         return;
@@ -471,7 +479,7 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
     }
     if (command == QStringLiteral("restore_backup") &&
         args.value(1) == QStringLiteral("confirmed")) {
-        restoreBackup(args.value(0));
+        restoreBackup(args.value(0), args.value(2) == QStringLiteral("global_rules"));
         return;
     }
     if (command == QStringLiteral("preview_backup")) {

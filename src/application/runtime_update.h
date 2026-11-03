@@ -17,7 +17,8 @@ struct RuntimeDemands {
                 QStringLiteral("providers"),   QStringLiteral("logs"),
                 QStringLiteral("log_feed"),    QStringLiteral("traffic"),
                 QStringLiteral("resources"),   QStringLiteral("proxies"),
-                QStringLiteral("editor"),      QStringLiteral("custom_groups")};
+                QStringLiteral("editor"),      QStringLiteral("custom_groups"),
+                QStringLiteral("user_rules")};
     }
     void setActive(const QStringList& streams) {
         QSet<QString> next;
@@ -47,13 +48,14 @@ struct RuntimeDemands {
     if (QStringList{QStringLiteral("connections"), QStringLiteral("rules"),
                     QStringLiteral("providers"), QStringLiteral("logs"), QStringLiteral("traffic"),
                     QStringLiteral("resources"), QStringLiteral("editor"),
-                    QStringLiteral("custom_groups")}
+                    QStringLiteral("custom_groups"), QStringLiteral("user_rules")}
             .contains(channel))
         return channel;
     return {};
 }
 [[nodiscard]] inline QStringList scopedChannels() {
-    return {QStringLiteral("custom_groups"),     QStringLiteral("connections"),
+    return {QStringLiteral("custom_groups"),     QStringLiteral("user_rules"),
+            QStringLiteral("connections"),
             QStringLiteral("connection_status"), QStringLiteral("rules"),
             QStringLiteral("providers"),         QStringLiteral("rule_status"),
             QStringLiteral("provider_status"),   QStringLiteral("logs"),

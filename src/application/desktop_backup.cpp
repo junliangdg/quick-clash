@@ -26,13 +26,21 @@ bool keysAllowed(const QJsonObject& object, const QStringList& keys) {
 }
 } // namespace
 void DesktopRuntime::backupProfiles(bool originals) {
-    if (busy_ || store_.readOnly() || profiles_.isEmpty()) {
+    if (busy_ || store_.readOnly()) {
         error(QStringLiteral("OperationUnavailable"));
         return;
     }
     QJsonArray entries;
     bool hasCustomGroups = false;
-    qsizetype total = 0;
+    const auto rulebook = userRuleBook();
+    const auto globalRules = rulebook.value("global").toArray();
+    if (profiles_.isEmpty() && globalRules.isEmpty()) {
+        error(QStringLiteral("OperationUnavailable"));
+        return;
+    }
+    const auto profileRules = rulebook.value("profiles").toObject();
+    bool hasUserRules = !globalRules.isEmpty();
+    qsizetype total = QJsonDocument(globalRules).toJson(QJsonDocument::Compact).size();
     for (const auto& value : profiles_) {
         const auto item = value.toObject();
         const bool snapshot = item.contains(QStringLiteral("snapshotRef"));
@@ -82,6 +90,20 @@ void DesktopRuntime::backupProfiles(bool originals) {
             error(failure->code);
             return;
         }
+        const auto id = item.value("id").toString();
+        const auto localRules = profileRules.value(id).toObject();
+        if (!localRules.isEmpty()) {
+            const auto restoredRules =
+                infra::composeUserRules(std::get<infra::CustomGroupConfig>(archived).yaml,
+                                        {{"profiles", QJsonObject{{id, localRules}}}}, id);
+            if (std::holds_alternative<domain::Error>(restoredRules)) {
+                // Offline provider snapshots do not retain RULE-SET providers. Do not
+                // produce an archive that this version cannot restore successfully.
+                featureState_.insert("backupResult", "Failed");
+                error(QStringLiteral("UserRuleBackupUnavailable"));
+                return;
+            }
+        }
         const auto& bytes = originals ? std::get<QByteArray>(raw) : std::get<QByteArray>(composed);
         total += bytes.size() + (originals && snapshot ? std::get<QByteArray>(expanded).size() : 0);
         total += originals ? QJsonDocument(overlay).toJson(QJsonDocument::Compact).size() : 0;
@@ -104,10 +126,18 @@ void DesktopRuntime::backupProfiles(bool originals) {
         }
         entry.insert("customGroups", archivedGroups);
         entry.insert("customGroupsHash", catalogDigest(archivedGroups));
+        hasUserRules = hasUserRules || !localRules.isEmpty();
+        entry.insert("userRules", localRules);
+        entry.insert("userRulesHash", overlayDigest(localRules));
         total += QJsonDocument(archivedGroups).toJson(QJsonDocument::Compact).size();
+        total += QJsonDocument(localRules).toJson(QJsonDocument::Compact).size();
+        if (total > 10 * 1024 * 1024) {
+            error(QStringLiteral("BackupLimitExceeded"));
+            return;
+        }
         entries.append(entry);
     }
-    if (!hasCustomGroups) {
+    if (!hasCustomGroups && !hasUserRules) {
         for (qsizetype index = 0; index < entries.size(); ++index) {
             auto entry = entries[index].toObject();
             entry.remove("customGroups");
@@ -115,12 +145,26 @@ void DesktopRuntime::backupProfiles(bool originals) {
             entries[index] = entry;
         }
     }
-    const QJsonObject archive{{"format", "QuickClashOfflineProfiles"},
-                              {"schemaVersion", hasCustomGroups ? 3 : 2},
-                              {"applicationVersion", "0.1.0"},
-                              {"containsCredentials", true},
-                              {"scope", originals ? "source" : "offline"},
-                              {"profiles", entries}};
+    if (!hasUserRules) {
+        for (qsizetype index = 0; index < entries.size(); ++index) {
+            auto entry = entries[index].toObject();
+            entry.remove("userRules");
+            entry.remove("userRulesHash");
+            entries[index] = entry;
+        }
+    }
+    QJsonObject archive{{"format", "QuickClashOfflineProfiles"},
+                        {"schemaVersion", hasUserRules      ? 4
+                                          : hasCustomGroups ? 3
+                                                            : 2},
+                        {"applicationVersion", "0.1.0"},
+                        {"containsCredentials", true},
+                        {"scope", originals ? "source" : "offline"},
+                        {"profiles", entries}};
+    if (hasUserRules) {
+        archive.insert("globalRules", globalRules);
+        archive.insert("globalRulesHash", catalogDigest(globalRules));
+    }
     const auto bytes = QJsonDocument(archive).toJson(QJsonDocument::Compact);
     if (bytes.size() > 16 * 1024 * 1024) {
         error(QStringLiteral("BackupLimitExceeded"));
@@ -181,13 +225,18 @@ void DesktopRuntime::previewBackup(const QString& url) {
     const auto entries = archive.value("profiles").toArray();
     const bool originals = version >= 2 && archive.value("scope") == "source";
     if (!document.isObject() || archive.value("format") != "QuickClashOfflineProfiles" ||
-        (version != 1 && version != 2 && version != 3) ||
+        (version != 1 && version != 2 && version != 3 && version != 4) ||
         archive.value("schemaVersion").toDouble() != version ||
-        archive.value("containsCredentials") != true || entries.isEmpty() ||
+        archive.value("containsCredentials") != true || !archive.value("profiles").isArray() ||
+        (entries.isEmpty() && (version != 4 || archive.value("globalRules").toArray().isEmpty())) ||
         entries.size() + profiles_.size() > 100 ||
         (version >= 2 && !originals && archive.value("scope") != "offline") ||
-        !keysAllowed(archive, {"format", "schemaVersion", "applicationVersion",
-                               "containsCredentials", "scope", "profiles"})) {
+        !keysAllowed(archive,
+                     {"format", "schemaVersion", "applicationVersion", "containsCredentials",
+                      "scope", "profiles", "globalRules", "globalRulesHash"}) ||
+        (version == 4 && (!archive.value("globalRules").isArray() ||
+                          catalogDigest(archive.value("globalRules").toArray()) !=
+                              archive.value("globalRulesHash")))) {
         error(QStringLiteral("InvalidBackup"));
         return;
     }
@@ -196,6 +245,20 @@ void DesktopRuntime::previewBackup(const QString& url) {
     context->preferences = runtimePreferences_;
     context->token = QUuid::createUuid().toString(QUuid::WithoutBraces);
     context->catalogHash = catalogDigest(profiles_);
+    if (version == 4) {
+        context->hasGlobalRules = true;
+        context->globalRules = archive.value("globalRules").toArray();
+        const QByteArray validation("proxies: []\nproxy-groups: [{name: Validation, type: select, "
+                                    "proxies: [DIRECT]}]\nrules: ['MATCH,DIRECT']\n");
+        const QJsonObject book{
+            {"global", context->globalRules},
+            {"profiles", QJsonObject{{"validation", QJsonObject{{"proxy", "Validation"}}}}}};
+        if (std::holds_alternative<domain::Error>(
+                infra::composeUserRules(validation, book, QStringLiteral("validation")))) {
+            error(QStringLiteral("InvalidBackup"));
+            return;
+        }
+    }
     QJsonArray summary;
     qsizetype total = 0;
     for (const auto& value : entries) {
@@ -208,12 +271,17 @@ void DesktopRuntime::previewBackup(const QString& url) {
                              ? QStringList{"name",        "sha256",       "yaml",        "overlay",
                                            "overlayHash", "snapshotYaml", "snapshotHash"}
                              : QStringList{"name", "sha256", "yaml"};
-        if (version == 3)
+        if (version >= 3)
             entryKeys.append({"customGroups", "customGroupsHash"});
+        if (version == 4)
+            entryKeys.append({"userRules", "userRulesHash"});
         if (!value.isObject() || name.trimmed().isEmpty() || name.size() > 80 ||
             !keysAllowed(entry, entryKeys) ||
-            (version == 3 && (!entry.value("customGroups").isArray() ||
+            (version >= 3 && (!entry.value("customGroups").isArray() ||
                               catalogDigest(customGroups) != entry.value("customGroupsHash"))) ||
+            (version == 4 && (!entry.value("userRules").isObject() ||
+                              overlayDigest(entry.value("userRules").toObject()) !=
+                                  entry.value("userRulesHash"))) ||
             (originals && (!entry.value("overlay").isObject() ||
                            overlayDigest(overlay) != entry.value("overlayHash"))) ||
             snapshot != entry.contains("snapshotHash")) {
@@ -228,6 +296,8 @@ void DesktopRuntime::previewBackup(const QString& url) {
                            {"overlay", overlay},
                            {"customGroups", customGroups},
                            {"updatedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}};
+        if (version == 4 && !entry.value("userRules").toObject().isEmpty())
+            staged.insert("restoredUserRules", entry.value("userRules"));
         QByteArray effective;
         for (const auto* key : {"yaml", "snapshotYaml"}) {
             if (QLatin1String(key) == "snapshotYaml" && !snapshot)
@@ -266,7 +336,11 @@ void DesktopRuntime::previewBackup(const QString& url) {
         }
         total += QJsonDocument(overlay).toJson(QJsonDocument::Compact).size() +
                  QJsonDocument(customGroups).toJson(QJsonDocument::Compact).size();
-        const auto composed = infra::composeProfileConfig(effective, staged);
+        auto composed = infra::composeProfileConfig(effective, staged);
+        if (std::holds_alternative<QByteArray>(composed) && staged.contains("restoredUserRules"))
+            composed = infra::composeUserRules(
+                std::get<QByteArray>(composed),
+                {{"profiles", QJsonObject{{id, staged.value("restoredUserRules")}}}}, id);
         if (total > 32 * 1024 * 1024 || !std::holds_alternative<QByteArray>(composed) ||
             std::holds_alternative<domain::Error>(
                 infra::preflightConfig(std::get<QByteArray>(composed), preferences()))) {
@@ -277,17 +351,36 @@ void DesktopRuntime::previewBackup(const QString& url) {
         summary.append(
             QJsonObject{{"name", name}, {"snapshot", snapshot}, {"overrides", !overlay.isEmpty()}});
     }
+    // A restored profile's rules are staged with its new identity. Refuse an archive
+    // that would make the combined rulebook exceed the composition/storage budget.
+    auto combined = userRuleBook();
+    auto combinedProfiles = combined.value("profiles").toObject();
+    for (const auto& value : context->entries) {
+        const auto item = value.toObject();
+        if (item.contains("restoredUserRules"))
+            combinedProfiles.insert(item.value("id").toString(), item.value("restoredUserRules"));
+    }
+    combined.insert("profiles", combinedProfiles);
+    auto restoredGlobal = combined;
+    if (context->hasGlobalRules)
+        restoredGlobal.insert("global", context->globalRules);
+    if (QJsonDocument(combined).toJson(QJsonDocument::Compact).size() > 256 * 1024 ||
+        QJsonDocument(restoredGlobal).toJson(QJsonDocument::Compact).size() > 256 * 1024) {
+        error(QStringLiteral("BackupLimitExceeded"));
+        return;
+    }
     backupRestore_ = context;
     lastError_.clear();
     featureState_.insert("backupResult", "Preview");
     featureState_.insert("backupPreview", QJsonObject{{"token", context->token},
                                                       {"profiles", summary},
                                                       {"scope", originals ? "source" : "offline"},
+                                                      {"hasGlobalRules", context->hasGlobalRules},
                                                       {"decodedBytes", QString::number(total)},
                                                       {"containsCredentials", true}});
     publish();
 }
-void DesktopRuntime::restoreBackup(const QString& token) {
+void DesktopRuntime::restoreBackup(const QString& token, bool restoreGlobalRules) {
     auto context = backupRestore_;
     if (busy_ || store_.readOnly() || !context || context->token != token ||
         context->preferences != runtimePreferences_ ||
@@ -296,6 +389,7 @@ void DesktopRuntime::restoreBackup(const QString& token) {
         return;
     }
     busy_ = true;
+    context->restoreGlobalRules = restoreGlobalRules && context->hasGlobalRules;
     context->active = true;
     context->generation = ++operationGeneration_;
     featureState_.insert("backupResult", "Restoring");
@@ -329,7 +423,8 @@ void DesktopRuntime::restoreNext(const std::shared_ptr<BackupRestore>& context, 
         auto catalog = profiles_;
         for (const auto& value : context->entries)
             catalog.append(value);
-        if (saveCatalog(catalog)) {
+        const bool restored = saveCatalog(catalog);
+        if (restored) {
             context->candidates->references.clear();
             featureState_.insert("backupResult", "Restored");
             lastError_.clear();
@@ -338,6 +433,32 @@ void DesktopRuntime::restoreNext(const std::shared_ptr<BackupRestore>& context, 
         }
         backupRestore_.reset();
         busy_ = false;
+        if (restored && context->restoreGlobalRules) {
+            auto book = userRuleBook();
+            book.insert("global", context->globalRules);
+            previousPreferences_ = runtimePreferences_;
+            runtimePreferences_.insert("userRules", book);
+            userRuleApplying_ = true;
+            userRuleBackupApplying_ = true;
+            userRuleResult_ = QStringLiteral("Applying");
+            featureState_.insert("backupResult", "RulesApplying");
+            lastError_.clear();
+            if (!selectedId_.isEmpty()) {
+                applyProfile(selectedId_, engine_.ready());
+            } else {
+                const auto saved = store_.write(QStringLiteral("config/runtime_defaults.json"),
+                                                runtimePreferences_);
+                if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+                    restorePreferences();
+                    error(failure->code);
+                } else {
+                    previousPreferences_ = {};
+                    savedPreferences_ = runtimePreferences_;
+                    publish();
+                }
+            }
+            return;
+        }
         // Restoring never selects or starts imported profiles, even in an empty repository.
         publish();
         return;
@@ -355,7 +476,13 @@ void DesktopRuntime::restoreNext(const std::shared_ptr<BackupRestore>& context, 
         error(QStringLiteral("SourceIntegrityFailed"));
         return;
     }
-    const auto composed = infra::composeProfileConfig(std::get<QByteArray>(bytes), item);
+    auto composed = infra::composeProfileConfig(std::get<QByteArray>(bytes), item);
+    if (std::holds_alternative<QByteArray>(composed) && item.contains("restoredUserRules"))
+        composed = infra::composeUserRules(
+            std::get<QByteArray>(composed),
+            {{"profiles",
+              QJsonObject{{item.value("id").toString(), item.value("restoredUserRules")}}}},
+            item.value("id").toString());
     const auto checked =
         std::holds_alternative<QByteArray>(composed)
             ? infra::preflightConfig(std::get<QByteArray>(composed), preferences())

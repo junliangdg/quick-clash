@@ -50,6 +50,57 @@ ApplicationWindow {
     Connections {
         target: window.ui
         function onCloseConfirmationRequired(): void { closeDialog.open(); }
+        function onRuntimeChanged(): void {
+            const binding = (window.ui.runtime.features || {}).userRuleBinding || ({});
+            if (binding.profileId && !userRuleBinding.opened)
+                userRuleBinding.open();
+            else if (!binding.profileId && userRuleBinding.opened)
+                userRuleBinding.close();
+        }
+    }
+    ThemedDialog {
+        id: userRuleBinding
+        objectName: "user_rule_binding_dialog"
+        theme: tokens
+        parent: window.contentItem
+        anchors.centerIn: parent
+        width: Math.min(window.width - 32, 440)
+        height: Math.min(window.height - 32, 300)
+        implicitHeight: height
+        modal: true
+        title: qsTr("Choose a proxy group")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        readonly property var binding: (window.ui.runtime.features || {}).userRuleBinding || ({})
+        onOpened: {
+            standardButton(Dialog.Ok).enabled = Qt.binding(function() {
+                return bindingGroup.currentIndex > 0;
+            });
+        }
+        onAccepted: window.ui.runtimeCommand("user_rules_bind", [bindingGroup.currentText])
+        onRejected: window.ui.runtimeCommand("user_rules_cancel_binding")
+        contentItem: ColumnLayout {
+            Label {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: tokens.text
+                text: qsTr("Global proxy rules need a group for %1.").arg(userRuleBinding.binding.profileName || "")
+            }
+            ThemedComboBox {
+                id: bindingGroup
+                objectName: "user_rule_binding_group"
+                theme: tokens
+                Layout.fillWidth: true
+                Accessible.name: qsTr("Proxy group")
+                model: [qsTr("Choose a group")].concat(userRuleBinding.binding.groups || [])
+            }
+            Label {
+                visible: bindingGroup.count <= 1
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: tokens.warning
+                text: qsTr("This profile has no proxy groups. Choose another profile or add a group first.")
+            }
+        }
     }
     Item {
         anchors.fill: parent

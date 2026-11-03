@@ -42,6 +42,8 @@ class UiState : public QObject {
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
     Q_PROPERTY(QVariantMap customGroups READ customGroups NOTIFY customGroupsChanged)
+    Q_PROPERTY(QVariantMap userRules READ userRules NOTIFY userRulesChanged)
+    Q_PROPERTY(QVariantMap userRulesDraft READ userRulesDraft WRITE setUserRulesDraft NOTIFY userRulesDraftChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
@@ -86,6 +88,18 @@ class UiState : public QObject {
     }
     [[nodiscard]] QVariantMap customGroups() const {
         return appliedData_.value(QStringLiteral("custom_groups")).toObject().toVariantMap();
+    }
+    [[nodiscard]] QVariantMap userRules() const {
+        return appliedData_.value(QStringLiteral("user_rules")).toObject().toVariantMap();
+    }
+    [[nodiscard]] QVariantMap userRulesDraft() const {
+        return userRulesDraft_;
+    }
+    void setUserRulesDraft(const QVariantMap& draft) {
+        if (userRulesDraft_ == draft)
+            return;
+        userRulesDraft_ = draft;
+        emit userRulesDraftChanged();
     }
     [[nodiscard]] QVariantMap editor() const {
         return appliedData_.value(QStringLiteral("editor")).toObject().toVariantMap();
@@ -237,6 +251,8 @@ class UiState : public QObject {
     void telemetryChanged();
     void editorChanged();
     void customGroupsChanged();
+    void userRulesChanged();
+    void userRulesDraftChanged();
     void groupsChanged();
     void nodesChanged();
     void delaysChanged();
@@ -296,6 +312,7 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
+    QVariantMap userRulesDraft_;
     ProfileModel profileModel_{this};
     ProfileRowModel profileRows_{&profileModel_, this};
     QVariantList groups_;
