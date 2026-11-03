@@ -54,13 +54,13 @@ struct RuntimeDemands {
     return {};
 }
 [[nodiscard]] inline QStringList scopedChannels() {
-    return {QStringLiteral("custom_groups"),     QStringLiteral("user_rules"),
-            QStringLiteral("connections"),
-            QStringLiteral("connection_status"), QStringLiteral("rules"),
-            QStringLiteral("providers"),         QStringLiteral("rule_status"),
-            QStringLiteral("provider_status"),   QStringLiteral("logs"),
-            QStringLiteral("log_status"),        QStringLiteral("traffic"),
-            QStringLiteral("resources"),         QStringLiteral("editor")};
+    return {QStringLiteral("custom_groups"), QStringLiteral("user_rules"),
+            QStringLiteral("connections"),   QStringLiteral("connection_status"),
+            QStringLiteral("rules"),         QStringLiteral("providers"),
+            QStringLiteral("rule_status"),   QStringLiteral("provider_status"),
+            QStringLiteral("logs"),          QStringLiteral("log_status"),
+            QStringLiteral("traffic"),       QStringLiteral("resources"),
+            QStringLiteral("editor")};
 }
 struct RuntimeRequest {
     QString stream;

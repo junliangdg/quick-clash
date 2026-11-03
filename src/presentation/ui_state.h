@@ -43,7 +43,8 @@ class UiState : public QObject {
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
     Q_PROPERTY(QVariantMap customGroups READ customGroups NOTIFY customGroupsChanged)
     Q_PROPERTY(QVariantMap userRules READ userRules NOTIFY userRulesChanged)
-    Q_PROPERTY(QVariantMap userRulesDraft READ userRulesDraft WRITE setUserRulesDraft NOTIFY userRulesDraftChanged)
+    Q_PROPERTY(QVariantMap userRulesDraft READ userRulesDraft WRITE setUserRulesDraft NOTIFY
+                   userRulesDraftChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)

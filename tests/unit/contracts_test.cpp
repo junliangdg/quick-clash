@@ -260,26 +260,29 @@ int main(int argc, char* argv[]) {
                   "no overlay preserves source bytes including comments");
         }
         {
-            const QByteArray source(
-                "proxies: []\nproxy-groups:\n"
-                "  - {name: A, type: select, proxies: [DIRECT]}\n"
-                "rule-providers:\n  sites: {type: inline, behavior: domain, payload: ['example.com']}\n"
-                "rules:\n  - MATCH,DIRECT\n");
+            const QByteArray source("proxies: []\nproxy-groups:\n"
+                                    "  - {name: A, type: select, proxies: [DIRECT]}\n"
+                                    "rule-providers:\n  sites: {type: inline, behavior: domain, "
+                                    "payload: ['example.com']}\n"
+                                    "rules:\n  - MATCH,DIRECT\n");
             const auto rule = [](const char* id, const char* type, const char* value,
                                  const char* target, bool enabled = true) {
-                return QJsonObject{{"id", id},       {"type", type}, {"value", value},
-                                   {"target", target}, {"enabled", enabled}};
+                return QJsonObject{{"id", id},
+                                   {"type", type},
+                                   {"value", value},
+                                   {"target", target},
+                                   {"enabled", enabled}};
             };
             const QJsonObject book{
                 {"global", QJsonArray{rule("g", "DOMAIN-SUFFIX", "example.com", "PROXY"),
                                       rule("disabled", "GEOIP", "CN", "DIRECT", false)}},
                 {"profiles",
-                 QJsonObject{{"first", QJsonObject{
-                                           {"proxy", "A"},
-                                           {"rules", QJsonArray{rule("l", "DOMAIN", "example.com",
-                                                                     "DIRECT"),
-                                                                rule("set", "RULE-SET", "sites",
-                                                                     "REJECT")}}}}}}};
+                 QJsonObject{
+                     {"first",
+                      QJsonObject{
+                          {"proxy", "A"},
+                          {"rules", QJsonArray{rule("l", "DOMAIN", "example.com", "DIRECT"),
+                                               rule("set", "RULE-SET", "sites", "REJECT")}}}}}}};
             const auto composed = quickclash::infra::composeUserRules(source, book, "first");
             check(std::holds_alternative<QByteArray>(composed), "user rules compose");
             const auto yaml = std::get<QByteArray>(composed);
@@ -297,20 +300,22 @@ int main(int argc, char* argv[]) {
             check(std::holds_alternative<Error>(
                       quickclash::infra::composeUserRules(source, bad, "first")),
                   "invalid CIDR rejected");
-            const QJsonArray common{
-                rule("d", "DOMAIN", "example.com", "DIRECT"),
-                rule("s", "DOMAIN-SUFFIX", "example.com", "REJECT"),
-                rule("k", "DOMAIN-KEYWORD", "example", "DIRECT"),
-                rule("v4", "IP-CIDR", "192.0.2.0/24", "DIRECT"),
-                rule("v6", "IP-CIDR6", "2001:db8::/32", "DIRECT"),
-                rule("geoip", "GEOIP", "CN", "DIRECT"),
-                rule("geosite", "GEOSITE", "CN", "DIRECT")};
+            const QJsonArray common{rule("d", "DOMAIN", "example.com", "DIRECT"),
+                                    rule("s", "DOMAIN-SUFFIX", "example.com", "REJECT"),
+                                    rule("k", "DOMAIN-KEYWORD", "example", "DIRECT"),
+                                    rule("v4", "IP-CIDR", "192.0.2.0/24", "DIRECT"),
+                                    rule("v6", "IP-CIDR6", "2001:db8::/32", "DIRECT"),
+                                    rule("geoip", "GEOIP", "CN", "DIRECT"),
+                                    rule("geosite", "GEOSITE", "CN", "DIRECT")};
             check(std::holds_alternative<QByteArray>(
                       quickclash::infra::composeUserRules(source, {{"global", common}}, "first")),
                   "all common global rule types compose");
             const auto missingProvider = quickclash::infra::composeUserRules(
-                source, {{"profiles", QJsonObject{{"first", QJsonObject{
-                     {"rules", QJsonArray{rule("x", "RULE-SET", "missing", "DIRECT")}}}}}}},
+                source,
+                {{"profiles",
+                  QJsonObject{
+                      {"first", QJsonObject{{"rules", QJsonArray{rule("x", "RULE-SET", "missing",
+                                                                      "DIRECT")}}}}}}},
                 "first");
             check(std::holds_alternative<Error>(missingProvider) &&
                       std::get<Error>(missingProvider).code == "UserRuleProviderMissing",
@@ -320,8 +325,11 @@ int main(int argc, char* argv[]) {
                       "first")),
                   "global rules cannot refer to a profile provider");
             const auto missingGroup = quickclash::infra::composeUserRules(
-                source, {{"profiles", QJsonObject{{"first", QJsonObject{
-                     {"rules", QJsonArray{rule("x", "DOMAIN", "example.com", "absent")}}}}}}},
+                source,
+                {{"profiles",
+                  QJsonObject{
+                      {"first", QJsonObject{{"rules", QJsonArray{rule("x", "DOMAIN", "example.com",
+                                                                      "absent")}}}}}}},
                 "first");
             check(std::holds_alternative<Error>(missingGroup) &&
                       std::get<Error>(missingGroup).code == "UserRuleTargetMissing",
