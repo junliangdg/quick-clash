@@ -7,7 +7,7 @@ do not put translated text back into product source files.
 
 Update the catalog after adding text:
 
-    C:/Qt/6.8.0/msvc2022_64/bin/lupdate.exe app src qml -no-obsolete -locations none -ts resources/i18n/quickclash_zh_cn.ts
+    C:/Qt/6.9.0/msvc2022_64/bin/lupdate.exe app src qml -no-obsolete -locations none -ts resources/i18n/quickclash_zh_cn.ts
 
 Complete every translation in Qt Linguist, then build normally. CMake runs lrelease
 and embeds the application catalog and Qt base/declarative Chinese catalogs.

@@ -6,7 +6,7 @@
 
 Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件、插件及其依赖部署到构建输出目录；服务链接后也复制其运行DLL，使SCM的SYSTEM环境无需开发Qt PATH。CMake生成相对路径qt6.conf，优先于Qt自动生成的构建qt.conf，避免仅复制QtCore后丢失QML/TLS路径。修改Qt套件须使用新的构建目录；构建目录仍不是发行包，独立便携包须使用下述部署脚本，安装只生成匹配bin/qml/plugins布局的qt.conf，不携带开发qt6.conf。
 
-- C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目接受 Qt ≥6.8，参考/验收环境仍固定 Qt 6.8.0，开发根目录可配置。
+- C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目要求 Qt ≥6.9，Windows CI 最低版本配置固定 Qt 6.9.0，本地验证环境为 Qt 6.12.0，开发根目录可配置。
 - Windows 使用 MSVC 19.50.35727.0（Visual Studio 2026 18.4.1），SDK 10.0.26100.0。Qt 套件名为 msvc2022_64，该参考组合已完整链接/启动通过，不外推其他组合。
 - yaml-cpp 0.9.0 正式 release，版本、URL、SHA-256 统一读取 [release_matrix.json](release_matrix.json)。第三方只解到 build/_deps，不改上游 CMakeLists，不全局降低策略。
 - 0.8.0 声明 CMake 3.4，触发 CMake 4 删除的旧策略兼容；0.9.0 原文声明 3.5...3.30，现已在 CMake 4.3.0 完整构建和契约测试通过。
@@ -29,12 +29,12 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 仓库目录统一为 `quick-clash`，实际工作路径为 `D:/repos/quick-clash`，[目录迁移](../progress/reports/windows_validation.md#工程与内核)及会话写权限更新已完成。移动源码目录后，旧 CMake/Ninja 生成文件含原绝对路径，不能直接复用；保留旧 `build/` 作为历史资料，使用全新目录，例如 `-BuildDirectory build/windows_x64`、`-BuildDirectory build/headless_x64 -Headless`。脚本和 presets 均从当前仓库位置求路径，下载缓存 `.cache/` 可继续按摘要校验使用。
 
     pwsh -NoProfile -File scripts/fetch_dependencies.ps1
-    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.8.0/msvc2022_64 -Fresh
-    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.8.0/msvc2022_64 -Headless -Fresh
+    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Fresh
+    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Headless -Fresh
 
 上面两条是冻结参考环境的验收命令，不是本地开发唯一入口。`-QtRoot` 可省略；省略时脚本不覆盖 `CMAKE_PREFIX_PATH` 或 PATH 中的 Qt，由 IDE kit、用户 preset 或调用环境负责提供。`-VsInstallPath` 可选择具体 Visual Studio 安装；未指定时优先沿用当前可找到 `cl.exe` 的开发者环境，否则才用 vswhere 选择最新含 x64 C++ 工具的实例。Ninja 默认由 CMake/PATH 查找，也可用 `-Ninja` 显式指定。不同 Qt、编译器或 generator 必须使用独立构建目录或 `-Fresh`，避免复用已有 CMake cache。
 
-脚本仍使用仓库 Ninja preset；可用 `-CMake` 指定 CMake 路径、`-BuildDirectory` 指定独立构建目录。默认使用 PATH 的 cmake，不隐式退到旧版本。Qt Creator/VS Code 可以选择兼容的 Qt ≥6.8 套件并提供 `CMAKE_PREFIX_PATH`，个人机器路径写入不提交的 `CMakeUserPresets.json`；首次先获取依赖，CMake 配置本身不联网。支持/发布结论仍以版本矩阵中的冻结 Qt 6.8.0 环境和真实验收为准。
+脚本仍使用仓库 Ninja preset；可用 `-CMake` 指定 CMake 路径、`-BuildDirectory` 指定独立构建目录。默认使用 PATH 的 cmake，不隐式退到旧版本。Qt Creator/VS Code 可以选择兼容的 Qt ≥6.9 套件并提供 `CMAKE_PREFIX_PATH`，个人机器路径写入不提交的 `CMakeUserPresets.json`；首次先获取依赖，CMake 配置本身不联网。Qt 6.9.0 为最低版本 CI 配置，实际构建结论仍以相应版本的验收结果为准。
 
 构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
 
@@ -42,7 +42,7 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 
 快速迭代阶段，[日常CI](../../.github/workflows/build.yml)当前自动发布门禁仅覆盖Windows：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
 
-Windows使用windows-2022/Qt6.8.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
 Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核、AppContainer或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
@@ -78,7 +78,7 @@ Windows 才构建 core_job_probe。probe_mihomo -ApiOnly 独立验证控制 API�
 
 内核探针默认在 Git忽略的 `build/core_probe/<UTC 时间>_<运行 ID>/` 保存成功或失败记录；可用 `-EvidenceDirectory` 指定新的目录，已有目录拒绝使用，旧记录不覆盖。配置 `-t` 每次限时 10 秒，失败阶段、退出码/超时和清理结果写入 summary/日志。完整探针包含 PID 监听归属、Job 和零网络能力 AppContainer 正反例；隔离首先核对父进程可连接、自有子进程不能连接，使用相同官方程序字节。API-only 仍不能替代这些结果。原始输出不提交到reports，Actions日志artifact保留14天；长期证据按[留存规则](../progress/reports/README.md)精选。
 
-clang-format 21.1.2 处理自有 C++；clang-tidy 21.1.2 配置已可解析，完整分析尚未执行。QML 使用 Qt 6.8.0 qmlformat 和 qmllint target。编译/缓存/模块导出及 --smoke-test、无 UI 契约已经通过，P0-06/08 已关闭。
+clang-format 21.1.2 处理自有 C++；clang-tidy 21.1.2 配置已可解析，完整分析尚未执行。QML 使用 Qt 6.9.0 qmlformat 和 qmllint target。编译/缓存/模块导出及 --smoke-test、无 UI 契约已经通过，P0-06/08 已关闭。
 
 ## P2 离线验证包
 

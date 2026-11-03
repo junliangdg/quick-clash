@@ -28,7 +28,7 @@ jobs:
           python -m pip install --only-binary=:all: cmake==4.3.0 ninja==1.13.2
       - uses: jurplel/install-qt-action@v4
         with:
-          version: '6.8.0'
+          version: '6.9.0'
           arch: ${{ matrix.arch }}
           cache: true
           setup-python: false

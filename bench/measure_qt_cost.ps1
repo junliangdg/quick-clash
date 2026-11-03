@@ -20,7 +20,7 @@ foreach ($taskStage in @('application', 'quick_window', 'controls')) {
         $taskStart.UseShellExecute = $false
         $taskStart.RedirectStandardOutput = $true
         $taskStart.RedirectStandardError = $true
-        $taskStart.Environment['PATH'] = 'C:/Qt/6.8.0/msvc2022_64/bin;' + $env:PATH
+        $taskStart.Environment['PATH'] = 'C:/Qt/6.9.0/msvc2022_64/bin;' + $env:PATH
         $taskStart.Environment['QSG_RENDER_LOOP'] = 'basic'
         $taskStart.Environment['QT_FORCE_STDERR_LOGGING'] = '1'
         foreach ($taskArgument in @("--stage=$taskStage", "--font=$taskFont", "--diagnostics=$taskOutput/$taskName.json", "--quit-after-ms=$(($Seconds + 5) * 1000)")) { $taskStart.ArgumentList.Add($taskArgument) }

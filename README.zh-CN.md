@@ -57,7 +57,7 @@ QuickClash 的目标平台是 Windows、Linux 和 macOS 三个桌面平台，And
 
 ## 从源码构建
 
-当前已验证的构建环境为 Windows x64、PowerShell 7.2+、CMake 3.24+、Ninja、Visual Studio 的 MSVC x64 工具链，以及 Qt 6.8 或更新版本。冻结的参考环境为 Qt `6.8.0 msvc2022_64`。Linux 和 macOS 保留候选构建配置，但尚未完成原生构建与功能验收。
+项目最低要求为 Qt 6.9。Windows CI 配置为 Qt `6.9.0 msvc2022_64`，用于覆盖最低版本；当前本地验证环境使用 Qt 6.12.0。Linux 和 macOS 保留候选构建配置，但尚未完成原生构建与功能验收。
 
 在仓库根目录执行：
 
@@ -66,7 +66,7 @@ QuickClash 的目标平台是 Windows、Linux 和 macOS 三个桌面平台，And
 pwsh -NoProfile -File scripts/fetch_dependencies.ps1
 
 # 配置、构建、运行 QML lint 和受影响测试
-pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.8.0/msvc2022_64
+pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64
 
 # 启动开发版
 build/dev/quickclash.exe

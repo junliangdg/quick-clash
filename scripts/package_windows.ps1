@@ -3,7 +3,7 @@
 param(
     [string]$BuildDirectory = 'build/p1_windows',
     [string]$Destination = 'dist/p2_windows',
-    [string]$QtRoot = 'C:/Qt/6.8.0/msvc2022_64',
+    [string]$QtRoot = 'C:/Qt/6.9.0/msvc2022_64',
     [string]$VcRuntimeDirectory = 'C:/Program Files/Microsoft Visual Studio/18/Community/VC/Redist/MSVC/14.50.35710/x64/Microsoft.VC145.CRT',
     [string]$MihomoLicense = "$env:TEMP/quickclash_mihomo_license.txt",
     [string]$CMake = 'cmake'

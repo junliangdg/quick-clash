@@ -5,9 +5,9 @@ QuickClash 自有代码与资源以 GPL-3.0-only 发布，完整许可见[LICENS
 | 依赖 | 版本/方式 | 许可与分发动作 |
 |---|---|---|
 | QuickClash 自有代码与资源 | 仓库源码、QML、构建/打包脚本、品牌与预览 | GPL-3.0-only；保留 [LICENSE](../../LICENSE)，分发二进制时提供对应源码；第三方组件不因本项目的 GPL 授权改变自身许可 |
-| Qt Core/Gui/Network/Qml/Quick/QuickControls2 | 6.8.0，动态链接候选，Basic | 按实际模块 LGPL-3.0/GPL-3.0/商业许可核对；开源发行提供许可、Qt 源码获取及动态替换/调试权利，保留 Qt 内第三方 notices；工具不统一当 LGPL |
+| Qt Core/Gui/Network/Qml/Quick/QuickControls2 | 6.9.0，动态链接候选，Basic | 按实际模块 LGPL-3.0/GPL-3.0/商业许可核对；开源发行提供许可、Qt 源码获取及动态替换/调试权利，保留 Qt 内第三方 notices；工具不统一当 LGPL |
 | yaml-cpp | 0.9.0 固定 release，静态候选 | MIT，保留版权及完整许可；[LICENSE](https://github.com/jbeder/yaml-cpp/blob/yaml-cpp-0.9.0/LICENSE) 已从校验包读取 |
-| Qt Svg | 6.8.0，动态链接；本地图标SVG解码 | 随Qt插件部署，按实际Qt Svg模块许可保留源代码获取与动态替换义务；不在headless引入GUI依赖 |
+| Qt Svg | 6.9.0，动态链接；本地图标SVG解码 | 随Qt插件部署，按实际Qt Svg模块许可保留源代码获取与动态替换义务；不在headless引入GUI依赖 |
 | Lucide导航/收展/仪表盘图标 | 1.8.0，本地24个SVG子集（八导航、两个收展、14个仪表盘图标）；24×24画布，描边调整为1.75 | [上游](https://github.com/lucide-icons/lucide/tree/1.8.0)，导航/收展从本机固定版本包提取，仪表盘来自同标签icons目录；ISC及包内Feather MIT说明完整保留于[许可原文](../../resources/licenses/lucide_isc.txt)，安装到licenses/；不携带JS图标库或图标字体 |
 | Simple Icons网站图标 | 16.0.0，Google/YouTube/GitHub三个原始SVG，运行时按主题着色 | [固定来源](https://github.com/simple-icons/simple-icons/tree/16.0.0/icons)，CC0-1.0完整原文保留于[许可文件](../../resources/licenses/simple_icons_cc0.txt)，安装到licenses/；仅用于识别测试目标，不表示关联或背书，商标权不由CC0授予 |
 | 灵猫Q品牌 | QuickClash自有SVG、明暗托盘SVG及多尺寸ICO | 按用户选定提案绘制，不使用Qt或其他Clash客户端品牌素材；源资源在resources/icons/brand，ICO由开发工具Node/sharp生成，工具不随客户端分发 |
