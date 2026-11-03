@@ -1045,7 +1045,8 @@ void DesktopRuntime::configError(const domain::Error& failure) {
         configIssues_.append(QJsonObject{{QStringLiteral("code"), issue.code},
                                          {QStringLiteral("path"), issue.path},
                                          {QStringLiteral("feature"), issue.feature},
-                                         {QStringLiteral("phase"), issue.phase}});
+                                         {QStringLiteral("phase"), issue.phase},
+                                         {QStringLiteral("occurrences"), issue.occurrences}});
     }
     publish();
 }
@@ -1348,7 +1349,16 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
         configError(*failure);
         return;
     }
-    context->semantic = std::move(std::get<infra::PreflightConfig>(preflight).semanticYaml);
+    auto& checked = std::get<infra::PreflightConfig>(preflight);
+    QJsonArray notices;
+    for (const auto& field : checked.overriddenFields) {
+        if (field == QStringLiteral("geox-url"))
+            notices.append(QStringLiteral("ManagedGeo"));
+        else if (field == QStringLiteral("proxies.<extension>"))
+            notices.append(QStringLiteral("IgnoredProxyExtensions"));
+    }
+    context->imported.insert(QStringLiteral("compatibilityNotices"), notices);
+    context->semantic = std::move(checked.semanticYaml);
     busy_ = true;
     context->generation = ++operationGeneration_;
     configTransaction_ = context;

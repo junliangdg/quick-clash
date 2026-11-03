@@ -490,7 +490,7 @@ runtimeStage 是用户运行阶段（未配置/下载中/校验中/启动中/运
 
 统一错误结构：code、category、userMessageKey、retryable、operationId、stage、redactedDetail、optionalOsCode，以及可空的configIssues值列表。诊断细节不直接显示完整请求、配置或凭据。
 
-P2配置预检的configIssues最多32项，每项为code、path、feature、phase；使用固定错误码/功能词和结构索引路径，如$.proxies[0].network。任意未知键统一显示<field>，不回显用户键名、节点/组名、URL、认证值或YAML异常原文。可以一次列出多类兼容性问题；解析/结构错误仍可提前终止。字段错误使用InvalidConfigField，不兼容按协议、传输、组、规则、DNS、外部资源和字段分类，界面统一翻译成英文/中文，持久日志只记稳定总错误码。成功操作清除旧诊断，具体支持字段见config_policy.json。
+配置预检的configIssues最多32类，每项为code、path、feature、phase、occurrences；使用固定错误码/功能词和结构索引路径，如$.proxies[0].network。同类多项按索引归一为[*]并计数，避免重复项淹没其他类别。任意未知键统一显示<field>，不回显用户键名、节点/组名、URL、认证值或YAML异常原文。可以一次列出多类兼容性问题；解析/结构错误仍可提前终止。字段错误使用InvalidConfigField，不兼容按协议、传输、组、规则、DNS、外部资源和字段分类，界面统一翻译成英文/中文，持久日志只记稳定总错误码。成功操作清除旧诊断，具体支持字段见config_policy.json。
 
 | 类别 | 例子 | UI 处理 |
 |---|---|---|
@@ -1091,13 +1091,14 @@ Hysteria2支持ports/hop-interval及指纹；生成器的mport规范化为ports�
 
 基础Geo由构建/打包固定并随配置保存资源清单。每次校验/启动均先验证随包原件，再用QSaveFile复制为GeoIP.dat/GeoSite.dat；校验目录是零网络能力AppContainer staging，运行目录是当前实例data/core_state，只有owned核心使用。二者采用同一摘要，无隐式获取，geo-auto-update=false。缓存不写回包目录。资源缺失/损坏时拒绝候选或启动并保留旧配置；启动前再次核对资源清单。固定快照与跨版本动态资源/历史回滚分开建模，后者属于P3受管资源范围。上游latest地址可变，重新获取必须匹配冻结摘要；变化时需显式更新基线，不自动接纳新字节。用户无需先启动代理才能离线校验。
 
-协议和传输矩阵以随包config_policy.json与固定Mihomo v1.19.33为准；未知字段仍拒绝，不因官方内核允许忽略而静默接纳。
+协议和传输矩阵以随包config_policy.json与固定Mihomo v1.19.33为准；优先支持已确认安全且内核实际处理的字段。无法分类的未知字段仍拒绝，不因官方内核允许忽略而静默接纳。订阅顶层geox-url不交给核心下载，采用受管Geo数据并在订阅管理中说明匹配结果可能不同。节点顶层形如x-[a-z0-9-]+的有界标量厂商扩展是固定内核不消费的元数据：原文保留、有效配置移除，并在订阅管理中提示；适用于订阅内联节点和受管proxy-provider快照节点，复合值及其他未知字段不套用此规则。运行内核版本变化时必须重新核对这个分类。
 
 | 范围 | 字段与行为 |
 |---|---|
+| 节点公共选项 | 支持tfo/mptcp布尔及ip-version的dual、ipv4、ipv6、ipv4-prefer、ipv6-prefer；不据此开放网卡、路由标记或外部路径 |
 | TUIC认证 | v4非空token与v5合法UUID+非空password二选一，不混用；凭据只进入受管配置/脱敏预览。原生UDP能力为true，显式udp:false因内核不执行该开关而拒绝 |
 | TUIC传输 | sni/alpn、disable-sni/reduce-rtt/skip-cert-verify/fast-open布尔；request-timeout/heartbeat-interval为毫秒、max-udp-relay-packet-size为字节、max-open-streams为数量，均1—1000000；udp-relay-mode为native/quic，congestion-controller为cubic/new_reno/bbr。ALPN≤16项、每项1—64字节。证书文件/ECH等未声明扩展继续拒绝 |
-| Trojan/VLESS/VMess | network为tcp/ws/grpc；ws-opts只允许path、headers.Host、max-early-data（0—65536）、early-data-header-name；grpc-opts只允许grpc-service-name，选项必须匹配network。VLESS Reality须TCP+TLS、43字符URL安全公钥和0—16偶数位十六进制short-id；非空flow只允许TCP+TLS的xtls-rprx-vision；空flow保留 |
+| Trojan/VLESS/VMess | network为tcp/ws/grpc；ws-opts只允许path、headers.Host、max-early-data（0—65536）、early-data-header-name；grpc-opts只允许grpc-service-name，选项必须匹配network。VLESS encryption为不超过4096字节的标量，具体值由固定官方内核验证；预览遮蔽。VLESS Reality须TCP+TLS、43字符URL安全公钥和0—16偶数位十六进制short-id；非空flow只允许TCP+TLS的xtls-rprx-vision；空flow保留 |
 | load-balance | 共用自动组url/interval/timeout/lazy/expected-status，strategy为consistent-hashing（默认）/round-robin/sticky-sessions。组显示成员和负载均衡类型，不提供手选或统一当前节点；每个连接的实际链单独显示。停机投影同样不伪造当前首成员 |
 
 订阅编辑包含名称、URL、更新间隔、自动更新、自动应用、下载路径策略、必要请求头。完整 URL/请求头通常含凭据，不显示在列表、通知和默认诊断中。

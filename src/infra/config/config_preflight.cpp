@@ -6,6 +6,7 @@
 #include <QMessageAuthenticationCode>
 #include <QSet>
 #include <QStringList>
+#include <algorithm>
 #include <map>
 #include <set>
 #include <sstream>
@@ -104,6 +105,31 @@ void checkParseBudget(const QByteArray& input) {
     while (parser.HandleNextDocument(budget)) {
     }
 }
+bool removeProxyExtensions(const YAML::Node& proxies) {
+    if (!proxies.IsSequence())
+        return false;
+    bool removed = false;
+    for (auto proxy : proxies) {
+        if (!proxy.IsMap())
+            continue;
+        std::vector<std::string> extensions;
+        for (const auto& entry : proxy) {
+            const auto key = entry.first.Scalar();
+            const bool extension =
+                key.size() >= 3 && key.size() <= 128 && key.starts_with("x-") &&
+                std::all_of(key.begin() + 2, key.end(), [](unsigned char c) {
+                    return (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '-';
+                });
+            if (extension && entry.second.IsScalar() && entry.second.Scalar().size() <= 4096)
+                extensions.push_back(key);
+        }
+        for (const auto& key : extensions) {
+            proxy.remove(key);
+            removed = true;
+        }
+    }
+    return removed;
+}
 } // namespace
 
 QString subscriptionPayloadError(const QByteArray& input) {
@@ -150,10 +176,27 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         auto root = YAML::Load(fields.fieldsYaml.toStdString());
         std::size_t budget = 100000;
         inspectTree(root, 0, budget);
+        PreflightConfig output;
+        // The application owns Geo resources. Never forward a subscription's download URLs
+        // to the core, including when it could otherwise update resources on its own.
+        if (root["geox-url"]) {
+            output.overriddenFields.push_back(QStringLiteral("geox-url"));
+            root.remove("geox-url");
+        }
+        // Mihomo v1.19.33 does not consume x- vendor metadata on proxy entries. Keep the
+        // original source, but do not forward these arbitrary keys or values to the core.
+        bool removedExtensions = removeProxyExtensions(root["proxies"]);
+        const auto providers = root["proxy-providers"];
+        if (providers.IsMap())
+            for (const auto& entry : providers)
+                if (entry.second.IsMap() && entry.second["payload"] &&
+                    removeProxyExtensions(entry.second["payload"]))
+                    removedExtensions = true;
+        if (removedExtensions)
+            output.overriddenFields.push_back(QStringLiteral("proxies.<extension>"));
         const auto validated = validateConfigSchema(root, &fields.rules);
         if (const auto* failure = std::get_if<domain::Error>(&validated))
             return *failure;
-        PreflightConfig output;
         const std::vector<std::string> managed{
             "mixed-port",  "port",        "socks-port",      "redir-port",
             "tproxy-port", "allow-lan",   "bind-address",    "external-controller",

@@ -56,10 +56,12 @@ int subscriptionDownloadProbe() {
     while (mixed == controller)
         controller = port();
     runtime.setPorts(mixed, controller);
-    origin.subscription = "proxies:\n- {name: fixture, type: http, server: 127.0.0.1, port: " +
+    origin.subscription = "proxies:\n- {name: fixture, type: http, x-vendor-node-id: public_dummy, "
+                          "server: 127.0.0.1, port: " +
                           QByteArray::number(remote.serverPort()) +
                           "}\nproxy-groups:\n- {name: upstream, type: select, proxies: [fixture, "
-                          "DIRECT]}\nrules:\n- MATCH,upstream\n";
+                          "DIRECT]}\nrules:\n- MATCH,upstream\n"
+                          "geox-url: {geoip: 'https://example.invalid/public-geo'}\n";
     other.payloads.insert("/final", origin.subscription);
     const auto source =
         QStringLiteral("https://127.0.0.1:%1/subscription").arg(origin.serverPort());
@@ -77,9 +79,19 @@ int subscriptionDownloadProbe() {
                                "profile-title: base64:5py65Zy6\r\n"
                                "Content-Disposition: attachment; filename=other.yaml\r\n");
     runtime.addSubscription(source, "  ");
-    if (!check(done() && error().isEmpty() && !profile().isEmpty(), "first direct import"))
+    if (!check(done() && error().isEmpty() && !profile().isEmpty() &&
+                   origin.lastUserAgent.startsWith("clash.meta/1.19.33"),
+               "first direct import uses the Clash Meta default"))
         return 5;
     const auto id = profile().value("id").toString();
+    const auto notices = profile().value("compatibilityNotices").toArray();
+    const auto savedRaw = store.readBytes(profile().value("sourceRef").toString());
+    if (!check(notices.contains("ManagedGeo") && notices.contains("IgnoredProxyExtensions") &&
+                   std::holds_alternative<QByteArray>(savedRaw) &&
+                   std::get<QByteArray>(savedRaw) == origin.subscription &&
+                   !QJsonDocument(runtime.snapshot()).toJson().contains("public-geo"),
+               "compatibility notices persist without exposing or modifying source"))
+        return 37;
     if (!check(profile().value("name") == QString::fromUtf8("机场"),
                "server title used for blank name"))
         return 34;
@@ -287,13 +299,45 @@ int subscriptionDownloadProbe() {
         application::DesktopRuntime reopened(store);
         reopened.initialize();
         if (!check(reopened.snapshot()
+                               .value("profiles")
+                               .toArray()[0]
+                               .toObject()
+                               .value("downloadRoute") == "Auto" &&
+                       reopened.snapshot()
                            .value("profiles")
                            .toArray()[0]
                            .toObject()
-                           .value("downloadRoute") == "Auto",
+                           .value("compatibilityNotices")
+                           .toArray()
+                           .contains("ManagedGeo"),
                    "download policy survives reopen"))
             return 25;
     }
+    auto cleanSubscription = origin.subscription;
+    cleanSubscription.replace("x-vendor-node-id: public_dummy, ", "");
+    cleanSubscription.replace("geox-url: {geoip: 'https://example.invalid/public-geo'}\n", "");
+    origin.payloads.insert("/clean", cleanSubscription);
+    runtime.changeProfileSource(id, source.left(source.lastIndexOf('/')) + "/clean", {});
+    if (!check(done() && error().isEmpty() &&
+                   profile().value("compatibilityNotices").toArray().isEmpty(),
+               "a clean revision clears old compatibility notices"))
+        return 38;
+    const auto cleanHash = profile().value("sourceHash");
+    runtime.changeProfileSource(id, source.left(source.lastIndexOf('/')) + "/bad-format", {});
+    if (!check(done() && !error().isEmpty() && profile().value("sourceHash") == cleanHash &&
+                   profile().value("compatibilityNotices").toArray().isEmpty(),
+               "a failed update keeps the confirmed notices"))
+        return 39;
+    runtime.featureCommand(QStringLiteral("rollback_profile"),
+                           {id, QStringLiteral("confirmed"), QStringLiteral("0")});
+    if (!check(done() && error().isEmpty() &&
+                   profile().value("compatibilityNotices").toArray().contains("ManagedGeo") &&
+                   profile()
+                       .value("compatibilityNotices")
+                       .toArray()
+                       .contains("IgnoredProxyExtensions"),
+               "rollback recomputes compatibility notices from the restored revision"))
+        return 40;
     before = origin.requests.size();
     runtime.changeProfileSource(id, source.left(source.lastIndexOf('/')) + "/slow", {});
     if (!waitFor([&] { return origin.requests.size() > before; }))

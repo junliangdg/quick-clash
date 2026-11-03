@@ -128,6 +128,7 @@
   </context>
   <context>
     <name>UiState</name>
+    <message><source>%1 (repeated %2 times)</source><translation>%1（重复 %2 次）</translation></message>
     <message><source>Choose different proxy and controller ports from 1024 to 65535, a supported mode and DNS policy.</source><translation>请选择 1024 至 65535 之间不同的代理和控制器端口，以及支持的模式和 DNS 策略。</translation></message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="82" />
@@ -1579,6 +1580,8 @@
   </context>
   <context>
     <name>subscriptions_page</name>
+    <message><source>This subscription specifies Geo download addresses. QuickClash uses its managed Geo data instead; rule matches may differ.</source><translation>此订阅指定了 Geo 下载地址。QuickClash 使用自己的受管 Geo 数据，规则匹配结果可能不同。</translation></message>
+    <message><source>Third-party node metadata was retained in the original subscription but is not used by the core.</source><translation>第三方节点元数据保留在订阅原文中，但内核不会使用这些数据。</translation></message>
     <message><source>Subscription was added, but the operation reported an error: %1</source><translation>订阅已添加，但操作报告错误：%1</translation></message>
     <message><source>Close</source><translation>关闭</translation></message>
     <message><source>Saved subscription URL</source><translation>已保存的订阅地址</translation></message>

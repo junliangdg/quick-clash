@@ -23,6 +23,10 @@ proxies:
     udp: true
   - name: vless_reality_fixture
     type: vless
+    encryption: none
+    tfo: false
+    mptcp: false
+    ip-version: dual
     server: proxy.example.invalid
     port: 443
     uuid: 00000000-0000-4000-8000-000000000001

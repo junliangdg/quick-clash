@@ -143,6 +143,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         return 98;
     const auto firstIndex = managedId.mid(1).toInt();
     auto warned = profiles[firstIndex].toObject();
+    warned.insert("compatibilityNotices", QJsonArray{"ManagedGeo", "IgnoredProxyExtensions"});
     warned.insert("usageStatus",
                   domain::subscriptionUsageStatus(
                       domain::parseSubscriptionUsage("upload=10;download=90;total=100;expire=1"),
@@ -181,6 +182,12 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!dialog || !dialog->property("visible").toBool() ||
         page->property("managedId") != managedId)
         return 87;
+    auto* geoNotice =
+        host.window()->findChild<QQuickItem*>(QStringLiteral("subscription_managed_geo_notice"));
+    auto* extensionNotice = host.window()->findChild<QQuickItem*>(
+        QStringLiteral("subscription_proxy_extension_notice"));
+    if (!geoNotice || !extensionNotice || !geoNotice->isVisible() || !extensionNotice->isVisible())
+        return 132;
     auto* savedUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_saved_url"));
     auto* showUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_show_url"));
     auto* copyUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_copy_url"));

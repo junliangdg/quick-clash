@@ -44,7 +44,10 @@
       "type",
       "server",
       "port",
-      "udp"
+      "udp",
+      "tfo",
+      "mptcp",
+      "ip-version"
     ],
     "http_socks5": [
       "username",
@@ -112,8 +115,15 @@
     ],
     "vless_only": [
       "flow",
-      "reality-opts"
+      "reality-opts",
+      "encryption"
     ],
+    "compatibility": {
+      "ip_version": ["dual", "ipv4", "ipv6", "ipv4-prefer", "ipv6-prefer"],
+      "vless_encryption": "scalar <=4096 bytes; pinned Mihomo validates its value; redacted in previews",
+      "proxy_vendor_extensions": "inline and managed provider snapshot proxy x-[a-z0-9-]+ scalar keys <=128 bytes and values <=4096 bytes are omitted from effective config and disclosed by generic notice; raw source retained",
+      "geox_url": "removed from effective config; managed Geo resources remain authoritative; disclose possible rule differences"
+    },
     "vmess_only": [
       "alterId",
       "cipher"

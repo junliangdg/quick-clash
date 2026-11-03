@@ -8,6 +8,7 @@
 #include <map>
 #include <set>
 #include <string>
+#include <tuple>
 
 namespace quickclash::infra {
 namespace {
@@ -49,6 +50,8 @@ bool oneOf(const std::string& value, const Keys& keys) {
     return keys.contains(value);
 }
 class Schema final {
+    std::map<std::tuple<QString, QString, QString, QString>, std::size_t> issueGroups_;
+
   public:
     std::vector<domain::ConfigIssue> issues;
     void attempt(const std::function<void()>& action, const QString& path) {
@@ -62,9 +65,21 @@ class Schema final {
     }
     void issue(const char* code, const QString& path, const std::string& feature,
                const char* phase = "P3") {
-        if (issues.size() < 32)
+        auto groupedPath = path;
+        groupedPath.replace(QRegularExpression(QStringLiteral("\\[\\d+\\]")),
+                            QStringLiteral("[*]"));
+        const auto key =
+            std::make_tuple(QString::fromLatin1(code), groupedPath, QString::fromStdString(feature),
+                            QString::fromLatin1(phase));
+        if (const auto found = issueGroups_.find(key); found != issueGroups_.end()) {
+            auto& existing = issues[found->second];
+            ++existing.occurrences;
+            existing.path = groupedPath;
+        } else if (issues.size() < 32) {
+            issueGroups_.emplace(key, issues.size());
             issues.push_back({QString::fromLatin1(code), path, QString::fromStdString(feature),
                               QString::fromLatin1(phase)});
+        }
     }
     void keys(const YAML::Node& node, const Keys& allowed, const QString& path) {
         require(node.IsMap(), path);
@@ -153,7 +168,7 @@ class Schema final {
                                                                                  : "protocol");
             return;
         }
-        Keys allowed{"name", "type", "server", "port", "udp"};
+        Keys allowed{"name", "type", "server", "port", "udp", "tfo", "mptcp", "ip-version"};
         const auto add = [&](const Keys& fields) { allowed.insert(fields.begin(), fields.end()); };
         if (type == "http" || type == "socks5")
             add({"username", "password", "tls", "sni", "skip-cert-verify"});
@@ -174,7 +189,7 @@ class Schema final {
             else
                 add({"uuid", "servername", "packet-encoding"});
             if (type == "vless")
-                add({"flow", "reality-opts"});
+                add({"flow", "reality-opts", "encryption"});
             if (type == "vmess")
                 add({"alterId", "cipher"});
         }
@@ -213,9 +228,15 @@ class Schema final {
         }
         text(proxy["server"], path + ".server");
         number(proxy["port"], path + ".port", 1, 65535);
-        for (const auto* field : {"udp", "tls", "skip-cert-verify"})
+        for (const auto* field : {"udp", "tls", "skip-cert-verify", "tfo", "mptcp"})
             if (allowed.contains(field) && proxy[field])
                 boolean(proxy[field], path + '.' + field);
+        if (proxy["ip-version"])
+            require(oneOf(text(proxy["ip-version"], path + ".ip-version", 32),
+                          {"dual", "ipv4", "ipv6", "ipv4-prefer", "ipv6-prefer"}),
+                    path + ".ip-version");
+        if (type == "vless" && proxy["encryption"])
+            text(proxy["encryption"], path + ".encryption", 4096, true);
         for (const auto* field : {"sni", "servername", "username", "client-fingerprint"})
             if (allowed.contains(field) && proxy[field])
                 text(proxy[field], path + '.' + field);

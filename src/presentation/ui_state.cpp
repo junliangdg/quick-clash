@@ -593,10 +593,14 @@ QString UiState::runtimeError() const {
                 : kind == QStringLiteral("InvalidConfigField")
                     ? tr("Invalid configuration field")
                     : tr("Unsupported configuration field");
-            lines.append(tr("%1: %2 (%3; %4)")
-                             .arg(issue.value(QStringLiteral("path")).toString(), reason,
-                                  issue.value(QStringLiteral("feature")).toString(),
-                                  issue.value(QStringLiteral("phase")).toString()));
+            auto line = tr("%1: %2 (%3; %4)")
+                            .arg(issue.value(QStringLiteral("path")).toString(), reason,
+                                 issue.value(QStringLiteral("feature")).toString(),
+                                 issue.value(QStringLiteral("phase")).toString());
+            const auto occurrences = issue.value(QStringLiteral("occurrences"), 1).toInt();
+            if (occurrences > 1)
+                line = tr("%1 (repeated %2 times)").arg(line).arg(occurrences);
+            lines.append(line);
         }
         return tr("Profile compatibility issues (up to 32):") + '\n' + lines.join('\n');
     }

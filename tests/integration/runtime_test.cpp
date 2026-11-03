@@ -103,10 +103,12 @@ int main(int argc, char** argv) {
         const bool completed =
             waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }, 30000);
         const auto state = runtime.snapshot();
-        std::cout << QJsonDocument(QJsonObject{{QStringLiteral("completed"), completed},
-                                               {QStringLiteral("profiles"),
-                                                state.value("profiles").toArray().size()},
-                                               {QStringLiteral("error"), state.value("error")}})
+        std::cout << QJsonDocument(
+                         QJsonObject{
+                             {QStringLiteral("completed"), completed},
+                             {QStringLiteral("profiles"), state.value("profiles").toArray().size()},
+                             {QStringLiteral("error"), state.value("error")},
+                             {QStringLiteral("issues"), state.value("configIssues")}})
                          .toJson(QJsonDocument::Compact)
                          .constData();
         return completed ? 0 : 1;

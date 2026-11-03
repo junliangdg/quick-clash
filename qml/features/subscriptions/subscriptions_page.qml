@@ -311,6 +311,24 @@ ListView {
             ColumnLayout {
                 id: managementScrollForm
                 spacing: 12
+                Label {
+                    objectName: "subscription_managed_geo_notice"
+                    visible: (root.managedProfile.compatibilityNotices || []).indexOf("ManagedGeo") >= 0
+                    text: qsTr("This subscription specifies Geo download addresses. QuickClash uses its managed Geo data instead; rule matches may differ.")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                }
+                Label {
+                    objectName: "subscription_proxy_extension_notice"
+                    visible: (root.managedProfile.compatibilityNotices || []).indexOf("IgnoredProxyExtensions") >= 0
+                    text: qsTr("Third-party node metadata was retained in the original subscription but is not used by the core.")
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                }
                 ThemedField {
                     id: itemName
                     theme: root.theme

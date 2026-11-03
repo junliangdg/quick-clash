@@ -22,6 +22,7 @@
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTimeZone>
+#include <algorithm>
 #include <iostream>
 #include <limits>
 #include <set>
@@ -803,6 +804,54 @@ int main(int argc, char* argv[]) {
                   !preview.contains("00000000-0000") && !preview.contains("/public-fixture") &&
                   !preview.contains("example.invalid"),
               "nested secrets and health URLs redacted");
+        auto compatibleSource = mainstreamBytes;
+        compatibleSource.replace("type: hysteria2",
+                                 "type: hysteria2\n    x-vendor-node-id: public_dummy_metadata");
+        compatibleSource +=
+            "\ngeox-url: {geoip: 'https://example.invalid/geo?token=public_dummy'}\n";
+        const auto compatible = quickclash::infra::preflightConfig(compatibleSource, {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(compatible),
+              "managed Geo and scalar vendor node metadata accepted");
+        const auto& compatibleConfig = std::get<quickclash::infra::PreflightConfig>(compatible);
+        const auto& compatibleYaml = compatibleConfig.semanticYaml;
+        check(compatibleSource.contains("x-vendor-node-id") &&
+                  compatibleSource.contains("geox-url"),
+              "raw source retained");
+        check(!compatibleYaml.contains("geox-url") &&
+                  !compatibleYaml.contains("x-vendor-node-id") &&
+                  !compatibleYaml.contains("public_dummy_metadata"),
+              "managed Geo and metadata not forwarded");
+        check(compatibleYaml.contains("encryption") && compatibleYaml.contains("ip-version"),
+              "core protocol options retained");
+        check(std::find(compatibleConfig.overriddenFields.begin(),
+                        compatibleConfig.overriddenFields.end(),
+                        QStringLiteral("geox-url")) != compatibleConfig.overriddenFields.end() &&
+                  std::find(compatibleConfig.overriddenFields.begin(),
+                            compatibleConfig.overriddenFields.end(),
+                            QStringLiteral("proxies.<extension>")) !=
+                      compatibleConfig.overriddenFields.end(),
+              "managed Geo and ignored metadata reported");
+        auto invalidExtension = compatibleSource;
+        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
+                                 "x-vendor-node-id: {path: /private}");
+        expectError(invalidExtension, "UnsupportedConfigFeature");
+        invalidExtension = compatibleSource;
+        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
+                                 QByteArray("x-vendor-node-id: ") + QByteArray(4097, 'x'));
+        expectError(invalidExtension, "UnsupportedConfigFeature");
+        invalidExtension = compatibleSource;
+        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
+                                 "x-Vendor: public_dummy_metadata");
+        expectError(invalidExtension, "UnsupportedConfigFeature");
+        auto invalidCommon = mainstreamBytes;
+        invalidCommon.replace("ip-version: dual", "ip-version: unsupported");
+        expectError(invalidCommon, "InvalidConfigField");
+        invalidCommon = mainstreamBytes;
+        invalidCommon.replace("tfo: false", "tfo: [false]");
+        expectError(invalidCommon, "InvalidConfigField");
+        invalidCommon = mainstreamBytes;
+        invalidCommon.replace("encryption: none", "encryption: [none]");
+        expectError(invalidCommon, "InvalidConfigField");
         const QByteArray identityKey(32, 'k');
         auto changed = semantic;
         changed.replace("public_dummy_password", "changed_dummy_password");
@@ -858,8 +907,11 @@ int main(int argc, char* argv[]) {
         manyIssues += "]\n";
         const auto bounded = quickclash::infra::preflightConfig(manyIssues, {});
         check(std::holds_alternative<Error>(bounded) &&
-                  std::get<Error>(bounded).configIssues.size() == 32,
-              "compatibility summaries remain bounded");
+                  std::get<Error>(bounded).configIssues.size() <= 32 &&
+                  !std::get<Error>(bounded).configIssues.empty() &&
+                  std::get<Error>(bounded).configIssues.front().occurrences == 100 &&
+                  std::get<Error>(bounded).configIssues.front().path.contains("[*]"),
+              "repeated compatibility issues are aggregated and bounded");
         const QByteArray providerConfig =
             "proxy-providers: {remote: {type: http, url: 'https://example.invalid/proxies', path: "
             "'../escape'}}\n"
@@ -885,6 +937,39 @@ int main(int argc, char* argv[]) {
                   std::holds_alternative<quickclash::infra::PreflightConfig>(
                       quickclash::infra::preflightConfig(expandedBytes, {})),
               "expanded providers use safe inline policy and preserve rule target");
+        const auto managedPath = quickclash::infra::runtimeProviderPath(
+            "proxy-providers", "remote", "https://example.invalid/proxies", "yaml", "");
+        const QByteArray runtimeProvider =
+            "proxies: []\nproxy-providers:\n  remote:\n    type: http\n"
+            "    url: https://example.invalid/proxies\n    path: " +
+            managedPath.toUtf8() +
+            "\n    size-limit: 4194304\n    interval: 0\n"
+            "    payload: [{name: remote_node, type: http, server: 127.0.0.1, port: 8080, "
+            "x-vendor-id: public_dummy}]\n"
+            "proxy-groups: [{name: Main, type: select, proxies: [], use: [remote]}]\n"
+            "rules: ['MATCH,Main']\n";
+        const auto checkedProvider = quickclash::infra::preflightConfig(runtimeProvider, {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(checkedProvider),
+              "runtime provider scalar metadata accepted");
+        const auto& providerEffective =
+            std::get<quickclash::infra::PreflightConfig>(checkedProvider);
+        check(!providerEffective.semanticYaml.contains("x-vendor-id") &&
+                  !providerEffective.semanticYaml.contains("public_dummy") &&
+                  std::find(providerEffective.overriddenFields.begin(),
+                            providerEffective.overriddenFields.end(),
+                            QStringLiteral("proxies.<extension>")) !=
+                      providerEffective.overriddenFields.end(),
+              "runtime provider metadata removed and disclosed");
+        const auto offlineProvider = quickclash::infra::offlineProviderConfig(runtimeProvider);
+        check(
+            std::holds_alternative<QByteArray>(offlineProvider) &&
+                std::holds_alternative<quickclash::infra::PreflightConfig>(
+                    quickclash::infra::preflightConfig(std::get<QByteArray>(offlineProvider), {})),
+            "offline provider expansion accepts the same metadata");
+        auto invalidProviderExtension = runtimeProvider;
+        invalidProviderExtension.replace("x-vendor-id: public_dummy",
+                                         "x-vendor-id: {path: /private}");
+        expectError(invalidProviderExtension, "UnsupportedConfigFeature");
         auto insecureProvider = providerConfig;
         insecureProvider.replace("https://", "http://");
         check(std::holds_alternative<Error>(quickclash::infra::providerRequests(insecureProvider)),

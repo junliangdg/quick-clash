@@ -1275,3 +1275,20 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 本次限定Windows范围Done/Pass；未测其他平台、实际OS缩放/读屏和长稳，保留既有阶段限制。旧侧栏及设置页视觉截图对本次变化Stale；其他版本常量仍待后续统一。当时构建 `build/dev/quickclash.exe` SHA-256 `b1b51ab42386d4e83c1177e71bac84e35449087c9824be57b7ceadd93e04c002`；下一步完成进度、源码布局、设计合并一致性及差异检查，请用户重启复核。
 - 收尾时仅对新增探针语句执行clang-format，产品实现未变；重新构建并复验受影响探针，验证中。
 - 格式整理后build/dev增量重建及ui_visual/ui_language复验2/2通过；产品代码未变，前述双语原生视觉证据仍适用。交付exe SHA-256 `7bb1f3431cd1a6e532b452a3f69efd9cb73e64b43dfb7b6514e0690c638fa2ad`。进度、源码布局、设计合并一致性及diff检查通过；未提交。下一步用户重启复核。
+
+## 2026-11-03 · 订阅兼容优先导入
+
+- 按用户要求优先完善Clash Meta兼容，不新增客户端标识选择；保留现有默认UA及历史请求头。已从真实响应识别受管Geo、VLESS加密字段和节点厂商扩展，固定内核源码核对后按安全边界实施；不记录链接、节点或凭据。实现与验证中/NotRun，下一步补兼容、提示和合成回归。
+- 已实现受管Geo与有界节点厂商元数据处理及管理提示、VLESS encryption和公共网络选项、重复兼容诊断归并；原始配置保留，危险字段仍拒绝。同步设计及策略；尚未构建/验证，旧兼容诊断和此范围订阅页面证据Stale，下一步构建并运行合成与真实订阅复验。
+- 设计合并及一致性检查通过；沙箱内Ninja被系统拒绝，沙箱外首次构建因未加载MSVC标准库环境失败，已改用Visual Studio开发环境重试；产品验证仍为NotRun。
+- Windows增量构建已完成；首轮contracts因夹具换行符断言失败，修复后单项复验通过。runtime_provider、runtime_subscription_download、localization、ui_state及双语订阅页面测试通过，后续代码变化仍需重建复验。
+- 补齐受管proxy-provider快照内节点扩展的同等处理和离线展开、复合扩展拒绝测试，同步设计与策略；验证中/NotRun。下一步生成设计并验证更新/失败时提示状态及真实订阅导入。
+- 补充服务按默认Clash Meta标识返回YAML的断言，以及新版本清除提示、失败保留提示、回退重算提示的合成集成覆盖；验证中/NotRun。
+- 本轮增量构建与QML lint完成（保留既有警告）；contracts发现无payload的原始provider被提前读取导致错误类型回归，已加存在性检查，需待运行中的测试结束后重建复验。
+- 本轮runtime_subscription_download通过，覆盖默认标识及提示清除、失败保留与回退；localization、ui_state和双语订阅页面通过。runtime_provider先前通过、本轮在热更新时因同时收到规则资源请求未满足精确请求列表断言而失败，保留该波动结果，待修复预检后重新构建复验；本范围整体仍NotRun。
+- 修复后重新增量构建通过，contracts通过（含原始provider诊断、runtime/离线provider扩展及复合值拒绝）；官方内核、provider热更新与下载链路待最终复验。
+- 用户提供的实际订阅在沙箱内下载失败；按权限流程改为沙箱外、隔离临时目录与私有stdin复验，下载、预检、固定Mihomo隔离配置校验及导入成功（一个配置、无兼容错误）。未记录地址、节点或凭据；未测试节点握手/实际转发，其他订阅不可据此推断。
+- 补充节点扩展长度上限和非法键的拒绝断言；该测试修订验证中，待运行中的集成复验结束后构建并执行。
+- 预检修复后的Windows集成复验3/3通过：runtime（177.23秒，含合成主流协议官方内核验证）、runtime_provider（42.64秒）、runtime_subscription_download（46.97秒）。此前provider精确请求断言一次失败、先前及本次复验通过，偶发请求时序原因未完全定位；不据此声称长稳通过。
+- 新增边界断言重建后，provider_stream、contracts、localization、ui_state及双语ui_subscriptions共6/6通过；修改C++文件clang-format dry-run通过。此专项Windows定向范围Done/Pass；实际订阅节点握手/转发、其他服务与平台及长稳NotRun。默认UA未新增选择项，既有高级请求头和历史覆盖语义不变。下一步执行收尾文档/台账/布局与差异检查，用户重启新构建并按需自行验证节点连通性。
+- 收尾的check_progress.ps1、check_source_layout.ps1、build_design_docs.ps1 -Check和git diff --check通过（仅既有换行符提示）；交付 `build/dev/quickclash.exe` SHA-256 `17e7abda2afdc10da8f071bf87b743ac2daebee3306fa5d6a4434625b3732e9cf`，未自动提交。

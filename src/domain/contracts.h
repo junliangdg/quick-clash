@@ -30,6 +30,7 @@ struct ConfigIssue {
     QString path;
     QString feature;
     QString phase;
+    int occurrences = 1;
 };
 struct Error {
     QString code;
