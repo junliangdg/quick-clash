@@ -46,7 +46,7 @@ Local definitions do not modify subscription source bytes and survive updates, r
 | Scope | Status |
 | --- | --- |
 | Windows x64 | Native implementation and current validation platform; P3/G3 day-to-day delivery is in progress |
-| Windows local MVP | All 16 G2 local validation conditions pass; the stage gate remains `NotRun` in the [validation checklist](docs/progress/CHECKLISTS.md) |
+| Windows local MVP | All 16 G2 conditions had recorded passes for the historical tested scope; applicability to the current version must be checked. See [validation evidence](docs/progress/CHECKLISTS.md) |
 | Linux / macOS | Planned desktop targets; shared boundaries and candidate build configuration are retained; native builds, system integration, and functional validation are all `NotRun` |
 | Mobile | Future Android and iOS host targets; architecture boundaries only; no mobile project, runtime, or validation |
 | Distribution | No stable release yet; `continuous` in [GitHub Releases](https://github.com/junliangdg/quick-clash/releases) is a CI snapshot of the default branch, not a formal release |
