@@ -40,6 +40,14 @@ int main(int argc, char* argv[]) {
         QCoreApplication::translate("proxies_page", "Group members may be out of date") !=
             "组成员可能已过期")
         return 9;
+    if (QCoreApplication::translate("custom_group_editor", "Custom strategy group") !=
+            "自定义策略组" ||
+        QCoreApplication::translate("proxies_page", "New strategy group") != "新建策略组" ||
+        QCoreApplication::translate(
+            "custom_group_editor",
+            "No matching nodes. Adjust sources or filters before applying.") ==
+            "No matching nodes. Adjust sources or filters before applying.")
+        return 16;
     if (!localization.load({"ja-JP"}) || localization.language() != "en" ||
         QCoreApplication::translate("main", "Quit") != "Quit")
         return 4;

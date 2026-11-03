@@ -6,6 +6,10 @@ Loader {
     id: root
     required property UiState ui
     required property ThemeTokens theme
+    // Only a page root can extend into the shell margin; nested dialogs remain contained.
+    readonly property var loadedPage: item
+    readonly property real pageLeftOutset: loadedPage && loadedPage.pageLeftOutset !== undefined ? loadedPage.pageLeftOutset : 0
+    readonly property real pageRightOutset: loadedPage && loadedPage.pageRightOutset !== undefined ? loadedPage.pageRightOutset : 0
     function loadPage(): void {
         setSource(ui.pageSource, {
             "ui": ui,

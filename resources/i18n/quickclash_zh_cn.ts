@@ -740,6 +740,13 @@
   </context>
   <context>
     <name>proxies_page</name>
+    <message><source>Test latency</source><translation>测延迟</translation></message>
+    <message><source>Test delay for group %1</source><translation>测试分组 %1 的延迟</translation></message>
+    <message><source>Test delay for %1</source><translation>测试 %1 的延迟</translation></message>
+    <message>
+      <source>No matching nodes · traffic rejected</source>
+      <translation>没有匹配节点 · 流量将被拒绝</translation>
+    </message>
     <message><source>Queued</source><translation>排队中</translation></message>
     <message><source>Timed out</source><translation>超时</translation></message>
     <message><source>Expired</source><translation>已过期</translation></message>
@@ -902,6 +909,26 @@
     <message>
       <source>Refresh</source>
       <translation>刷新</translation>
+    </message>
+      <message>
+      <source>New strategy group</source>
+      <translation>新建策略组</translation>
+    </message>
+    <message>
+      <source>Local groups survive subscription updates</source>
+      <translation>本地策略组随订阅更新保留</translation>
+    </message>
+    <message>
+      <source>Local: %1</source>
+      <translation>本地组：%1</translation>
+    </message>
+    <message>
+      <source>Edit</source>
+      <translation>编辑</translation>
+    </message>
+    <message>
+      <source>Delete…</source>
+      <translation>删除…</translation>
     </message>
   </context>
   <context>
@@ -1550,6 +1577,8 @@
   </context>
   <context>
     <name>subscriptions_page</name>
+    <message><source>Subscription was added, but the operation reported an error: %1</source><translation>订阅已添加，但操作报告错误：%1</translation></message>
+    <message><source>Close</source><translation>关闭</translation></message>
     <message><source>Saved subscription URL</source><translation>已保存的订阅地址</translation></message>
     <message><source>Hidden</source><translation>已隐藏</translation></message>
     <message><source>Hide URL</source><translation>隐藏地址</translation></message>
@@ -2189,6 +2218,42 @@
     <message><source>Unable to extract the verified core archive with Windows tar. The confirmed core is kept.</source><translation>无法通过 Windows tar 解压已验证的内核压缩包，保留已确认内核。</translation></message>
     <message><source>Unable to save the Windows startup registration. Refresh its status and retry.</source><translation>无法保存 Windows 启动项，请刷新状态后重试。</translation></message>
     <message><source>Unable to write the managed core. Check free space and write access to the portable core directory.</source><translation>无法写入受管内核，请检查可用空间和便携内核目录的写入权限。</translation></message>
+      <message>
+      <source>Check the group name, sources, probe URL and parameter ranges.</source>
+      <translation>请检查策略组名称、节点来源、探测地址和参数范围。</translation>
+    </message>
+    <message>
+      <source>Use comma-separated keywords or a valid restricted regular expression. Lookarounds, backreferences, quantified groups, repetition ranges and multiple unbounded repetitions are not supported.</source>
+      <translation>请使用逗号分隔的关键词或有效的受限正则表达式，不支持环视、反向引用、量化分组、重复范围和多个无限重复。</translation>
+    </message>
+    <message>
+      <source>The group name conflicts with an existing node, group or reserved name.</source>
+      <translation>策略组名称与现有节点、分组或保留名称冲突。</translation>
+    </message>
+    <message>
+      <source>The parent selector is no longer available. Choose another parent.</source>
+      <translation>父级手选组已不可用，请选择其他父组。</translation>
+    </message>
+    <message>
+      <source>Select inline nodes or available providers. The source may have changed.</source>
+      <translation>请选择内嵌节点或可用的提供者，来源可能已更改。</translation>
+    </message>
+    <message>
+      <source>Custom groups sharing a provider must use the same health-check settings.</source>
+      <translation>共用同一提供者的自定义组必须使用相同的健康检查参数。</translation>
+    </message>
+    <message>
+      <source>Select another outbound before deleting this group.</source>
+      <translation>请先切换到其他出口，再删除此组。</translation>
+    </message>
+    <message>
+      <source>The profile or settings changed. Reopen the group form and preview again.</source>
+      <translation>配置或设置已更改，请重新打开策略组表单并预览。</translation>
+    </message>
+    <message>
+      <source>A profile supports up to 32 custom groups and 256 KiB of group definitions.</source>
+      <translation>每个配置最多支持 32 个自定义策略组，定义总大小不超过 256 KiB。</translation>
+    </message>
   </context>
   <context>
     <name>quickclash::presentation::ReplayModel</name>
@@ -2533,5 +2598,220 @@
   </context>
   <context><name>runtime_filter</name>
     <message><source>Filter</source><translation>筛选</translation></message>
+  </context>
+  <context>
+    <name>custom_group_editor</name>
+    <message>
+      <source>Provider previews use the last core observation, or the imported snapshot when stopped. Membership may change after preview.</source>
+      <translation>提供者预览使用内核最近观察到的节点；停机时使用导入快照。预览后成员仍可能发生变化。</translation>
+    </message>
+    <message>
+      <source>Delete custom group</source>
+      <translation>删除自定义组</translation>
+    </message>
+    <message>
+      <source>Custom strategy group</source>
+      <translation>自定义策略组</translation>
+    </message>
+    <message>
+      <source>All nodes automatic</source>
+      <translation>全部节点自动选择</translation>
+    </message>
+    <message>
+      <source>Hong Kong automatic</source>
+      <translation>香港自动选择</translation>
+    </message>
+    <message>
+      <source>Japan automatic</source>
+      <translation>日本自动选择</translation>
+    </message>
+    <message>
+      <source>Singapore automatic</source>
+      <translation>新加坡自动选择</translation>
+    </message>
+    <message>
+      <source>Failover</source>
+      <translation>故障切换</translation>
+    </message>
+    <message>
+      <source>Delete this group?</source>
+      <translation>删除此策略组？</translation>
+    </message>
+    <message>
+      <source>Apply this strategy group?</source>
+      <translation>应用此策略组？</translation>
+    </message>
+    <message>
+      <source>Applying may restart the running session and interrupt connections. A failure keeps the last working session. Creating a group alone does not change routing.</source>
+      <translation>应用可能重启运行会话并中断连接，失败时保留上一次可用会话。仅创建策略组不会改变路由。</translation>
+    </message>
+    <message>
+      <source>The profile changed. Close and reopen this form before previewing again.</source>
+      <translation>配置已更改。请关闭并重新打开此表单，再次预览。</translation>
+    </message>
+    <message>
+      <source>Choose a template (optional)</source>
+      <translation>选择模板（可选）</translation>
+    </message>
+    <message>
+      <source>Group template</source>
+      <translation>策略组模板</translation>
+    </message>
+    <message>
+      <source>Group name</source>
+      <translation>策略组名称</translation>
+    </message>
+    <message>
+      <source>Automatic latency selection</source>
+      <translation>自动选择低延迟节点</translation>
+    </message>
+    <message>
+      <source>Ordered failover</source>
+      <translation>按顺序故障切换</translation>
+    </message>
+    <message>
+      <source>Load balancing</source>
+      <translation>负载均衡</translation>
+    </message>
+    <message>
+      <source>Selection strategy</source>
+      <translation>选择策略</translation>
+    </message>
+    <message>
+      <source>Node sources</source>
+      <translation>节点来源</translation>
+    </message>
+    <message>
+      <source>Inline nodes (including imported snapshots)</source>
+      <translation>内嵌节点（含导入的快照）</translation>
+    </message>
+    <message>
+      <source>Provider: %1</source>
+      <translation>节点提供者：%1</translation>
+    </message>
+    <message>
+      <source>This restored group's source names are frozen to its offline archive.</source>
+      <translation>此恢复组的来源节点名称固定为离线归档中的名称。</translation>
+    </message>
+    <message>
+      <source>Regions match node names, not IP locations. Exclusions win. Empty include matches all source nodes.</source>
+      <translation>地区按节点名称匹配，并非 IP 地理位置。排除优先；包含条件为空时匹配所有来源节点。</translation>
+    </message>
+    <message>
+      <source>Keywords (comma separated, any match)</source>
+      <translation>关键词（逗号分隔，任一匹配）</translation>
+    </message>
+    <message>
+      <source>Restricted regular expression</source>
+      <translation>受限正则表达式</translation>
+    </message>
+    <message>
+      <source>Name matching mode</source>
+      <translation>名称匹配方式</translation>
+    </message>
+    <message>
+      <source>Include names (optional)</source>
+      <translation>包含名称（可选）</translation>
+    </message>
+    <message>
+      <source>Include names</source>
+      <translation>包含名称</translation>
+    </message>
+    <message>
+      <source>Exclude names (optional)</source>
+      <translation>排除名称（可选）</translation>
+    </message>
+    <message>
+      <source>Exclude names</source>
+      <translation>排除名称</translation>
+    </message>
+    <message>
+      <source>No parent group</source>
+      <translation>不接入父组</translation>
+    </message>
+    <message>
+      <source>Parent selector</source>
+      <translation>父级手选组</translation>
+    </message>
+    <message>
+      <source>Select this group in the parent after applying</source>
+      <translation>应用后在父组中选用此组</translation>
+    </message>
+    <message>
+      <source>Probe settings</source>
+      <translation>探测设置</translation>
+    </message>
+    <message>
+      <source>HTTP(S) probe URL</source>
+      <translation>HTTP(S) 探测地址</translation>
+    </message>
+    <message>
+      <source>Interval (seconds)</source>
+      <translation>间隔（秒）</translation>
+    </message>
+    <message>
+      <source>Timeout (milliseconds)</source>
+      <translation>超时（毫秒）</translation>
+    </message>
+    <message>
+      <source>Tolerance (milliseconds)</source>
+      <translation>容差（毫秒）</translation>
+    </message>
+    <message>
+      <source>Lazy probes (only when the group is used)</source>
+      <translation>懒惰探测（仅使用此组时探测）</translation>
+    </message>
+    <message>
+      <source>Consistent hashing</source>
+      <translation>一致性哈希</translation>
+    </message>
+    <message>
+      <source>Round robin</source>
+      <translation>轮询</translation>
+    </message>
+    <message>
+      <source>Sticky sessions</source>
+      <translation>粘性会话</translation>
+    </message>
+    <message>
+      <source>Load balancing strategy</source>
+      <translation>负载均衡方式</translation>
+    </message>
+    <message>
+      <source>Selected providers share these health-check settings with their other groups. Conflicting settings across custom groups are rejected. Other groups may still probe excluded nodes.</source>
+      <translation>所选提供者的其他组会共用这些健康检查参数。自定义组之间参数冲突时拒绝应用；其他组仍可能探测被本组排除的节点。</translation>
+    </message>
+    <message>
+      <source>Preview removal</source>
+      <translation>预览删除</translation>
+    </message>
+    <message>
+      <source>Preview candidates</source>
+      <translation>预览候选节点</translation>
+    </message>
+    <message>
+      <source>Delete group…</source>
+      <translation>删除策略组…</translation>
+    </message>
+    <message>
+      <source>Save and apply…</source>
+      <translation>保存并应用…</translation>
+    </message>
+    <message>
+      <source>Removal validated. Original groups and rules are preserved.</source>
+      <translation>删除校验通过，原有策略组和规则将保留。</translation>
+    </message>
+    <message>
+      <source>No matching nodes. Adjust sources or filters before applying.</source>
+      <translation>没有匹配节点，请调整来源或过滤条件后再应用。</translation>
+    </message>
+    <message>
+      <source>Matched %1 nodes%2</source>
+      <translation>匹配 %1 个节点%2</translation>
+    </message>
+    <message>
+      <source> (showing first 100)</source>
+      <translation>（仅显示前 100 个）</translation>
+    </message>
   </context>
 </TS>

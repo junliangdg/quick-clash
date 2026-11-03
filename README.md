@@ -26,6 +26,21 @@ QuickClash is designed for the three desktop platforms Windows, Linux, and macOS
 - **Interface and responsive layout**: Eight pages: Dashboard, Proxies, Subscriptions, Connections, Rules, Logs, Tests, and Settings. The app supports light, dark, and system themes; Simplified Chinese, English, and system language; keyboard navigation; and DPI scaling. The same Qt Quick shell switches from a labeled sidebar to an icon rail and then to bottom navigation as width decreases; the minimum window size is `360×480`. This compact layout is window adaptation, not mobile support.
 - **Security and recovery**: On Windows, sensitive subscription data is encrypted with the current user's DPAPI; secure storage and system integration for Linux and macOS remain to be implemented. Downloads and file reads are size-limited, and configurations are activated only after validation by the official core. System proxy, settings storage, configuration transactions, and diagnostic export all preserve previous values on failure.
 
+## Subscriptions and nodes
+
+Use **Add subscription** to open the HTTPS or local YAML import dialog; the name is optional. Failed imports keep the input and show an error. On the Proxies page, click a node’s delay status to test it, or use the group’s **Test latency** button. Testing does not select a node.
+
+## Custom automatic strategy groups
+
+Open **Proxies → New strategy group**. Start with All nodes, Hong Kong, Japan, Singapore, or Failover, or configure a group yourself:
+
+1. Choose automatic latency selection, ordered failover, or load balancing, then select inline nodes and/or runtime providers from the current profile.
+2. Include/exclude case-insensitive keywords (comma/newline separated, any match) or use a restricted regular expression. Empty include matches all; exclusions win. Region templates match names, not IP geolocation. Regex supports anchors, character classes and alternation, but not lookarounds, backreferences, quantified groups, repetition ranges or multiple repetition operators.
+3. Set the probe URL, interval, timeout, tolerance and lazy mode. Preview candidates, wait for official-core validation, then confirm Save and apply. An empty candidate preview cannot be applied.
+4. Optionally attach the group to an original manual selector and explicitly select it after applying. **Creating a group alone does not change routing** or switch Rule/Global modes; it can be selected in its parent later.
+
+Local definitions do not modify subscription source bytes and survive updates, reopening, history and backups. Runtime providers remain dynamically filtered by the core; previews use the last core observation or the imported snapshot when stopped. Provider health-check settings are shared with other groups, which may still probe excluded nodes. Conflicting settings across custom groups sharing a provider are rejected. A saved group that becomes empty rejects traffic instead of silently going DIRECT. Applying may restart the session; failures preserve the last working session. Restored offline/source backups freeze source names to the archived snapshot, while strategies and filters remain editable.
+
 ## Current status
 
 | Scope | Status |

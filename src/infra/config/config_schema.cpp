@@ -589,7 +589,19 @@ class Schema final {
                               type == "load-balance" ? type : "group");
                         return;
                     }
-                    Keys fields{"name", "type", "proxies", "use"};
+                    Keys fields{"name",   "type",           "proxies",       "use",
+                                "filter", "exclude-filter", "empty-fallback"};
+                    if (group["empty-fallback"])
+                        require(text(group["empty-fallback"], path + ".empty-fallback", 512) ==
+                                    "REJECT",
+                                path + ".empty-fallback");
+                    for (const auto* field : {"filter", "exclude-filter"})
+                        if (group[field]) {
+                            const auto expression = text(group[field], path + "." + field, 2048);
+                            require(
+                                QRegularExpression(QString::fromStdString(expression)).isValid(),
+                                path + "." + field);
+                        }
                     if (type != "select")
                         fields.insert({"url", "interval", "timeout", "lazy", "expected-status"});
                     if (type == "url-test")

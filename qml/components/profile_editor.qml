@@ -105,12 +105,12 @@ ThemedDialog {
                 root.perform(root.pendingAction);
         }
     }
-    contentItem: ScrollView {
+    contentItem: ThemedScrollView {
         id: scroll
-        contentWidth: availableWidth
-        clip: true
+        theme: root.theme
+        form: scrollForm
         ColumnLayout {
-            width: scroll.availableWidth
+            id: scrollForm
             spacing: 10
             Label {
                 text: qsTr("Original content and overrides can contain credentials. Drafts are stored locally with restricted access. Editor limit: 1 MiB; larger profiles can be imported from a file.")
@@ -160,12 +160,14 @@ ThemedDialog {
                 Layout.fillWidth: true
                 spacing: 8
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     text: qsTr("Save draft")
                     enabled: root.ready && !root.ui.runtime.busy
                     onClicked: root.perform("editor_save_draft")
                 }
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     objectName: "profile_editor_preview"
                     text: qsTr("Validate and preview")
@@ -173,6 +175,7 @@ ThemedDialog {
                     onClicked: root.perform("editor_preview")
                 }
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     text: qsTr("Load latest…")
                     enabled: !root.ui.runtime.busy
@@ -238,6 +241,7 @@ ThemedDialog {
                 Layout.fillWidth: true
                 spacing: 8
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     text: qsTr("Save and apply…")
                     prominent: true
@@ -248,6 +252,7 @@ ThemedDialog {
                     }
                 }
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     text: qsTr("Save as a local copy…")
                     enabled: !root.ui.runtime.busy && copyName.text.trim().length > 0

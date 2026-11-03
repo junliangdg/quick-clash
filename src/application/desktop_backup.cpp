@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "infra/config/config_overlay.h"
+#include "infra/config/custom_groups.h"
 #include "infra/io/bounded_read.h"
 #include <QCryptographicHash>
 #include <QFile>
@@ -30,6 +31,7 @@ void DesktopRuntime::backupProfiles(bool originals) {
         return;
     }
     QJsonArray entries;
+    bool hasCustomGroups = false;
     qsizetype total = 0;
     for (const auto& value : profiles_) {
         const auto item = value.toObject();
@@ -43,6 +45,22 @@ void DesktopRuntime::backupProfiles(bool originals) {
             error(QStringLiteral("SourceIntegrityFailed"));
             return;
         }
+        const auto base =
+            infra::composeOverlay(std::get<QByteArray>(expanded), item.value("overlay").toObject());
+        if (!std::holds_alternative<QByteArray>(base)) {
+            error(QStringLiteral("InvalidBackup"));
+            return;
+        }
+        const auto groupView = infra::composeCustomGroups(std::get<QByteArray>(base),
+                                                          item.value("customGroups").toArray());
+        if (!std::holds_alternative<infra::CustomGroupConfig>(groupView)) {
+            error(std::get<domain::Error>(groupView).code);
+            return;
+        }
+        const auto archivedGroups =
+            infra::archiveCustomGroups(item.value("customGroups").toArray(),
+                                       std::get<infra::CustomGroupConfig>(groupView).view);
+        hasCustomGroups = hasCustomGroups || !archivedGroups.isEmpty();
         if (item.value("providerMode") == "runtime") {
             expanded = infra::offlineProviderConfig(std::get<QByteArray>(expanded));
             if (const auto* failure = std::get_if<domain::Error>(&expanded)) {
@@ -53,6 +71,14 @@ void DesktopRuntime::backupProfiles(bool originals) {
         const auto overlay = item.value("overlay").toObject();
         auto composed = infra::composeOverlay(std::get<QByteArray>(expanded), overlay);
         if (const auto* failure = std::get_if<domain::Error>(&composed)) {
+            error(failure->code);
+            return;
+        }
+        // Freezing source names may enlarge definitions: never export an archive that our
+        // own restore limits would reject.
+        const auto archived =
+            infra::composeCustomGroups(std::get<QByteArray>(composed), archivedGroups);
+        if (const auto* failure = std::get_if<domain::Error>(&archived)) {
             error(failure->code);
             return;
         }
@@ -76,10 +102,21 @@ void DesktopRuntime::backupProfiles(bool originals) {
                 entry.insert("snapshotHash", digest(std::get<QByteArray>(expanded)));
             }
         }
+        entry.insert("customGroups", archivedGroups);
+        entry.insert("customGroupsHash", catalogDigest(archivedGroups));
+        total += QJsonDocument(archivedGroups).toJson(QJsonDocument::Compact).size();
         entries.append(entry);
     }
+    if (!hasCustomGroups) {
+        for (qsizetype index = 0; index < entries.size(); ++index) {
+            auto entry = entries[index].toObject();
+            entry.remove("customGroups");
+            entry.remove("customGroupsHash");
+            entries[index] = entry;
+        }
+    }
     const QJsonObject archive{{"format", "QuickClashOfflineProfiles"},
-                              {"schemaVersion", 2},
+                              {"schemaVersion", hasCustomGroups ? 3 : 2},
                               {"applicationVersion", "0.1.0"},
                               {"containsCredentials", true},
                               {"scope", originals ? "source" : "offline"},
@@ -142,12 +179,13 @@ void DesktopRuntime::previewBackup(const QString& url) {
     const auto archive = document.object();
     const auto version = archive.value("schemaVersion").toInt();
     const auto entries = archive.value("profiles").toArray();
-    const bool originals = version == 2 && archive.value("scope") == "source";
+    const bool originals = version >= 2 && archive.value("scope") == "source";
     if (!document.isObject() || archive.value("format") != "QuickClashOfflineProfiles" ||
-        (version != 1 && version != 2) || archive.value("schemaVersion").toDouble() != version ||
+        (version != 1 && version != 2 && version != 3) ||
+        archive.value("schemaVersion").toDouble() != version ||
         archive.value("containsCredentials") != true || entries.isEmpty() ||
         entries.size() + profiles_.size() > 100 ||
-        (version == 2 && !originals && archive.value("scope") != "offline") ||
+        (version >= 2 && !originals && archive.value("scope") != "offline") ||
         !keysAllowed(archive, {"format", "schemaVersion", "applicationVersion",
                                "containsCredentials", "scope", "profiles"})) {
         error(QStringLiteral("InvalidBackup"));
@@ -165,11 +203,17 @@ void DesktopRuntime::previewBackup(const QString& url) {
         const auto name = entry.value("name").toString();
         const bool snapshot = entry.contains("snapshotYaml");
         const auto overlay = entry.value("overlay").toObject();
+        const auto customGroups = entry.value("customGroups").toArray();
+        auto entryKeys = originals
+                             ? QStringList{"name",        "sha256",       "yaml",        "overlay",
+                                           "overlayHash", "snapshotYaml", "snapshotHash"}
+                             : QStringList{"name", "sha256", "yaml"};
+        if (version == 3)
+            entryKeys.append({"customGroups", "customGroupsHash"});
         if (!value.isObject() || name.trimmed().isEmpty() || name.size() > 80 ||
-            !keysAllowed(entry, originals
-                                    ? QStringList{"name", "sha256", "yaml", "overlay",
-                                                  "overlayHash", "snapshotYaml", "snapshotHash"}
-                                    : QStringList{"name", "sha256", "yaml"}) ||
+            !keysAllowed(entry, entryKeys) ||
+            (version == 3 && (!entry.value("customGroups").isArray() ||
+                              catalogDigest(customGroups) != entry.value("customGroupsHash"))) ||
             (originals && (!entry.value("overlay").isObject() ||
                            overlayDigest(overlay) != entry.value("overlayHash"))) ||
             snapshot != entry.contains("snapshotHash")) {
@@ -182,6 +226,7 @@ void DesktopRuntime::previewBackup(const QString& url) {
                            {"secretRef", ""},
                            {"pendingApply", true},
                            {"overlay", overlay},
+                           {"customGroups", customGroups},
                            {"updatedAt", QDateTime::currentDateTimeUtc().toString(Qt::ISODate)}};
         QByteArray effective;
         for (const auto* key : {"yaml", "snapshotYaml"}) {
@@ -219,8 +264,9 @@ void DesktopRuntime::previewBackup(const QString& url) {
             staged.insert(isSnapshot ? "snapshotHash" : "sourceHash", checksum);
             effective = decoded.decoded;
         }
-        total += QJsonDocument(overlay).toJson(QJsonDocument::Compact).size();
-        const auto composed = infra::composeOverlay(effective, overlay);
+        total += QJsonDocument(overlay).toJson(QJsonDocument::Compact).size() +
+                 QJsonDocument(customGroups).toJson(QJsonDocument::Compact).size();
+        const auto composed = infra::composeProfileConfig(effective, staged);
         if (total > 32 * 1024 * 1024 || !std::holds_alternative<QByteArray>(composed) ||
             std::holds_alternative<domain::Error>(
                 infra::preflightConfig(std::get<QByteArray>(composed), preferences()))) {
@@ -309,8 +355,7 @@ void DesktopRuntime::restoreNext(const std::shared_ptr<BackupRestore>& context, 
         error(QStringLiteral("SourceIntegrityFailed"));
         return;
     }
-    const auto composed =
-        infra::composeOverlay(std::get<QByteArray>(bytes), item.value("overlay").toObject());
+    const auto composed = infra::composeProfileConfig(std::get<QByteArray>(bytes), item);
     const auto checked =
         std::holds_alternative<QByteArray>(composed)
             ? infra::preflightConfig(std::get<QByteArray>(composed), preferences())

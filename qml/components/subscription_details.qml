@@ -38,16 +38,23 @@ ColumnLayout {
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
     }
-    RowLayout {
+    GridLayout {
         visible: root.overview
         Layout.fillWidth: true
+        Layout.minimumWidth: 0
+        columns: width >= remainingLabel.implicitWidth + remainingValue.implicitWidth + columnSpacing ? 2 : 1
         Label {
+            id: remainingLabel
             text: qsTr("Remaining")
             color: root.theme.muted
             font.pixelSize: root.theme.scaledSize(12)
             Layout.fillWidth: true
         }
         Label {
+            id: remainingValue
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            wrapMode: Text.Wrap
             text: root.completeUsage ? (root.totalBytes > 0 ? root.sizeText(Math.max(0, root.totalBytes - root.usedBytes)) : qsTr("Not provided")) : qsTr("Usage not provided")
             color: root.completeUsage && root.totalBytes > 0 ? (root.status.quotaState === "Exhausted" ? root.theme.error : root.status.quotaState === "Low" ? root.theme.warning : root.theme.text) : root.theme.muted
             font.pixelSize: root.theme.scaledSize(19)

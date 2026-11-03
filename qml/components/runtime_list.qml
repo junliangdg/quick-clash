@@ -112,6 +112,9 @@ Item {
                     background: StateSurface {
                         theme: root.theme
                         focused: tile.activeFocus
+                        insetFocus: true
+                        focusClipLeft: viewport.contentX
+                        focusClipRight: Math.max(0, width - viewport.width - viewport.contentX)
                         color: root.theme.stateColor(root.selectedKey === tile.stableKey, tile.hovered, tile.down)
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: root.theme.border }
                     }
@@ -141,6 +144,11 @@ Item {
                                 text: root.actionText
                                 enabled: root.actionsEnabled
                                 ghost: true
+                                insetFocus: true
+                                onActiveFocusChanged: {
+                                    if (activeFocus)
+                                        viewport.contentX = Math.max(0, viewport.contentWidth - viewport.width);
+                                }
                                 Accessible.name: root.actionText + " · " + root.describe(tile.entry)
                                 onClicked: root.activate(tile.entry, tile.stableKey)
                             }

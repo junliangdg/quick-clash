@@ -4,12 +4,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
 
-ScrollView {
+ThemedScrollView {
     id: root
+    form: testBody
     required property UiState ui
-    required property ThemeTokens theme
-    contentWidth: availableWidth
-    clip: true
     function outcomeText(result): string {
         const states = {Running: qsTr("Testing"), Reachable: qsTr("Entry reachable"),
             HttpError: qsTr("HTTP error"), DnsError: qsTr("DNS error"),
@@ -36,7 +34,7 @@ ScrollView {
     onVisibleChanged: { if (!visible) ui.runtimeCommand("cancel_test"); }
     Component.onDestruction: ui.runtimeCommand("cancel_test")
     FlatTile {
-        width: parent.width
+        id: testBody
         theme: root.theme
         implicitHeight: content.implicitHeight + 32
         ColumnLayout {
@@ -45,6 +43,9 @@ ScrollView {
             anchors.margins: root.theme.panelPadding
             spacing: root.theme.gap
             Label {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.Wrap
                 text: qsTr("Website test")
                 color: root.theme.text
                 font.pixelSize: root.theme.bodySize
@@ -108,6 +109,9 @@ ScrollView {
                 wrapMode: Text.WordWrap
             }
             Label {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                wrapMode: Text.Wrap
                 text: qsTr("Recent results: %1 / 32").arg(((root.ui.runtime.features || {}).testHistory || []).length)
                 color: root.theme.muted
             }

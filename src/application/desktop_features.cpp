@@ -154,6 +154,21 @@ void DesktopRuntime::releaseFeature(const QString& stream) {
         resourceSampleClock_.invalidate();
         for (const auto* key : {"memory", "memorySample", "memoryComplete"})
             featureState_.remove(QLatin1String(key));
+    } else if (stream == QStringLiteral("custom_groups")) {
+        customGroupLiveProviders_ = {};
+        customGroupState_ = {};
+        customGroupDraft_ = {};
+        if (configTransaction_ && configTransaction_->previewOnly &&
+            !configTransaction_->customGroupToken.isEmpty()) {
+            discardConfigTransaction();
+            // The validator is exclusively owned by this cancelled preview. Stop it before
+            // releasing busy, so a new operation cannot reuse its callback or staging files.
+            validationDeadline_.stop();
+            validationCompletion_ = {};
+            validator_->stop();
+            staging_.reset();
+            busy_ = false;
+        }
     } else if (stream == QStringLiteral("proxies")) {
         cancelDelayTests();
     } else if (stream == QStringLiteral("editor")) {
@@ -286,6 +301,10 @@ void DesktopRuntime::pollFeatures() {
     publish();
 }
 void DesktopRuntime::featureCommand(const QString& command, const QStringList& args) {
+    if (command.startsWith(QStringLiteral("custom_group_"))) {
+        customGroupCommand(command, args);
+        return;
+    }
     if (command.startsWith(QStringLiteral("core_"))) {
         coreUpdateCommand(command, args);
         return;

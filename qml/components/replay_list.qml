@@ -115,6 +115,7 @@ ColumnLayout {
                     hovered: row.hovered
                     down: row.down
                     focused: row.activeFocus
+                    insetFocus: true
                 }
                 contentItem: RowLayout {
                     spacing: 16

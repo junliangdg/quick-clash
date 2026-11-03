@@ -4,10 +4,10 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import QuickClash.Ui
 
-ScrollView {
+ThemedScrollView {
+    form: rootForm
     id: root
     required property UiState ui
-    required property ThemeTokens theme
     property bool active: ui.uiVisible && visible
     property double now: Date.now()
     readonly property bool trafficStale: !ui.replay && !!ui.telemetry.traffic && now - Number(ui.telemetry.traffic.time) > 3500
@@ -38,8 +38,6 @@ ScrollView {
                 root.refreshSelectedProfile();
         }
     }
-    clip: true
-    contentWidth: availableWidth
     function sizeText(value): string {
         if (value === undefined || value === null || !isFinite(Number(value)))
             return "—";
@@ -71,7 +69,7 @@ ScrollView {
         ui.setDemand("home:resources", "resources", false);
     }
     ColumnLayout {
-        width: root.availableWidth
+        id: rootForm
         spacing: root.theme.gap
         GridLayout {
             columns: root.availableWidth >= 600 ? 2 : 1
@@ -140,6 +138,7 @@ ScrollView {
                         Layout.fillWidth: true
                         spacing: 8
                         ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             theme: root.theme
                             text: qsTr("Update subscription")
                             icon.source: "qrc:/icons/dashboard/refresh_cw.svg"
@@ -148,6 +147,7 @@ ScrollView {
                             onClicked: root.ui.runtimeCommand("update", [root.selectedId])
                         }
                         ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             theme: root.theme
                             text: qsTr("Manage subscriptions")
                             ghost: true

@@ -98,6 +98,7 @@ class EngineSession final : public QObject {
     void stopped(bool unexpected);
     void failed(const QString& code);
     void groupsChanged(const QJsonObject& groups);
+    void providerNodeNamesChanged(const QJsonObject& providers);
     void groupsRefreshFailed(const QString& code);
     void mutationFinished(const QString& kind, bool success);
     void streamData(const QString& name, const QJsonObject& data);

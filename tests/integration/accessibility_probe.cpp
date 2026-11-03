@@ -1,4 +1,5 @@
 #include "application_host.h"
+#include "focus_layout_checks.h"
 #include "host_probe.h"
 #include <QAccessible>
 #include <QApplication>
@@ -126,6 +127,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
     if (!tokens)
         return 152;
     QJsonArray names, captures;
+    bool focusSafe = true;
     const auto capture = [&](const QString& name) {
         if (output.isEmpty())
             return true;
@@ -171,6 +173,50 @@ int runAccessibilityProbe(ApplicationHost& host) {
                 if (QString::fromLatin1(page) == "settings" &&
                     !capture(QStringLiteral("font_%1_width_%2_settings").arg(pixels).arg(width)))
                     return 156;
+                focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
+                if (QString::fromLatin1(page) == "proxies") {
+                    auto* hint = findItem(window, "custom_group_hint");
+                    if (!hint || !hint->parentItem() ||
+                        hint->width() > hint->parentItem()->width() + 0.5 ||
+                        hint->height() + 0.5 < hint->implicitHeight())
+                        return 198;
+                }
+                if (QString::fromLatin1(page) == "subscriptions") {
+                    auto* popup = window->findChild<QObject*>("subscription_import_dialog");
+                    if (!popup || !QMetaObject::invokeMethod(popup, "open"))
+                        return 195;
+                    QTest::qWait(40);
+                    if (!popup->property("visible").toBool() || !auditNames(window, names) ||
+                        !test::checkVisibleFocusFrames(window) ||
+                        !test::focusInScroll(findItem(window, "subscription_url")) ||
+                        !test::focusInScroll(findItem(window, "import_local_file")))
+                        return 196;
+                    if ((pixels == 14 || width == 360) &&
+                        !capture(QStringLiteral("import_font_%1_width_%2").arg(pixels).arg(width)))
+                        return 197;
+                    QMetaObject::invokeMethod(popup, "close");
+                    QTest::qWait(25);
+                }
+                if (QString::fromLatin1(page) == "settings") {
+                    for (const auto* name :
+                         {"core_update_confirmation", "network_settings_confirmation",
+                          "maintenance_confirmation", "backup_confirmation",
+                          "backup_restore_confirmation"}) {
+                        auto* popup = window->findChild<QObject*>(QString::fromLatin1(name));
+                        if (!popup || !QMetaObject::invokeMethod(popup, "open"))
+                            return 187;
+                        QTest::qWait(25);
+                        if (!popup->property("visible").toBool())
+                            return 188;
+                        focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
+                        if (width == 360 && QString::fromLatin1(name) == "backup_confirmation" &&
+                            !capture(
+                                QStringLiteral("backup_font_%1_width_%2").arg(pixels).arg(width)))
+                            return 156;
+                        QMetaObject::invokeMethod(popup, "reject");
+                        QTest::qWait(25);
+                    }
+                }
                 if (pixels == 32 && width == 360 &&
                     (QString::fromLatin1(page) == "subscriptions" ||
                      QString::fromLatin1(page) == "proxies") &&
@@ -179,6 +225,8 @@ int runAccessibilityProbe(ApplicationHost& host) {
             }
         }
     }
+    if (!require(focusSafe, "all route focus frames fit their clipping ancestors and window"))
+        return 185;
     if (!require(names.size() >= 100, "name audit visits controls from all routes"))
         return 174;
     for (const auto* expected :
@@ -308,7 +356,22 @@ int runAccessibilityProbe(ApplicationHost& host) {
     auto* preview = findItem(window, "log_export_preview");
     if (!preview)
         return 181;
-    preview->forceActiveFocus(Qt::TabFocusReason);
+    for (const auto pixels : {14, 21}) {
+        auto font = baselineFont;
+        font.setPixelSize(pixels);
+        QApplication::setFont(font);
+        for (const auto width : {1000, 360}) {
+            host.resizeWindow({width, 800});
+            QTest::qWait(40);
+            if (!test::checkVisibleFocusFrames(window) || !test::focusInScroll(preview))
+                return 189;
+        }
+    }
+    QApplication::setFont(baselineFont);
+    host.resizeWindow({1000, 800});
+    QTest::qWait(40);
+    if (!test::focusInScroll(preview))
+        return 189;
     QTest::keyClick(window, Qt::Key_Tab);
     if (!require(!preview->hasActiveFocus() && !source->hasActiveFocus(),
                  "tab leaves read-only preview inside modal"))

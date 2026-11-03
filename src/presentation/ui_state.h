@@ -41,6 +41,7 @@ class UiState : public QObject {
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
+    Q_PROPERTY(QVariantMap customGroups READ customGroups NOTIFY customGroupsChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
@@ -82,6 +83,9 @@ class UiState : public QObject {
     }
     [[nodiscard]] QVariantMap telemetry() const {
         return telemetry_;
+    }
+    [[nodiscard]] QVariantMap customGroups() const {
+        return appliedData_.value(QStringLiteral("custom_groups")).toObject().toVariantMap();
     }
     [[nodiscard]] QVariantMap editor() const {
         return appliedData_.value(QStringLiteral("editor")).toObject().toVariantMap();
@@ -232,6 +236,7 @@ class UiState : public QObject {
     void profilesChanged();
     void telemetryChanged();
     void editorChanged();
+    void customGroupsChanged();
     void groupsChanged();
     void nodesChanged();
     void delaysChanged();

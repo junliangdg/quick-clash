@@ -1,6 +1,8 @@
 #include "subscription_ui_probe.h"
 #include "application_host.h"
 #include "domain/subscription_usage.h"
+#include "focus_layout_checks.h"
+#include <QApplication>
 #include <QClipboard>
 #include <QDir>
 #include <QGuiApplication>
@@ -67,6 +69,58 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     auto* page = host.window()->findChild<QObject*>(QStringLiteral("subscriptions_page"));
     if (!page || page->property("cardColumns").toInt() != 3)
         return 81;
+    // Exercise import as a modal, including failed input preservation and the
+    // independently delivered catalog/control notifications on success.
+    auto* openImport = host.window()->findChild<QQuickItem*>("open_subscription_import");
+    auto* importDialog = host.window()->findChild<QObject*>("subscription_import_dialog");
+    auto* url = host.window()->findChild<QQuickItem*>("subscription_url");
+    auto* importNameField = host.window()->findChild<QQuickItem*>("import_profile_name");
+    auto* add = host.window()->findChild<QQuickItem*>("add_subscription");
+    auto* importError = host.window()->findChild<QQuickItem*>("subscription_import_error");
+    if (!openImport || !importDialog || !url || !importNameField || !add || !importError ||
+        url->isVisible() || !click(host, openImport) ||
+        !importDialog->property("visible").toBool() || !url->isVisible() || !url->hasActiveFocus())
+        return 118;
+    url->setProperty("text", "https://fixture.invalid/private-token");
+    importNameField->setProperty("text", "Import fixture");
+    if (!click(host, add))
+        return 119;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"error", "HttpsSubscriptionRequired"}});
+    QTest::qWait(20);
+    if (!importDialog->property("visible").toBool() || !importError->isVisible() ||
+        url->property("text") != "https://fixture.invalid/private-token" ||
+        importNameField->property("text") != "Import fixture")
+        return 120;
+    if (!click(host, add))
+        return 121;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"busy", true}});
+    if (add->isEnabled())
+        return 122;
+    auto addedProfiles = profiles;
+    addedProfiles.append(QJsonObject{{"id", "new_import"}, {"name", "New import"}});
+    ui.applyData({1, "fixture", {{"profiles", addedProfiles}}});
+    if (!importDialog->property("visible").toBool())
+        return 123;
+    // A saved profile followed by a later apply error is not safe to import again.
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"error", "CoreConfigValidationFailed"}});
+    QTest::qWait(20);
+    if (!importDialog->property("visible").toBool() || !importError->isVisible() ||
+        add->isEnabled() || url->property("text") != "https://fixture.invalid/private-token")
+        return 125;
+    ui.applyControl({{"publicationGeneration", "1"}, {"epoch", "fixture"}, {"selectedId", "p0"}});
+    QTest::qWait(80);
+    if (importDialog->property("visible").toBool() || !url->property("text").toString().isEmpty())
+        return 124;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
     QMetaObject::invokeMethod(page, "scrollToRow", Q_ARG(QVariant, 0));
     QTest::qWait(50);
     auto initial = cards(host);
@@ -157,6 +211,48 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         !page->property("urlRequestToken").toString().isEmpty())
         return 109;
     ui.setUiVisible(true);
+    const auto baselineFont = QApplication::font();
+    for (const auto pixels : {14, 21}) {
+        auto font = baselineFont;
+        font.setPixelSize(pixels);
+        QApplication::setFont(font);
+        for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+            ui.setThemeMode(theme);
+            for (const auto& size : {QSize{1000, 760}, QSize{360, 640}}) {
+                host.resizeWindow(size);
+                QTest::qWait(50);
+                if (!test::checkScrollLayouts(host.window()))
+                    return 114;
+                for (const auto* name :
+                     {"subscription_name", "subscription_saved_url", "subscription_update_interval",
+                      "subscription_provider_mode", "subscription_download_route",
+                      "subscription_source_url", "subscription_source_headers"}) {
+                    auto* field = host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
+                    if (!test::focusInScroll(field)) {
+                        std::fprintf(stderr, "Subscription focus: %s font=%d width=%d\n", name,
+                                     pixels, size.width());
+                        return 115;
+                    }
+                    if (!visualOutput.isEmpty() &&
+                        (QString::fromLatin1(name) == "subscription_name" ||
+                         QString::fromLatin1(name) == "subscription_source_headers")) {
+                        const auto path = QStringLiteral("focus_%1_%2_font_%3_%4.png")
+                                              .arg(theme)
+                                              .arg(size.width())
+                                              .arg(pixels)
+                                              .arg(QString::fromLatin1(name));
+                        if (!host.window()->grabWindow().save(QDir(visualOutput).filePath(path)))
+                            return 116;
+                    }
+                }
+            }
+        }
+    }
+    QApplication::setFont(baselineFont);
+    host.resizeWindow({1500, 850});
+    QTest::qWait(50);
+    if (!test::focusInScroll(host.window()->findChild<QQuickItem*>("subscription_name")))
+        return 115;
     if (!visualOutput.isEmpty()) {
         for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
             ui.setThemeMode(theme);
@@ -181,7 +277,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                 }
             }
         }
-        std::printf("Subscription visual: exposed=%d api=%d dpr=%.2f, 8 captures\n",
+        std::printf("Subscription visual: exposed=%d api=%d dpr=%.2f, 24 captures\n",
                     host.window()->isExposed(),
                     static_cast<int>(host.window()->rendererInterface()->graphicsApi()),
                     host.window()->devicePixelRatio());
@@ -304,6 +400,13 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!content || content->property("text") != "# private draft" ||
         !editor->property("ready").toBool())
         return 102;
+    for (const auto width : {1000, 360}) {
+        host.resizeWindow({width, 640});
+        QTest::qWait(40);
+        if (!test::checkScrollLayouts(host.window()) ||
+            !test::focusInScroll(qobject_cast<QQuickItem*>(content)))
+            return 117;
+    }
     content->setProperty("text", "# changed just before hide");
     if (!editor->property("dirty").toBool())
         return 103;

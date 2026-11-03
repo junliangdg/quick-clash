@@ -1,6 +1,7 @@
 #include "application/desktop_runtime.h"
 #include "domain/subscription_usage.h"
 #include "infra/config/config_overlay.h"
+#include "infra/config/custom_groups.h"
 #include "infra/config/geo_resources.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
@@ -302,6 +303,16 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         }
         publish();
     });
+    connect(&engine_, &infra::EngineSession::providerNodeNamesChanged, this,
+            [this](const QJsonObject& providers) {
+                if (!featureDemands_.contains(QStringLiteral("custom_groups")) || busy_ ||
+                    customGroupLiveProviders_ == providers)
+                    return;
+                customGroupLiveProviders_ = providers;
+                customGroupState_ = {};
+                customGroupDraft_ = {};
+                refreshCustomGroupContext();
+            });
     connect(
         &engine_, &infra::EngineSession::groupsChanged, this, [this](const QJsonObject& objects) {
             featureState_.insert(QStringLiteral("groupsStale"), false);
@@ -763,6 +774,7 @@ QJsonObject DesktopRuntime::snapshot() const {
                                runtimePreferences_.value(QStringLiteral("mode")).toString(),
                                engine_.ready() && status_ == QStringLiteral("Ready")));
     result.insert(QStringLiteral("profiles"), profileViews());
+    result.insert(QStringLiteral("customGroups"), customGroupState_);
     result.insert(QStringLiteral("features"), featureState_);
     result.insert(QStringLiteral("connections"), connections_);
     result.insert(QStringLiteral("rules"), rules_);
@@ -807,6 +819,7 @@ QJsonObject DesktopRuntime::snapshot() const {
     return result;
 }
 void DesktopRuntime::publish() {
+    finishCustomGroupOperation();
     if (coreOperationActive_ && !busy_) {
         coreOperationActive_ = false;
         coreUpdateState_.insert(QStringLiteral("state"), lastError_.isEmpty()
@@ -864,6 +877,7 @@ void DesktopRuntime::publish() {
         publicationTimer_.start();
 }
 void DesktopRuntime::flushData() {
+    refreshCustomGroupContext();
     QJsonObject samples;
     samples.insert(QStringLiteral("coreUptimeSeconds"),
                    engine_.ready() && coreUptime_.isValid() ? coreUptime_.elapsed() / 1000 : 0);
@@ -889,6 +903,7 @@ void DesktopRuntime::flushData() {
          QJsonObject{{QStringLiteral("providerPage"), providerPageState_}}},
         {QStringLiteral("logs"), logs_.entries()},
         {QStringLiteral("editor"), editor_},
+        {QStringLiteral("custom_groups"), customGroupState_},
         {QStringLiteral("traffic"), fields({QStringLiteral("traffic")})},
         {QStringLiteral("resources"),
          fields({QStringLiteral("memory"), QStringLiteral("memorySample"),
@@ -1270,6 +1285,7 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     context->previewOnly = metadata.value(QStringLiteral("_previewOnly")).toBool();
     context->forceApply = metadata.value(QStringLiteral("_forceApply")).toBool();
     context->editorToken = metadata.value(QStringLiteral("_editorToken")).toString();
+    context->customGroupToken = metadata.value(QStringLiteral("_customGroupToken")).toString();
     context->preferences = runtimePreferences_;
     const auto sourceRef =
         storedSource.isEmpty()
@@ -1317,9 +1333,11 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     if (!imported.contains(QStringLiteral("overlay")))
         imported.insert(QStringLiteral("overlay"),
                         profile(existingId).value(QStringLiteral("overlay")).toObject());
+    if (!imported.contains(QStringLiteral("customGroups")))
+        imported.insert(QStringLiteral("customGroups"),
+                        profile(existingId).value("customGroups").toArray());
     context->imported = imported;
-    auto composed =
-        infra::composeOverlay(bytes, imported.value(QStringLiteral("overlay")).toObject());
+    auto composed = infra::composeProfileConfig(bytes, imported);
     if (const auto* failure = std::get_if<domain::Error>(&composed)) {
         configError(*failure);
         return;
@@ -1362,6 +1380,10 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
 }
 void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& context) {
     if (context->previewOnly) {
+        if (!context->customGroupToken.isEmpty()) {
+            finishCustomGroupPreview(context);
+            return;
+        }
         finishEditorPreview(context);
         return;
     }
@@ -1377,7 +1399,8 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
         (previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
          previous.value(QStringLiteral("snapshotHash")) !=
              item.value(QStringLiteral("snapshotHash")) ||
-         previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay")))) {
+         (previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay")) ||
+          previous.value("customGroups") != item.value("customGroups")))) {
         auto history = previous.value(QStringLiteral("history")).toArray();
         auto version = previous;
         version.remove(QStringLiteral("history"));
@@ -1397,7 +1420,8 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
         previous.value(QStringLiteral("sourceHash")) != item.value(QStringLiteral("sourceHash")) ||
         previous.value(QStringLiteral("snapshotHash")) !=
             item.value(QStringLiteral("snapshotHash")) ||
-        previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay"));
+        (previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay")) ||
+         previous.value("customGroups") != item.value("customGroups"));
     const bool activate =
         selectedId_.isEmpty() ||
         (id == selectedId_ &&
@@ -1545,19 +1569,20 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     const auto selected = repository_.manifest().value(QStringLiteral("selection")).toObject();
     const bool adjustSelected = id == selectedId_ && !previousPreferences_.isEmpty();
     auto context = configTransaction_;
-    const bool trusted =
-        context && context->validated && context->generation == operationGeneration_ &&
-        context->profileId == id && context->preferences == runtimePreferences_ &&
-        !adjustSelected &&
-        context->imported.value(QStringLiteral("sourceRef")) ==
-            item.value(QStringLiteral("sourceRef")) &&
-        context->imported.value(QStringLiteral("sourceHash")) ==
-            item.value(QStringLiteral("sourceHash")) &&
-        context->imported.value(QStringLiteral("snapshotRef")) ==
-            item.value(QStringLiteral("snapshotRef")) &&
-        context->imported.value(QStringLiteral("snapshotHash")) ==
-            item.value(QStringLiteral("snapshotHash")) &&
-        context->imported.value(QStringLiteral("overlay")) == item.value(QStringLiteral("overlay"));
+    const bool trusted = context && context->validated &&
+                         context->generation == operationGeneration_ && context->profileId == id &&
+                         context->preferences == runtimePreferences_ && !adjustSelected &&
+                         context->imported.value(QStringLiteral("sourceRef")) ==
+                             item.value(QStringLiteral("sourceRef")) &&
+                         context->imported.value(QStringLiteral("sourceHash")) ==
+                             item.value(QStringLiteral("sourceHash")) &&
+                         context->imported.value(QStringLiteral("snapshotRef")) ==
+                             item.value(QStringLiteral("snapshotRef")) &&
+                         context->imported.value(QStringLiteral("snapshotHash")) ==
+                             item.value(QStringLiteral("snapshotHash")) &&
+                         context->imported.value(QStringLiteral("overlay")) ==
+                             item.value(QStringLiteral("overlay")) &&
+                         context->imported.value("customGroups") == item.value("customGroups");
     if (trusted) {
         const auto reference = item.contains(QStringLiteral("snapshotRef"))
                                    ? QStringLiteral("snapshotRef")
@@ -1613,11 +1638,9 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             error(QStringLiteral("SourceIntegrityFailed"));
             return;
         }
-        auto overlaid =
-            adjustSelected
-                ? domain::Result<QByteArray>(std::get<QByteArray>(source))
-                : infra::composeOverlay(std::get<QByteArray>(source),
-                                        item.value(QStringLiteral("overlay")).toObject());
+        auto overlaid = adjustSelected
+                            ? domain::Result<QByteArray>(std::get<QByteArray>(source))
+                            : infra::composeProfileConfig(std::get<QByteArray>(source), item);
         if (const auto* failure = std::get_if<domain::Error>(&overlaid)) {
             busy_ = false;
             restorePreferences();

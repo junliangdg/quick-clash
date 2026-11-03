@@ -83,6 +83,7 @@ ColumnLayout {
         Layout.fillWidth: true
         spacing: 12
         ThemedSwitch {
+            width: Math.min(implicitWidth, parent.width)
             theme: root.theme
             text: qsTr("IP comparison")
             checked: root.ui.dashboard.ip === true
@@ -94,6 +95,7 @@ ColumnLayout {
             }
         }
         ThemedSwitch {
+            width: Math.min(implicitWidth, parent.width)
             theme: root.theme
             text: qsTr("Common websites")
             checked: root.ui.dashboard.sites === true
@@ -128,6 +130,7 @@ ColumnLayout {
             }
             ThemedComboBox {
                 id: ipFamily
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 objectName: "home_ip_family"
                 Accessible.name: qsTr("IP address family")
@@ -139,6 +142,7 @@ ColumnLayout {
                 }
             }
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 objectName: "home_query_ip"
                 text: root.querying ? qsTr("Cancel query") : qsTr("Query / refresh IP")
@@ -147,6 +151,7 @@ ColumnLayout {
                 onClicked: root.ui.runtimeCommand(root.querying ? "cancel_ip" : "query_ip", [root.family])
             }
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 text: root.hiddenAddresses ? qsTr("Show addresses") : qsTr("Hide addresses")
                 icon.source: root.hiddenAddresses ? "qrc:/icons/dashboard/eye.svg" : "qrc:/icons/dashboard/eye_off.svg"
@@ -292,6 +297,7 @@ ColumnLayout {
             }
             ActionButton {
                 id: testAll
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 objectName: "home_test_all"
                 text: root.testing ? qsTr("Cancel test") : qsTr("Test all")

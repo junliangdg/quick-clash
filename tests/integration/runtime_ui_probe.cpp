@@ -1,5 +1,6 @@
 #include "runtime_ui_probe.h"
 #include "application_host.h"
+#include "focus_layout_checks.h"
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QFontInfo>
@@ -139,6 +140,31 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto* view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
     if (!section || !view || view->property("count").toInt() != 2)
         return 48;
+    const auto checkHorizontalFocus = [&] {
+        const auto baselineSize = host.window()->size();
+        host.resizeWindow({360, 640});
+        QTest::qWait(40);
+        auto* listItem = qobject_cast<QQuickItem*>(view);
+        auto* viewport = listItem ? listItem->parentItem() : nullptr;
+        while (viewport && !viewport->property("contentX").isValid())
+            viewport = viewport->parentItem();
+        if (!viewport)
+            return false;
+        const auto range =
+            qMax(0.0, viewport->property("contentWidth").toReal() - viewport->width());
+        for (const auto x : {0.0, range / 2, range}) {
+            viewport->setProperty("contentX", x);
+            QTest::qWait(20);
+            if (!test::checkVisibleFocusFrames(host.window()))
+                return false;
+        }
+        viewport->setProperty("contentX", 0);
+        host.resizeWindow(baselineSize);
+        QTest::qWait(40);
+        return true;
+    };
+    if (!checkHorizontalFocus())
+        return 87;
     auto* rulesPage = host.window()->findChild<QObject*>(QStringLiteral("rules_page"));
     QString description;
     const QVariant ruleDescription = QVariantMap{{"position", 7},
@@ -191,6 +217,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     ui.applyData(oldProviders);
     if (view->property("count").toInt() != 1)
         return 49;
+    if (!checkHorizontalFocus())
+        return 88;
     ui.applyData(
         {1,
          "fixture",

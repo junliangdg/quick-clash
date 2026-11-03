@@ -117,6 +117,8 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
             telemetryChanged = true;
         } else if (it.key() == QStringLiteral("profiles")) {
             emit profilesChanged();
+        } else if (it.key() == QStringLiteral("custom_groups")) {
+            emit customGroupsChanged();
         } else if (it.key() == QStringLiteral("editor")) {
             emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
@@ -258,6 +260,8 @@ void UiState::rebuildProxyStates() {
 }
 void UiState::clearChannel(const QString& channel) {
     appliedData_.remove(channel);
+    if (channel == QStringLiteral("custom_groups"))
+        emit customGroupsChanged();
     if (channel == QStringLiteral("editor"))
         emit editorChanged();
     if (channel == QStringLiteral("connections"))
@@ -349,7 +353,8 @@ QJsonObject UiState::diagnosticSnapshot() const {
             it.key() != QStringLiteral("traffic") && it.key() != QStringLiteral("resources") &&
             it.key() != QStringLiteral("connection_status") &&
             it.key() != QStringLiteral("log_status") && it.key() != QStringLiteral("rule_status") &&
-            it.key() != QStringLiteral("provider_status") && it.key() != QStringLiteral("editor"))
+            it.key() != QStringLiteral("provider_status") && it.key() != QStringLiteral("editor") &&
+            it.key() != QStringLiteral("custom_groups"))
             result.insert(it.key(), it.value());
     result.insert(
         QStringLiteral("dataLifecycle"),
@@ -415,6 +420,29 @@ QString UiState::runtimeStatus() const {
     return tr("Loading");
 }
 QString UiState::runtimeError() const {
+    const auto customError = runtime_.value(QStringLiteral("error")).toString();
+    if (customError == QStringLiteral("InvalidCustomGroup"))
+        return tr("Check the group name, sources, probe URL and parameter ranges.");
+    if (customError == QStringLiteral("InvalidCustomGroupFilter"))
+        return tr("Use comma-separated keywords or a valid restricted regular expression. "
+                  "Lookarounds, backreferences, quantified groups, repetition ranges and multiple "
+                  "unbounded repetitions are not supported.");
+    if (customError == QStringLiteral("CustomGroupNameConflict"))
+        return tr("The group name conflicts with an existing node, group or reserved name.");
+    if (customError == QStringLiteral("CustomGroupParentMissing"))
+        return tr("The parent selector is no longer available. Choose another parent.");
+    if (customError == QStringLiteral("CustomGroupSourceMissing"))
+        return tr("Select inline nodes or available providers. The source may have changed.");
+    if (customError == QStringLiteral("CustomGroupHealthConflict"))
+        return tr("Custom groups sharing a provider must use the same health-check settings.");
+    if (customError == QStringLiteral("CustomGroupInUse"))
+        return tr("Select another outbound before deleting this group.");
+    if (customError == QStringLiteral("CustomGroupConflict") ||
+        customError == QStringLiteral("CustomGroupPreviewRequired"))
+        return tr("The profile or settings changed. Reopen the group form and preview again.");
+    if (customError == QStringLiteral("CustomGroupLimitExceeded"))
+        return tr("A profile supports up to 32 custom groups and 256 KiB of group definitions.");
+
     const auto code = runtime_.value(QStringLiteral("error")).toString();
     if (code == QStringLiteral("CorePlatformUnsupported") ||
         code == QStringLiteral("CredentialStoreUnsupported") ||

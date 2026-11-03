@@ -117,13 +117,20 @@ Item {
                     : section.currentIndex === 0 ? qsTr("Effective order") : qsTr("One update at a time")
                 color: root.theme.muted
                 font.pixelSize: root.theme.supportingSize
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
         }
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 8
+            columns: width >= root.theme.scaledSize(720) ? 4 : width >= root.theme.scaledSize(420) ? 2 : 1
+            columnSpacing: 8
+            rowSpacing: 8
             ThemedComboBox {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 id: section
                 Accessible.name: qsTr("Rules or providers")
                 theme: root.theme
@@ -134,6 +141,8 @@ Item {
             ActionButton {
                 theme: root.theme
                 objectName: "refresh_rules"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: root.pageState.loading ? qsTr("Loading…") : qsTr("Refresh")
                 enabled: root.canRefresh
                 onClicked: root.ui.runtimeCommand(section.currentIndex === 0 ? "rules" : "providers")
@@ -141,6 +150,8 @@ Item {
             ActionButton {
                 theme: root.theme
                 objectName: "edit_rules"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 text: qsTr("Edit overrides…")
                 enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                 onClicked: editor.edit(root.ui.runtime.selectedId, "overlay")
@@ -151,7 +162,7 @@ Item {
                 listModel: root.pageModel
                 placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Provider or type")
                 Layout.fillWidth: true
-                Layout.minimumWidth: root.theme.scaledSize(160)
+                Layout.minimumWidth: 0
             }
         }
         Label {

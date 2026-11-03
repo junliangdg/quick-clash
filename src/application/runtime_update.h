@@ -13,10 +13,11 @@ struct RuntimeDemands {
     QSet<QString> active;
     QHash<QString, quint64> generations;
     [[nodiscard]] static QStringList streams() {
-        return {
-            QStringLiteral("connections"), QStringLiteral("rules"),    QStringLiteral("providers"),
-            QStringLiteral("logs"),        QStringLiteral("log_feed"), QStringLiteral("traffic"),
-            QStringLiteral("resources"),   QStringLiteral("proxies"),  QStringLiteral("editor")};
+        return {QStringLiteral("connections"), QStringLiteral("rules"),
+                QStringLiteral("providers"),   QStringLiteral("logs"),
+                QStringLiteral("log_feed"),    QStringLiteral("traffic"),
+                QStringLiteral("resources"),   QStringLiteral("proxies"),
+                QStringLiteral("editor"),      QStringLiteral("custom_groups")};
     }
     void setActive(const QStringList& streams) {
         QSet<QString> next;
@@ -45,18 +46,19 @@ struct RuntimeDemands {
         return QStringLiteral("providers");
     if (QStringList{QStringLiteral("connections"), QStringLiteral("rules"),
                     QStringLiteral("providers"), QStringLiteral("logs"), QStringLiteral("traffic"),
-                    QStringLiteral("resources"), QStringLiteral("editor")}
+                    QStringLiteral("resources"), QStringLiteral("editor"),
+                    QStringLiteral("custom_groups")}
             .contains(channel))
         return channel;
     return {};
 }
 [[nodiscard]] inline QStringList scopedChannels() {
-    return {QStringLiteral("connections"), QStringLiteral("connection_status"),
-            QStringLiteral("rules"),       QStringLiteral("providers"),
-            QStringLiteral("rule_status"), QStringLiteral("provider_status"),
-            QStringLiteral("logs"),        QStringLiteral("log_status"),
-            QStringLiteral("traffic"),     QStringLiteral("resources"),
-            QStringLiteral("editor")};
+    return {QStringLiteral("custom_groups"),     QStringLiteral("connections"),
+            QStringLiteral("connection_status"), QStringLiteral("rules"),
+            QStringLiteral("providers"),         QStringLiteral("rule_status"),
+            QStringLiteral("provider_status"),   QStringLiteral("logs"),
+            QStringLiteral("log_status"),        QStringLiteral("traffic"),
+            QStringLiteral("resources"),         QStringLiteral("editor")};
 }
 struct RuntimeRequest {
     QString stream;

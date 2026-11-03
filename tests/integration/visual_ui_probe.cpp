@@ -1,4 +1,5 @@
 #include "application_host.h"
+#include "focus_layout_checks.h"
 #include "host_probe.h"
 #include <QColor>
 #include <QDateTime>
@@ -10,6 +11,7 @@
 #include <QJsonDocument>
 #include <QQuickItem>
 #include <QSGRendererInterface>
+#include <QSignalSpy>
 #include <QTest>
 #include <cmath>
 #include <cstdio>
@@ -78,8 +80,28 @@ int runVisualProbe(ApplicationHost& host) {
                 self(self, child);
         };
         visitButtons(visitButtons, host.window()->contentItem());
+        QJsonArray scrollBars;
+        for (auto* bar : objects("themed_vertical_scroll_bar")) {
+            auto* view = bar->parentItem();
+            if (!view || !view->isVisible())
+                continue;
+            const auto bounds = bar->mapRectToScene(bar->boundingRect());
+            scrollBars.append(QJsonObject{{"view", view->objectName()},
+                                          {"x", bounds.x()},
+                                          {"y", bounds.y()},
+                                          {"width", bounds.width()},
+                                          {"height", bounds.height()},
+                                          {"size", bar->property("size").toReal()},
+                                          {"position", bar->property("position").toReal()}});
+        }
+        auto* title = host.window()->findChild<QQuickItem*>("page_title_row");
+        const auto pageBounds = title ? title->mapRectToScene(title->boundingRect()) : QRectF{};
         captures.append(QJsonObject{
             {"name", name},
+            {"pageContent", QJsonObject{{"left", pageBounds.left()},
+                                        {"right", pageBounds.right()},
+                                        {"width", pageBounds.width()}}},
+            {"scrollBars", scrollBars},
             {"qtVersion", qVersion()},
             {"exposed", host.window()->isExposed()},
             {"roots", roots},
@@ -341,6 +363,50 @@ int runVisualProbe(ApplicationHost& host) {
         return 139;
     ui.applyControl(QJsonObject::fromVariantMap(originalControl));
     populate();
+    // The nested delay controls must not also select a node or toggle the group.
+    ui.navigate("proxies");
+    populate();
+    QTest::qWait(80);
+    const auto group = objects(QStringLiteral("proxy_group_节点选择"));
+    const auto tiles =
+        objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
+    if (group.size() != 1 || tiles.size() != 1)
+        return 189;
+    auto* batch = group.first()->findChild<QQuickItem*>("test_group");
+    auto* delay = tiles.first()->findChild<QQuickItem*>("test_node");
+    auto* groupTitle = group.first()->findChild<QQuickItem*>("proxy_group_title");
+    auto* groupSubtitle = group.first()->findChild<QQuickItem*>("proxy_group_subtitle");
+    if (!batch || !delay || !groupTitle || !groupSubtitle || !batch->isEnabled() ||
+        !delay->isEnabled() || delay->width() < 44 || delay->height() < 32 ||
+        std::abs(groupTitle->mapToScene(QPointF{}).x() - groupSubtitle->mapToScene(QPointF{}).x()) >
+            1 ||
+        std::abs(groupTitle->mapToScene(QPointF(0, groupTitle->height() / 2)).y() -
+                 batch->mapToScene(QPointF(0, batch->height() / 2)).y()) > 1)
+        return 190;
+    QSignalSpy groupClicked(group.first(), SIGNAL(clicked()));
+    QSignalSpy batchClicked(batch, SIGNAL(clicked()));
+    QSignalSpy tileClicked(tiles.first(), SIGNAL(clicked()));
+    QSignalSpy delayClicked(delay, SIGNAL(clicked()));
+    const auto clickItem = [&](QQuickItem* item) {
+        QTest::mouseClick(
+            host.window(), Qt::LeftButton, Qt::NoModifier,
+            item->mapToScene(QPointF(item->width() / 2, item->height() / 2)).toPoint());
+        QTest::qWait(20);
+    };
+    clickItem(delay);
+    if (delayClicked.size() != 1 || !tileClicked.isEmpty() || !groupClicked.isEmpty())
+        return 191;
+    delay->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(host.window(), Qt::Key_Return);
+    if (delayClicked.size() != 2 || !tileClicked.isEmpty())
+        return 192;
+    clickItem(batch);
+    if (batchClicked.size() != 1 || !groupClicked.isEmpty())
+        return 193;
+    batch->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(host.window(), Qt::Key_Return);
+    if (batchClicked.size() != 2 || !groupClicked.isEmpty())
+        return 194;
     const auto generation = host.engineGeneration();
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
         ui.setThemeMode(theme);
@@ -349,9 +415,18 @@ int runVisualProbe(ApplicationHost& host) {
             if (!ui.navigate(page))
                 return 111;
             populate();
-            if (!capture(theme + '_' + page))
+            if (!capture(theme + '_' + page) || !test::checkScrollLayouts(host.window()) ||
+                !test::checkPageAlignment(host.window()))
                 return 112;
         }
+        ui.navigate("subscriptions");
+        QTest::qWait(30);
+        auto* importPopup = host.window()->findChild<QObject*>("subscription_import_dialog");
+        if (!importPopup || !QMetaObject::invokeMethod(importPopup, "open") ||
+            !capture(theme + "_subscription_import"))
+            return 195;
+        QMetaObject::invokeMethod(importPopup, "close");
+        QTest::qWait(30);
         ui.navigate("home");
         QTest::qWait(50);
         const auto peakTime = QDateTime::currentMSecsSinceEpoch();
@@ -653,6 +728,118 @@ int runVisualProbe(ApplicationHost& host) {
             ui.setDashboardOption("resources", false);
         }
     }
+    // Inspect the real bar after resize and content scrolling, not just the form's padding.
+    for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+        ui.setThemeMode(theme);
+        for (const auto width : {1000, 360}) {
+            host.resizeWindow({width, 640});
+            for (const auto& page : {QStringLiteral("home"), QStringLiteral("settings")}) {
+                if (!ui.navigate(page))
+                    return 140;
+                QTest::qWait(40);
+                const auto targets = objects(page == "home" ? "home_system_card" : "settings_page");
+                if (targets.size() != 1)
+                    return 140;
+                auto* view = targets.first();
+                while (view && !view->property("form").isValid())
+                    view = view->parentItem();
+                auto* bar =
+                    view ? view->findChild<QQuickItem*>("themed_vertical_scroll_bar") : nullptr;
+                auto* viewport =
+                    view ? view->property("contentItem").value<QQuickItem*>() : nullptr;
+                if (!view || !bar || !viewport || !test::checkScrollLayouts(host.window()))
+                    return 140;
+                auto* title = host.window()->findChild<QQuickItem*>("page_title_row");
+                auto* form = view->property("form").value<QQuickItem*>();
+                if (!title || !form || !test::checkPageAlignment(host.window()))
+                    return 145;
+                const auto bodyWidth = form->width();
+                const auto heading = title->mapRectToScene(title->boundingRect());
+                const auto body = form->mapRectToScene(form->boundingRect());
+                const auto track = bar->mapRectToScene(bar->boundingRect());
+                auto* tokens = view->property("theme").value<QObject*>();
+                if (!tokens)
+                    return 145;
+                const auto focusExtent = tokens->property("focusExtent").toReal();
+                if (track.left() + 0.5 < body.right() + focusExtent ||
+                    track.right() > host.window()->width() - 1.5 ||
+                    std::abs(heading.left() - body.left()) > 0.5 ||
+                    std::abs(heading.right() - body.right()) > 0.5)
+                    return 145;
+                const auto policy = bar->property("policy");
+                if (!bar->setProperty("policy", 1)) // ScrollBar.AlwaysOff
+                    return 146;
+                QTest::qWait(25);
+                if (bar->isVisible() || std::abs(form->width() - bodyWidth) > 0.5 ||
+                    !test::checkPageAlignment(host.window()) || !bar->setProperty("policy", policy))
+                    return 146;
+                QTest::qWait(25);
+                if (!bar->isVisible() || std::abs(form->width() - bodyWidth) > 0.5 ||
+                    !test::checkPageAlignment(host.window()))
+                    return 146;
+                const auto contentHeight = viewport->property("contentHeight").toReal();
+                const auto origin = viewport->property("originY").toReal();
+                const auto range = contentHeight - viewport->height();
+                if (range <= 0 || !bar->isVisible())
+                    return 141;
+                viewport->setProperty("contentY", origin);
+                QTest::qWait(15);
+                if (!QMetaObject::invokeMethod(bar, "increase"))
+                    return 142;
+                QTest::qWait(15);
+                if (viewport->property("contentY").toReal() <= origin ||
+                    !QMetaObject::invokeMethod(bar, "decrease"))
+                    return 142;
+                QTest::qWait(15);
+                if (std::abs(viewport->property("contentY").toReal() - origin) > 0.5)
+                    return 142;
+                for (const auto fraction : {0.0, 0.5, 1.0}) {
+                    viewport->setProperty("contentY", origin + range * fraction);
+                    QTest::qWait(15);
+                    if (!test::checkScrollLayouts(host.window()) ||
+                        std::abs(bar->property("size").toReal() -
+                                 viewport->height() / contentHeight) > 0.001 ||
+                        std::abs(bar->property("position").toReal() -
+                                 range * fraction / contentHeight) > 0.001)
+                        return 143;
+                }
+                viewport->setProperty("contentY", origin + range / 2);
+                bar->setProperty("active", true);
+                if (!capture(QStringLiteral("%1_scrollbar_%2_%3").arg(theme, page).arg(width)))
+                    return 144;
+            }
+        }
+    }
+    // Page-level virtual and proxy lists also keep their contents stable when the
+    // bar is hidden; their own list/scroll semantics remain unchanged.
+    for (const auto width : {1000, 360}) {
+        host.resizeWindow({width, 640});
+        for (const auto& page : {QStringLiteral("subscriptions"), QStringLiteral("proxies")}) {
+            if (!ui.navigate(page))
+                return 147;
+            QTest::qWait(40);
+            const auto bars =
+                objects(page == "subscriptions" ? "subscription_page_bar" : "proxy_page_bar");
+            const auto bodies = objects(page == "subscriptions" ? "subscription_content_header"
+                                                                : "proxy_content_column");
+            if (bars.size() != 1 || bodies.size() != 1 || !test::checkPageAlignment(host.window()))
+                return 147;
+            const auto widthBefore = bodies.first()->width();
+            const auto policy = bars.first()->property("policy");
+            if (!bars.first()->setProperty("policy", 1))
+                return 147;
+            QTest::qWait(20);
+            if (bars.first()->isVisible() ||
+                std::abs(bodies.first()->width() - widthBefore) > 0.5 ||
+                !test::checkPageAlignment(host.window()) ||
+                !bars.first()->setProperty("policy", policy))
+                return 147;
+            QTest::qWait(20);
+            if (std::abs(bodies.first()->width() - widthBefore) > 0.5 ||
+                !test::checkPageAlignment(host.window()))
+                return 147;
+        }
+    }
     if (host.qmlErrorCount() || host.engineGeneration() != generation ||
         ui.uploadHistory().size() != 60)
         return 120;
@@ -663,7 +850,7 @@ int runVisualProbe(ApplicationHost& host) {
         evidence.write(QJsonDocument(captures).toJson());
     }
     std::puts("Visual UI: eight pages, both themes, retained draft, equal cards, menu/dialog, "
-              "360/800/1000/1200/1440 passed");
+              "360/800/1000/1200/1440, home/settings scrollbar geometry and interaction passed");
     return 0;
 }
 } // namespace quickclash

@@ -15,9 +15,11 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QDirIterator>
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTimeZone>
 #include <iostream>
@@ -61,6 +63,24 @@ int main(int argc, char* argv[]) {
         return std::holds_alternative<Error>(result) ? 1 : 0;
     }
     try {
+        {
+            QDirIterator files(QStringLiteral(QUICKCLASH_SOURCE_DIR "/qml"), {"*.qml"}, QDir::Files,
+                               QDirIterator::Subdirectories);
+            const QRegularExpression bareScroll(QStringLiteral("\\bScrollView\\s*\\{"));
+            int scanned = 0, safeScrolls = 0;
+            while (files.hasNext()) {
+                const auto path = files.next();
+                QFile file(path);
+                check(file.open(QIODevice::ReadOnly), "QML layout source readable");
+                const auto source = QString::fromUtf8(file.readAll());
+                if (!path.endsWith("/themed_scroll_view.qml"))
+                    check(!bareScroll.match(source).hasMatch(),
+                          "forms must use ThemedScrollView, not a clipped bare ScrollView");
+                safeScrolls += source.count(QStringLiteral("ThemedScrollView {"));
+                ++scanned;
+            }
+            check(scanned >= 40 && safeScrolls >= 13, "layout guard scans real application forms");
+        }
         {
             ProxyLatency latency;
             const auto now = QDateTime::fromString("2026-11-01T00:00:00Z", Qt::ISODate);

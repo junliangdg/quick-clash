@@ -84,6 +84,7 @@ ColumnLayout {
                     }
                 }
                 ThemedSwitch {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     objectName: "home_system_proxy"
                     text: qsTr("System proxy") + " · " + (root.ui.runtime.systemProxy ? qsTr("On") : qsTr("Off"))
@@ -92,6 +93,7 @@ ColumnLayout {
                     onClicked: root.ui.runtimeCommand("system_proxy", [checked ? "true" : "false"])
                 }
                 ThemedSwitch {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     objectName: "home_tun"
                     text: "TUN · " + (root.ui.runtime.tunPending ? qsTr("Starting") : root.ui.runtime.tunDisabling ? qsTr("Stopping") : root.tunOn ? qsTr("On") : root.ui.runtime.tunState === "AuthorizationRequired" ? qsTr("Service required") : ["Unknown", "Missing", "Blocked", "Uncertain"].includes(root.ui.runtime.tunState) ? qsTr("Unavailable") : qsTr("Off"))
@@ -189,6 +191,7 @@ ColumnLayout {
                     }
                 }
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     id: delayAction
                     theme: root.theme
                     text: qsTr("Test current node")
@@ -198,6 +201,7 @@ ColumnLayout {
                     onClicked: root.ui.runtimeCommand("delay", [root.outbound.policy || root.outbound.node])
                 }
                 ActionButton {
+                    width: Math.min(implicitWidth, parent.width)
                     theme: root.theme
                     text: qsTr("Refresh groups")
                     visible: !!root.features.groupsStale

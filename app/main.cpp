@@ -3,6 +3,7 @@
 #include "single_instance.h"
 #include "ui_font.h"
 #ifdef QUICKCLASH_TEST_PROBES
+#include "custom_groups_ui_probe.h"
 #include "desktop_flow_probe.h"
 #include "desktop_probe.h"
 #include "desktop_proxy_probe.h"
@@ -141,11 +142,13 @@ int main(int argc, char* argv[]) {
     const bool visualTest = arguments.contains(QStringLiteral("--visual-test"));
     const bool runtimeListTest = arguments.contains(QStringLiteral("--runtime-list-test"));
     const bool pageMemoryTest = arguments.contains(QStringLiteral("--page-memory-test"));
+    const bool customGroupsUiTest = arguments.contains(QStringLiteral("--custom-groups-ui-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool languageTest = arguments.contains(QStringLiteral("--language-test"));
     const bool isolated = desktopTest || smoke || prototype || hostTest || trayTest ||
                           keyboardTest || accessibilityTest || responsiveTest || visualTest ||
-                          runtimeListTest || subscriptionUiTest || languageTest || pageMemoryTest ||
+                          runtimeListTest || customGroupsUiTest || subscriptionUiTest ||
+                          languageTest || pageMemoryTest ||
                           arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
 #else
@@ -356,6 +359,9 @@ int main(int argc, char* argv[]) {
     }
     if (trayTest) {
         return quickclash::runTrayProbe(host);
+    }
+    if (customGroupsUiTest) {
+        return quickclash::runCustomGroupsUiProbe(host);
     }
     if (subscriptionUiTest) {
         return quickclash::runSubscriptionUiProbe(host);

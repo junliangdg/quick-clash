@@ -5,13 +5,11 @@ import QtQuick.Layouts
 import QtQuick.Dialogs
 import QuickClash.Ui
 
-ScrollView {
+ThemedScrollView {
+    form: rootForm
     id: root
     objectName: "settings_page"
     required property UiState ui
-    required property ThemeTokens theme
-    contentWidth: availableWidth
-    clip: true
     property var pendingNetworkArgs: []
     property var pendingBackupPreview: ({})
     property var pendingMaintenancePreview: ({})
@@ -38,6 +36,7 @@ ScrollView {
     }
     ThemedDialog {
         id: coreConfirmation
+        objectName: "core_update_confirmation"
         theme: root.theme
         parent: Overlay.overlay
         anchors.centerIn: parent
@@ -47,12 +46,12 @@ ScrollView {
         title: qsTr("Switch the managed core?")
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
+            theme: root.theme
+            form: coreConfirmationBodyForm
             id: coreConfirmationBody
-            contentWidth: availableWidth
-            clip: true
             Label {
-                width: coreConfirmationBody.availableWidth
+                id: coreConfirmationBodyForm
                 wrapMode: Text.WordWrap
                 color: root.theme.text
                 text: qsTr("The selected configuration and Geo files are validated first. A running core restarts and existing connections are interrupted. Failure restores the confirmed core and configuration.")
@@ -72,12 +71,12 @@ ScrollView {
         title: qsTr("Apply network settings?")
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
+            theme: root.theme
+            form: networkConfirmationBodyForm
             id: networkConfirmationBody
-            contentWidth: availableWidth
-            clip: true
             Label {
-                width: networkConfirmationBody.availableWidth
+                id: networkConfirmationBodyForm
                 wrapMode: Text.WordWrap
                 color: root.theme.text
                 text: root.networkSummary({
@@ -196,12 +195,12 @@ ScrollView {
         modal: true
         standardButtons: Dialog.Ok | Dialog.Cancel
         title: root.pendingMaintenancePreview.kind === "diagnostics" ? qsTr("Export this support package?") : root.pendingMaintenancePreview.kind === "repair_preview" ? qsTr("Archive data and start fresh?") : qsTr("Review storage cleanup")
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
+            theme: root.theme
+            form: maintenanceBodyForm
             id: maintenanceBody
-            contentWidth: availableWidth
-            clip: true
             ColumnLayout {
-                width: maintenanceBody.availableWidth
+                id: maintenanceBodyForm
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -231,12 +230,12 @@ ScrollView {
         width: Math.min(560, parent.width - 32)
         height: Math.min(440, parent.height - 32)
         implicitHeight: height
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
+            theme: root.theme
+            form: backupBodyForm
             id: backupBody
-            contentWidth: availableWidth
-            clip: true
             ColumnLayout {
-                width: backupBody.availableWidth
+                id: backupBodyForm
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -270,12 +269,12 @@ ScrollView {
         width: Math.min(560, parent.width - 32)
         height: Math.min(550, parent.height - 32)
         implicitHeight: height
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
+            theme: root.theme
+            form: restoreBodyForm
             id: restoreBody
-            contentWidth: availableWidth
-            clip: true
             ColumnLayout {
-                width: restoreBody.availableWidth
+                id: restoreBodyForm
                 Label {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -302,7 +301,7 @@ ScrollView {
         onClosed: root.pendingBackupPreview = ({})
     }
     ColumnLayout {
-        width: root.availableWidth
+        id: rootForm
         spacing: root.theme.gap
         FlatTile {
             theme: root.theme
@@ -333,6 +332,8 @@ ScrollView {
                 ThemedComboBox {
                     theme: root.theme
                     Accessible.name: qsTr("Core download path")
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     model: [qsTr("Direct download"), qsTr("Use current proxy")]
                     currentIndex: root.coreUpdate.route === "CurrentProxy" ? 1 : 0
                     enabled: !root.ui.runtime.busy
@@ -350,6 +351,7 @@ ScrollView {
                             {command: "core_bundled", label: qsTr("Use bundled core…"), confirm: true}
                         ]
                         delegate: ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             required property var modelData
                             theme: root.theme
                             text: modelData.label
@@ -364,6 +366,7 @@ ScrollView {
                         }
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Cancel core download")
                         visible: ["Downloading", "Extracting"].indexOf(root.coreUpdate.state || "") >= 0
@@ -465,6 +468,7 @@ ScrollView {
                             }
                         ]
                         delegate: ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             required property var modelData
                             objectName: "appearance_" + modelData.key
                             theme: root.theme
@@ -508,6 +512,7 @@ ScrollView {
                             }
                         ]
                         delegate: ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             required property var modelData
                             objectName: "appearance_language_" + modelData.key
                             theme: root.theme
@@ -543,6 +548,7 @@ ScrollView {
                             return ["home", "proxies", "subscriptions", "settings"].indexOf(entry.pageId) < 0;
                         })
                         delegate: ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
                             required property var modelData
                             theme: root.theme
                             text: modelData.title
@@ -726,6 +732,7 @@ ScrollView {
                     Layout.fillWidth: true
                     spacing: 8
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Apply network settings…")
                         objectName: "apply_network_settings"
@@ -733,6 +740,7 @@ ScrollView {
                         onClicked: root.requestNetworkSettings()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Use available ports…")
                         objectName: "suggest_listener_ports"
@@ -740,6 +748,7 @@ ScrollView {
                         onClicked: root.ui.runtimeCommand("suggest_listener_ports")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Retry")
                         visible: !!root.ui.runtime.listenerRecoveryBlocked && !root.ui.runtime.ready
@@ -747,11 +756,13 @@ ScrollView {
                         onClicked: root.ui.runtimeCommand("start")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Open data folder")
                         onClicked: Qt.openUrlExternally(root.ui.runtime.dataUrl || "")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("View errors")
                         onClicked: root.ui.navigate("logs")
@@ -765,6 +776,7 @@ ScrollView {
                         onClicked: root.ui.runtimeCommand("reapply_system_proxy")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("View effective profile")
                         enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy
@@ -850,24 +862,28 @@ ScrollView {
                     Layout.fillWidth: true
                     spacing: 8
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Review and apply network settings…")
                         enabled: root.ui.settingsReady && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: root.requestNetworkSettings()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Clear DNS cache")
                         enabled: !!root.ui.runtime.ready && !root.ui.runtime.busy && (root.ui.runtime.features || {}).dnsResult !== "Clearing"
                         onClicked: root.ui.runtimeCommand("flush_dns")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Update Geo databases…")
                         enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoConfirmation.open()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Apply downloaded Geo…")
                         visible: !!(root.ui.runtime.geoUpdate || {}).pending
@@ -875,18 +891,21 @@ ScrollView {
                         onClicked: geoPendingConfirmation.open()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Roll back Geo databases…")
                         enabled: !!root.ui.runtime.selectedId && (root.ui.runtime.preferences || {}).previousGeoSnapshot !== undefined && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoRollback.open()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Use bundled Geo databases…")
                         enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: geoBundled.open()
                     }
                     ThemedComboBox {
+                        width: Math.min(implicitWidth, parent.width)
                         id: geoRoute
                         theme: root.theme
                         Accessible.name: qsTr("Geo download path")
@@ -896,6 +915,7 @@ ScrollView {
                         onActivated: root.ui.runtimeCommand("geo_settings", [currentIndex === 1 ? "CurrentProxy" : "Direct", String((((root.ui.runtime.geoUpdate || {}).settings || {}).intervalHours || 0))])
                     }
                     ThemedComboBox {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         Accessible.name: qsTr("Geo download schedule")
                         model: [qsTr("Manual Geo updates"), qsTr("Download Geo daily"), qsTr("Download Geo weekly")]
@@ -904,29 +924,34 @@ ScrollView {
                         onActivated: root.ui.runtimeCommand("geo_settings", [(((root.ui.runtime.geoUpdate || {}).settings || {}).route || "Direct"), String([0, 24, 168][currentIndex])])
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Cancel Geo update")
                         visible: ["Downloading", "Validating"].indexOf((root.ui.runtime.features || {}).geoResult || "") >= 0
                         onClicked: root.ui.runtimeCommand("cancel_geo")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Export safe diagnostics")
                         onClicked: root.ui.runtimeCommand("diagnostics")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Open diagnostics")
                         visible: !!(root.ui.runtime.features || {}).exportUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.features.exportUrl)
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Review storage cleanup")
                         enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
                         onClicked: root.ui.runtimeCommand("storage_preview")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Archive damaged data…")
                         visible: !!root.ui.runtime.readOnly
@@ -934,30 +959,35 @@ ScrollView {
                         onClicked: root.ui.runtimeCommand("repair_preview")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Open recovery archive")
                         visible: !!(root.ui.runtime.features || {}).recoveryArchiveUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.features.recoveryArchiveUrl)
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Back up profiles…")
                         enabled: !root.ui.runtime.busy
                         onClicked: backupConfirmation.open()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Restore profiles…")
                         enabled: !root.ui.runtime.busy
                         onClicked: restoreFile.open()
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Open backup folder")
                         visible: !!(root.ui.runtime.features || {}).backupUrl
                         onClicked: Qt.openUrlExternally(root.ui.runtime.dataUrl + "/backups")
                     }
                     ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
                         theme: root.theme
                         text: qsTr("Cancel profile restore")
                         visible: (root.ui.runtime.features || {}).backupResult === "Restoring"

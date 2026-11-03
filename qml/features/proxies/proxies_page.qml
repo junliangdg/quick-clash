@@ -35,10 +35,17 @@ Item {
     Component.onCompleted: {
         restoreExpandedGroups();
         ui.setDemand("proxies:page", "proxies", active);
+        ui.setDemand("custom_groups:page", "custom_groups", active);
     }
     onStateKeyChanged: restoreExpandedGroups()
-    onActiveChanged: ui.setDemand("proxies:page", "proxies", active)
-    Component.onDestruction: ui.setDemand("proxies:page", "proxies", false)
+    onActiveChanged: {
+        ui.setDemand("proxies:page", "proxies", active);
+        ui.setDemand("custom_groups:page", "custom_groups", active);
+    }
+    Component.onDestruction: {
+        ui.setDemand("proxies:page", "proxies", false);
+        ui.setDemand("custom_groups:page", "custom_groups", false);
+    }
     // Groups expand independently; the remembered set is per subscription.
     function restoreExpandedGroups(): void {
         const saved = ui.readState(stateKey).groups;
@@ -78,6 +85,12 @@ Item {
         const sources = group.sources || [];
         return sources.length > 0 ? qsTr("Provider: %1").arg(sources.join(", ")) : "";
     }
+    CustomGroupEditor {
+        id: groupEditor
+        parent: Overlay.overlay
+        ui: root.ui
+        theme: root.theme
+    }
     // Group cards are few and laid out directly; only the expanded group
     // instantiates its node grid. The page keeps a single scrollbar whose
     // length derives from the real layout, so recycled variable-height rows
@@ -96,15 +109,102 @@ Item {
         objectName: "proxy_group_list"
         visible: !root.ui.replay
         anchors.fill: parent
+        anchors.rightMargin: -root.theme.scrollBarWidth
         clip: true
         contentWidth: width
         contentHeight: groupsColumn.implicitHeight
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar {}
+        ScrollBar.vertical: ScrollBar {
+            objectName: "proxy_page_bar"
+            width: root.theme.scrollBarWidth
+        }
         ColumnLayout {
             id: groupsColumn
-            width: groupList.width
+            objectName: "proxy_content_column"
+            width: root.width
             spacing: 12
+            FlatTile {
+                theme: root.theme
+                Layout.fillWidth: true
+                implicitHeight: customControls.implicitHeight + 24
+                ColumnLayout {
+                    id: customControls
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 8
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ActionButton {
+                            width: Math.min(implicitWidth, parent.width)
+                            objectName: "new_custom_group"
+                            theme: root.theme
+                            text: qsTr("New strategy group")
+                            enabled: !!root.runtime.selectedId && !root.runtime.busy && !!root.ui.customGroups.revision
+                            onClicked: groupEditor.edit({})
+                        }
+                        Label {
+                            objectName: "custom_group_hint"
+                            text: qsTr("Local groups survive subscription updates")
+                            color: root.theme.muted
+                            width: Math.min(implicitWidth, parent.width)
+                            height: Math.max(root.theme.controlHeight, implicitHeight)
+                            wrapMode: Text.WordWrap
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+                    Repeater {
+                        model: root.ui.customGroups.definitions || []
+                        Flow {
+                            id: customRow
+                            required property var modelData
+                            readonly property var candidates: (root.ui.customGroups.groups || []).find(entry => entry.id === customRow.modelData.id) || ({})
+                            Layout.fillWidth: true
+                            spacing: 8
+                            Label {
+                                text: qsTr("Local: %1").arg(customRow.modelData.name)
+                                textFormat: Text.PlainText
+                                color: root.theme.text
+                                height: root.theme.controlHeight
+                                verticalAlignment: Text.AlignVCenter
+                                width: Math.min(260, customControls.width)
+                                elide: Text.ElideRight
+                            }
+                            Label {
+                                objectName: "custom_group_empty_warning"
+                                visible: customRow.candidates.count === 0
+                                text: qsTr("No matching nodes · traffic rejected")
+                                color: root.theme.warning
+                                height: Math.max(root.theme.controlHeight, implicitHeight)
+                                verticalAlignment: Text.AlignVCenter
+                                width: Math.min(260, customControls.width)
+                                wrapMode: Text.WordWrap
+                            }
+                            ActionButton {
+                                width: Math.min(implicitWidth, parent.width)
+                                theme: root.theme
+                                text: qsTr("Edit")
+                                enabled: !root.runtime.busy
+                                onClicked: groupEditor.edit(customRow.modelData)
+                            }
+                            ActionButton {
+                                width: Math.min(implicitWidth, parent.width)
+                                theme: root.theme
+                                text: qsTr("Delete…")
+                                enabled: !root.runtime.busy
+                                onClicked: groupEditor.edit(customRow.modelData, true)
+                            }
+                        }
+                    }
+                    Label {
+                        visible: !!root.ui.customGroups.error
+                        text: root.ui.customGroups.error || ""
+                        color: root.theme.warning
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+                }
+            }
             Label {
                 visible: root.groups.length === 0
                 text: qsTr("Select a subscription to see nodes")
@@ -151,7 +251,8 @@ Item {
                             id: groupToggle
                             objectName: "proxy_group_" + groupTile.modelData.name
                             Layout.fillWidth: true
-                            implicitHeight: root.theme.scaledSize(54)
+                            implicitHeight: headerContent.implicitHeight
+                            padding: 0
                             activeFocusOnTab: true
                             Accessible.name: groupTile.modelData.name
                             onClicked: root.toggleGroup(groupTile.modelData.name)
@@ -160,55 +261,64 @@ Item {
                                 hovered: groupToggle.hovered
                                 down: groupToggle.down
                                 focused: groupToggle.activeFocus
+                                insetFocus: true
                             }
-                            contentItem: RowLayout {
-                                spacing: 12
-                                Label {
-                                    text: groupTile.expanded ? "▾" : "▸"
-                                    color: root.theme.accent
-                                    font.pixelSize: root.theme.scaledSize(18)
-                                }
-                                ColumnLayout {
+                            contentItem: ColumnLayout {
+                                id: headerContent
+                                spacing: 2
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    Layout.minimumWidth: 0
-                                    spacing: 2
+                                    spacing: 10
                                     Label {
+                                        text: groupTile.expanded ? "▾" : "▸"
+                                        color: root.theme.accent
+                                        font.pixelSize: root.theme.scaledSize(18)
+                                    }
+                                    Label {
+                                        id: groupNameLabel
+                                        objectName: "proxy_group_title"
                                         text: groupTile.modelData.name
                                         color: root.theme.text
                                         font.weight: Font.DemiBold
                                         font.pixelSize: root.theme.scaledSize(16)
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                         elide: Text.ElideRight
                                         textFormat: Text.PlainText
                                     }
                                     Label {
-                                        text: root.groupType(groupTile.modelData) + " · " + qsTr("%1 members").arg((groupTile.modelData.members || []).length) + (root.groupSourceText(groupTile.modelData) ? " · " + root.groupSourceText(groupTile.modelData) : "")
-                                        color: root.theme.muted
-                                        Layout.fillWidth: true
+                                        visible: root.groupCurrentText(groupTile.modelData) !== "" && groupToggle.width >= root.theme.scaledSize(420)
+                                        text: root.groupCurrentText(groupTile.modelData)
+                                        color: groupTile.modelData.current ? root.theme.accent : root.theme.muted
+                                        Layout.maximumWidth: Math.max(80, groupToggle.width * 0.35)
                                         elide: Text.ElideRight
+                                        textFormat: Text.PlainText
+                                    }
+                                    ActionButton {
+                                        id: testGroup
+                                        objectName: "test_group"
+                                        theme: root.theme
+                                        icon.source: "qrc:/icons/dashboard/gauge.svg"
+                                        text: groupToggle.width >= root.theme.scaledSize(420) ? qsTr("Test latency") : ""
+                                        implicitHeight: root.theme.compactHeight
+                                        Accessible.name: qsTr("Test delay for group %1").arg(groupTile.modelData.name)
+                                        ThemedToolTip {
+                                            theme: root.theme
+                                            visible: testGroup.hovered || testGroup.activeFocus
+                                            text: qsTr("Test this group")
+                                        }
+                                        enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
+                                        onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name])
                                     }
                                 }
                                 Label {
-                                    visible: root.groupCurrentText(groupTile.modelData) !== "" && groupToggle.width >= root.theme.scaledSize(420)
-                                    text: root.groupCurrentText(groupTile.modelData)
-                                    color: groupTile.modelData.current ? root.theme.accent : root.theme.muted
-                                    Layout.maximumWidth: Math.max(80, groupToggle.width * 0.38)
+                                    objectName: "proxy_group_subtitle"
+                                    text: root.groupType(groupTile.modelData) + " · " + qsTr("%1 members").arg((groupTile.modelData.members || []).length) + (root.groupSourceText(groupTile.modelData) ? " · " + root.groupSourceText(groupTile.modelData) : "")
+                                    color: root.theme.muted
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: groupNameLabel.x
+                                    Layout.minimumWidth: 0
                                     elide: Text.ElideRight
-                                    textFormat: Text.PlainText
-                                }
-                                // Group latency batch test lives on the group card header.
-                                ActionButton {
-                                    id: testGroup
-                                    objectName: "test_group"
-                                    theme: root.theme
-                                    text: "⚡"
-                                    implicitWidth: root.theme.scaledSize(40)
-                                    implicitHeight: root.theme.compactHeight
-                                    font.pixelSize: root.theme.scaledSize(16)
-                                    Accessible.name: qsTr("Test this group")
-                                    ThemedToolTip { theme: root.theme; visible: testGroup.hovered; text: qsTr("Test this group") }
-                                    enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
-                                    onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name])
                                 }
                             }
                         }
@@ -278,8 +388,7 @@ Item {
                             function focusMember(member): void {
                                 const target = Math.max(0, Math.min(members.length - 1, member));
                                 const top = pageY + Math.floor(target / groupTile.nodeColumns) * rowHeight;
-                                groupList.contentY = Math.max(0, Math.min(groupList.contentHeight - groupList.height,
-                                    top < groupList.contentY ? top : top + rowHeight > groupList.contentY + groupList.height ? top + rowHeight - groupList.height : groupList.contentY));
+                                groupList.contentY = Math.max(0, Math.min(groupList.contentHeight - groupList.height, top < groupList.contentY ? top : top + rowHeight > groupList.contentY + groupList.height ? top + rowHeight - groupList.height : groupList.contentY));
                                 Qt.callLater(() => {
                                     for (let i = 0; i < nodeCards.count; ++i) {
                                         const item = nodeCards.itemAt(i);
@@ -305,7 +414,10 @@ Item {
                                     readonly property int slotRow: Math.floor(index / groupTile.nodeColumns)
                                     readonly property int memberIndex: (nodeGrid.firstRow + (slotRow + nodeGrid.rowShift) % nodeGrid.poolRows) * groupTile.nodeColumns + index % groupTile.nodeColumns
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
-                                    readonly property var proxyState: { const shared = root.states; return root.ui.proxyState(modelData, groupTile.modelData.name); }
+                                    readonly property var proxyState: {
+                                        const shared = root.states;
+                                        return root.ui.proxyState(modelData, groupTile.modelData.name);
+                                    }
                                     readonly property bool current: groupTile.modelData.current === modelData
                                     readonly property bool testable: !(modelData in root.groupNames) && !["DIRECT", "REJECT"].includes(modelData)
                                     readonly property bool inWindow: memberIndex >= nodeGrid.firstIndex && memberIndex < nodeGrid.endIndex
@@ -338,6 +450,7 @@ Item {
                                         hovered: nodeTile.enabled && nodeTile.hovered
                                         down: nodeTile.enabled && nodeTile.down
                                         focused: nodeTile.activeFocus
+                                        insetFocus: true
                                         border.width: 1
                                         border.color: nodeTile.current ? root.theme.accent : root.theme.border
                                     }
@@ -364,6 +477,7 @@ Item {
                                                 textFormat: Text.PlainText
                                             }
                                             DelayLabel {
+                                                visible: !nodeTile.testable
                                                 theme: root.theme
                                                 text: nodeTile.proxyState.text
                                                 result: nodeTile.proxyState.result
@@ -374,16 +488,40 @@ Item {
                                                 id: testNode
                                                 objectName: "test_node"
                                                 theme: root.theme
-                                                text: "⚡"
-                                                implicitWidth: 30
+                                                text: nodeTile.proxyState.text
+                                                implicitWidth: Math.max(root.theme.scaledSize(44), implicitContentWidth + leftPadding + rightPadding)
                                                 implicitHeight: root.theme.compactHeight
-                                                leftPadding: 4
-                                                rightPadding: 4
-                                                font.pixelSize: root.theme.scaledSize(12)
+                                                leftPadding: 6
+                                                rightPadding: 6
+                                                insetFocus: true
                                                 visible: nodeTile.testable
                                                 enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
-                                                Accessible.name: qsTr("Test delay")
-                                                ThemedToolTip { theme: root.theme; visible: testNode.hovered; text: qsTr("Test delay") }
+                                                Accessible.name: qsTr("Test delay for %1").arg(nodeTile.modelData)
+                                                Accessible.description: nodeTile.proxyState.description
+                                                background: StateSurface {
+                                                    theme: root.theme
+                                                    hovered: testNode.enabled && testNode.hovered
+                                                    down: testNode.enabled && testNode.down
+                                                    focused: testNode.activeFocus
+                                                    insetFocus: true
+                                                }
+                                                contentItem: DelayLabel {
+                                                    theme: root.theme
+                                                    text: testNode.text
+                                                    result: nodeTile.proxyState.result
+                                                    stale: !!(root.runtime.features || {}).groupsStale
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    verticalAlignment: Text.AlignVCenter
+                                                }
+                                                HoverHandler {
+                                                    enabled: testNode.enabled
+                                                    cursorShape: Qt.PointingHandCursor
+                                                }
+                                                ThemedToolTip {
+                                                    theme: root.theme
+                                                    visible: testNode.hovered || testNode.activeFocus
+                                                    text: qsTr("Test delay")
+                                                }
                                                 onClicked: root.ui.runtimeCommand("delay", [nodeTile.modelData, groupTile.modelData.name])
                                             }
                                         }

@@ -143,6 +143,7 @@ ColumnLayout {
         }
         ActionButton {
             id: copyAddress
+            width: Math.min(implicitWidth, parent.width)
             objectName: "home_copy_proxy_address"
             theme: root.theme
             text: root.proxyAddress && root.copiedAddress === root.proxyAddress ? qsTr("Copied") : qsTr("Copy address")
@@ -160,6 +161,7 @@ ColumnLayout {
             }
         }
         ActionButton {
+            width: Math.min(implicitWidth, parent.width)
             theme: root.theme
             objectName: "home_resource_toggle"
             text: qsTr("Details")

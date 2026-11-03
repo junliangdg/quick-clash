@@ -41,6 +41,7 @@ QtObject {
     readonly property int panelRadius: 10
     readonly property int controlRadius: 7
     readonly property int panelPadding: 16
+    readonly property int scrollBarWidth: 10
     readonly property int gap: 16
     readonly property int controlHeight: scaledSize(36)
     readonly property int compactHeight: scaledSize(32)
@@ -50,6 +51,8 @@ QtObject {
     readonly property int titleSize: scaledSize(24)
     readonly property int focusWidth: 2
     readonly property int focusGap: 2
+    readonly property int focusExtent: focusGap + focusWidth
+    readonly property int focusMargin: focusExtent + scaledSize(4)
     function delayColor(result): color {
         if (result === "Failed" || result === "Timeout")
             return error;

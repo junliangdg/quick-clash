@@ -55,12 +55,12 @@ Item {
             root.exporting = false;
             root.ui.runtimeCommand("cancel_log_export");
         }
-        contentItem: ScrollView {
+        contentItem: ThemedScrollView {
             id: logExportScroll
-            clip: true
-            contentWidth: availableWidth
+            theme: root.theme
+            form: logExportForm
             ColumnLayout {
-                width: logExportScroll.availableWidth
+                id: logExportForm
                 Label {
                     text: qsTr("Exports a frozen copy of the whole buffer. Source and level filters only affect the page. Preview text is limited to 16 KiB; the file contains the complete bounded snapshot.")
                     Layout.fillWidth: true
@@ -69,6 +69,8 @@ Item {
                 }
                 ThemedCheckBox {
                     id: hideLogMessages
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     objectName: "log_export_hide_messages"
                     theme: root.theme
                     text: qsTr("Hide messages, domains and process names")
@@ -161,23 +163,30 @@ Item {
                 text: root.paused ? qsTr("Reception paused") : root.runtime.ready ? qsTr("Receiving") : qsTr("Start the core to view logs")
                 color: root.paused ? root.theme.warning : root.runtime.ready ? root.theme.muted : root.theme.warning
                 font.pixelSize: root.theme.supportingSize
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
             }
         }
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 8
+            columns: width >= root.theme.scaledSize(420) ? 2 : 1
+            columnSpacing: 8
+            rowSpacing: 8
             RuntimeFilter {
                 theme: root.theme
                 listModel: root.ui.liveLogs
                 placeholderText: qsTr("Search messages, sources or levels")
                 Layout.fillWidth: true
-                Layout.minimumWidth: root.theme.scaledSize(160)
+                Layout.minimumWidth: 0
             }
             ActionButton {
                 theme: root.theme
                 text: root.paused ? qsTr("Resume receiving") : qsTr("Pause receiving")
                 objectName: "pause_logs"
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 onClicked: root.paused = !root.paused
             }
         }
@@ -185,6 +194,7 @@ Item {
             Layout.fillWidth: true
             spacing: 8
             ThemedComboBox {
+                width: Math.min(implicitWidth, parent.width)
                 id: source
                 Accessible.name: qsTr("Log source")
                 theme: root.theme
@@ -193,6 +203,7 @@ Item {
                 onCurrentIndexChanged: root.ui.liveLogs.sourceFilter = currentIndex === 0 ? "" : currentText
             }
             ThemedComboBox {
+                width: Math.min(implicitWidth, parent.width)
                 id: level
                 Accessible.name: qsTr("Log level")
                 theme: root.theme
@@ -200,17 +211,20 @@ Item {
                 onCurrentIndexChanged: root.ui.liveLogs.levelFilter = currentIndex === 0 ? "" : currentText
             }
             ThemedCheckBox {
+                width: Math.min(implicitWidth, parent.width)
                 id: follow
                 theme: root.theme
                 text: qsTr("Follow latest")
                 checked: true
             }
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 text: qsTr("Clear buffer")
                 onClicked: root.ui.runtimeCommand("clear_logs")
             }
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 text: qsTr("Export redacted logs…")
                 objectName: "preview_log_export"
@@ -220,6 +234,7 @@ Item {
                 }
             }
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 theme: root.theme
                 text: qsTr("Open diagnostics")
                 visible: !!(root.runtime.features || {}).exportUrl

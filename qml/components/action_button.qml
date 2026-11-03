@@ -11,6 +11,7 @@ Button {
     property bool selected: false
     property bool destructive: false
     property bool ghost: false
+    property bool insetFocus: false
     property bool pending: false
     readonly property color foregroundColor: foreground()
     function foreground(): color {
@@ -63,6 +64,7 @@ Button {
     background: StateSurface {
         theme: control.theme
         focused: control.activeFocus
+        insetFocus: control.insetFocus
         color: control.pending ? theme.accentSurface : !control.enabled ? theme.inset : control.destructive ? (control.down ? theme.errorPressed : control.hovered ? theme.errorHover : theme.errorSurface) : control.prominent ? (control.down ? theme.primaryPressed : control.hovered ? theme.primaryHover : theme.accent) : control.selected ? theme.stateColor(true, control.hovered, control.down) : control.down ? theme.pressed : control.hovered ? theme.hover : control.ghost ? "transparent" : theme.inset
     }
 }

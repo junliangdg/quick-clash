@@ -26,31 +26,49 @@ SpinBox {
         selectedTextColor: control.theme.accentForeground
         selectByMouse: true
     }
-    up.indicator: StateSurface {
-        theme: control.theme
-        x: control.width - width
+    // Keep the full hit target, but inset visual feedback so it cannot paint over the outline.
+    up.indicator: Item {
+        id: incrementTarget
+        x: control.mirrored ? 0 : control.width - width
         implicitWidth: control.theme.scaledSize(32)
         implicitHeight: control.theme.controlHeight
-        hovered: control.up.hovered
-        down: control.up.pressed
-        Text {
-            anchors.centerIn: parent
-            text: "+"
-            color: control.theme.text
-            font.pixelSize: control.theme.scaledSize(18)
+        height: control.height
+        StateSurface {
+            objectName: "spin_box_increment_surface"
+            anchors.fill: parent
+            anchors.margins: control.theme.scaledSize(4)
+            theme: control.theme
+            radius: Math.max(0, control.theme.controlRadius - control.theme.scaledSize(2))
+            hovered: incrementTarget.enabled && control.up.hovered
+            down: incrementTarget.enabled && control.up.pressed
+            Text {
+                anchors.centerIn: parent
+                text: "+"
+                color: incrementTarget.enabled ? control.theme.text : control.theme.muted
+                font.pixelSize: control.theme.scaledSize(18)
+            }
         }
     }
-    down.indicator: StateSurface {
-        theme: control.theme
+    down.indicator: Item {
+        id: decrementTarget
+        x: control.mirrored ? control.width - width : 0
         implicitWidth: control.theme.scaledSize(32)
         implicitHeight: control.theme.controlHeight
-        hovered: control.down.hovered
-        down: control.down.pressed
-        Text {
-            anchors.centerIn: parent
-            text: "−"
-            color: control.theme.text
-            font.pixelSize: control.theme.scaledSize(18)
+        height: control.height
+        StateSurface {
+            objectName: "spin_box_decrement_surface"
+            anchors.fill: parent
+            anchors.margins: control.theme.scaledSize(4)
+            theme: control.theme
+            radius: Math.max(0, control.theme.controlRadius - control.theme.scaledSize(2))
+            hovered: decrementTarget.enabled && control.down.hovered
+            down: decrementTarget.enabled && control.down.pressed
+            Text {
+                anchors.centerIn: parent
+                text: "−"
+                color: decrementTarget.enabled ? control.theme.text : control.theme.muted
+                font.pixelSize: control.theme.scaledSize(18)
+            }
         }
     }
     background: StateSurface {

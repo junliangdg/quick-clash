@@ -15,6 +15,9 @@ ApplicationWindow {
     readonly property bool wideNavigation: compact ? expandedRail : !collapsedSidebar
     readonly property int navigationWidth: narrow ? 0 : (wideNavigation ? (width >= 1200 ? 208 : 192) : 64)
     readonly property int pageMargin: narrow ? 12 : (compact ? 16 : 24)
+    // At very narrow sizes, make the existing margin just large enough for the
+    // full focus ring and scrollbar; no page width depends on scrollbar visibility.
+    readonly property int pageContentMargin: Math.max(pageMargin, tokens.focusMargin + tokens.scrollBarWidth + 2)
     readonly property bool pageReady: pageHost.status === Loader.Ready
     readonly property bool runtimeFailed: ui.runtime.status === "Failed" || ui.runtimeError.length > 0
     readonly property bool runtimeHealthy: !!ui.runtime.ready && !runtimeFailed
@@ -165,7 +168,7 @@ ApplicationWindow {
                 Accessible.name: modelData.title
                 onClicked: window.ui.navigate(modelData.pageId)
                 ThemedToolTip { theme: tokens; visible: entry.hovered && !window.wideNavigation; text: entry.modelData.title }
-                background: StateSurface { theme: tokens; selected: entry.highlighted; hovered: entry.hovered; down: entry.down; focused: entry.activeFocus }
+                background: StateSurface { theme: tokens; selected: entry.highlighted; hovered: entry.hovered; down: entry.down; focused: entry.activeFocus; insetFocus: true }
             }
         }
         Item {
@@ -180,9 +183,10 @@ ApplicationWindow {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.topMargin: window.pageMargin
                 anchors.bottomMargin: window.pageMargin
-                width: Math.min(parent.width - 2 * window.pageMargin, 1440)
+                width: Math.min(parent.width - 2 * window.pageContentMargin, 1440)
                 spacing: tokens.gap
                 RowLayout {
+                    objectName: "page_title_row"
                     Layout.fillWidth: true
                     Layout.preferredHeight: tokens.controlHeight
                     ActionButton {
@@ -244,15 +248,20 @@ ApplicationWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
-                PageHost {
-                    id: pageHost
-                    objectName: "active_page_host"
-                    ui: window.ui
-                    theme: tokens
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
                     Layout.minimumHeight: 0
+                    PageHost {
+                        id: pageHost
+                        objectName: "active_page_host"
+                        ui: window.ui
+                        theme: tokens
+                        anchors.fill: parent
+                        anchors.leftMargin: -pageHost.pageLeftOutset
+                        anchors.rightMargin: -pageHost.pageRightOutset
+                    }
                 }
             }
         }
@@ -291,7 +300,7 @@ ApplicationWindow {
                         Accessible.name: modelData.title
                         ThemedToolTip { theme: tokens; visible: bottomEntry.hovered; text: bottomEntry.modelData.title }
                         onClicked: window.ui.navigate(modelData.pageId)
-                        background: StateSurface { theme: tokens; selected: bottomEntry.highlighted; hovered: bottomEntry.hovered; down: bottomEntry.down; focused: bottomEntry.activeFocus }
+                        background: StateSurface { theme: tokens; selected: bottomEntry.highlighted; hovered: bottomEntry.hovered; down: bottomEntry.down; focused: bottomEntry.activeFocus; insetFocus: true }
                     }
                 }
             }

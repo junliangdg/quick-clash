@@ -178,6 +178,7 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
             members += group["proxies"].size();
             require(group["proxies"].size() <= 5000 && members <= 100000, "ProviderLimitExceeded");
             if (group["use"]) {
+                require(!group["filter"] && !group["exclude-filter"], "InvalidProviderConfig");
                 require(group["use"].IsSequence() && group["use"].size() <= 32,
                         "InvalidProviderConfig");
                 for (const auto& reference : group["use"]) {

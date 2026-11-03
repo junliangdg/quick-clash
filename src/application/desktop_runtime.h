@@ -182,6 +182,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         bool previewOnly = false;
         bool forceApply = false;
         QString editorToken;
+        QString customGroupToken;
     };
     void finishImport(const std::shared_ptr<ConfigTransaction>& context);
     void discardConfigTransaction();
@@ -209,6 +210,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void exportLogs(const QString& token);
     void clearLogExport();
     void sampleResources();
+    void customGroupCommand(const QString& command, const QStringList& arguments);
+    void refreshCustomGroupContext();
+    void finishCustomGroupPreview(const std::shared_ptr<ConfigTransaction>& context);
+    void finishCustomGroupOperation();
     void editorCommand(const QString& command, const QStringList& arguments);
     void openEditor(const QString& id, const QString& kind, bool discard = false);
     bool saveEditorDraft(const QString& token, const QString& text);
@@ -376,6 +381,11 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     std::unique_ptr<QTemporaryDir> staging_;
     std::function<void(bool)> validationCompletion_;
     QJsonArray profiles_;
+    QJsonObject customGroupState_;
+    QJsonObject customGroupLiveProviders_;
+    QJsonObject customGroupDraft_;
+    QJsonObject customGroupActivation_;
+    bool customGroupApplying_ = false;
     QJsonArray groups_;
     QJsonArray configuredGroups_;
     QString defaultPolicy_;

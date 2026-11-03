@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "infra/config/config_overlay.h"
+#include "infra/config/custom_groups.h"
 #include <QCryptographicHash>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -17,7 +18,8 @@ QString DesktopRuntime::profileRevision(const QJsonObject& item) const {
     return digest(
         QJsonDocument(QJsonObject{{QStringLiteral("source"), item.value("sourceHash")},
                                   {QStringLiteral("snapshot"), item.value("snapshotHash")},
-                                  {QStringLiteral("overlay"), item.value("overlay")}})
+                                  {QStringLiteral("overlay"), item.value("overlay")},
+                                  {QStringLiteral("customGroups"), item.value("customGroups")}})
             .toJson(QJsonDocument::Compact));
 }
 void DesktopRuntime::openEditor(const QString& id, const QString& kind, bool discard) {
@@ -164,6 +166,7 @@ void DesktopRuntime::prepareEditor(bool copy, const QString& name) {
         bytes = std::get<QByteArray>(source);
     }
     QJsonObject metadata{{QStringLiteral("overlay"), overlay},
+                         {QStringLiteral("customGroups"), item.value("customGroups").toArray()},
                          {QStringLiteral("_editorToken"), editor_.value("token")},
                          {QStringLiteral("_previewOnly"), preview},
                          {QStringLiteral("_forceApply"), !copy}};
@@ -199,7 +202,7 @@ void DesktopRuntime::finishEditorPreview(const std::shared_ptr<ConfigTransaction
         const auto bytes = store_.readBytes(
             item.value(item.contains("snapshotRef") ? "snapshotRef" : "sourceRef").toString());
         if (const auto* source = std::get_if<QByteArray>(&bytes)) {
-            const auto composed = infra::composeOverlay(*source, item.value("overlay").toObject());
+            const auto composed = infra::composeProfileConfig(*source, item);
             if (const auto* value = std::get_if<QByteArray>(&composed)) {
                 const auto checked = infra::preflightConfig(*value, preferences());
                 if (const auto* effective = std::get_if<infra::PreflightConfig>(&checked))
@@ -247,6 +250,7 @@ void DesktopRuntime::restoreProfileVersion(const QString& id, int index, const Q
         std::get<QByteArray>(bytes), current.value("name").toString(),
         current.value("secretRef").toString(), id, source,
         {{QStringLiteral("overlay"), restored.value("overlay").toObject()},
+         {QStringLiteral("customGroups"), restored.value("customGroups").toArray()},
          {QStringLiteral("providerResources"), restored.value("providerResources").toArray()},
          {QStringLiteral("managedProviders"), restored.value("managedProviders").toArray()},
          {QStringLiteral("providerMode"),

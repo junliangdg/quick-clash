@@ -641,16 +641,30 @@ void EngineSession::refreshGroups() {
                         if (!ready_ || generation != generation_)
                             return;
                         if (const auto* response = std::get_if<QJsonObject>(&providers)) {
+                            QJsonObject namesByProvider;
+                            int nameCount = 0;
+                            bool completeNames = true;
                             const auto entries = response->value("providers").toObject();
                             for (auto it = entries.begin(); it != entries.end(); ++it) {
                                 const auto provider = it.value().toObject();
                                 if (provider.value("vehicleType") != "HTTP")
                                     continue;
+                                QJsonArray names;
                                 for (const auto& value : provider.value("proxies").toArray()) {
                                     auto node = value.toObject();
                                     const auto name = node.value("name").toString();
-                                    if (name.isEmpty() || objects.size() >= 5503)
+                                    if (name.isEmpty())
                                         continue;
+                                    if (objects.size() >= 5503) {
+                                        completeNames = false;
+                                        continue;
+                                    }
+                                    if (name.size() <= 512 && nameCount < 5000) {
+                                        names.append(name);
+                                        ++nameCount;
+                                    } else {
+                                        completeNames = false;
+                                    }
                                     node.insert("providerDynamic", true);
                                     if (!objects.contains(name))
                                         objects.insert(name, node);
@@ -660,7 +674,13 @@ void EngineSession::refreshGroups() {
                                         objects.insert(name, existing);
                                     }
                                 }
+                                if (namesByProvider.size() < 32)
+                                    namesByProvider.insert(it.key(), names);
+                                else
+                                    completeNames = false;
                             }
+                            emit providerNodeNamesChanged(completeNames ? namesByProvider
+                                                                        : QJsonObject{});
                         } else {
                             // A partial read cannot prove static/dynamic name collisions safe
                             // for restoring saved selections. Keep the previous confirmed view.

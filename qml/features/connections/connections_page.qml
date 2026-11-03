@@ -157,17 +157,21 @@ Item {
                 Layout.maximumWidth: root.width * 0.6
             }
         }
-        RowLayout {
+        GridLayout {
             Layout.fillWidth: true
-            spacing: 8
+            columns: width >= root.theme.scaledSize(760) ? 4 : width >= root.theme.scaledSize(420) ? 2 : 1
+            columnSpacing: 8
+            rowSpacing: 8
             RuntimeFilter {
                 theme: root.theme
                 listModel: root.ui.liveConnections
                 placeholderText: qsTr("Host, process, chain or rule")
                 Layout.fillWidth: true
-                Layout.minimumWidth: root.theme.scaledSize(160)
+                Layout.minimumWidth: 0
             }
             ThemedComboBox {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 id: sorting
                 theme: root.theme
                 Accessible.name: qsTr("Sort connections")
@@ -180,6 +184,8 @@ Item {
                 onActivated: root.ui.liveConnections.sortMode = currentIndex
             }
             ActionButton {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 theme: root.theme
                 text: qsTr("Close filtered…")
                 objectName: "close_filtered_connections"
@@ -191,6 +197,8 @@ Item {
                 }
             }
             ActionButton {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 theme: root.theme
                 text: qsTr("Close all…")
                 enabled: !!root.runtime.ready && !root.closeState.closeRunning
@@ -200,6 +208,8 @@ Item {
                 }
             }
             ActionButton {
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
                 theme: root.theme
                 visible: !!root.telemetry.connectionsPaused
                 text: qsTr("Retry connection updates")
@@ -332,18 +342,22 @@ Item {
                 checked: root.rawVisible
                 onToggled: root.rawVisible = checked
             }
-            ScrollView {
+            ThemedScrollView {
+                theme: root.theme
+                form: rawJson
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 visible: root.rawVisible
-                TextArea {
+                ThemedTextArea {
+                    id: rawJson
+                    theme: root.theme
+                    Accessible.name: details.title
                     text: JSON.stringify(root.selectedEntry, null, 2)
                     readOnly: true
                     selectByMouse: true
                     wrapMode: TextEdit.WrapAnywhere
                     color: root.theme.text
                     font.pixelSize: root.theme.supportingSize
-                    background: Item {}
                 }
             }
             ActionButton {

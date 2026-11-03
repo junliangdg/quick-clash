@@ -14,6 +14,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkProxy>
 #include <QNetworkReply>
+#include <QPointer>
 #include <QProcess>
 #include <QQuickItem>
 #include <QSaveFile>
@@ -79,9 +80,14 @@ QQuickItem* item(ApplicationHost& host, const QString& name) {
     return host.window() ? find(host.window()->contentItem(), name) : nullptr;
 }
 bool click(ApplicationHost& host, const QString& name) {
-    auto* target = item(host, name);
-    if (!target || !target->isVisible() || !target->isEnabled())
+    QPointer<QQuickItem> target = item(host, name);
+    if (!target || !target->isVisible() || !target->isEnabled()) {
+        std::fprintf(stderr, "GUI flow click %s: found=%d visible=%d enabled=%d window=%dx%d\n",
+                     qPrintable(name), target != nullptr, target && target->isVisible(),
+                     target && target->isEnabled(), host.window()->width(),
+                     host.window()->height());
         return false;
+    }
     // Scroll the actual page and activate its focused control with a real key event.
     for (auto* parent = target->parentItem(); parent; parent = parent->parentItem()) {
         if (!parent->property("contentY").isValid())
@@ -99,6 +105,10 @@ bool click(ApplicationHost& host, const QString& name) {
     target->forceActiveFocus(Qt::TabFocusReason);
     QTest::keyClick(host.window(), Qt::Key_Space);
     QTest::qWait(30);
+    if (activated.count() != 1)
+        std::fprintf(stderr, "GUI flow click %s: activations=%lld focus=%d windowActive=%d\n",
+                     qPrintable(name), static_cast<long long>(activated.count()),
+                     target && target->hasActiveFocus(), host.window()->isActive());
     return activated.count() == 1;
 }
 bool client(const QString& flag, const QString& arguments) {
@@ -191,24 +201,69 @@ bool desktopFlowProbe(ApplicationHost& host, bool reopen, QJsonObject& result) {
     if (!check(!fixture.isEmpty() && trustFixture(), "controlled endpoints and test CA"))
         return false;
     host.resizeWindow({1280, 1000});
+    host.window()->hide();
+    host.window()->show();
+    if (!check(QTest::qWaitForWindowExposed(host.window(), 5000), "native window exposed"))
+        return false;
     if (!reopen) {
         auto mixed = freePort(), controller = freePort();
         while (mixed == controller && mixed > 0)
             controller = freePort();
         ui.runtimeCommand("ports", {QString::number(mixed), QString::number(controller)});
-        if (!check(waitFor([&] { return preferences().value("mixedPort").toInt() == mixed; }),
+        if (!check(waitFor(
+                       [&] { return done() && preferences().value("mixedPort").toInt() == mixed; }),
                    "set isolated ports"))
             return false;
-        if (!check(click(host, "navigation_subscriptions") &&
-                       waitFor([&] { return item(host, "subscription_url"); }),
-                   "open actual subscription page"))
+        if (!check(waitFor([&] {
+                       auto* navigation = item(host, "navigation_subscriptions");
+                       return navigation && navigation->isVisible() && navigation->isEnabled();
+                   }) &&
+                       click(host, "navigation_subscriptions"),
+                   "navigate to subscriptions") ||
+            !check(waitFor([&] {
+                       auto* button = item(host, "open_subscription_import");
+                       return button && button->isVisible() && button->isEnabled();
+                   }),
+                   "subscription import entry is ready") ||
+            !check(click(host, "open_subscription_import"), "activate subscription import") ||
+            !check(waitFor([&] {
+                       auto* field = item(host, "subscription_url");
+                       return field && field->isVisible();
+                   }),
+                   "open actual subscription import dialog"))
+            return false;
+        auto* nameField = item(host, "import_profile_name");
+        if (!check(nameField, "import name field exists"))
+            return false;
+        item(host, "subscription_url")->setProperty("text", "http://invalid.example/");
+        nameField->setProperty("text", "GUI HTTPS fixture");
+        if (!check(
+                click(host, "add_subscription") && waitFor([&] {
+                    return ui.runtime().value("error") == "HttpsSubscriptionRequired";
+                }) &&
+                    [&] {
+                        auto* field = item(host, "subscription_url");
+                        auto* error = item(host, "subscription_import_error");
+                        return field && field->isVisible() &&
+                               field->property("text") == "http://invalid.example/" && error &&
+                               error->isVisible();
+                    }(),
+                "failed import retains URL and shows its error"))
             return false;
         item(host, "subscription_url")
             ->setProperty("text", fixture.value("subscription").toString());
-        item(host, "import_profile_name")->setProperty("text", "GUI HTTPS fixture");
-        if (!check(click(host, "add_subscription") && waitFor(ready) && ui.profiles().size() == 1,
-                   "submit HTTPS subscription through its QML button"))
+        if (!check(click(host, "add_subscription") && waitFor(ready) && waitFor([&] {
+                       auto* field = item(host, "subscription_url");
+                       return ui.profiles().size() == 1 && (!field || !field->isVisible());
+                   }),
+                   "submit HTTPS subscription through its QML dialog"))
             return false;
+        if (QCoreApplication::arguments().contains(QStringLiteral("--desktop-flow-import-only"))) {
+            result.insert("importDialog", true);
+            result.insert("failedInputRetained", true);
+            result.insert("profiles", ui.profiles().size());
+            return host.qmlErrorCount() == 0;
+        }
         const auto firstId = ui.runtime().value("selectedId").toString();
         const auto pid = ui.runtime().value("corePid");
         result.insert("initialCorePid", QJsonValue::fromVariant(pid));

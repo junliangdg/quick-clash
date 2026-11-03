@@ -44,6 +44,7 @@ target_include_directories(quickclash_application INTERFACE src)
 target_link_libraries(quickclash_application INTERFACE quickclash_domain)
 add_library(quickclash_config src/infra/config/config_preflight.cpp src/infra/config/config_preflight.h
     src/infra/config/config_overlay.cpp src/infra/config/config_overlay.h
+    src/infra/config/custom_groups.cpp src/infra/config/custom_groups.h
     src/infra/config/config_metadata.cpp src/infra/config/config_metadata.h
     src/infra/config/config_provider_stream.cpp
     src/infra/config/config_runtime_provider.cpp
@@ -149,7 +150,8 @@ target_sources(quickclash_runtime PRIVATE src/application/desktop_features.cpp s
 set_target_properties(quickclash_runtime PROPERTIES AUTOMOC ON)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_telemetry.cpp)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_network_info.cpp)
-target_sources(quickclash_runtime PRIVATE src/application/desktop_editor.cpp)
+target_sources(quickclash_runtime PRIVATE src/application/desktop_editor.cpp
+    src/application/desktop_custom_groups.cpp)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_rules.cpp)
   target_sources(quickclash_runtime PRIVATE src/application/desktop_maintenance.cpp)
 target_link_libraries(quickclash_runtime PUBLIC quickclash_engine quickclash_config PRIVATE quickclash_platform)
@@ -248,6 +250,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/delay_label.qml
         qml/components/themed_spin_box.qml
         qml/components/themed_dialog.qml
+        qml/components/themed_scroll_view.qml
         qml/components/themed_tool_tip.qml
         qml/components/themed_progress.qml
         qml/components/deferred_content.qml
@@ -258,6 +261,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/table_cell.qml
         qml/components/subscription_details.qml
         qml/components/profile_editor.qml
+        qml/components/custom_group_editor.qml
         qml/components/subscription_card.qml
         qml/components/outbound_status.qml
         qml/components/traffic_sparkline.qml
@@ -346,6 +350,11 @@ QmlImports = qml, ., QuickClash/Ui
     install(SCRIPT ${quickclash_deploy})
 endif()
 if(BUILD_TESTING)
+    add_executable(custom_groups_test tests/unit/custom_groups_test.cpp)
+    target_link_libraries(custom_groups_test PRIVATE quickclash_config)
+    quickclash_warnings(custom_groups_test)
+    add_test(NAME custom_groups COMMAND custom_groups_test)
+    set_tests_properties(custom_groups PROPERTIES TIMEOUT 15)
     add_executable(provider_stream_test tests/unit/provider_stream_test.cpp)
     target_link_libraries(provider_stream_test PRIVATE quickclash_storage quickclash_config)
     quickclash_warnings(provider_stream_test)
@@ -393,7 +402,10 @@ if(BUILD_TESTING)
             set_tests_properties(proxy_lease PROPERTIES TIMEOUT 15)
             target_link_libraries(runtime_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
             quickclash_warnings(runtime_test)
-            target_sources(runtime_test PRIVATE tests/integration/proxy_latency_probe.cpp)
+            target_sources(runtime_test PRIVATE tests/integration/proxy_latency_probe.cpp
+                tests/integration/custom_groups_probe.cpp tests/integration/custom_groups_probe.h)
+            add_test(NAME runtime_custom_groups COMMAND runtime_test --custom-groups-test)
+            set_tests_properties(runtime_custom_groups PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime COMMAND runtime_test)
             add_test(NAME runtime_proxy_latency COMMAND runtime_test --proxy-latency-test)
             set_tests_properties(runtime_proxy_latency PROPERTIES TIMEOUT 40)
@@ -498,9 +510,11 @@ if(BUILD_TESTING)
             tests/integration/desktop_flow_probe.cpp tests/integration/desktop_flow_probe.h
             tests/integration/native_proxy_client.cpp tests/integration/native_proxy_client.h
             tests/integration/accessibility_probe.cpp
+            tests/integration/focus_layout_checks.cpp tests/integration/focus_layout_checks.h
             tests/integration/service_probe.cpp tests/integration/service_probe.h
             tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h
             tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h
+            tests/integration/custom_groups_ui_probe.cpp tests/integration/custom_groups_ui_probe.h
             tests/integration/language_ui_probe.cpp tests/integration/language_ui_probe.h
             tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp
             tests/integration/visual_ui_probe.cpp)
@@ -565,6 +579,12 @@ if(BUILD_TESTING)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
         add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test)
         add_test(NAME ui_runtime_lists_zh COMMAND quickclash --runtime-list-test --probe-language=zh-CN)
+        add_test(NAME ui_custom_groups COMMAND quickclash --custom-groups-ui-test)
+        add_test(NAME ui_custom_groups_zh COMMAND quickclash --custom-groups-ui-test --probe-language=zh-CN)
+        set_tests_properties(ui_custom_groups ui_custom_groups_zh PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_HOVER_ENABLED=1;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
+            TIMEOUT 30)
         add_test(NAME ui_subscriptions COMMAND quickclash --subscription-ui-test)
         add_test(NAME ui_subscriptions_zh COMMAND quickclash --subscription-ui-test --probe-language=zh-CN)
         set_tests_properties(ui_subscriptions ui_subscriptions_zh PROPERTIES

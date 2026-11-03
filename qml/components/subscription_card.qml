@@ -115,6 +115,7 @@ FlatTile {
             Layout.fillWidth: true
             spacing: 8
             ActionButton {
+                width: Math.min(implicitWidth, parent.width)
                 objectName: "update_subscription"
                 theme: root.theme
                 text: qsTr("Update")
