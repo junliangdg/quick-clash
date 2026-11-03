@@ -1129,6 +1129,8 @@
   </context>
   <context>
     <name>settings_page</name>
+    <message><source>About</source><translation>关于</translation></message>
+    <message><source>Version: %1</source><translation>版本：%1</translation></message>
     <message><source>Export this support package?</source><translation>导出此支持包？</translation></message>
     <message><source>Archive data and start fresh?</source><translation>归档数据并重新开始？</translation></message>
     <message><source>Review storage cleanup</source><translation>检查存储清理</translation></message>

@@ -52,6 +52,9 @@ int runLanguageUiProbe(ApplicationHost& host) {
         text(QStringLiteral("appearance_language_en")) != QStringLiteral("English") ||
         text(QStringLiteral("appearance_language_zh")) !=
             QString::fromUtf8("\xe7\xae\x80\xe4\xbd\x93\xe4\xb8\xad\xe6\x96\x87") ||
+        text(QStringLiteral("application_about_heading")) != QStringLiteral("About") ||
+        text(QStringLiteral("application_version")) !=
+            QStringLiteral("Version: %1").arg(QCoreApplication::applicationVersion()) ||
         !host.window()
              ->findChild<QObject*>(QStringLiteral("appearance_language_en"))
              ->property("selected")
@@ -71,6 +74,9 @@ int runLanguageUiProbe(ApplicationHost& host) {
     }
     if (ui.pageTitle() != chineseSettings || ui.currentPage() != QStringLiteral("settings") ||
         text(QStringLiteral("appearance_language_system")) != chineseFollowSystem ||
+        text(QStringLiteral("application_about_heading")) != QStringLiteral("关于") ||
+        text(QStringLiteral("application_version")) !=
+            QStringLiteral("版本：%1").arg(QCoreApplication::applicationVersion()) ||
         host.engineGeneration() != generation || host.qmlErrorCount() != 0) {
         return fail("Chinese selection keeps the current page and QML engine");
     }

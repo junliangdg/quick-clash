@@ -1101,5 +1101,32 @@ ThemedScrollView {
                 }
             }
         }
+        FlatTile {
+            theme: root.theme
+            Layout.fillWidth: true
+            implicitHeight: aboutContent.implicitHeight + 2 * root.theme.panelPadding
+            ColumnLayout {
+                id: aboutContent
+                anchors.fill: parent
+                anchors.margins: root.theme.panelPadding
+                spacing: 8
+                Label {
+                    objectName: "application_about_heading"
+                    text: qsTr("About")
+                    font.family: root.theme.fontFamily
+                    font.pixelSize: root.theme.bodySize
+                    font.weight: Font.DemiBold
+                    color: root.theme.text
+                }
+                Label {
+                    objectName: "application_version"
+                    Layout.fillWidth: true
+                    text: qsTr("Version: %1").arg(Qt.application.version)
+                    font.family: root.theme.fontFamily
+                    color: root.theme.muted
+                    wrapMode: Text.WordWrap
+                }
+            }
+        }
     }
 }

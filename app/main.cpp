@@ -124,7 +124,7 @@ int main(int argc, char* argv[]) {
         std::fputs("Translation catalog unavailable; using English.\n", stderr);
     }
     QCoreApplication::setApplicationName(QStringLiteral("QuickClash"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("0.1.0"));
+    QCoreApplication::setApplicationVersion(QStringLiteral(QUICKCLASH_VERSION));
     QApplication::setQuitOnLastWindowClosed(false);
     QQuickStyle::setStyle(QStringLiteral("Basic"));
     QApplication::setFont(quickclash::platformUiFont());

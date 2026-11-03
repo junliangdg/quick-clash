@@ -75,7 +75,7 @@ ApplicationWindow {
                     Image {
                         objectName: "brand_mark"
                         visible: window.wideNavigation
-                        source: "qrc:/icons/brand/qcat.svg"
+                        source: tokens.dark ? "qrc:/icons/brand/qcat_tray_light.svg" : "qrc:/icons/brand/qcat_tray_dark.svg"
                         Layout.preferredWidth: tokens.scaledSize(24)
                         Layout.preferredHeight: tokens.scaledSize(24)
                         sourceSize.width: width
@@ -129,16 +129,6 @@ ApplicationWindow {
                     interactive: false
                     model: window.ui.navigation.filter(entry => entry.pageId === "settings")
                     delegate: navigationDelegate
-                }
-                Label {
-                    visible: window.wideNavigation
-                    Layout.leftMargin: 10
-                    Layout.bottomMargin: 6
-                    Layout.fillWidth: true
-                    text: "QuickClash · 0.1"
-                    elide: Text.ElideRight
-                    color: tokens.muted
-                    font.pixelSize: tokens.supportingSize
                 }
             }
         }

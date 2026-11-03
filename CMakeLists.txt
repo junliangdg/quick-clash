@@ -193,6 +193,7 @@ if(QUICKCLASH_BUILD_UI)
         app/deferred_ui_unload.cpp app/deferred_ui_unload.h
         app/system_events.cpp app/system_events.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
+    target_compile_definitions(quickclash PRIVATE QUICKCLASH_VERSION="${PROJECT_VERSION}")
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network Qt6::Svg quickclash_application quickclash_runtime quickclash_localization)
     qt_add_resources(quickclash quickclash_navigation_icons
         PREFIX /icons/navigation BASE resources/icons/navigation

@@ -410,6 +410,12 @@ int runVisualProbe(ApplicationHost& host) {
     const auto generation = host.engineGeneration();
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
         ui.setThemeMode(theme);
+        const auto brand = objects("brand_mark");
+        const auto expectedBrand = theme == "dark"
+                                       ? QStringLiteral("qrc:/icons/brand/qcat_tray_light.svg")
+                                       : QStringLiteral("qrc:/icons/brand/qcat_tray_dark.svg");
+        if (brand.size() != 1 || brand.first()->property("source").toUrl() != QUrl(expectedBrand))
+            return 196;
         for (const auto& entry : ui.navigation()) {
             const auto page = entry.toMap().value("pageId").toString();
             if (!ui.navigate(page))
@@ -418,6 +424,29 @@ int runVisualProbe(ApplicationHost& host) {
             if (!capture(theme + '_' + page) || !test::checkScrollLayouts(host.window()) ||
                 !test::checkPageAlignment(host.window()))
                 return 112;
+            if (page == "settings") {
+                const auto versions = objects("application_version");
+                const auto views = objects("settings_page");
+                const auto expectedVersion =
+                    QCoreApplication::translate("settings_page", "Version: %1")
+                        .arg(QCoreApplication::applicationVersion());
+                if (QCoreApplication::applicationVersion().isEmpty() || versions.size() != 1 ||
+                    views.size() != 1 ||
+                    versions.first()->property("text").toString() != expectedVersion)
+                    return 197;
+                auto* viewport = views.first()->property("contentItem").value<QQuickItem*>();
+                if (!viewport ||
+                    !viewport->setProperty("contentY",
+                                           viewport->property("contentHeight").toReal() -
+                                               viewport->height()) ||
+                    !capture(theme + "_settings_about"))
+                    return 198;
+                const auto bounds =
+                    versions.first()->mapRectToScene(versions.first()->boundingRect());
+                const auto viewportBounds = viewport->mapRectToScene(viewport->boundingRect());
+                if (!viewportBounds.contains(bounds))
+                    return 199;
+            }
         }
         ui.navigate("subscriptions");
         QTest::qWait(30);
@@ -802,6 +831,15 @@ int runVisualProbe(ApplicationHost& host) {
                         std::abs(bar->property("position").toReal() -
                                  range * fraction / contentHeight) > 0.001)
                         return 143;
+                }
+                if (page == "settings") {
+                    const auto versions = objects("application_version");
+                    if (versions.size() != 1 ||
+                        !viewport->mapRectToScene(viewport->boundingRect())
+                             .contains(versions.first()->mapRectToScene(
+                                 versions.first()->boundingRect())) ||
+                        !capture(QStringLiteral("%1_settings_about_%2").arg(theme).arg(width)))
+                        return 199;
                 }
                 viewport->setProperty("contentY", origin + range / 2);
                 bar->setProperty("active", true);
