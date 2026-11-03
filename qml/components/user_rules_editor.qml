@@ -6,6 +6,7 @@ import QuickClash.Ui
 
 Item {
     id: root
+    objectName: "user_rules_editor"
     required property UiState ui
     required property ThemeTokens theme
     readonly property var state: ui.userRules || ({})
@@ -16,6 +17,8 @@ Item {
     readonly property var targets: scope.currentIndex === 0 ? ["DIRECT", "REJECT", "PROXY"] : ["DIRECT", "REJECT"].concat(groups)
     readonly property var targetLabels: scope.currentIndex === 0 ? [qsTr("Direct"), qsTr("Reject"), qsTr("Proxy")] : [qsTr("Direct"), qsTr("Reject")].concat(groups)
     readonly property var currentRules: scope.currentIndex === 0 ? globalDraft : localDraft
+    readonly property bool dirty: globalDirty || localDirty || proxyDirty
+    readonly property bool canConfirm: !saving && !!state.revision && (!dirty || (!ui.runtime.busy && !ui.runtime.readOnly && baseProfile === (state.profileId || "")))
     property var globalDraft: []
     property var localDraft: []
     property string baseRevision: ""
@@ -25,14 +28,11 @@ Item {
     property bool localDirty: false
     property bool proxyDirty: false
     property bool saving: false
-    property int savingScope: 0
     property string savingAttempt: ""
     property int editingIndex: -1
-    objectName: "user_rules_editor"
-    onVisibleChanged: {
-        if (!visible)
-            saving = false;
-    }
+    property bool formOpen: false
+    property int draggingIndex: -1
+    signal saveCompleted()
 
     Component.onCompleted: {
         const draft = ui.userRulesDraft || ({});
@@ -95,6 +95,36 @@ Item {
         localDirty = false;
         proxyDirty = false;
     }
+    function discardDraft(): void {
+        ui.userRulesDraft = ({});
+        globalDirty = false;
+        localDirty = false;
+        proxyDirty = false;
+        formOpen = false;
+        editingIndex = -1;
+        if (state.revision) {
+            loadState();
+        } else {
+            globalDraft = [];
+            localDraft = [];
+            baseRevision = "";
+            baseProfile = "";
+            proxyDraft = "";
+        }
+    }
+    function confirm(): void {
+        if (!canConfirm)
+            return;
+        if (!dirty) {
+            saveCompleted();
+            return;
+        }
+        saving = true;
+        savingAttempt = state.attempt || "";
+        ui.runtimeCommand("user_rules_save", [baseRevision, "all", baseProfile,
+                                                JSON.stringify({"global": globalDraft, "local": localDraft}),
+                                                proxyDraft]);
+    }
     function replaceRules(value): void {
         if (scope.currentIndex === 0) {
             globalDraft = value;
@@ -104,15 +134,32 @@ Item {
             localDirty = true;
         }
     }
-    function move(index, direction): void {
+    function moveTo(index, targetIndex): void {
         const next = copy(currentRules);
-        const other = index + direction;
-        if (other < 0 || other >= next.length)
+        if (index < 0 || targetIndex < 0 || index >= next.length || targetIndex >= next.length || index === targetIndex)
             return;
-        const item = next[index];
-        next[index] = next[other];
-        next[other] = item;
+        const item = next.splice(index, 1)[0];
+        next.splice(targetIndex, 0, item);
+        if (draggingIndex === index)
+            draggingIndex = targetIndex;
+        else if (draggingIndex > index && draggingIndex <= targetIndex)
+            draggingIndex -= 1;
+        else if (draggingIndex < index && draggingIndex >= targetIndex)
+            draggingIndex += 1;
         replaceRules(next);
+    }
+    function move(index, direction): void {
+        moveTo(index, index + direction);
+    }
+    function dragTo(handle, point): void {
+        if (draggingIndex < 0)
+            return;
+        const location = handle.mapToItem(list, point.x, point.y);
+        if (location.y < 0 || location.y >= list.height)
+            return;
+        const targetIndex = list.indexAt(list.width / 2, location.y);
+        if (targetIndex >= 0)
+            moveTo(draggingIndex, targetIndex);
     }
     function edit(index): void {
         editingIndex = index;
@@ -122,13 +169,40 @@ Item {
                 "target": "DIRECT",
                 "enabled": true
             }) : currentRules[index];
+        formOpen = true;
         ruleType.currentIndex = Math.max(0, types.indexOf(rule.type));
         ruleValue.text = rule.value || "";
         provider.currentIndex = providers.indexOf(rule.value);
-        ruleTarget.currentIndex = targets.indexOf(rule.target);
+        ruleTarget.currentIndex = Math.max(0, targets.indexOf(rule.target));
         ruleEnabled.checked = !!rule.enabled;
-        ruleDialog.open();
     }
+    function cancelForm(): void {
+        formOpen = false;
+        editingIndex = -1;
+    }
+    function saveRuleForm(): void {
+        if (ruleTarget.currentIndex < 0 ||
+            (ruleType.currentText === "RULE-SET" ? provider.currentIndex < 0 : !ruleValue.text.trim().length))
+            return;
+        const next = copy(currentRules);
+        const old = editingIndex < 0 ? ({}) : next[editingIndex];
+        const value = ruleType.currentText === "RULE-SET" ? provider.currentText : ruleValue.text.trim();
+        const rule = {
+            "id": old.id || ("rule-" + Date.now() + "-" + Math.random().toString(36).slice(2)),
+            "type": ruleType.currentText,
+            "value": value,
+            "target": ruleTarget.currentText,
+            "enabled": ruleEnabled.checked
+        };
+        if (editingIndex < 0)
+            next.push(rule);
+        else
+            next[editingIndex] = rule;
+        replaceRules(next);
+        formOpen = false;
+        editingIndex = -1;
+    }
+
     Connections {
         target: root.ui
         function onUserRulesChanged(): void {
@@ -139,12 +213,12 @@ Item {
             } else if (root.saving && !root.ui.runtime.busy && root.state.attempt !== root.savingAttempt && root.state.result === "Saved") {
                 root.baseRevision = root.state.revision;
                 root.baseProfile = root.state.profileId || "";
-                if (root.savingScope === 0)
-                    root.globalDirty = false;
-                else
-                    root.localDirty = false;
+                root.globalDirty = false;
+                root.localDirty = false;
                 root.proxyDirty = false;
                 root.saving = false;
+                root.ui.userRulesDraft = ({});
+                root.saveCompleted();
             } else if (root.saving && !root.ui.runtime.busy && root.state.attempt !== root.savingAttempt && root.state.result === "Failed") {
                 root.saving = false;
             } else if (!root.globalDirty && !root.localDirty && !root.proxyDirty && !root.saving && root.state.revision !== root.baseRevision) {
@@ -152,195 +226,61 @@ Item {
             }
         }
     }
-    ThemedScrollView {
+
+    StackLayout {
         anchors.fill: parent
-        theme: root.theme
-        form: rulesForm
-        ColumnLayout {
-            id: rulesForm
-            spacing: 8
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: root.theme.muted
-                text: qsTr("Profile rules run first, then global rules, then the profile's original rules.")
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: root.theme.muted
-                text: qsTr("Applying changes may restart the core and interrupt connections.")
-            }
-            Label {
-                visible: (root.ui.runtime.preferences || {}).mode !== "rule"
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: root.theme.warning
-                text: qsTr("Custom rules only control traffic in rule mode.")
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                ThemedComboBox {
-                    id: scope
-                    objectName: "user_rule_scope"
-                    theme: root.theme
-                    Layout.fillWidth: true
-                    Accessible.name: qsTr("Rule scope")
-                    model: [qsTr("Global rules"), qsTr("Current profile rules")]
-                }
-                ActionButton {
-                    theme: root.theme
-                    objectName: "user_rule_add"
-                    text: qsTr("Add rule")
-                    enabled: !!root.state.revision && !!root.baseRevision && (scope.currentIndex === 0 || !!root.baseProfile)
-                    onClicked: root.edit(-1)
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                color: root.theme.muted
-                wrapMode: Text.WordWrap
-                text: scope.currentIndex === 0 ? qsTr("Applies to all profiles.") : qsTr("Profile: %1").arg(root.state.profileName || qsTr("Select a profile first"))
-            }
-            Label {
-                visible: root.baseProfile !== (root.state.profileId || "")
-                Layout.fillWidth: true
-                color: root.theme.error
-                wrapMode: Text.WordWrap
-                text: qsTr("The selected profile changed. Reload before saving.")
-            }
+        currentIndex: root.formOpen ? 1 : 0
+
+        ThemedScrollView {
+            id: listPage
+            objectName: "user_rules_list_page"
+            theme: root.theme
+            form: listContent
             ColumnLayout {
-                Layout.fillWidth: true
-                visible: !!root.baseProfile && root.globalDraft.some(rule => rule.enabled && rule.target === "PROXY")
-                Label {
+                id: listContent
+                height: Math.max(implicitHeight, listPage.availableHeight - 2 * listPage.focusMargin)
+                spacing: 10
+                GridLayout {
+                    id: toolbar
+                    objectName: "user_rules_toolbar"
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    text: qsTr("Global proxy group")
-                    color: root.theme.text
-                }
-                ThemedComboBox {
-                    id: proxyGroup
-                    objectName: "user_rule_global_proxy"
-                    theme: root.theme
-                    Layout.fillWidth: true
-                    Accessible.name: qsTr("Global proxy group")
-                    model: [qsTr("Choose a group")].concat(root.groups)
-                    currentIndex: Math.max(0, root.groups.indexOf(root.proxyDraft) + 1)
-                    onActivated: {
-                        root.proxyDraft = currentIndex > 0 ? root.groups[currentIndex - 1] : "";
-                        root.proxyDirty = true;
-                    }
-                }
-                Label {
-                    Layout.fillWidth: true
-                    visible: !!root.proxyDraft && root.groups.indexOf(root.proxyDraft) < 0
-                    wrapMode: Text.WordWrap
-                    color: root.theme.warning
-                    text: qsTr("The previously selected proxy group is unavailable. Choose another group.")
-                }
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: root.currentRules.length === 0
-                color: root.theme.muted
-                text: qsTr("No custom rules in this scope yet.")
-            }
-            ListView {
-                id: list
-                objectName: "user_rule_list"
-                Layout.fillWidth: true
-                Layout.preferredHeight: Math.min(root.theme.scaledSize(420), Math.max(root.theme.scaledSize(180), contentHeight))
-                clip: true
-                reuseItems: true
-                spacing: 6
-                model: root.currentRules
-                delegate: Rectangle {
-                    id: row
-                    required property int index
-                    required property var modelData
-                    width: ListView.view.width
-                    height: contents.implicitHeight + 16
-                    color: root.theme.inset
-                    radius: 6
-                    ColumnLayout {
-                        id: contents
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        anchors.margins: 8
-                        Label {
-                            Layout.fillWidth: true
-                            color: root.theme.text
-                            elide: Text.ElideRight
-                            textFormat: Text.PlainText
-                            text: (row.index + 1) + ". " + root.describe(row.modelData)
-                        }
-                        RowLayout {
-                            Layout.fillWidth: true
-                            ThemedSwitch {
-                                theme: root.theme
-                                text: qsTr("Enabled")
-                                checked: !!row.modelData.enabled
-                                onClicked: {
-                                    const next = root.copy(root.currentRules);
-                                    next[row.index].enabled = checked;
-                                    root.replaceRules(next);
-                                }
-                            }
-                            Item {
-                                Layout.fillWidth: true
-                            }
-                        }
-                        GridLayout {
-                            Layout.fillWidth: true
-                            columns: width < root.theme.scaledSize(400) ? 2 : 4
-                            ActionButton {
-                                Layout.fillWidth: true
-                                theme: root.theme
-                                text: qsTr("Up")
-                                enabled: row.index > 0
-                                onClicked: root.move(row.index, -1)
-                            }
-                            ActionButton {
-                                Layout.fillWidth: true
-                                theme: root.theme
-                                text: qsTr("Down")
-                                enabled: row.index + 1 < root.currentRules.length
-                                onClicked: root.move(row.index, 1)
-                            }
-                            ActionButton {
-                                Layout.fillWidth: true
-                                theme: root.theme
-                                text: qsTr("Edit")
-                                onClicked: root.edit(row.index)
-                            }
-                            ActionButton {
-                                Layout.fillWidth: true
-                                theme: root.theme
-                                text: qsTr("Delete")
-                                onClicked: {
-                                    const next = root.copy(root.currentRules);
-                                    next.splice(row.index, 1);
-                                    root.replaceRules(next);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            ColumnLayout {
-                Layout.fillWidth: true
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: root.theme.muted
-                    text: root.saving ? qsTr("Applying…") : root.ui.runtime.error ? root.errorText(root.ui.runtime.error) : root.state.result === "Saved" ? (root.ui.runtime.ready ? qsTr("Applied") : qsTr("Saved for next start")) : ""
-                }
-                RowLayout {
-                    Layout.fillWidth: true
-                    ActionButton {
+                    Layout.maximumWidth: Number.POSITIVE_INFINITY
+                    columns: width >= root.theme.scaledSize(64) + reload.implicitWidth + add.implicitWidth + 16 ? 3 : width >= reload.implicitWidth + add.implicitWidth + 8 ? 2 : 1
+                    readonly property real columnItemWidth: columns === 3 ? (width - 2 * columnSpacing) / 3 : columns === 2 ? (width - columnSpacing) / 2 : width
+                    columnSpacing: 8
+                    rowSpacing: 8
+                    ThemedComboBox {
+                        id: scope
+                        objectName: "user_rule_scope"
                         theme: root.theme
+                        implicitWidth: root.theme.scaledSize(80)
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: toolbar.columns === 3 ? toolbar.columnItemWidth : toolbar.width
+                        Layout.columnSpan: toolbar.columns === 2 ? 2 : 1
+                        Accessible.name: qsTr("Rule scope")
+                        model: [qsTr("Global rules"), qsTr("Current profile rules")]
+                    }
+                    ActionButton {
+                        id: reload
+                        theme: root.theme
+                        objectName: "user_rule_reload"
+                        Layout.alignment: Qt.AlignRight
+                        Layout.fillWidth: toolbar.columns < 3
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.min(implicitWidth, toolbar.columnItemWidth)
+                        Layout.maximumWidth: toolbar.columnItemWidth
+                        leftPadding: 8
+                        rightPadding: 8
                         text: qsTr("Reload")
+                        contentItem: Text {
+                            text: reload.text
+                            font: reload.font
+                            color: reload.foregroundColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
                         enabled: !root.saving
                         onClicked: {
                             if (root.globalDirty || root.localDirty || root.proxyDirty)
@@ -350,80 +290,334 @@ Item {
                         }
                     }
                     ActionButton {
+                        id: add
                         theme: root.theme
-                        objectName: "user_rule_save"
-                        prominent: true
-                        text: qsTr("Save and apply")
-                        enabled: !!root.state.revision && !root.saving && !root.ui.runtime.busy && !root.ui.runtime.readOnly && root.baseProfile === (root.state.profileId || "") && (root.proxyDirty || (scope.currentIndex === 0 ? root.globalDirty : root.localDirty))
-                        onClicked: {
-                            root.saving = true;
-                            root.savingScope = scope.currentIndex;
-                            root.savingAttempt = root.state.attempt || "";
-                            root.ui.runtimeCommand("user_rules_save", [root.baseRevision, scope.currentIndex === 0 ? "global" : "local", root.baseProfile, JSON.stringify(root.currentRules), root.proxyDraft]);
+                        objectName: "user_rule_add"
+                        Layout.alignment: Qt.AlignRight
+                        Layout.fillWidth: toolbar.columns < 3
+                        Layout.minimumWidth: 0
+                        Layout.preferredWidth: Math.min(implicitWidth, toolbar.columnItemWidth)
+                        Layout.maximumWidth: toolbar.columnItemWidth
+                        leftPadding: 8
+                        rightPadding: 8
+                        text: qsTr("Add rule")
+                        contentItem: Text {
+                            text: add.text
+                            font: add.font
+                            color: add.foregroundColor
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            elide: Text.ElideRight
+                        }
+                        enabled: !!root.state.revision && !!root.baseRevision && (scope.currentIndex === 0 || !!root.baseProfile)
+                        onClicked: root.edit(-1)
+                    }
+                }
+                GridLayout {
+                    id: hints
+                    objectName: "user_rules_hints"
+                    Layout.fillWidth: true
+                    columns: width >= scopeHint.implicitWidth + orderHint.implicitWidth + columnSpacing ? 2 : 1
+                    columnSpacing: 16
+                    rowSpacing: 10
+                    Label {
+                        id: scopeHint
+                        objectName: "user_rules_scope_hint"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: listContent.width
+                        wrapMode: Text.WordWrap
+                        color: root.theme.muted
+                        text: scope.currentIndex === 0 ? qsTr("Applies to all profiles.") : qsTr("Profile: %1").arg(root.state.profileName || qsTr("Select a profile first"))
+                    }
+                    Label {
+                        id: orderHint
+                        objectName: "user_rules_order_hint"
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        Layout.maximumWidth: listContent.width
+                        wrapMode: Text.WordWrap
+                        color: root.theme.muted
+                        text: qsTr("Profile rules run first, then global rules, then the profile's original rules.")
+                    }
+                }
+                Label {
+                    objectName: "user_rules_mode_hint"
+                    visible: (root.ui.runtime.preferences || {}).mode !== "rule"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    wrapMode: Text.WordWrap
+                    color: root.theme.warning
+                    text: qsTr("Custom rules only control traffic in rule mode.")
+                }
+                Label {
+                    visible: root.baseProfile !== (root.state.profileId || "")
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    color: root.theme.error
+                    wrapMode: Text.WordWrap
+                    text: qsTr("The selected profile changed. Reload before saving.")
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    visible: !!root.baseProfile && root.globalDraft.some(rule => rule.enabled && rule.target === "PROXY")
+                    Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: qsTr("Global proxy group")
+                        color: root.theme.text
+                    }
+                    ThemedComboBox {
+                        id: proxyGroup
+                        objectName: "user_rule_global_proxy"
+                        theme: root.theme
+                        Layout.fillWidth: true
+                        Accessible.name: qsTr("Global proxy group")
+                        model: [qsTr("Choose a group")].concat(root.groups)
+                        currentIndex: Math.max(0, root.groups.indexOf(root.proxyDraft) + 1)
+                        onActivated: {
+                            root.proxyDraft = currentIndex > 0 ? root.groups[currentIndex - 1] : "";
+                            root.proxyDirty = true;
+                        }
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: !!root.proxyDraft && root.groups.indexOf(root.proxyDraft) < 0
+                        wrapMode: Text.WordWrap
+                        color: root.theme.warning
+                        text: qsTr("The previously selected proxy group is unavailable. Choose another group.")
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    visible: root.currentRules.length === 0
+                    color: root.theme.muted
+                    text: qsTr("No custom rules in this scope yet.")
+                }
+                ListView {
+                    id: list
+                    objectName: "user_rule_list"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    Layout.fillHeight: true
+                    Layout.minimumHeight: root.theme.scaledSize(80)
+                    Layout.preferredHeight: root.theme.scaledSize(120)
+                    clip: true
+                    reuseItems: true
+                    spacing: 4
+                    model: root.currentRules
+                    ScrollBar.vertical: ScrollBar {}
+                    delegate: Rectangle {
+                        id: row
+                        required property int index
+                        required property var modelData
+                        objectName: "user_rule_row_" + index
+                        width: ListView.view.width
+                        height: contents.implicitHeight + 8
+                        color: root.theme.inset
+                        radius: 6
+                        opacity: root.draggingIndex === row.index ? 0.82 : 1
+                        border.width: root.draggingIndex === row.index ? 1 : 0
+                        border.color: root.theme.accent
+                        GridLayout {
+                            id: contents
+                            anchors.fill: parent
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            anchors.topMargin: 4
+                            anchors.bottomMargin: 4
+                            columns: row.width >= root.theme.scaledSize(500) ? 2 : 1
+                            columnSpacing: 6
+                            rowSpacing: 4
+                            RowLayout {
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                spacing: 6
+                                Item {
+                                    id: dragHandle
+                                    objectName: "user_rule_drag_" + row.index
+                                    Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 18 : 24)
+                                    Layout.fillHeight: true
+                                    Accessible.role: Accessible.Button
+                                    Accessible.name: qsTr("Drag to reorder")
+                                    HoverHandler { cursorShape: Qt.SizeVerCursor }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "⋮⋮"
+                                        color: root.theme.accent
+                                        font.pixelSize: root.theme.scaledSize(18)
+                                    }
+                                    DragHandler {
+                                        target: null
+                                        xAxis.enabled: false
+                                        yAxis.enabled: true
+                                        onActiveChanged: root.draggingIndex = active ? row.index : -1
+                                        onCentroidChanged: if (active) root.dragTo(dragHandle, centroid.position)
+                                    }
+                                }
+                                Label {
+                                    text: "#" + (row.index + 1)
+                                    color: root.theme.accent
+                                    font.weight: Font.DemiBold
+                                    visible: root.width >= root.theme.scaledSize(500)
+                                    Layout.preferredWidth: root.theme.scaledSize(28)
+                                }
+                                ColumnLayout {
+                                    objectName: "user_rule_description_" + row.index
+                                    Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
+                                    spacing: 2
+                                    Label {
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        color: root.theme.text
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
+                                        textFormat: Text.PlainText
+                                        text: row.modelData.type || ""
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
+                                        color: root.theme.text
+                                        elide: Text.ElideRight
+                                        textFormat: Text.PlainText
+                                        text: (row.modelData.value || "") + "  →  " + (row.modelData.target || "")
+                                    }
+                                }
+                                ThemedSwitch {
+                                    theme: root.theme
+                                    objectName: "user_rule_enabled_" + row.index
+                                    text: root.width < root.theme.scaledSize(620) ? "" : qsTr("Enabled")
+                                    Accessible.name: qsTr("Enabled")
+                                    checked: !!row.modelData.enabled
+                                    onClicked: {
+                                        const next = root.copy(root.currentRules);
+                                        next[row.index].enabled = checked;
+                                        root.replaceRules(next);
+                                    }
+                                }
+                            }
+                            GridLayout {
+                                Layout.fillWidth: contents.columns === 1
+                                Layout.alignment: Qt.AlignRight
+                                columns: row.width - 16 >= 4 * root.theme.scaledSize(28) + 12 ? 4 : row.width - 16 >= 2 * root.theme.scaledSize(28) + 4 ? 2 : 1
+                                columnSpacing: 4
+                                rowSpacing: 4
+                                ActionButton {
+                                    theme: root.theme
+                                    objectName: "user_rule_up_" + row.index
+                                    text: "↑"
+                                    Accessible.name: qsTr("Move up")
+                                    Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 28 : 34)
+                                    leftPadding: 2
+                                    rightPadding: 2
+                                    font.pixelSize: root.theme.scaledSize(16)
+                                    enabled: row.index > 0
+                                    onClicked: root.move(row.index, -1)
+                                }
+                                ActionButton {
+                                    theme: root.theme
+                                    objectName: "user_rule_down_" + row.index
+                                    text: "↓"
+                                    Accessible.name: qsTr("Move down")
+                                    Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 28 : 34)
+                                    leftPadding: 2
+                                    rightPadding: 2
+                                    font.pixelSize: root.theme.scaledSize(16)
+                                    enabled: row.index + 1 < root.currentRules.length
+                                    onClicked: root.move(row.index, 1)
+                                }
+                                ActionButton {
+                                    theme: root.theme
+                                    objectName: "user_rule_edit_" + row.index
+                                    text: root.width < root.theme.scaledSize(500) ? "✎" : qsTr("Edit")
+                                    Accessible.name: qsTr("Edit rule")
+                                    Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 28 : 54)
+                                    leftPadding: 2
+                                    rightPadding: 2
+                                    font.pixelSize: root.theme.supportingSize
+                                    onClicked: root.edit(row.index)
+                                }
+                                ActionButton {
+                                    theme: root.theme
+                                    objectName: "user_rule_delete_" + row.index
+                                    text: root.width < root.theme.scaledSize(500) ? "×" : qsTr("Delete")
+                                    Accessible.name: qsTr("Delete rule")
+                                    destructive: true
+                                    Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 28 : 58)
+                                    leftPadding: 2
+                                    rightPadding: 2
+                                    font.pixelSize: root.theme.supportingSize
+                                    onClicked: {
+                                        const next = root.copy(root.currentRules);
+                                        next.splice(row.index, 1);
+                                        root.replaceRules(next);
+                                    }
+                                }
+                            }
                         }
                     }
                 }
+                Label {
+                    objectName: "user_rules_reorder_hint"
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: qsTr("Drag the handle to reorder. The move buttons also support keyboard use.")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: listContent.width
+                    visible: text.length > 0
+                    wrapMode: Text.WordWrap
+                    color: root.saving ? root.theme.muted : root.ui.runtime.error ? root.theme.error : root.theme.success
+                    text: root.saving ? qsTr("Applying…") : root.ui.runtime.error ? root.errorText(root.ui.runtime.error) : root.state.result === "Saved" ? (root.ui.runtime.ready ? qsTr("Applied") : qsTr("Saved for next start")) : ""
+                }
             }
         }
-    }
-    ThemedDialog {
-        id: reloadDialog
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        theme: root.theme
-        modal: true
-        title: qsTr("Discard unsaved rule changes?")
-        width: Math.min(440, parent.width - 32)
-        height: Math.min(240, parent.height - 32)
-        implicitHeight: height
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: root.loadState()
-        contentItem: Label {
-            text: qsTr("Reloading discards the edits in both rule scopes.")
-            wrapMode: Text.WordWrap
-            color: root.theme.text
-        }
-    }
-    ThemedDialog {
-        id: ruleDialog
-        objectName: "user_rule_dialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        theme: root.theme
-        modal: true
-        title: root.editingIndex < 0 ? qsTr("Add rule") : qsTr("Edit rule")
-        width: Math.min(520, parent.width - 32)
-        height: Math.min(480, parent.height - 32)
-        implicitHeight: height
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onOpened: {
-            standardButton(Dialog.Ok).enabled = Qt.binding(function () {
-                return ruleTarget.currentIndex >= 0 && (ruleType.currentText === "RULE-SET" ? provider.currentIndex >= 0 : ruleValue.text.trim().length > 0);
-            });
-        }
-        onAccepted: {
-            const next = root.copy(root.currentRules);
-            const old = root.editingIndex < 0 ? ({}) : next[root.editingIndex];
-            const value = ruleType.currentText === "RULE-SET" ? provider.currentText : ruleValue.text.trim();
-            const rule = {
-                "id": old.id || ("rule-" + Date.now() + "-" + Math.random().toString(36).slice(2)),
-                "type": ruleType.currentText,
-                "value": value,
-                "target": ruleTarget.currentText,
-                "enabled": ruleEnabled.checked
-            };
-            if (root.editingIndex < 0)
-                next.push(rule);
-            else
-                next[root.editingIndex] = rule;
-            root.replaceRules(next);
-        }
-        contentItem: ThemedScrollView {
+
+        ThemedScrollView {
             theme: root.theme
-            form: ruleForm
+            form: editForm
             ColumnLayout {
-                id: ruleForm
-                spacing: 8
+                id: editForm
+                spacing: 10
+                RowLayout {
+                    Layout.fillWidth: true
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Back")
+                        onClicked: root.cancelForm()
+                    }
+                    Label {
+                        text: root.editingIndex < 0 ? qsTr("Add rule") : qsTr("Edit rule")
+                        color: root.theme.text
+                        font.pixelSize: root.theme.scaledSize(16)
+                        font.weight: Font.DemiBold
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.muted
+                    text: scope.currentIndex === 0 ? qsTr("Applies to all profiles.") : qsTr("Profile: %1").arg(root.state.profileName || qsTr("Select a profile first"))
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Match type")
+                    color: root.theme.text
+                }
                 ThemedComboBox {
                     id: ruleType
                     objectName: "user_rule_type"
@@ -432,6 +626,12 @@ Item {
                     Accessible.name: qsTr("Match type")
                     model: root.types
                     optionLabels: root.typeLabels
+                }
+                Label {
+                    visible: ruleType.currentText !== "RULE-SET"
+                    Layout.fillWidth: true
+                    text: qsTr("Match value")
+                    color: root.theme.text
                 }
                 ThemedField {
                     id: ruleValue
@@ -443,10 +643,17 @@ Item {
                     placeholderText: qsTr("Domain, keyword, network or Geo code")
                 }
                 Label {
+                    visible: ruleType.currentText !== "RULE-SET"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     color: root.theme.muted
                     text: ruleType.currentText === "DOMAIN-SUFFIX" ? qsTr("Example: example.com matches the domain and its subdomains.") : ruleType.currentText === "IP-CIDR" ? qsTr("Example: 192.0.2.0/24") : ruleType.currentText === "IP-CIDR6" ? qsTr("Example: 2001:db8::/32") : qsTr("Enter a match value, such as example.com or CN.")
+                }
+                Label {
+                    visible: ruleType.currentText === "RULE-SET"
+                    Layout.fillWidth: true
+                    text: qsTr("Rule provider")
+                    color: root.theme.text
                 }
                 ThemedComboBox {
                     id: provider
@@ -456,6 +663,11 @@ Item {
                     visible: ruleType.currentText === "RULE-SET"
                     Accessible.name: qsTr("Rule provider")
                     model: root.providers
+                }
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Rule target")
+                    color: root.theme.text
                 }
                 ThemedComboBox {
                     id: ruleTarget
@@ -471,7 +683,51 @@ Item {
                     theme: root.theme
                     text: qsTr("Enabled")
                 }
+                Label {
+                    visible: (root.ui.runtime.preferences || {}).mode !== "rule"
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: root.theme.warning
+                    text: qsTr("Custom rules only control traffic in rule mode.")
+                }
+                RowLayout {
+                    Layout.fillWidth: true
+                    ActionButton {
+                        theme: root.theme
+                        text: qsTr("Cancel")
+                        onClicked: root.cancelForm()
+                    }
+                    Item { Layout.fillWidth: true }
+                    ActionButton {
+                        theme: root.theme
+                        objectName: "user_rule_form_save"
+                        prominent: true
+                        text: qsTr("Save rule")
+                        enabled: ruleTarget.currentIndex >= 0 && (ruleType.currentText === "RULE-SET" ? provider.currentIndex >= 0 : ruleValue.text.trim().length > 0)
+                        onClicked: root.saveRuleForm()
+                    }
+                }
             }
+        }
+    }
+
+    ThemedDialog {
+        id: reloadDialog
+        objectName: "user_rule_reload_dialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        theme: root.theme
+        modal: true
+        title: qsTr("Discard unsaved rule changes?")
+        width: Math.min(root.theme.scaledSize(440), parent.width - root.theme.scaledSize(32))
+        height: Math.min(root.theme.scaledSize(240), parent.height - root.theme.scaledSize(32))
+        implicitHeight: height
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: root.loadState()
+        contentItem: Label {
+            text: qsTr("Reloading discards the edits in both rule scopes.")
+            wrapMode: Text.WordWrap
+            color: root.theme.text
         }
     }
 }

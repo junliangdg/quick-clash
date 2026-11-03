@@ -410,6 +410,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QJsonObject savedPreferences_;
     QJsonObject sessionPreferences_;
     QJsonObject effectivePreferences_;
+    QString sessionProfileId_;
+    QString effectiveProfileId_;
     QJsonObject listenerIssue_;
     bool listenerRecoveryBlocked_ = false;
     // A single TUN enable action requests at most one administrator confirmation; a second

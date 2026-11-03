@@ -9,6 +9,12 @@ Error invalid() {
     error.code = QStringLiteral("CoreResponseInvalid");
     return error;
 }
+QString normalizedRuleType(QString type) {
+    type = type.toLower();
+    type.remove(QLatin1Char('-'));
+    type.remove(QLatin1Char('_'));
+    return type;
+}
 bool text(const QJsonValue& value, int limit, bool empty = true) {
     return value.isString() && value.toString().size() <= limit &&
            (empty || !value.toString().isEmpty());
@@ -107,5 +113,74 @@ Result<QJsonArray> ruleSnapshot(const QJsonObject& response, const QJsonArray& p
         rows[index] = row;
     }
     return rows;
+}
+void markCustomRulePrefix(QJsonArray& rows, const QJsonObject& userRules,
+                          const QString& profileId) {
+    if (profileId.isEmpty())
+        return;
+
+    const auto profiles = userRules.value(QStringLiteral("profiles"));
+    const auto globalRules = userRules.value(QStringLiteral("global"));
+    if ((!profiles.isUndefined() && !profiles.isObject()) ||
+        (!globalRules.isUndefined() && !globalRules.isArray()))
+        return;
+    const auto profile = profiles.toObject().value(profileId).toObject();
+    const auto localRules = profile.value(QStringLiteral("rules"));
+    if (!localRules.isUndefined() && !localRules.isArray())
+        return;
+
+    QJsonArray expected;
+    const auto appendRules = [&expected](const QJsonArray& rules, const QString& scope,
+                                         const QString& globalProxy) {
+        const auto global = scope == QStringLiteral("global");
+        for (const auto& value : rules) {
+            if (!value.isObject())
+                return false;
+            const auto rule = value.toObject();
+            const auto enabled = rule.value(QStringLiteral("enabled"));
+            if (!enabled.isBool())
+                return false;
+            if (!enabled.toBool())
+                continue;
+            const auto type = rule.value(QStringLiteral("type"));
+            const auto payload = rule.value(QStringLiteral("value"));
+            auto target = rule.value(QStringLiteral("target"));
+            if (!type.isString() || type.toString().isEmpty() || !payload.isString() ||
+                payload.toString().isEmpty() || !target.isString() || target.toString().isEmpty())
+                return false;
+            if (global && target.toString() == QStringLiteral("PROXY")) {
+                if (globalProxy.isEmpty())
+                    return false;
+                target = QJsonValue(globalProxy);
+            }
+            expected.append(QJsonObject{{QStringLiteral("type"), type},
+                                        {QStringLiteral("payload"), payload},
+                                        {QStringLiteral("proxy"), target},
+                                        {QStringLiteral("customRuleScope"), scope}});
+        }
+        return true;
+    };
+
+    if (!appendRules(localRules.toArray(), QStringLiteral("profile"), {}) ||
+        !appendRules(globalRules.toArray(), QStringLiteral("global"),
+                     profile.value(QStringLiteral("proxy")).toString()) ||
+        expected.isEmpty())
+        return;
+
+    const auto limit = qMin(rows.size(), expected.size());
+    for (qsizetype index = 0; index < limit; ++index) {
+        auto row = rows[index].toObject();
+        const auto wanted = expected[index].toObject();
+        if (normalizedRuleType(row.value(QStringLiteral("type")).toString()) !=
+                normalizedRuleType(wanted.value(QStringLiteral("type")).toString()) ||
+            row.value(QStringLiteral("payload")) != wanted.value(QStringLiteral("payload")) ||
+            row.value(QStringLiteral("proxy")) != wanted.value(QStringLiteral("proxy")))
+            break;
+        row.insert(QStringLiteral("customRule"), true);
+        row.insert(QStringLiteral("customRuleScope"),
+                   wanted.value(QStringLiteral("customRuleScope")));
+        row.insert(QStringLiteral("source"), QStringLiteral("custom"));
+        rows[index] = row;
+    }
 }
 } // namespace quickclash::domain

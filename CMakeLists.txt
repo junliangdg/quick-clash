@@ -582,7 +582,7 @@ if(BUILD_TESTING)
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
             TIMEOUT 30)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
-        add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test)
+        add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test --probe-language=en-US)
         add_test(NAME ui_runtime_lists_zh COMMAND quickclash --runtime-list-test --probe-language=zh-CN)
         add_test(NAME ui_custom_groups COMMAND quickclash --custom-groups-ui-test)
         add_test(NAME ui_custom_groups_zh COMMAND quickclash --custom-groups-ui-test --probe-language=zh-CN)

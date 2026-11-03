@@ -14,4 +14,7 @@ struct ProviderCategorySnapshot {
                                                                 const QString& kind);
 [[nodiscard]] Result<QJsonArray> ruleSnapshot(const QJsonObject& response,
                                               const QJsonArray& providers = {});
+// Mark only the exact, contiguous custom-rule prefix present in the confirmed runtime snapshot.
+void markCustomRulePrefix(QJsonArray& rows, const QJsonObject& userRules,
+                          const QString& profileId);
 } // namespace quickclash::domain

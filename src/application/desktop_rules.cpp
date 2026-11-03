@@ -48,6 +48,9 @@ void DesktopRuntime::requestPageData(const QString& stream) {
                         domain::providerCategorySnapshot(providers, {}, QStringLiteral("rules"));
                     rules_ = std::get<QJsonArray>(
                         domain::ruleSnapshot({{QStringLiteral("rules"), rows}}, references.rows));
+                    domain::markCustomRulePrefix(
+                        rules_, effectivePreferences_.value(QStringLiteral("userRules")).toObject(),
+                        effectiveProfileId_);
                     rulePageState_ = {{QStringLiteral("sampleAt"), clock_().toString(Qt::ISODate)},
                                       {QStringLiteral("error"), references.error}};
                     publish();

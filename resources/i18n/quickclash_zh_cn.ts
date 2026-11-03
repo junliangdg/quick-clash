@@ -1063,8 +1063,6 @@
     <message><source>Update outcome uncertain; metadata reloaded</source><translation>更新结果不确定，已重新读取元数据</translation></message>
     <message><source>Update failed; previous data retained</source><translation>更新失败，已保留旧数据</translation></message>
     <message><source>No update in this view</source><translation>本次查看尚未更新</translation></message>
-    <message><source>Rule provider: %1</source><translation>规则提供者：%1</translation></message>
-    <message><source>Effective configuration</source><translation>当前生效配置</translation></message>
     <message><source>Items: %1 · Updated: %2</source><translation>项目数：%1 · 更新时间：%2</translation></message>
     <message><source>Limited information</source><translation>有限信息</translation></message>
     <message><source>Selected profile snapshot</source><translation>所选配置快照</translation></message>
@@ -2826,8 +2824,20 @@
   <context>
     <name>rules_page</name>
     <message><source>Custom rules</source><translation>自定义规则</translation></message>
-    <message><source>Custom rules…</source><translation>自定义规则…</translation></message>
-    <message><source>Advanced overrides…</source><translation>高级覆写…</translation></message>
+    <message><source>Manage custom rules…</source><translation>管理自定义规则…</translation></message>
+    <message><source>Rules · %1</source><translation>规则 · %1</translation></message>
+    <message><source>Providers · %1</source><translation>提供者 · %1</translation></message>
+    <message><source>Source</source><translation>来源</translation></message>
+    <message><source>Custom rule</source><translation>自定义规则</translation></message>
+    <message><source>Global custom rule</source><translation>全局自定义规则</translation></message>
+    <message><source>Profile custom rule</source><translation>配置自定义规则</translation></message>
+    <message><source>Provider rule</source><translation>提供者规则</translation></message>
+    <message><source>Configuration rule</source><translation>配置规则</translation></message>
+    <message><source>Rule provider: %1</source><translation>规则提供者：%1</translation></message>
+    <message><source>Effective configuration</source><translation>当前生效配置</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+    <message><source>Confirm</source><translation>确定</translation></message>
+    <message><source>Changes are saved and applied when you confirm.</source><translation>点击“确定”后保存并应用修改。</translation></message>
   </context>
   <context>
     <name>settings_page</name>
@@ -2883,15 +2893,13 @@
     <message><source>Global proxy group</source><translation>全局代理规则使用的代理组</translation></message>
     <message><source>Choose a group</source><translation>请选择代理组</translation></message>
     <message><source>Enabled</source><translation>启用</translation></message>
-    <message><source>Up</source><translation>上移</translation></message>
-    <message><source>Down</source><translation>下移</translation></message>
     <message><source>Edit</source><translation>编辑</translation></message>
     <message><source>Delete</source><translation>删除</translation></message>
+    <message><source>Delete rule</source><translation>删除规则</translation></message>
     <message><source>Applying…</source><translation>正在应用…</translation></message>
     <message><source>Applied</source><translation>已应用</translation></message>
     <message><source>Saved for next start</source><translation>已保存，下次启动时生效</translation></message>
     <message><source>Reload</source><translation>重新加载</translation></message>
-    <message><source>Save and apply</source><translation>保存并应用</translation></message>
     <message><source>Discard unsaved rule changes?</source><translation>放弃未保存的规则修改？</translation></message>
     <message><source>Reloading discards the edits in both rule scopes.</source><translation>重新加载将放弃全局和配置专属规则的未保存修改。</translation></message>
     <message><source>Edit rule</source><translation>编辑规则</translation></message>
@@ -2908,5 +2916,12 @@
     <message><source>Choose a proxy group for this profile.</source><translation>请为此配置选择代理组。</translation></message>
     <message><source>A selected proxy group is no longer available.</source><translation>所选代理组已不可用。</translation></message>
     <message><source>A selected rule provider is no longer available.</source><translation>所选规则提供者已不可用。</translation></message>
+    <message><source>Drag to reorder</source><translation>拖动以调整顺序</translation></message>
+    <message><source>Drag the handle to reorder. The move buttons also support keyboard use.</source><translation>拖动手柄可调整顺序；也可使用上移和下移按钮进行键盘操作。</translation></message>
+    <message><source>Move up</source><translation>上移规则</translation></message>
+    <message><source>Move down</source><translation>下移规则</translation></message>
+    <message><source>Back</source><translation>返回</translation></message>
+    <message><source>Save rule</source><translation>保存规则</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
   </context>
 </TS>

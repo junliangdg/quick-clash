@@ -16,9 +16,10 @@ Item {
     readonly property RuntimeListModel pageModel: section.currentIndex === 0 ? ui.liveRules : ui.liveProviders
     readonly property var ruleColumns: [
         { "title": "#", "weight": 0.45, "numeric": true },
-        { "title": qsTr("Type"), "weight": 1.3 },
-        { "title": qsTr("Payload"), "weight": 2.8 },
-        { "title": qsTr("Proxy"), "weight": 1.5 }
+        { "title": qsTr("Type"), "weight": 1.2 },
+        { "title": qsTr("Payload"), "weight": 2.5 },
+        { "title": qsTr("Proxy"), "weight": 1.35 },
+        { "title": qsTr("Source"), "weight": 1.1 }
     ]
     readonly property var providerColumns: [
         { "title": qsTr("Provider"), "weight": 2.2 },
@@ -27,7 +28,8 @@ Item {
         { "title": qsTr("Updated"), "weight": 1.6 }
     ]
     function syncDemand(): void {
-        ui.setDemand(demandKey, section.currentIndex === 0 ? "rules" : section.currentIndex === 1 ? "providers" : "user_rules", active);
+        const stream = customRulesDialog.visible ? "user_rules" : section.currentIndex === 0 ? "rules" : "providers";
+        ui.setDemand(demandKey, stream, active);
     }
     function resultText(value): string {
         switch (value) {
@@ -45,12 +47,18 @@ Item {
             return qsTr("No update in this view");
         }
     }
+    function sourceDescription(entry): string {
+        if (entry.customRule)
+            return entry.customRuleScope === "global" ? qsTr("Global custom rule") : qsTr("Profile custom rule");
+        if (entry.providerName)
+            return qsTr("Rule provider: %1").arg(entry.providerName);
+        return qsTr("Effective configuration");
+    }
     function describeEntry(entry): string {
         const count = typeof entry.count === "number" ? String(entry.count) : qsTr("Unknown");
         const updated = entry.updatedAt || qsTr("Unknown");
         if (section.currentIndex === 0) {
-            const source = entry.providerName ? qsTr("Rule provider: %1").arg(entry.providerName) : qsTr("Effective configuration");
-            return "#" + (entry.position || "?") + " · " + (entry.type || "") + " · " + (entry.payload || "") + " → " + (entry.proxy || "") + "\n" + source + (entry.providerName ? " · " + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + " · " + qsTr("Limited information") : "");
+            return "#" + (entry.position || "?") + " · " + (entry.type || "") + " · " + (entry.payload || "") + " → " + (entry.proxy || "") + "\n" + sourceDescription(entry) + (entry.providerName ? " · " + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + " · " + qsTr("Limited information") : "");
         }
         return entry.name + " · " + (entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Selected profile snapshot")) + " · " + entry.kind + (entry.type ? " · " + entry.type : "") + (entry.behavior ? " · " + entry.behavior : "") + "\n" + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + "\n" + resultText(entry.lastResult) + (entry.lastError ? " · " + entry.lastError : "") + (entry.stale ? " · " + qsTr("Stale data") : "");
     }
@@ -65,6 +73,8 @@ Item {
                 return entry.payload || "—";
             case 3:
                 return entry.proxy || "—";
+            case 4:
+                return entry.customRule ? (entry.customRuleScope === "global" ? qsTr("Global custom rule") : qsTr("Profile custom rule")) : entry.providerName ? qsTr("Provider rule") : qsTr("Configuration rule");
             }
             return "";
         }
@@ -81,31 +91,35 @@ Item {
         return "";
     }
     function rowColor(entry, index): color {
+        if (section.currentIndex === 0 && index === 4) {
+            if (entry.customRule)
+                return theme.accent;
+            if (entry.providerName)
+                return theme.warning;
+            return theme.muted;
+        }
         if (section.currentIndex === 1 && index === 3)
             return entry.stale ? theme.warning : theme.muted;
         return theme.text;
     }
     onActiveChanged: {
+        if (!active && customRulesDialog.visible) {
+            customRulesDialog.preserveDraftOnClose = true;
+            customRulesDialog.close();
+        }
         syncDemand();
-        if (!active && editor)
-            editor.close();
     }
     Component.onCompleted: syncDemand()
     Component.onDestruction: ui.setDemand(demandKey, "rules", false)
-    ProfileEditor {
-        id: editor
-        parent: Overlay.overlay
-        ui: root.ui
-        theme: root.theme
-    }
+
     ColumnLayout {
         anchors.fill: parent
         spacing: 8
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: 10
             Label {
-                text: section.currentIndex === 2 ? qsTr("Custom rules") : (section.currentIndex === 0 ? qsTr("Rules") : qsTr("Providers")) + " · " + root.pageModel.count
+                text: section.currentIndex === 0 ? qsTr("Rules · %1").arg(root.ui.liveRules.count) : qsTr("Providers · %1").arg(root.ui.liveProviders.count)
                 color: root.theme.text
                 font.pixelSize: root.theme.bodySize
                 font.weight: Font.DemiBold
@@ -113,25 +127,12 @@ Item {
                 Layout.minimumWidth: 0
                 elide: Text.ElideRight
             }
-            Label {
-                visible: section.currentIndex !== 2 && root.width >= root.theme.scaledSize(520)
-                text: !root.ui.runtime.ready ? qsTr("Start the core to view rules")
-                    : section.currentIndex === 0 ? qsTr("Effective order") : qsTr("One update at a time")
-                color: root.theme.muted
-                font.pixelSize: root.theme.supportingSize
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                horizontalAlignment: Text.AlignRight
-                elide: Text.ElideRight
-            }
             ActionButton {
                 id: customRulesButton
                 objectName: "open_custom_rules"
                 theme: root.theme
-                visible: section.currentIndex !== 2
-                Layout.minimumWidth: 0
-                Layout.maximumWidth: root.width * 0.7
-                text: qsTr("Custom rules…")
+                Layout.maximumWidth: root.width * 0.64
+                text: qsTr("Manage custom rules…")
                 contentItem: Text {
                     text: customRulesButton.text
                     font: customRulesButton.font
@@ -140,47 +141,47 @@ Item {
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
-                onClicked: section.currentIndex = 2
+                onClicked: customRulesDialog.open()
             }
         }
-        GridLayout {
+        RowLayout {
+            id: section
+            objectName: "rules_section"
+            property int currentIndex: 0
             Layout.fillWidth: true
-            columns: width >= root.theme.scaledSize(720) ? 4 : width >= root.theme.scaledSize(420) ? 2 : 1
-            columnSpacing: 8
-            rowSpacing: 8
-            ThemedComboBox {
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                id: section
-                Accessible.name: qsTr("Rules or providers")
+            spacing: 6
+            ActionButton {
                 theme: root.theme
-                objectName: "rules_section"
-                model: [qsTr("Rules"), qsTr("Providers"), qsTr("Custom rules")]
-                onCurrentIndexChanged: root.syncDemand()
+                Layout.fillWidth: true
+                text: qsTr("Rules")
+                selected: section.currentIndex === 0
+                onClicked: section.currentIndex = 0
             }
             ActionButton {
                 theme: root.theme
+                Layout.fillWidth: true
+                text: qsTr("Providers")
+                selected: section.currentIndex === 1
+                onClicked: section.currentIndex = 1
+            }
+            onCurrentIndexChanged: root.syncDemand()
+        }
+        GridLayout {
+            Layout.fillWidth: true
+            columns: width >= root.theme.scaledSize(620) ? 2 : 1
+            columnSpacing: 8
+            rowSpacing: 8
+            ActionButton {
+                theme: root.theme
                 objectName: "refresh_rules"
-                visible: section.currentIndex !== 2
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
                 text: root.pageState.loading ? qsTr("Loading…") : qsTr("Refresh")
                 enabled: root.canRefresh
                 onClicked: root.ui.runtimeCommand(section.currentIndex === 0 ? "rules" : "providers")
             }
-            ActionButton {
-                theme: root.theme
-                objectName: "edit_rules"
-                visible: section.currentIndex !== 2
-                Layout.fillWidth: true
-                Layout.minimumWidth: 0
-                text: qsTr("Advanced overrides…")
-                enabled: !!root.ui.runtime.selectedId && !root.ui.runtime.busy && !root.ui.runtime.readOnly
-                onClicked: editor.edit(root.ui.runtime.selectedId, "overlay")
-            }
             RuntimeFilter {
                 id: ruleFilter
-                visible: section.currentIndex !== 2
                 theme: root.theme
                 listModel: root.pageModel
                 placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Provider or type")
@@ -190,7 +191,7 @@ Item {
         }
         Label {
             objectName: "rules_status"
-            visible: section.currentIndex !== 2 && text.length > 0
+            visible: text.length > 0
             text: (root.pageState.stale ? qsTr("Read failed; previous data retained") + " · " : "") + (root.pageState.error || "") + (root.pageState.proxyError ? qsTr("Proxy providers: %1").arg(root.pageState.proxyError) + " · " : "") + (root.pageState.ruleError ? qsTr("Rule providers: %1").arg(root.pageState.ruleError) + " · " : "") + (root.pageState.sampleAt ? qsTr("Read at %1").arg(root.pageState.sampleAt) : "")
             color: root.pageState.stale || root.pageState.error ? root.theme.error : root.theme.muted
             font.pixelSize: root.theme.supportingSize
@@ -199,14 +200,13 @@ Item {
             textFormat: Text.PlainText
         }
         RuntimeList {
-            visible: section.currentIndex !== 2
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
             listModel: root.pageModel
             columns: section.currentIndex === 0 ? root.ruleColumns : root.providerColumns
             rowHeight: root.theme.rowHeight
-            minimumWidth: root.theme.scaledSize(620)
+            minimumWidth: root.theme.scaledSize(720)
             cellText: root.cellText
             cellColor: root.rowColor
             describe: root.describeEntry
@@ -219,12 +219,127 @@ Item {
                     root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);
             }
         }
-        UserRulesEditor {
-            visible: section.currentIndex === 2
-            Layout.fillWidth: true
-            Layout.fillHeight: true
+    }
+
+    ThemedDialog {
+        id: customRulesDialog
+        objectName: "custom_rules_dialog"
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        theme: root.theme
+        modal: true
+        title: qsTr("Custom rules")
+        property bool preserveDraftOnClose: false
+        width: Math.max(0, Math.min(root.theme.scaledSize(920), parent ? parent.width - 48 : root.theme.scaledSize(920)))
+        height: Math.max(0, Math.min(root.theme.scaledSize(760), parent ? parent.height - 48 : root.theme.scaledSize(760)))
+        implicitHeight: height
+        padding: root.theme.panelPadding
+        closePolicy: rulesEditor.saving ? Popup.NoAutoClose : Popup.CloseOnEscape
+        standardButtons: Dialog.NoButton
+        initialFocusItem: confirmCustomRules
+        header: Label {
+            objectName: "custom_rules_title"
+            text: customRulesDialog.title
+            padding: root.theme.panelPadding
+            color: root.theme.text
+            font.pixelSize: root.theme.scaledSize(18)
+            font.weight: Font.DemiBold
+            elide: Text.ElideRight
+        }
+        contentItem: UserRulesEditor {
+            id: rulesEditor
             ui: root.ui
             theme: root.theme
+            onSaveCompleted: customRulesDialog.close()
+        }
+        footer: Item {
+            id: customRulesFooter
+            objectName: "custom_rules_footer"
+            width: rulesEditor.width
+            implicitWidth: width
+            implicitHeight: footerLayout.implicitHeight + 8 + root.theme.panelPadding
+
+            GridLayout {
+                id: footerLayout
+                anchors.fill: parent
+                anchors.leftMargin: root.theme.panelPadding
+                anchors.rightMargin: root.theme.panelPadding
+                anchors.topMargin: 8
+                anchors.bottomMargin: root.theme.panelPadding
+                readonly property bool inlineHint: width >= Math.min(confirmHint.implicitWidth, root.theme.scaledSize(100)) + cancelCustomRules.implicitWidth + confirmCustomRules.implicitWidth + 2 * columnSpacing
+                columns: 3
+                columnSpacing: 8
+                rowSpacing: 8
+                Label {
+                    id: confirmHint
+                    objectName: "custom_rules_confirm_hint"
+                    text: qsTr("Changes are saved and applied when you confirm.")
+                    color: root.theme.muted
+                    font.pixelSize: root.theme.supportingSize
+                    wrapMode: Text.WordWrap
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.columnSpan: footerLayout.inlineHint ? 1 : 3
+                }
+                Item {
+                    visible: !footerLayout.inlineHint
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                }
+                ActionButton {
+                    id: confirmCustomRules
+                    objectName: "confirm_custom_rules"
+                    theme: root.theme
+                    prominent: true
+                    text: qsTr("Confirm")
+                    leftPadding: 8
+                    rightPadding: 8
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: Math.min(implicitWidth, (footerLayout.width - 2 * footerLayout.columnSpacing) / 2)
+                    Layout.maximumWidth: (footerLayout.width - 2 * footerLayout.columnSpacing) / 2
+                    enabled: rulesEditor.canConfirm
+                    contentItem: Text {
+                        text: confirmCustomRules.text
+                        font: confirmCustomRules.font
+                        color: confirmCustomRules.foregroundColor
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+                    onClicked: rulesEditor.confirm()
+                }
+                ActionButton {
+                    id: cancelCustomRules
+                    theme: root.theme
+                    objectName: "cancel_custom_rules"
+                    text: qsTr("Cancel")
+                    leftPadding: 8
+                    rightPadding: 8
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: Math.min(implicitWidth, (footerLayout.width - 2 * footerLayout.columnSpacing) / 2)
+                    Layout.maximumWidth: (footerLayout.width - 2 * footerLayout.columnSpacing) / 2
+                    enabled: !rulesEditor.saving
+                    contentItem: Text {
+                        text: cancelCustomRules.text
+                        font: cancelCustomRules.font
+                        color: cancelCustomRules.foregroundColor
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+                    onClicked: {
+                        rulesEditor.discardDraft();
+                        customRulesDialog.close();
+                    }
+                }
+            }
+        }
+        onRejected: rulesEditor.discardDraft()
+        onVisibleChanged: {
+            if (!visible && !preserveDraftOnClose)
+                rulesEditor.discardDraft();
+            preserveDraftOnClose = false;
+            root.syncDemand();
         }
     }
 }

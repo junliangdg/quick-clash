@@ -342,26 +342,40 @@ void DesktopRuntime::userRuleCommand(const QString& command, const QStringList& 
         return;
     userRuleResult_ = QStringLiteral("Failed");
     refreshUserRuleContext();
+    const auto scope = args.value(1);
+    const auto saveBothScopes = scope == QStringLiteral("all");
     if (args.value(0) != userRuleState_.value("revision") || args.value(2) != selectedId_ ||
-        (args.value(1) != QStringLiteral("global") && args.value(1) != QStringLiteral("local"))) {
+        (!saveBothScopes && scope != QStringLiteral("global") &&
+         scope != QStringLiteral("local"))) {
         error(QStringLiteral("UserRuleConflict"));
         return;
     }
     const auto encoded = args.value(3).toUtf8();
     const auto document = QJsonDocument::fromJson(encoded);
-    if (encoded.size() > 256 * 1024 || !document.isArray() ||
-        (args.value(1) == QStringLiteral("local") && selectedId_.isEmpty())) {
+    const auto bothRules = document.object();
+    const auto bothGlobalRules = bothRules.value("global").toArray();
+    const auto bothLocalRules = bothRules.value("local").toArray();
+    const auto validBothRules =
+        saveBothScopes && document.isObject() && bothRules.value("global").isArray() &&
+        bothRules.value("local").isArray() &&
+        QJsonDocument(bothGlobalRules).toJson(QJsonDocument::Compact).size() <= 256 * 1024 &&
+        QJsonDocument(bothLocalRules).toJson(QJsonDocument::Compact).size() <= 256 * 1024;
+    const auto maximumBytes = saveBothScopes ? 512 * 1024 + 64 : 256 * 1024;
+    if (encoded.size() > maximumBytes || (saveBothScopes ? !validBothRules : !document.isArray()) ||
+        (scope == QStringLiteral("local") && selectedId_.isEmpty())) {
         error(QStringLiteral("InvalidUserRules"));
         return;
     }
     auto book = userRuleBook();
-    if (args.value(1) == QStringLiteral("global"))
-        book.insert("global", document.array());
+    if (saveBothScopes || scope == QStringLiteral("global"))
+        book.insert("global",
+                    saveBothScopes ? bothRules.value("global").toArray() : document.array());
     auto profiles = book.value("profiles").toObject();
     if (!selectedId_.isEmpty()) {
         auto local = profiles.value(selectedId_).toObject();
-        if (args.value(1) == QStringLiteral("local"))
-            local.insert("rules", document.array());
+        if (saveBothScopes || scope == QStringLiteral("local"))
+            local.insert("rules",
+                         saveBothScopes ? bothRules.value("local").toArray() : document.array());
         local.insert("proxy", args.value(4));
         profiles.insert(selectedId_, local);
     }

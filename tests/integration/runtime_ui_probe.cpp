@@ -1,6 +1,7 @@
 #include "runtime_ui_probe.h"
 #include "application_host.h"
 #include "focus_layout_checks.h"
+#include <QDir>
 #include <QElapsedTimer>
 #include <QEvent>
 #include <QFontInfo>
@@ -31,13 +32,174 @@ QJsonObject entry(const QString& id, const QString& host) {
     return {
         {"id", id}, {"epoch", "fixture"}, {"metadata", QJsonObject{{"host", host}}}, {"start", id}};
 }
+QQuickItem* findVisualItem(QQuickItem* parent, const QString& name) {
+    if (!parent)
+        return nullptr;
+    if (parent->objectName() == name)
+        return parent;
+    for (auto* child : parent->childItems()) {
+        if (auto* found = findVisualItem(child, name))
+            return found;
+    }
+    return nullptr;
+}
 bool click(ApplicationHost& host, const QString& name) {
     auto* item = host.window()->findChild<QQuickItem*>(name);
+    if (!item)
+        item = findVisualItem(host.window()->contentItem(), name);
     if (!item || !item->isEnabled() || !item->isVisible())
         return false;
     const auto point = item->mapToScene(QPointF(item->width() / 2, item->height() / 2)).toPoint();
     QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, point);
     QTest::qWait(20);
+    return true;
+}
+bool checkCustomRulesLayout(ApplicationHost& host, bool listVisible = true) {
+    const auto item = [&](const char* name) {
+        return host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
+    };
+    const auto rect = [](QQuickItem* target) {
+        return QRectF(target->mapToScene(QPointF()), QSizeF(target->width(), target->height()));
+    };
+    auto* title = item("custom_rules_title");
+    auto* editor = item("user_rules_editor");
+    auto* scope = item("user_rules_scope_hint");
+    auto* order = item("user_rules_order_hint");
+    auto* mode = item("user_rules_mode_hint");
+    auto* reorder = item("user_rules_reorder_hint");
+    auto* hint = item("custom_rules_confirm_hint");
+    auto* cancel = item("cancel_custom_rules");
+    auto* confirm = item("confirm_custom_rules");
+    auto* listPage = item("user_rules_list_page");
+    if (!title || !editor || !scope || !order || !mode || !reorder || !hint || !cancel ||
+        !confirm || !listPage || !title->isVisible() || !editor->isVisible() ||
+        !hint->isVisible() || !cancel->isVisible() || !confirm->isVisible()) {
+        qWarning("Custom rules layout items missing or hidden at %dx%d", host.window()->width(),
+                 host.window()->height());
+        return false;
+    }
+    const auto fits = [](QQuickItem* target) {
+        return target->width() > 0 && target->height() + 0.5 >= target->implicitHeight();
+    };
+    if (!fits(title) || !fits(hint) || rect(title).bottom() > rect(editor).top() + 0.5 ||
+        rect(editor).bottom() > rect(hint).top() + 0.5 ||
+        rect(editor).bottom() > rect(cancel).top() + 0.5 || rect(hint).intersects(rect(cancel)) ||
+        rect(hint).intersects(rect(confirm)) || rect(confirm).right() > rect(cancel).left() + 0.5 ||
+        rect(hint).left() > rect(editor).left() + 0.5 ||
+        rect(cancel).right() < rect(editor).right() - 0.5 ||
+        rect(cancel).right() > rect(editor).right() + 0.5 ||
+        rect(confirm).left() < rect(editor).left() - 0.5) {
+        qWarning("Custom rules dialog frame overlaps at %dx%d", host.window()->width(),
+                 host.window()->height());
+        qWarning() << "title" << rect(title) << title->implicitHeight() << "editor" << rect(editor)
+                   << "hint" << rect(hint) << hint->implicitHeight() << "confirm" << rect(confirm)
+                   << "cancel" << rect(cancel);
+        return false;
+    }
+    if (!listVisible)
+        return true;
+    auto* scopeControl = item("user_rule_scope");
+    auto* add = item("user_rule_add");
+    auto* reload = item("user_rule_reload");
+    if (!scopeControl || !add || !reload || !scope->isVisible() || !order->isVisible() ||
+        !reorder->isVisible() || !fits(scope) || !fits(order) || !fits(reorder) ||
+        (mode->isVisible() && !fits(mode)) || rect(scope).intersects(rect(order)) ||
+        (mode->isVisible() && (rect(order).bottom() > rect(mode).top() + 0.5 ||
+                               rect(mode).bottom() > rect(reorder).top() + 0.5)) ||
+        rect(order).bottom() > rect(reorder).top() + 0.5 ||
+        rect(scopeControl).left() < rect(listPage).left() - 0.5 ||
+        rect(scopeControl).right() > rect(listPage).right() + 0.5 ||
+        rect(scope).left() < rect(listPage).left() - 0.5 ||
+        rect(scope).right() > rect(listPage).right() + 0.5 ||
+        rect(order).right() > rect(listPage).right() + 0.5 ||
+        rect(reorder).right() > rect(listPage).right() + 0.5 ||
+        rect(add).right() > rect(listPage).right() + 0.5 ||
+        rect(reload).right() > rect(listPage).right() + 0.5 ||
+        scopeControl->height() > listPage->height() + 0.5 ||
+        add->height() > listPage->height() + 0.5 || rect(scopeControl).intersects(rect(add)) ||
+        rect(scopeControl).intersects(rect(reload)) || rect(add).intersects(rect(reload))) {
+        qWarning("Custom rules text overlaps or is clipped at %dx%d", host.window()->width(),
+                 host.window()->height());
+        qWarning() << "list page" << rect(listPage) << "scope hint" << rect(scope)
+                   << scope->implicitHeight() << "order hint" << rect(order)
+                   << order->implicitHeight() << "reorder hint" << rect(reorder)
+                   << reorder->implicitHeight();
+        if (scopeControl && add && reload)
+            qWarning() << "scope" << rect(scopeControl) << "reload" << rect(reload) << "add"
+                       << rect(add);
+        return false;
+    }
+    const auto contentHeight = listPage->property("contentHeight").toReal();
+    const auto availableHeight = listPage->property("availableHeight").toReal();
+    if (contentHeight > availableHeight + 0.5) {
+        auto* flickable = listPage->property("contentItem").value<QObject*>();
+        if (!flickable || !flickable->setProperty("contentY", 0)) {
+            qWarning("Custom rules content cannot be scrolled");
+            return false;
+        }
+        QTest::qWait(30);
+        const auto maxScroll = contentHeight - availableHeight;
+        flickable->setProperty("contentY",
+                               qBound(0.0, rect(reorder).top() - rect(listPage).top(), maxScroll));
+        QTest::qWait(30);
+        if (rect(reorder).top() < rect(listPage).top() - 0.5 ||
+            rect(reorder).top() > rect(listPage).bottom() + 0.5) {
+            qWarning("Custom rules reorder hint start cannot be scrolled into view");
+            return false;
+        }
+        const auto bottomScroll = flickable->property("contentY").toReal() +
+                                  rect(reorder).bottom() - rect(listPage).bottom();
+        flickable->setProperty("contentY", qBound(0.0, bottomScroll, maxScroll));
+        QTest::qWait(30);
+        if (rect(reorder).bottom() < rect(listPage).top() - 0.5 ||
+            rect(reorder).bottom() > rect(listPage).bottom() + 0.5) {
+            qWarning("Custom rules reorder hint end cannot be scrolled into view");
+            return false;
+        }
+        flickable->setProperty("contentY", 0);
+        QTest::qWait(30);
+    }
+    return true;
+}
+
+bool checkCustomRuleRow(ApplicationHost& host) {
+    const auto item = [&](const char* name) {
+        return findVisualItem(host.window()->contentItem(), QString::fromLatin1(name));
+    };
+    auto* row = item("user_rule_row_0");
+    const QList<QQuickItem*> parts{item("user_rule_drag_0"),    item("user_rule_description_0"),
+                                   item("user_rule_enabled_0"), item("user_rule_up_0"),
+                                   item("user_rule_down_0"),    item("user_rule_edit_0"),
+                                   item("user_rule_delete_0")};
+    if (!row) {
+        qWarning("Custom rule row was not created");
+        return false;
+    }
+    for (qsizetype i = 0; i < parts.size(); ++i) {
+        auto* part = parts[i];
+        if (!part || part->width() <= 0 || part->height() <= 0) {
+            qWarning() << "Missing or empty custom rule control" << i
+                       << (part ? part->objectName() : QString());
+            return false;
+        }
+        const QRectF bounds(part->mapToItem(row, QPointF()), QSizeF(part->width(), part->height()));
+        if (bounds.left() < -0.5 || bounds.top() < -0.5 || bounds.right() > row->width() + 0.5 ||
+            bounds.bottom() > row->height() + 0.5) {
+            qWarning() << "Custom rule control outside its row" << part->objectName() << bounds
+                       << row->size();
+            return false;
+        }
+        for (qsizetype j = 0; j < i; ++j) {
+            auto* other = parts[j];
+            const QRectF otherBounds(other->mapToItem(row, QPointF()),
+                                     QSizeF(other->width(), other->height()));
+            if (bounds.intersects(otherBounds)) {
+                qWarning() << "Custom rule controls overlap" << part->objectName()
+                           << other->objectName();
+                return false;
+            }
+        }
+    }
     return true;
 }
 } // namespace
@@ -184,17 +346,6 @@ int runRuntimeListProbe(ApplicationHost& host) {
                      {"ready", true},
                      {"selectedId", "selected-fixture"},
                      {"status", "Ready"}});
-    if (!click(host, QStringLiteral("edit_rules")))
-        return 84;
-    auto* rulesEditor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
-    if (!rulesEditor || !rulesEditor->property("visible").toBool() ||
-        rulesEditor->property("profileId") != "selected-fixture" ||
-        rulesEditor->property("kind") != "overlay" || !ui.dataDemands().active.contains("editor"))
-        return 85;
-    QMetaObject::invokeMethod(rulesEditor, "close");
-    QTest::qWait(150);
-    if (ui.dataDemands().active.contains("editor"))
-        return 86;
     ui.applyData({1,
                   "fixture",
                   {{"rule_status", QJsonObject{{"rulePage", QJsonObject{{"loading", true}}}}}},
@@ -215,13 +366,24 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return 196;
     host.resizeWindow(beforeCustomRulesSize);
     QTest::qWait(30);
+    auto* customRulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+    if (!customRulesDialog || !customRulesDialog->property("visible").toBool())
+        return 200;
     if (!ui.dataDemands().active.contains("user_rules") ||
         ui.dataDemands().active.contains("rules"))
         return 182;
+    QJsonArray globalRules;
+    for (int i = 0; i < 12; ++i) {
+        globalRules.append(QJsonObject{{"id", QString("global-%1").arg(i)},
+                                       {"type", "DOMAIN-SUFFIX"},
+                                       {"value", QString("fixture-%1.example").arg(i)},
+                                       {"target", "DIRECT"},
+                                       {"enabled", true}});
+    }
     const QJsonObject customRuleView{{"revision", "revision-1"},
                                      {"profileId", "selected-fixture"},
                                      {"profileName", "Fixture"},
-                                     {"global", QJsonArray{}},
+                                     {"global", globalRules},
                                      {"local", QJsonArray{QJsonObject{{"id", "local"},
                                                                       {"type", "RULE-SET"},
                                                                       {"value", "second"},
@@ -230,40 +392,163 @@ int runRuntimeListProbe(ApplicationHost& host) {
                                      {"groups", QJsonArray{"Alpha"}},
                                      {"providers", QJsonArray{"first", "second"}}};
     ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
+    const auto capturePath = qEnvironmentVariable("QUICKCLASH_RULE_LAYOUT_CAPTURE_DIR");
+    const auto captureRules = [&](const QString& name) {
+        if (!capturePath.isEmpty()) {
+            for (const auto* objectName :
+                 {"user_rules_toolbar", "user_rules_hints", "custom_rules_footer"}) {
+                auto* item = host.window()->findChild<QQuickItem*>(objectName);
+                if (item)
+                    qInfo() << name << objectName << item->width() << item->property("columns");
+            }
+        }
+        return capturePath.isEmpty() ||
+               host.window()->grabWindow().save(QDir(capturePath).filePath(name + ".png"));
+    };
+    host.resizeWindow({1000, 640});
     QTest::qWait(40);
+    if (!captureRules("wide") || !checkCustomRulesLayout(host) || !checkCustomRuleRow(host))
+        return 203;
+    auto* ruleList = host.window()->findChild<QQuickItem*>("user_rule_list");
+    auto* firstRow = findVisualItem(ruleList, "user_rule_row_0");
+    const auto rect = [](QQuickItem* item) {
+        return QRectF(item->mapToScene(QPointF()), QSizeF(item->width(), item->height()));
+    };
+    auto* scopeControl = host.window()->findChild<QQuickItem*>("user_rule_scope");
+    auto* reloadControl = host.window()->findChild<QQuickItem*>("user_rule_reload");
+    auto* addControl = host.window()->findChild<QQuickItem*>("user_rule_add");
+    auto* confirmHint = host.window()->findChild<QQuickItem*>("custom_rules_confirm_hint");
+    auto* confirmControl = host.window()->findChild<QQuickItem*>("confirm_custom_rules");
+    if (!scopeControl || !reloadControl || !addControl || !confirmHint || !confirmControl ||
+        std::abs(rect(scopeControl).top() - rect(reloadControl).top()) > 1 ||
+        std::abs(rect(scopeControl).top() - rect(addControl).top()) > 1 ||
+        rect(confirmHint).bottom() <= rect(confirmControl).top() ||
+        rect(confirmHint).top() >= rect(confirmControl).bottom()) {
+        qWarning("Custom rules toolbar or footer failed to use the available width");
+        return 215;
+    }
+    if (!ruleList || !firstRow || ruleList->property("count").toInt() != globalRules.size() ||
+        ruleList->height() + 4 < 6 * (firstRow->height() + 4)) {
+        qWarning() << "Insufficient visible custom rules" << (ruleList ? ruleList->height() : 0)
+                   << (firstRow ? firstRow->height() : 0);
+        return 209;
+    }
+    const auto shortListHeight = ruleList->height();
+    qInfo() << "Custom rule list viewport and row height:" << shortListHeight << firstRow->height();
+    const auto maxScroll = ruleList->property("contentHeight").toReal() - ruleList->height();
+    if (maxScroll <= 0 || !ruleList->setProperty("contentY", maxScroll))
+        return 210;
+    QTest::qWait(30);
+    if (ruleList->property("contentY").toReal() < maxScroll - 1)
+        return 211;
+    ruleList->setProperty("contentY", 0);
+    host.resizeWindow({1000, 900});
+    QTest::qWait(40);
+    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
+        ruleList->height() < shortListHeight + 100 || !captureRules("tall"))
+        return 212;
+    host.resizeWindow({360, 640});
+    QTest::qWait(40);
+    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("narrow"))
+        return 204;
+    host.resizeWindow({420, 640});
+    QTest::qWait(40);
+    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
+        std::abs(rect(scopeControl).top() - rect(reloadControl).top()) > 1 ||
+        std::abs(rect(scopeControl).top() - rect(addControl).top()) > 1 ||
+        rect(confirmHint).bottom() <= rect(confirmControl).top() ||
+        rect(confirmHint).top() >= rect(confirmControl).bottom()) {
+        qWarning("Custom rules toolbar or footer failed to fit in the narrow window");
+        return 204;
+    }
+    const auto originalFont = host.window()->property("uiFont");
+    auto largeFont = originalFont.value<QFont>();
+    largeFont.setPixelSize(32);
+    host.window()->setProperty("uiFont", largeFont);
+    host.resizeWindow({360, 480});
+    QTest::qWait(60);
+    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("large"))
+        return 205;
     auto* ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    if (!ruleEditor ||
+        !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(-1))))
+        return 207;
+    QTest::qWait(30);
+    if (!ruleEditor->property("formOpen").toBool() || !checkCustomRulesLayout(host, false))
+        return 208;
+    QMetaObject::invokeMethod(ruleEditor, "cancelForm");
+    host.window()->setProperty("uiFont", originalFont);
+    host.resizeWindow({1000, 640});
+    QTest::qWait(40);
     auto* ruleScope = host.window()->findChild<QObject*>("user_rule_scope");
-    auto* saveRules = host.window()->findChild<QObject*>("user_rule_save");
-    auto* ruleDialog = host.window()->findChild<QObject*>("user_rule_dialog");
-    if (!ruleEditor || !ruleScope || !saveRules || !ruleDialog ||
-        !click(host, QStringLiteral("user_rule_add")))
+    auto* confirmRules = host.window()->findChild<QObject*>("confirm_custom_rules");
+    if (!click(host, QStringLiteral("user_rule_down_0")) ||
+        !ruleEditor->property("globalDirty").toBool() || !click(host, "user_rule_reload"))
+        return 213;
+    auto* reloadDialog = host.window()->findChild<QObject*>("user_rule_reload_dialog");
+    if (!reloadDialog || !reloadDialog->property("visible").toBool() ||
+        !QMetaObject::invokeMethod(reloadDialog, "reject") ||
+        !ruleEditor->property("globalDirty").toBool() || !click(host, "user_rule_reload") ||
+        !QMetaObject::invokeMethod(reloadDialog, "accept") ||
+        ruleEditor->property("globalDirty").toBool())
+        return 214;
+    auto* firstHandle = findVisualItem(ruleList, "user_rule_drag_0");
+    auto* secondHandle = findVisualItem(ruleList, "user_rule_drag_1");
+    if (!firstHandle || !secondHandle)
+        return 216;
+    const auto start =
+        firstHandle->mapToScene(QPointF(firstHandle->width() / 2, firstHandle->height() / 2))
+            .toPoint();
+    const auto end =
+        secondHandle->mapToScene(QPointF(secondHandle->width() / 2, secondHandle->height() / 2))
+            .toPoint();
+    QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, start);
+    QTest::mouseMove(host.window(), start + QPoint(0, 15), 20);
+    QTest::mouseMove(host.window(), end, 20);
+    QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier, end);
+    QTest::qWait(40);
+    auto reorderedDraft = ruleEditor->property("globalDraft");
+    if (reorderedDraft.metaType() == QMetaType::fromType<QJSValue>())
+        reorderedDraft = reorderedDraft.value<QJSValue>().toVariant();
+    if (!ruleEditor->property("globalDirty").toBool() ||
+        reorderedDraft.toList().size() != globalRules.size() ||
+        reorderedDraft.toList().first().toMap().value("id") != "global-1" ||
+        !click(host, "user_rule_reload") || !QMetaObject::invokeMethod(reloadDialog, "accept") ||
+        ruleEditor->property("globalDirty").toBool())
+        return 217;
+    host.resizeWindow(beforeCustomRulesSize);
+    QTest::qWait(40);
+    if (!ruleEditor || !ruleScope || !confirmRules || !click(host, QStringLiteral("user_rule_add")))
         return 183;
     auto* ruleValue = host.window()->findChild<QObject*>("user_rule_value");
-    if (!ruleValue || !ruleDialog->property("visible").toBool())
+    if (!ruleValue || !ruleEditor->property("formOpen").toBool())
         return 184;
+    if (!checkCustomRulesLayout(host, false))
+        return 206;
     ruleValue->setProperty("text", "example.com");
-    QMetaObject::invokeMethod(ruleDialog, "accept");
+    QMetaObject::invokeMethod(ruleEditor, "saveRuleForm");
     QTest::qWait(40);
-    if (!ruleEditor->property("globalDirty").toBool() || !saveRules->property("enabled").toBool())
+    if (!ruleEditor->property("globalDirty").toBool() ||
+        !confirmRules->property("enabled").toBool())
         return 185;
     ruleScope->setProperty("currentIndex", 1);
     QTest::qWait(30);
-    if (saveRules->property("enabled").toBool() ||
+    if (!confirmRules->property("enabled").toBool() ||
         !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(0))))
         return 186;
     auto* providerChoice = host.window()->findChild<QObject*>("user_rule_provider");
     if (!providerChoice || providerChoice->property("currentIndex").toInt() != 1)
         return 187;
-    QMetaObject::invokeMethod(ruleDialog, "reject");
-    ui.applyControl({{"publicationGeneration", "1"},
-                     {"epoch", "fixture"},
-                     {"ready", true},
-                     {"selectedId", "selected-fixture"},
-                     {"status", "Ready"},
-                     {"features", QJsonObject{{"userRuleBinding",
-                                               QJsonObject{{"profileId", "other"},
-                                                           {"profileName", "Other"},
-                                                           {"groups", QJsonArray{}}}}}}});
+    QMetaObject::invokeMethod(ruleEditor, "cancelForm");
+    ui.applyControl(
+        {{"publicationGeneration", "1"},
+         {"epoch", "fixture"},
+         {"ready", true},
+         {"selectedId", "selected-fixture"},
+         {"status", "Ready"},
+         {"features", QJsonObject{{"userRuleBinding", QJsonObject{{"profileId", "other"},
+                                                                  {"profileName", "Other"},
+                                                                  {"groups", QJsonArray{}}}}}}});
     QTest::qWait(30);
     auto* bindingDialog = host.window()->findChild<QObject*>("user_rule_binding_dialog");
     auto* bindingGroup = host.window()->findChild<QObject*>("user_rule_binding_group");
@@ -296,7 +581,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
     if (!section || !view)
         return 191;
-    section->setProperty("currentIndex", 2);
+    if (!click(host, QStringLiteral("open_custom_rules")))
+        return 201;
     QTest::qWait(30);
     ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
     QTest::qWait(30);
@@ -306,9 +592,12 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto restoredDraft = ruleEditor->property("globalDraft");
     if (restoredDraft.metaType() == QMetaType::fromType<QJSValue>())
         restoredDraft = restoredDraft.value<QJSValue>().toVariant();
-    if (restoredDraft.toList().size() != 1 ||
-        restoredDraft.toList().first().toMap().value("value") != "example.com")
+    if (restoredDraft.toList().size() != globalRules.size() + 1 ||
+        restoredDraft.toList().last().toMap().value("value") != "example.com")
         return 197;
+    if (!click(host, QStringLiteral("cancel_custom_rules")))
+        return 202;
+    QTest::qWait(30);
     section->setProperty("currentIndex", 1);
     QTest::qWait(30);
     if (ui.liveRules()->count() != 0 || ui.dataDemands().active.contains("rules") ||

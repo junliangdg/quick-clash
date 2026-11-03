@@ -234,6 +234,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
     });
     connect(&engine_, &infra::EngineSession::stopped, this, [this](bool unexpected) {
         effectivePreferences_ = {};
+        effectiveProfileId_.clear();
+        sessionProfileId_.clear();
         invalidateWebsiteTest();
         for (const auto& stream :
              {QStringLiteral("connections"), QStringLiteral("rules"), QStringLiteral("providers"),
@@ -2011,6 +2013,7 @@ void DesktopRuntime::launch() {
     semantic = {}; // Engine/service startup must not nest underneath retained YAML buffers.
     status_ = QStringLiteral("Starting");
     sessionPreferences_ = runtimePreferences_;
+    sessionProfileId_ = applyingId_.isEmpty() ? selectedId_ : applyingId_;
     publish();
     engine_.start(
         coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory), secret_,
@@ -2021,8 +2024,10 @@ void DesktopRuntime::launch() {
         runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString());
 }
 void DesktopRuntime::confirmed() {
-    if (engine_.ready())
+    if (engine_.ready()) {
         effectivePreferences_ = sessionPreferences_;
+        effectiveProfileId_ = sessionProfileId_;
+    }
     QString networkFailure;
     if (startAfter_ && applying_ && !recovering_) {
         const auto result = repository_.phase(QStringLiteral("CoreConfirmed"));
