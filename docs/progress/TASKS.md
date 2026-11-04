@@ -4,6 +4,8 @@
 
 ## 进行中
 
+- **GitHub Actions 单实例测试失败** — 状态：进行中；用户提供的 Windows 快速回归为 34/35，原日志未显示单项失败原因。本机复现同类竞态：主进程已收到请求并返回完整应答，Windows 子进程的写入等待却因对端快速断开返回失败（待写 0、已收 3 字节），旧实现错误丢弃成功应答；远端失败是否同因仍待核对。现按有界、带期限的完整应答判定成功，拒绝错误、截断及缺失应答；测试覆盖后台不激活、手动激活、即时/分片应答、无效/截断/空应答及连接保持超时，并输出失败细节。修复前隔离对照可失败；修复后 Qt 6.9/MSVC Windows 备用目录增量构建通过，Actions 快速范围 35/35 Pass，最终单实例回归连续 20 次 Pass。原 build/dev 因已有运行中的 quickclash.exe 占用而链接失败，未终止用户进程；原始日志在 build/。完整 48 项、远端 Actions/发行及其他平台 NotRun；下一步推送后核查失败 job 的单项日志及远端重跑结果。
+
 - **GitHub Actions 验证范围优化** — 状态：进行中；已按打包发布用途精简：PR/main 使用快速 Windows 构建、QML 检查及回归，纯文档仅仓库检查，`v*` 标签或手动 `full_validation` 保留完整 Windows/headless/官方内核验证；统一 product/full/publish 判定，并在同一 PowerShell 进程复用 MSVC 和构建目录打包，发布 job 仅下载并发布校验后的成品。Windows 托管构建预算统一 1200 秒；更新官方 Actions 及 Ubuntu 24.04/macOS 15 runner。actionlint、25 项范围选择、仓库/脚本检查、三平台 Python 依赖解析及隔离在线/离线资产校验通过。本机 Qt 6.9 完整初跑 47/48，定位并修复 `runtime` 测试时钟与内核观测时间偏移，定向 `runtime/contracts` 2/2 通过；更新后 headless 6/6、官方内核探针通过；按实际 workflow 原步骤复验快速测试 35/35、production 重建、清开发 Qt PATH 的部署启动及 ZIP/SHA256 校验通过，结束后已恢复并重建开发配置。完整套件未在修复后整体重跑，GitHub 远端构建/发布及 Linux/macOS 原生执行仍待核对，过程与下一步见[记录](DEVLOG.md#2026-11-04--github-actions-打包发布精简与本机核验)。
 
 - **Qt 最低版本提升到 6.9** — 状态：进行中；CMake、CI、构建/打包默认值及活动文档已统一到 Qt 6.9/6.9.0。本机现已具备 Qt 6.9.0，Windows MSVC 19.51 完整目标增量构建及 QML 检查通过，原配置/工具链受阻记录不再代表当前本机状态；完整测试初跑 47/48，修复测试时钟偏移后受影响的 `runtime/contracts` 2/2 通过，headless 6/6。下一步核对 windows-2022 托管工具链及 Linux/macOS 原生 Qt 6.9 构建结果，不把本机较新编译器结果外推到未测平台。

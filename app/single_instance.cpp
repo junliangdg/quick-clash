@@ -2,6 +2,7 @@
 #include <QByteArray>
 #include <QCryptographicHash>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QLocalSocket>
 #include <QTimer>
 #include <QVariant>
@@ -49,17 +50,39 @@ SingleInstance::SingleInstance(QString key, QObject* parent) : QObject(parent) {
 SingleInstance::Result SingleInstance::start(bool activate) {
     if (!lock_->tryLock(0)) {
         QLocalSocket client;
+        client.setReadBufferSize(64);
         client.connectToServer(endpoint_);
         if (!client.waitForConnected(1000)) {
             return Result::Unavailable;
         }
-        client.write(activate ? "activate\n" : "background\n");
-        if ((client.bytesToWrite() > 0 && !client.waitForBytesWritten(1000)) ||
-            (client.bytesAvailable() == 0 && !client.waitForReadyRead(1000))) {
+        const QByteArray message =
+            activate ? QByteArrayLiteral("activate\n") : QByteArrayLiteral("background\n");
+        if (client.write(message) != message.size()) {
             return Result::Unavailable;
         }
-        return client.readAll() == QByteArrayLiteral("ok\n") ? Result::Activated
-                                                             : Result::Unavailable;
+        if (client.bytesToWrite() > 0) {
+            // A fast peer can reply and close before the write wait reports success.
+            // The complete acknowledgement, not this wait's return value, decides success.
+            client.waitForBytesWritten(1000);
+        }
+        const QByteArray expected = QByteArrayLiteral("ok\n");
+        QByteArray response;
+        QElapsedTimer timer;
+        timer.start();
+        for (;;) {
+            response += client.readAll();
+            if (response == expected) {
+                return Result::Activated;
+            }
+            if (!expected.startsWith(response)) {
+                return Result::Unavailable;
+            }
+            const auto remaining = 1000 - timer.elapsed();
+            if (remaining <= 0 || (!client.waitForReadyRead(static_cast<int>(remaining)) &&
+                                   client.bytesAvailable() == 0)) {
+                return Result::Unavailable;
+            }
+        }
     }
     // Only the process holding the election lock may remove a stale IPC endpoint.
     QLocalServer::removeServer(endpoint_);
