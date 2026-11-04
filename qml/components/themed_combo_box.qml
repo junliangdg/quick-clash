@@ -11,9 +11,19 @@ ComboBox {
     property var optionLabels: []
     property var optionDescriptions: []
     property var optionDelays: []
+    // Optional provider avoids building presentation data for the whole model.
+    // The revision invalidates the current item and instantiated popup delegates.
+    property var optionStateProvider: null
+    property var optionStateRevision: 0
     property bool delaysStale: false
-    readonly property var currentDelay: currentIndex >= 0 && optionDelays.length > currentIndex ? optionDelays[currentIndex] : ({})
-    readonly property string currentLabel: currentIndex >= 0 && optionLabels.length > currentIndex ? optionLabels[currentIndex] : currentText
+    function optionState(index): var {
+        const revision = optionStateRevision;
+        const provider = optionStateProvider;
+        return provider && index >= 0 && index < count ? provider(index) : null;
+    }
+    readonly property var currentOptionState: optionState(currentIndex)
+    readonly property var currentDelay: currentOptionState !== null ? currentOptionState : currentIndex >= 0 && optionDelays.length > currentIndex ? optionDelays[currentIndex] : ({})
+    readonly property string currentLabel: currentOptionState !== null ? currentOptionState.nameLabel : currentIndex >= 0 && optionLabels.length > currentIndex ? optionLabels[currentIndex] : currentText
     readonly property string defaultDisplayText: currentLabel + (currentDelay.hasDelay ? " · " + currentDelay.text : "")
     displayText: defaultDisplayText
     font.family: theme.fontFamily
@@ -59,16 +69,19 @@ ComboBox {
     }
     delegate: ItemDelegate {
         id: entry
+        objectName: "themed_combo_option_" + index
         required property int index
         required property var model
         width: ListView.view.width
         height: control.theme.rowHeight
         highlighted: control.highlightedIndex === index
-        readonly property string nameLabel: control.optionLabels.length > index ? control.optionLabels[index] : control.textRole ? model[control.textRole] : model.modelData
-        readonly property var delay: control.optionDelays.length > index ? control.optionDelays[index] : ({})
+        readonly property var optionState: control.optionState(index)
+        readonly property string nameLabel: optionState !== null ? optionState.nameLabel : control.optionLabels.length > index ? control.optionLabels[index] : control.textRole ? model[control.textRole] : model.modelData
+        readonly property var delay: optionState !== null ? optionState : control.optionDelays.length > index ? control.optionDelays[index] : ({})
+        readonly property string description: optionState !== null ? optionState.description : control.optionDescriptions.length > index ? control.optionDescriptions[index] : ""
         text: nameLabel + (delay.hasDelay ? " · " + delay.text : "")
-        Accessible.description: control.optionDescriptions.length > index ? control.optionDescriptions[index] : ""
-        ThemedToolTip { theme: control.theme; visible: entry.hovered && text.length > 0; text: control.optionDescriptions.length > entry.index ? control.optionDescriptions[entry.index] : "" }
+        Accessible.description: description
+        ThemedToolTip { theme: control.theme; visible: entry.hovered && text.length > 0; text: entry.description }
         font: control.font
         contentItem: RowLayout {
             spacing: 12

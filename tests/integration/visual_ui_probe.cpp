@@ -128,6 +128,7 @@ int runVisualProbe(ApplicationHost& host) {
                               {"type", "Selector"},
                               {"members", members},
                               {"current", members.first()},
+                              {"testTargetHash", "visual-target"},
                               {"canSelect", true}});
     groups.append(QJsonObject{{"name", "自动选择"},
                               {"type", "URLTest"},
@@ -497,12 +498,53 @@ int runVisualProbe(ApplicationHost& host) {
         const auto selector = objects("home_proxy_selector");
         if (selector.size() != 1 || !selector.first()->isVisible())
             return 125;
+        const auto counts = objects("home_proxy_counts");
+        if (counts.size() != 1 || !counts.first()->property("text").toString().contains("2") ||
+            !counts.first()->property("text").toString().contains("6"))
+            return 202;
+        auto changedGroups = groups;
+        auto changedPrimary = changedGroups.first().toObject();
+        changedPrimary.insert("current", members[1]);
+        changedGroups[0] = changedPrimary;
+        ui.applyData(
+            {1, "visual-fixture", {{"groups", changedGroups}}, ui.dataDemands().generations});
+        QTest::qWait(30);
+        if (selector.first()->property("currentText").toString() != members[1].toString())
+            return 203;
+        ui.applyData({1, "visual-fixture", {{"groups", groups}}, ui.dataDemands().generations});
+        QTest::qWait(30);
         const auto delayValues = objects("home_delay_value");
         if (!selector.first()->property("displayText").toString().contains("38 ms") ||
             selector.first()->property("currentText").toString() != members.first().toString() ||
             delayValues.size() != 1 || delayValues.first()->property("text") != "38 ms" ||
             ui.proxyState(members.first().toString()).value("description").toString().isEmpty())
             return 131;
+        const auto observation = [](const QString& state, int delay, const QString& target) {
+            return QJsonObject{{"state", state},
+                               {"delayMs", delay},
+                               {"source", "Manual"},
+                               {"targetHash", target},
+                               {"time", "2026-11-01T05:00:00Z"}};
+        };
+        const auto publishDelays = [&](const QString& firstState, const QString& secondState) {
+            const QJsonObject first{
+                {"latest", observation("Success", 88, "other-target")},
+                {"records", QJsonArray{observation(firstState, 71, "visual-target")}}};
+            const QJsonObject second{
+                {"latest", observation("Success", 99, "other-target")},
+                {"records", QJsonArray{observation(secondState, 69, "visual-target")}}};
+            const QJsonObject details{{members.first().toString(), first},
+                                      {members[1].toString(), second}};
+            ui.applyData(
+                {1, "visual-fixture", {{"delay_details", details}}, ui.dataDemands().generations});
+            QTest::qWait(30);
+        };
+        publishDelays("Success", "Success");
+        if (!selector.first()->property("displayText").toString().contains("71 ms") ||
+            selector.first()->property("currentText").toString() != members.first().toString() ||
+            delayValues.first()->property("text") != "71 ms" ||
+            ui.proxyState(members.first().toString()).value("result") != "88 ms")
+            return 198;
         const auto proxyCards = objects("home_proxy_card");
         auto* proxyViewport = proxyCards.first()->parentItem();
         while (proxyViewport && !proxyViewport->inherits("QQuickFlickable"))
@@ -516,18 +558,66 @@ int runVisualProbe(ApplicationHost& host) {
         if (!proxyPopup || !QMetaObject::invokeMethod(proxyPopup, "open") ||
             !capture(theme + "_proxy_dropdown"))
             return 131;
+        auto firstOption = objects("themed_combo_option_0");
+        auto secondOption = objects("themed_combo_option_1");
+        if (firstOption.size() != 1 || secondOption.size() != 1 ||
+            !firstOption.first()->property("text").toString().contains("71 ms") ||
+            !secondOption.first()->property("text").toString().contains("69 ms") ||
+            secondOption.first()->property("description").toString().isEmpty())
+            return 199;
+        publishDelays("Testing", "Cancelled");
+        firstOption = objects("themed_combo_option_0");
+        secondOption = objects("themed_combo_option_1");
+        const auto firstText = ui.proxyState(members.first().toString(), "节点选择").value("text");
+        const auto secondText = ui.proxyState(members[1].toString(), "节点选择").value("text");
+        if (firstOption.size() != 1 || secondOption.size() != 1 ||
+            !firstOption.first()->property("text").toString().contains(firstText.toString()) ||
+            !secondOption.first()->property("text").toString().contains(secondText.toString()) ||
+            !selector.first()->property("displayText").toString().contains(firstText.toString()))
+            return 200;
+        populate();
+        QTest::qWait(30);
+        if (!selector.first()->setProperty("currentIndex", 1) ||
+            selector.first()->property("currentText").toString() != members[1].toString() ||
+            !selector.first()
+                 ->property("displayText")
+                 .toString()
+                 .contains(
+                     ui.proxyState(members[1].toString(), "节点选择").value("text").toString()) ||
+            !selector.first()->setProperty("currentIndex", 0))
+            return 201;
         QMetaObject::invokeMethod(proxyPopup, "close");
         proxyViewport->setProperty("contentY", 0);
         const auto resourceGeneration = ui.dataDemands().generations.value("resources");
+        if (!objects("home_resource_details").isEmpty())
+            return 194;
         ui.setDashboardOption("resources", true);
         QTest::qWait(20);
-        if (!ui.dataDemands().active.contains("resources"))
+        if (!ui.dataDemands().active.contains("resources") ||
+            objects("home_resource_details").size() != 1)
             return 126;
         ui.setDashboardOption("resources", false);
         QTest::qWait(20);
         if (!ui.dataDemands().active.contains("resources") ||
-            ui.dataDemands().generations.value("resources") != resourceGeneration)
+            ui.dataDemands().generations.value("resources") != resourceGeneration ||
+            !objects("home_resource_details").isEmpty())
             return 126;
+        const auto tools = objects("home_network_tools");
+        if (tools.size() != 1 || !tools.first()->setProperty("family", "v6"))
+            return 195;
+        ui.setDashboardOption("ip", false);
+        ui.setDashboardOption("sites", false);
+        QTest::qWait(20);
+        if (!objects("home_ip_section").isEmpty() || !objects("home_sites_section").isEmpty())
+            return 196;
+        ui.setDashboardOption("ip", true);
+        ui.setDashboardOption("sites", true);
+        QTest::qWait(20);
+        const auto family = objects("home_ip_family");
+        if (objects("home_ip_section").size() != 1 || objects("home_sites_section").size() != 1 ||
+            family.size() != 1 || family.first()->property("currentIndex").toInt() != 1 ||
+            !tools.first()->setProperty("family", "v4"))
+            return 197;
         populate();
         QTest::qWait(20);
         const auto memory = objects("home_runtime_client");

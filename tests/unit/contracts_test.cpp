@@ -101,7 +101,11 @@ int main(int argc, char* argv[]) {
             const auto latest = [&] {
                 return latency.details(now).value("node").toObject().value("latest").toObject();
             };
-            latency.ingest(objects(41, -1), now);
+            check(latency.ingest(objects(41, -1), now),
+                  "first core observations change the cached latency data");
+            const auto originalDetails = latency.details(now);
+            check(!latency.ingest(objects(41, -1), now) && latency.details(now) == originalDetails,
+                  "identical core histories leave the latency projection unchanged");
             check(latest().value("delayMs") == 41 && latest().value("source") == "Core" &&
                       latency.details(now)
                               .value("node")
@@ -112,11 +116,13 @@ int main(int argc, char* argv[]) {
                   "core latency retains separate targets and latest timestamp");
             check(!QJsonDocument(latency.details(now)).toJson().contains("secret=x"),
                   "probe targets do not leak into shared data");
-            latency.ingest(objects(12, -10), now);
+            check(!latency.ingest(objects(12, -10), now),
+                  "older core histories do not invalidate the cached projection");
             check(latest().value("delayMs") == 41,
                   "older core response cannot overwrite newer observation");
             latency.manual("node", "https://other.invalid/", "Testing", now);
-            latency.ingest(objects(21, 1), now.addSecs(1));
+            check(latency.ingest(objects(21, 1), now.addSecs(1)),
+                  "a newer core observation invalidates the cached projection");
             check(latest().value("state") == "Testing", "refresh preserves active manual test");
             latency.manual("node", "https://other.invalid/", "Cancelled", now.addSecs(2));
             auto cancelled = objects(21, 1);
@@ -172,8 +178,9 @@ int main(int argc, char* argv[]) {
                           .toArray()
                           .size() == 8,
                   "per-node target cache is bounded");
-            latency.ingest({}, now);
-            check(latency.details(now).isEmpty(), "removed nodes release latency observations");
+            check(latency.ingest({}, now) && latency.details(now).isEmpty() &&
+                      !latency.ingest({}, now),
+                  "removed nodes release and invalidate their observations only once");
             const auto record = [&](const QString& target) {
                 const auto records =
                     latency.details(now).value("node").toObject().value("records").toArray();

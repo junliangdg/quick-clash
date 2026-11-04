@@ -25,15 +25,16 @@ QString ProxyLatency::text(const QJsonObject& observation) {
         return QString::number(observation.value("delayMs").toInt()) + " ms";
     return observation.value("state").toString();
 }
-void ProxyLatency::insert(const QString& name, QJsonObject observation) {
+bool ProxyLatency::insert(const QString& name, QJsonObject observation) {
     auto targets = records_.value(name).toObject();
     const auto key = observation.value("targetHash").toString();
     const auto old = targets.value(key).toObject();
     if (!old.isEmpty() && timestamp(old) >= timestamp(observation))
-        return;
+        return false;
     targets.insert(key, observation);
     records_.insert(name, targets);
     trim(name);
+    return true;
 }
 void ProxyLatency::trim(const QString& name) {
     auto records = records_.value(name).toObject();
@@ -63,7 +64,8 @@ void ProxyLatency::trim(const QString& name) {
     else
         manual_.remove(name);
 }
-void ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
+bool ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
+    bool changed = false;
     QSet<QString> names;
     for (auto it = proxies.begin(); it != proxies.end() && names.size() < 5500; ++it) {
         const auto proxy = it.value().toObject();
@@ -85,11 +87,11 @@ void ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
                     cancelled.value("targetHash") == hash &&
                     time <= timestamp(cancelled).addSecs(5))
                     continue; // The controller may finish a probe after local cancellation.
-                insert(it.key(), {{"targetHash", hash},
-                                  {"source", "Core"},
-                                  {"time", time.toUTC().toString(Qt::ISODateWithMs)},
-                                  {"state", delay > 0 ? "Success" : "Failed"},
-                                  {"delayMs", static_cast<int>(delay)}});
+                changed |= insert(it.key(), {{"targetHash", hash},
+                                             {"source", "Core"},
+                                             {"time", time.toUTC().toString(Qt::ISODateWithMs)},
+                                             {"state", delay > 0 ? "Success" : "Failed"},
+                                             {"delayMs", static_cast<int>(delay)}});
             }
         };
         const auto extra = proxy.value("extra").toObject();
@@ -103,12 +105,17 @@ void ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
                                   targetHash(target.key()));
         }
     }
-    for (auto* values : {&records_, &manual_})
-        for (auto it = values->begin(); it != values->end();)
-            if (!names.contains(it.key()))
+    for (auto* values : {&records_, &manual_}) {
+        for (auto it = values->begin(); it != values->end();) {
+            if (!names.contains(it.key())) {
                 it = values->erase(it);
-            else
+                changed = true;
+            } else {
                 ++it;
+            }
+        }
+    }
+    return changed;
 }
 void ProxyLatency::manual(const QString& name, const QString& target, const QString& state,
                           const QDateTime& time, int delay) {

@@ -352,8 +352,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     domain::ProxyLatency proxyLatency_;
     QJsonObject delayDetails_;
     QDateTime delayExpiry_;
+    QDateTime delayViewsAt_;
     QJsonObject delays_;
-    QHash<QString, QDateTime> delayTimes_;
+    // The contract projection is shared by control snapshots until latency changes.
+    QJsonObject delayTimes_;
     bool delayRunning_ = false;
     QList<DelayProbe> delayQueue_;
     QHash<QString, DelayProbe> activeDelays_;

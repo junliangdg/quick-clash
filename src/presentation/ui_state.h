@@ -49,10 +49,14 @@ class UiState : public QObject {
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
     Q_PROPERTY(QVariantList groups READ groups NOTIFY groupsChanged)
+    Q_PROPERTY(int groupCount READ groupCount NOTIFY groupsChanged)
+    Q_PROPERTY(quint64 proxyGroupRevision READ proxyGroupRevision NOTIFY groupsChanged)
     Q_PROPERTY(QVariantList nodes READ nodes NOTIFY nodesChanged)
+    Q_PROPERTY(int nodeCount READ nodeCount NOTIFY nodesChanged)
     Q_PROPERTY(QVariantMap delays READ delays NOTIFY delaysChanged)
     Q_PROPERTY(QVariantMap delayDetails READ delayDetails NOTIFY delaysChanged)
     Q_PROPERTY(QVariantMap proxyStates READ proxyStates NOTIFY proxyStatesChanged)
+    Q_PROPERTY(quint64 proxyStateRevision READ proxyStateRevision NOTIFY proxyStatesChanged)
     Q_PROPERTY(
         quickclash::presentation::RuntimeListModel* liveConnections READ liveConnections CONSTANT)
     Q_PROPERTY(quickclash::presentation::RuntimeListModel* liveRules READ liveRules CONSTANT)
@@ -108,8 +112,18 @@ class UiState : public QObject {
     [[nodiscard]] QVariantList groups() const {
         return groups_;
     }
+    [[nodiscard]] int groupCount() const {
+        return static_cast<int>(groups_.size());
+    }
+    [[nodiscard]] quint64 proxyGroupRevision() const {
+        return proxyGroupRevision_;
+    }
+    Q_INVOKABLE QVariantMap proxyGroup(const QString& name) const;
     [[nodiscard]] QVariantList nodes() const {
         return nodes_;
+    }
+    [[nodiscard]] int nodeCount() const {
+        return static_cast<int>(nodes_.size());
     }
     [[nodiscard]] QVariantMap delays() const {
         return delays_;
@@ -117,8 +131,11 @@ class UiState : public QObject {
     [[nodiscard]] QVariantMap delayDetails() const {
         return delayDetails_;
     }
-    [[nodiscard]] QVariantMap proxyStates() const {
-        return proxyStates_;
+    // Compatibility projection for explicit consumers; normal UI bindings use the
+    // revision and request only the currently displayed states.
+    [[nodiscard]] QVariantMap proxyStates() const;
+    [[nodiscard]] quint64 proxyStateRevision() const {
+        return proxyStateRevision_;
     }
     Q_INVOKABLE QVariantMap proxyState(const QString& name, const QString& group = {}) const;
     [[nodiscard]] RuntimeListModel* liveConnections() {
@@ -318,11 +335,12 @@ class UiState : public QObject {
     ProfileRowModel profileRows_{&profileModel_, this};
     QVariantList groups_;
     QVariantList nodes_;
+    quint64 proxyGroupRevision_ = 0;
     QVariantMap delays_;
     QVariantMap delayDetails_;
-    QVariantMap proxyStates_;
+    quint64 proxyStateRevision_ = 0;
     QHash<QString, QVariantMap> proxyGroups_;
-    void rebuildProxyStates();
+    void updateProxyStates(bool groupsChanged);
     QVariantMap telemetry_;
     QJsonObject appliedData_;
     quint64 publicationGeneration_ = 0;

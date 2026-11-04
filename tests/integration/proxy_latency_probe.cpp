@@ -1,6 +1,7 @@
 #include "proxy_latency_probe.h"
 #include "application/desktop_runtime.h"
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonDocument>
@@ -70,7 +71,13 @@ int proxyLatencyProbe() {
     infra::JsonStore store(directory.path());
     if (!std::holds_alternative<std::monostate>(store.open()))
         return 2;
-    application::DesktopRuntime runtime(store);
+    QJsonObject publishedControl;
+    qint64 clockOffsetSeconds = 0;
+    application::DesktopRuntime runtime(store, nullptr, nullptr, [&clockOffsetSeconds] {
+        return QDateTime::currentDateTimeUtc().addSecs(clockOffsetSeconds);
+    });
+    QObject::connect(&runtime, &application::DesktopRuntime::changed, &runtime,
+                     [&publishedControl](const QJsonObject& state) { publishedControl = state; });
     runtime.initialize();
     int mixed = freePort(), controller = freePort();
     while (mixed == controller)
@@ -133,6 +140,12 @@ int proxyLatencyProbe() {
                             .toObject();
     if (detail.value("source") != "Core" || detail.value("time").toString().isEmpty())
         return 9;
+    const auto expectedTime =
+        QDateTime::fromString(detail.value("time").toString(), Qt::ISODateWithMs)
+            .toString(Qt::ISODate);
+    const auto controlTimes = publishedControl.value("features").toObject().value("delayTimes");
+    if (expectedTime.isEmpty() || controlTimes.toObject().value("good") != expectedTime)
+        return 20;
     const auto before = requests;
     for (int i = 0; i < 10; ++i)
         runtime.featureCommand("refresh_groups", {});
@@ -142,7 +155,8 @@ int proxyLatencyProbe() {
         QCoreApplication::processEvents();
         QThread::msleep(2);
     }
-    if (requests != before || !synchronized())
+    if (requests != before || !synchronized() ||
+        publishedControl.value("features").toObject().value("delayTimes") != controlTimes)
         return 10;
     const auto progress = [&] {
         return runtime.snapshot().value("features").toObject().value("delayTest").toObject();
@@ -165,9 +179,21 @@ int proxyLatencyProbe() {
     const auto initialHealth = targets.value("/health");
     runtime.featureCommand("delay", {"good", "auto"});
     if (record("good", healthTarget).value("state") != "Testing" ||
+        publishedControl.value("features")
+            .toObject()
+            .value("delayTimes")
+            .toObject()
+            .contains("good") ||
         !wait([&] { return progress().value("state") == "Completed"; }) ||
         targets.value("/health") != initialHealth + 1 ||
-        record("good", healthTarget).value("state") != "Success")
+        record("good", healthTarget).value("state") != "Success" ||
+        publishedControl.value("features")
+            .toObject()
+            .value("delayTimes")
+            .toObject()
+            .value("good")
+            .toString()
+            .isEmpty())
         return 13;
     const auto afterSingle = requests;
     runtime.featureCommand("delay", {"parent"});
@@ -230,12 +256,37 @@ int proxyLatencyProbe() {
         }) ||
         runtime.snapshot().value("delays").toObject().value("bad") != "Failed")
         return 11;
+    // The projection is reused on unchanged core polls, but must still age and
+    // recover if the wall clock jumps forward and then back.
+    clockOffsetSeconds = 601;
+    runtime.featureCommand("refresh_groups", {});
+    if (!wait([&] {
+            return record("good", healthTarget).value("state") == "Stale" &&
+                   !publishedControl.value("features")
+                        .toObject()
+                        .value("delayTimes")
+                        .toObject()
+                        .contains("good");
+        }))
+        return 21;
+    clockOffsetSeconds = 0;
+    runtime.featureCommand("refresh_groups", {});
+    if (!wait([&] {
+            return record("good", healthTarget).value("state") == "Success" &&
+                   publishedControl.value("features")
+                       .toObject()
+                       .value("delayTimes")
+                       .toObject()
+                       .contains("good");
+        }))
+        return 22;
     runtime.stop();
-    if (!runtime.snapshot().value("delay_details").toObject().isEmpty())
+    if (!runtime.snapshot().value("delay_details").toObject().isEmpty() ||
+        !publishedControl.value("features").toObject().value("delayTimes").toObject().isEmpty())
         return 12;
     std::cout << "Core health/manual latency: group target, nested exit, cross-group dedup, "
-                 "parallel targets, cancellation/late replies, target isolation, readback and stop "
-                 "passed";
+                 "parallel targets, cancellation/late replies, target isolation, clock changes, "
+                 "readback and stop passed";
     return 0;
 }
 } // namespace quickclash::test

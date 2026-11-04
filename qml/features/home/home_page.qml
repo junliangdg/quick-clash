@@ -117,7 +117,8 @@ ThemedScrollView {
                         Component.onCompleted: root.profileRevision += 1
                     }
                     Label {
-                        text: qsTr("%1 proxy groups · %2 nodes").arg(root.ui.groups.length).arg(root.ui.nodes.length)
+                        objectName: "home_proxy_counts"
+                        text: qsTr("%1 proxy groups · %2 nodes").arg(root.ui.groupCount).arg(root.ui.nodeCount)
                         color: root.theme.muted
                         font.pixelSize: root.theme.scaledSize(12)
                         Layout.fillWidth: true

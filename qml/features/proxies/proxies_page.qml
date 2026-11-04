@@ -15,7 +15,7 @@ Item {
     readonly property var runtime: ui.runtime
     readonly property var groups: ui.groups.filter(group => group.name !== "GLOBAL" || (runtime.preferences || {}).mode === "global" || ui.groups.length === 1)
     readonly property var nodes: ui.nodes
-    readonly property var states: ui.proxyStates
+    readonly property var stateRevision: ui.proxyStateRevision
     readonly property var progress: (runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
     readonly property bool active: ui.uiVisible && visible && !ui.replay
@@ -415,7 +415,7 @@ Item {
                                     readonly property int memberIndex: (nodeGrid.firstRow + (slotRow + nodeGrid.rowShift) % nodeGrid.poolRows) * groupTile.nodeColumns + index % groupTile.nodeColumns
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
                                     readonly property var proxyState: {
-                                        const shared = root.states;
+                                        const revision = root.stateRevision;
                                         return root.ui.proxyState(modelData, groupTile.modelData.name);
                                     }
                                     readonly property bool current: groupTile.modelData.current === modelData

@@ -11,18 +11,12 @@ ColumnLayout {
     readonly property var outbound: ui.runtime.outbound || ({})
     readonly property var features: ui.runtime.features || ({})
     readonly property var currentProxy: {
-        const states = ui.proxyStates;
+        const revision = ui.proxyStateRevision;
         return ui.proxyState(outbound.policy || outbound.node || "");
     }
-    readonly property var memberStates: {
-        const states = ui.proxyStates;
-        return (primary.members || []).map(name => ui.proxyState(name, primary.name));
-    }
     readonly property var primary: {
-        for (const group of ui.groups)
-            if (group.name === outbound.policy)
-                return group;
-        return ({});
+        const revision = ui.proxyGroupRevision;
+        return ui.proxyGroup(outbound.policy || "");
     }
     readonly property bool tunOn: ui.runtime.tunState === "On"
     spacing: 12
@@ -154,9 +148,8 @@ ColumnLayout {
                 visible: root.primary.canSelect === true && root.outbound.mode !== "direct"
                 enabled: !!root.ui.runtime.ready && !root.ui.runtime.busy && !root.features.groupsStale
                 model: root.primary.members || []
-                optionLabels: root.memberStates.map(state => state.nameLabel)
-                optionDescriptions: root.memberStates.map(state => state.description)
-                optionDelays: root.memberStates
+                optionStateRevision: root.ui.proxyStateRevision
+                optionStateProvider: index => root.ui.proxyState((root.primary.members || [])[index] || "", root.primary.name || "")
                 delaysStale: !!root.features.groupsStale
                 currentIndex: (root.primary.members || []).indexOf(root.primary.current)
                 onActivated: root.ui.runtimeCommand("proxy", [root.primary.name, currentText])

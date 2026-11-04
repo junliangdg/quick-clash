@@ -32,6 +32,14 @@ int main(int argc, char* argv[]) {
         FeatureRegistry registry;
         {
             UiState proxies;
+            int stateNotifications = 0;
+            quint64 signalledGroupRevision = 0;
+            QVariantMap signalledGroup;
+            QObject::connect(&proxies, &UiState::proxyStatesChanged, [&] { ++stateNotifications; });
+            QObject::connect(&proxies, &UiState::groupsChanged, [&] {
+                signalledGroupRevision = proxies.proxyGroupRevision();
+                signalledGroup = proxies.proxyGroup("auto");
+            });
             const auto groupTarget =
                 quickclash::domain::ProxyLatency::targetHash("https://group.invalid/");
             const QJsonObject groupRecord{{"state", "Success"},
@@ -66,6 +74,12 @@ int main(int argc, char* argv[]) {
                    QJsonObject{
                        {"node", QJsonObject{{"latest", manual},
                                             {"records", QJsonArray{groupRecord, manual}}}}}}}});
+            check(proxies.groupCount() == 3 && proxies.nodeCount() == 1 &&
+                      proxies.proxyGroup("parent").value("members").toList().size() == 2 &&
+                      proxies.proxyGroup("missing").isEmpty() &&
+                      signalledGroupRevision == proxies.proxyGroupRevision() &&
+                      signalledGroup.value("current") == "node",
+                  "home reads counts and the requested group without a full-list projection");
             check(proxies.proxyState("parent").value("result") == "42 ms" &&
                       proxies.proxyState("auto").value("node") == "node" &&
                       proxies.proxyState("node", "auto").value("result") == "42 ms" &&
@@ -74,6 +88,13 @@ int main(int argc, char* argv[]) {
             check(proxies.proxyState("auto").value("label").toString().contains("42 ms") &&
                       proxies.proxyState("balance").value("node").toString().isEmpty(),
                   "dropdown label shares latency while balancing does not invent a leaf");
+            const auto completeProjection = proxies.proxyStates();
+            check(completeProjection.size() == 4 &&
+                      completeProjection.value("node").toMap() == proxies.proxyState("node") &&
+                      completeProjection.value("auto").toMap() == proxies.proxyState("auto"),
+                  "explicit full-state getter preserves its compatibility projection");
+            const auto oldRevision = proxies.proxyStateRevision();
+            const auto oldNotifications = stateNotifications;
             auto pending = groupRecord;
             pending.insert("source", "Manual");
             pending.insert("state", "Testing");
@@ -92,6 +113,22 @@ int main(int argc, char* argv[]) {
                       proxies.proxyState("parent").value("result") == "Testing" &&
                       proxies.proxyState("node").value("result") == "88 ms",
                   "all same-target group views share pending state without masking other targets");
+            check(proxies.proxyStateRevision() == oldRevision + 1 &&
+                      stateNotifications == oldNotifications + 1 &&
+                      proxies.proxyStates().value("twin").toMap() == proxies.proxyState("twin"),
+                  "a target-only change invalidates lazy bindings and the full projection");
+            const auto unchangedRevision = proxies.proxyStateRevision();
+            const auto unchangedGroupRevision = proxies.proxyGroupRevision();
+            proxies.applyData(
+                {1,
+                 "proxy",
+                 {{"groups", groups},
+                  {"delay_details",
+                   QJsonObject{{"node", QJsonObject{{"latest", manual},
+                                                    {"records", QJsonArray{pending, manual}}}}}}}});
+            check(proxies.proxyStateRevision() == unchangedRevision &&
+                      proxies.proxyGroupRevision() == unchangedGroupRevision,
+                  "an unchanged projection does not invalidate visible bindings");
             pending.insert("state", "Cancelled");
             proxies.applyData(
                 {1,
@@ -105,7 +142,14 @@ int main(int argc, char* argv[]) {
             auto changed = groups[1].toObject();
             changed.insert("current", "absent");
             groups[1] = changed;
+            const auto oldGroupRevision = proxies.proxyGroupRevision();
+            const auto oldGroupCount = proxies.groupCount();
             proxies.applyData({1, "proxy", {{"groups", groups}}});
+            check(proxies.proxyGroupRevision() == oldGroupRevision + 1 &&
+                      proxies.groupCount() == oldGroupCount &&
+                      signalledGroupRevision == proxies.proxyGroupRevision() &&
+                      signalledGroup.value("current") == "absent",
+                  "same-count group updates publish their new on-demand group before notification");
             check(proxies.proxyState("parent").value("node").toString().isEmpty(),
                   "missing current member is not presented as an exit node");
             changed.insert("current", "parent");

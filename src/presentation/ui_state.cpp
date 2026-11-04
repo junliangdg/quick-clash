@@ -67,7 +67,7 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
     appliedData_.remove(QStringLiteral("delays"));
     appliedData_.remove(QStringLiteral("delay_details"));
     emit delaysChanged();
-    rebuildProxyStates();
+    updateProxyStates(false);
     for (const auto& channel : application::scopedChannels())
         clearChannel(channel);
     // A new session epoch invalidates the accumulated traffic curve; demand
@@ -92,6 +92,7 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
     if (!acceptGeneration(update.generation, update.epoch))
         return;
     bool proxiesChanged = false;
+    bool proxyGroupsChanged = false;
     for (const auto& channel : update.invalidated) {
         const auto stream = application::channelStream(channel);
         if (!stream.isEmpty() && update.demandGenerations.value(stream) != 0 &&
@@ -125,7 +126,9 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
             emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
             groups_ = it.value().toArray().toVariantList();
+            ++proxyGroupRevision_;
             proxiesChanged = true;
+            proxyGroupsChanged = true;
             emit groupsChanged();
         } else if (it.key() == QStringLiteral("nodes")) {
             nodes_ = it.value().toArray().toVariantList();
@@ -152,9 +155,27 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
         }
     }
     if (proxiesChanged)
-        rebuildProxyStates();
+        updateProxyStates(proxyGroupsChanged);
     if (telemetryChanged)
         refreshTelemetry();
+}
+QVariantMap UiState::proxyGroup(const QString& name) const {
+    for (const auto& value : groups_) {
+        const auto group = value.toMap();
+        if (group.value(QStringLiteral("name")).toString() == name)
+            return group;
+    }
+    return {};
+}
+QVariantMap UiState::proxyStates() const {
+    QVariantMap states;
+    for (const auto& value : nodes_) {
+        const auto name = value.toMap().value("name").toString();
+        states.insert(name, proxyState(name));
+    }
+    for (auto it = proxyGroups_.cbegin(); it != proxyGroups_.cend(); ++it)
+        states.insert(it.key(), proxyState(it.key()));
+    return states;
 }
 QVariantMap UiState::proxyState(const QString& name, const QString& context) const {
     auto current = name;
@@ -243,21 +264,16 @@ QVariantMap UiState::proxyState(const QString& name, const QString& context) con
             {"hasDelay", !current.isEmpty() && !builtin},
             {"label", nameLabel + (current.isEmpty() || builtin ? QString{} : " · " + text)}};
 }
-void UiState::rebuildProxyStates() {
-    proxyGroups_.clear();
-    for (const auto& value : groups_) {
-        const auto group = value.toMap();
-        proxyGroups_.insert(group.value("name").toString(), group);
+void UiState::updateProxyStates(bool groupsChanged) {
+    if (groupsChanged) {
+        proxyGroups_.clear();
+        for (const auto& value : groups_) {
+            const auto group = value.toMap();
+            proxyGroups_.insert(group.value("name").toString(), group);
+        }
     }
-    QVariantMap next;
-    for (const auto& value : nodes_) {
-        const auto name = value.toMap().value("name").toString();
-        next.insert(name, proxyState(name));
-    }
-    for (auto it = proxyGroups_.cbegin(); it != proxyGroups_.cend(); ++it)
-        next.insert(it.key(), proxyState(it.key()));
-    proxyStates_ = next;
     // A non-default target may change without changing the default label.
+    ++proxyStateRevision_;
     emit proxyStatesChanged();
 }
 void UiState::clearChannel(const QString& channel) {
@@ -740,7 +756,7 @@ void UiState::retranslateUi() {
         routeError_ = tr("Unable to open page: invalid route or parameters");
         emit routeErrorChanged();
     }
-    rebuildProxyStates();
+    updateProxyStates(false);
     emit delaysChanged();
     emit navigationChanged();
     emit routeChanged();

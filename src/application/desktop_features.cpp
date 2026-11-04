@@ -220,10 +220,11 @@ void DesktopRuntime::appendLog(const QString& source, const QString& level, cons
 }
 void DesktopRuntime::syncDelayViews() {
     const auto now = clock_();
+    delayViewsAt_ = now;
     delayDetails_ = proxyLatency_.details(now);
     delayExpiry_ = {};
     delays_ = {};
-    delayTimes_.clear();
+    delayTimes_ = {};
     for (auto it = delayDetails_.begin(); it != delayDetails_.end(); ++it) {
         auto records = it.value().toObject().value("records").toArray();
         const auto latest = it.value().toObject().value("latest").toObject();
@@ -240,8 +241,9 @@ void DesktopRuntime::syncDelayViews() {
         delays_.insert(it.key(), domain::ProxyLatency::text(latest));
         if (latest.value("state") != "Stale" && latest.value("state") != "Queued" &&
             latest.value("state") != "Testing")
-            delayTimes_.insert(it.key(), QDateTime::fromString(latest.value("time").toString(),
-                                                               Qt::ISODateWithMs));
+            delayTimes_.insert(
+                it.key(), QDateTime::fromString(latest.value("time").toString(), Qt::ISODateWithMs)
+                              .toString(Qt::ISODate));
     }
 }
 void DesktopRuntime::pollFeatures() {

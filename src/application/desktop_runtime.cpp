@@ -348,8 +348,13 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
                                                  {QStringLiteral("udp"), node.value("udp")}});
             }
             featureState_.insert(QStringLiteral("nodes"), liveNodes);
-            proxyLatency_.ingest(objects, clock_());
-            syncDelayViews();
+            const auto now = clock_();
+            const bool latencyChanged = proxyLatency_.ingest(objects, now);
+            // Most periodic core polls repeat identical histories. Reuse the projection
+            // unless its data changed, an observation expired, or the clock moved back.
+            if (latencyChanged || (delayExpiry_.isValid() && now >= delayExpiry_) ||
+                (delayViewsAt_.isValid() && now < delayViewsAt_))
+                syncDelayViews();
             // API descriptors omit endpoint credentials. Permit explicit live selection,
             // but never persist/restore a dynamic node using its display name as identity.
             QSet<QString> liveNames;
@@ -691,10 +696,7 @@ QJsonObject DesktopRuntime::controlState() const {
     effective.insert(QStringLiteral("systemProxy"), proxyLease_->active());
     effective.insert(QStringLiteral("tun"), engine_.tunActive());
     auto features = featureState_;
-    QJsonObject delayTimes;
-    for (auto it = delayTimes_.cbegin(); it != delayTimes_.cend(); ++it)
-        delayTimes.insert(it.key(), it.value().toString(Qt::ISODate));
-    features.insert(QStringLiteral("delayTimes"), delayTimes);
+    features.insert(QStringLiteral("delayTimes"), delayTimes_);
     for (const auto* key :
          {"nodes", "traffic", "memory", "memorySample", "memoryComplete", "connectionSample",
           "connectionsStale", "connectionsPaused", "connectionError"})
@@ -1897,7 +1899,9 @@ void DesktopRuntime::launch() {
     proxyLatency_.clear();
     groupDelayTargets_.clear();
     delayDetails_ = {};
-    delayTimes_.clear();
+    delayTimes_ = {};
+    delayExpiry_ = {};
+    delayViewsAt_ = {};
     featureState_.remove(QStringLiteral("delayTest"));
     featureState_.remove(QStringLiteral("traffic"));
     featureState_.remove(QStringLiteral("dnsResult"));
@@ -2128,7 +2132,9 @@ void DesktopRuntime::confirmed() {
         delays_ = {};
         proxyLatency_.clear();
         delayDetails_ = {};
-        delayTimes_.clear();
+        delayTimes_ = {};
+        delayExpiry_ = {};
+        delayViewsAt_ = {};
         featureState_.remove(QStringLiteral("delayTest"));
     }
     selectedId_ = applyingId_;

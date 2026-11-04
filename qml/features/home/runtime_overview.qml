@@ -171,75 +171,81 @@ ColumnLayout {
             onClicked: root.ui.setDashboardOption("resources", !root.expanded)
         }
     }
-    ColumnLayout {
-        visible: root.expanded
+    Loader {
+        objectName: "home_resource_details_loader"
         Layout.fillWidth: true
-        spacing: 10
-        Rectangle {
+        active: root.expanded
+        visible: active
+        sourceComponent: ColumnLayout {
+            objectName: "home_resource_details"
             Layout.fillWidth: true
-            implicitHeight: 1
-            color: root.theme.border
-        }
-        GridLayout {
-            Layout.fillWidth: true
-            columns: width >= 600 ? 2 : 1
-            columnSpacing: 24
-            rowSpacing: 12
-            Repeater {
-                model: [
-                    {
-                        key: "client",
-                        label: qsTr("Client total")
-                    },
-                    {
-                        key: "core",
-                        label: qsTr("Core memory")
-                    },
-                    {
-                        key: "service",
-                        label: qsTr("Helper service")
-                    },
-                    {
-                        key: "validator",
-                        label: qsTr("Configuration validator")
-                    },
-                    {
-                        key: "serviceValidator",
-                        label: qsTr("Service configuration validator")
-                    }
-                ]
-                delegate: ColumnLayout {
-                    id: processDetails
-                    required property var modelData
-                    visible: modelData.key === "client" || modelData.key === "core" || Object.keys(root.memory[modelData.key] || {}).length > 0
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    Layout.alignment: Qt.AlignTop
-                    spacing: 4
-                    Label {
-                        text: processDetails.modelData.label
-                        color: root.theme.text
-                        font.weight: Font.DemiBold
+            spacing: 10
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 1
+                color: root.theme.border
+            }
+            GridLayout {
+                Layout.fillWidth: true
+                columns: width >= 600 ? 2 : 1
+                columnSpacing: 24
+                rowSpacing: 12
+                Repeater {
+                    model: [
+                        {
+                            key: "client",
+                            label: qsTr("Client total")
+                        },
+                        {
+                            key: "core",
+                            label: qsTr("Core memory")
+                        },
+                        {
+                            key: "service",
+                            label: qsTr("Helper service")
+                        },
+                        {
+                            key: "validator",
+                            label: qsTr("Configuration validator")
+                        },
+                        {
+                            key: "serviceValidator",
+                            label: qsTr("Service configuration validator")
+                        }
+                    ]
+                    delegate: ColumnLayout {
+                        id: processDetails
+                        required property var modelData
+                        visible: modelData.key === "client" || modelData.key === "core" || Object.keys(root.memory[modelData.key] || {}).length > 0
                         Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                    }
-                    Label {
-                        text: qsTr("Private working set: %1").arg(root.memoryText(processDetails.modelData.key, "privateWorkingSet")) + "\n" + qsTr("Working set: %1").arg(root.memoryText(processDetails.modelData.key, "workingSet")) + "\n" + qsTr("Private commit: %1").arg(root.memoryText(processDetails.modelData.key, "privateCommit"))
-                        color: root.theme.muted
-                        font.pixelSize: root.theme.supportingSize
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
+                        Layout.minimumWidth: 0
+                        Layout.alignment: Qt.AlignTop
+                        spacing: 4
+                        Label {
+                            text: processDetails.modelData.label
+                            color: root.theme.text
+                            font.weight: Font.DemiBold
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
+                        Label {
+                            text: qsTr("Private working set: %1").arg(root.memoryText(processDetails.modelData.key, "privateWorkingSet")) + "\n" + qsTr("Working set: %1").arg(root.memoryText(processDetails.modelData.key, "workingSet")) + "\n" + qsTr("Private commit: %1").arg(root.memoryText(processDetails.modelData.key, "privateCommit"))
+                            color: root.theme.muted
+                            font.pixelSize: root.theme.supportingSize
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                        }
                     }
                 }
             }
-        }
-        Label {
-            text: qsTr("Client total includes the application and helper service when running. Core and temporary validators are counted separately.") + "\n" + qsTr("Execution: %1").arg(root.ui.runtime.coreExecutionMode === "Service" ? qsTr("Helper service") : root.ui.runtime.coreExecutionMode === "Local" ? qsTr("Local process") : qsTr("Not running")) + " · " + (root.ui.runtime.platform || "—") + " · " + (root.ui.runtime.architecture || "—")
-            color: root.theme.muted
-            textFormat: Text.PlainText
-            font.pixelSize: root.theme.supportingSize
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
+            Label {
+                text: qsTr("Client total includes the application and helper service when running. Core and temporary validators are counted separately.") + "\n" + qsTr("Execution: %1").arg(root.ui.runtime.coreExecutionMode === "Service" ? qsTr("Helper service") : root.ui.runtime.coreExecutionMode === "Local" ? qsTr("Local process") : qsTr("Not running")) + " · " + (root.ui.runtime.platform || "—") + " · " + (root.ui.runtime.architecture || "—")
+                color: root.theme.muted
+                textFormat: Text.PlainText
+                font.pixelSize: root.theme.supportingSize
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
         }
     }
 }

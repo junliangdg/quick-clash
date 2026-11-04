@@ -47,58 +47,76 @@ ApplicationWindow {
     onClosing: function(close) { close.accepted = false; ui.requestClose(); }
     Shortcut { sequences: [StandardKey.Close]; onActivated: window.ui.requestClose() }
     Shortcut { sequences: [StandardKey.Quit]; onActivated: window.ui.requestQuit() }
+    function syncUserRuleBinding(): void {
+        const binding = (window.ui.runtime.features || {}).userRuleBinding || ({});
+        if (binding.profileId)
+            userRuleBindingLoader.active = true;
+        const dialog = userRuleBindingLoader.item as ThemedDialog;
+        if (!dialog)
+            return;
+        // opened is false while transitions run. Always apply the latest intent
+        // so a cancelled request cannot leave a dialog open after its enter animation.
+        if (binding.profileId)
+            dialog.open();
+        else
+            dialog.close();
+    }
+    Component.onCompleted: syncUserRuleBinding()
     Connections {
         target: window.ui
-        function onCloseConfirmationRequired(): void { closeDialog.open(); }
-        function onRuntimeChanged(): void {
-            const binding = (window.ui.runtime.features || {}).userRuleBinding || ({});
-            if (binding.profileId && !userRuleBinding.opened)
-                userRuleBinding.open();
-            else if (!binding.profileId && userRuleBinding.opened)
-                userRuleBinding.close();
+        function onCloseConfirmationRequired(): void {
+            closeDialogLoader.active = true;
+            const dialog = closeDialogLoader.item as ThemedDialog;
+            if (dialog)
+                dialog.open();
         }
+        function onRuntimeChanged(): void { window.syncUserRuleBinding(); }
     }
-    ThemedDialog {
-        id: userRuleBinding
-        objectName: "user_rule_binding_dialog"
-        theme: tokens
-        parent: window.contentItem
-        anchors.centerIn: parent
-        width: Math.min(window.width - 32, 440)
-        height: Math.min(window.height - 32, 300)
-        implicitHeight: height
-        modal: true
-        title: qsTr("Choose a proxy group")
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        readonly property var binding: (window.ui.runtime.features || {}).userRuleBinding || ({})
-        onOpened: {
-            standardButton(Dialog.Ok).enabled = Qt.binding(function() {
-                return bindingGroup.currentIndex > 0;
-            });
-        }
-        onAccepted: window.ui.runtimeCommand("user_rules_bind", [bindingGroup.currentText])
-        onRejected: window.ui.runtimeCommand("user_rules_cancel_binding")
-        contentItem: ColumnLayout {
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: tokens.text
-                text: qsTr("Global proxy rules need a group for %1.").arg(userRuleBinding.binding.profileName || "")
+    Loader {
+        id: userRuleBindingLoader
+        active: false
+        sourceComponent: ThemedDialog {
+            id: userRuleBinding
+            objectName: "user_rule_binding_dialog"
+            theme: tokens
+            parent: window.contentItem
+            anchors.centerIn: parent
+            width: Math.min(window.width - 32, 440)
+            height: Math.min(window.height - 32, 300)
+            implicitHeight: height
+            modal: true
+            title: qsTr("Choose a proxy group")
+            standardButtons: Dialog.Ok | Dialog.Cancel
+            readonly property var binding: (window.ui.runtime.features || {}).userRuleBinding || ({})
+            onOpened: {
+                standardButton(Dialog.Ok).enabled = Qt.binding(function() {
+                    return bindingGroup.currentIndex > 0;
+                });
             }
-            ThemedComboBox {
-                id: bindingGroup
-                objectName: "user_rule_binding_group"
-                theme: tokens
-                Layout.fillWidth: true
-                Accessible.name: qsTr("Proxy group")
-                model: [qsTr("Choose a group")].concat(userRuleBinding.binding.groups || [])
-            }
-            Label {
-                visible: bindingGroup.count <= 1
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: tokens.warning
-                text: qsTr("This profile has no proxy groups. Choose another profile or add a group first.")
+            onAccepted: window.ui.runtimeCommand("user_rules_bind", [bindingGroup.currentText])
+            onRejected: window.ui.runtimeCommand("user_rules_cancel_binding")
+            contentItem: ColumnLayout {
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: tokens.text
+                    text: qsTr("Global proxy rules need a group for %1.").arg(userRuleBinding.binding.profileName || "")
+                }
+                ThemedComboBox {
+                    id: bindingGroup
+                    objectName: "user_rule_binding_group"
+                    theme: tokens
+                    Layout.fillWidth: true
+                    Accessible.name: qsTr("Proxy group")
+                    model: [qsTr("Choose a group")].concat(userRuleBinding.binding.groups || [])
+                }
+                Label {
+                    visible: bindingGroup.count <= 1
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: tokens.warning
+                    text: qsTr("This profile has no proxy groups. Choose another profile or add a group first.")
+                }
             }
         }
     }
@@ -347,34 +365,38 @@ ApplicationWindow {
             }
         }
     }
-    ThemedDialog {
-        id: closeDialog
-        theme: tokens
-        objectName: "close_confirmation"
-        parent: window.contentItem
-        anchors.centerIn: parent
-        width: Math.min(window.width - 40, 460)
-        title: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Tray unavailable")
-        modal: true
-        closePolicy: Popup.CloseOnEscape
-        initialFocusItem: closeCancel
-        contentItem: ColumnLayout {
-            spacing: tokens.gap
-            Label {
-                text: window.ui.trayAvailable ? qsTr("QuickClash will keep running. Open it again from the tray. This choice will be remembered.") : qsTr("The window will remain visible. You can minimize it or quit QuickClash.")
-                color: tokens.text
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-            }
-            RowLayout {
-                ActionButton { id: closeCancel; objectName: "close_cancel"; theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
-                Item { Layout.fillWidth: true }
-                ActionButton { theme: tokens; text: qsTr("Quit"); destructive: true; onClicked: { closeDialog.close(); window.ui.requestQuit(); } }
-                ActionButton {
-                    theme: tokens
-                    prominent: true
-                    text: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Minimize")
-                    onClicked: { closeDialog.close(); if (window.ui.trayAvailable) window.ui.requestClose(true); else window.ui.requestMinimize(); }
+    Loader {
+        id: closeDialogLoader
+        active: false
+        sourceComponent: ThemedDialog {
+            id: closeDialog
+            theme: tokens
+            objectName: "close_confirmation"
+            parent: window.contentItem
+            anchors.centerIn: parent
+            width: Math.min(window.width - 40, 460)
+            title: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Tray unavailable")
+            modal: true
+            closePolicy: Popup.CloseOnEscape
+            initialFocusItem: closeCancel
+            contentItem: ColumnLayout {
+                spacing: tokens.gap
+                Label {
+                    text: window.ui.trayAvailable ? qsTr("QuickClash will keep running. Open it again from the tray. This choice will be remembered.") : qsTr("The window will remain visible. You can minimize it or quit QuickClash.")
+                    color: tokens.text
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                RowLayout {
+                    ActionButton { id: closeCancel; objectName: "close_cancel"; theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
+                    Item { Layout.fillWidth: true }
+                    ActionButton { theme: tokens; text: qsTr("Quit"); destructive: true; onClicked: { closeDialog.close(); window.ui.requestQuit(); } }
+                    ActionButton {
+                        theme: tokens
+                        prominent: true
+                        text: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Minimize")
+                        onClicked: { closeDialog.close(); if (window.ui.trayAvailable) window.ui.requestClose(true); else window.ui.requestMinimize(); }
+                    }
                 }
             }
         }

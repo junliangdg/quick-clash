@@ -10,9 +10,12 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
+#include <QQmlComponent>
+#include <QQmlEngine>
 #include <QQuickItem>
 #include <QSGRendererInterface>
 #include <QSet>
+#include <QSignalSpy>
 #include <QTest>
 #include <algorithm>
 #include <cmath>
@@ -211,6 +214,9 @@ int runRuntimeListProbe(ApplicationHost& host) {
                      {"epoch", "fixture"},
                      {"ready", true},
                      {"status", "Ready"}});
+    if (host.window()->findChild<QObject*>("user_rule_binding_dialog") ||
+        host.window()->findChild<QObject*>("close_confirmation"))
+        return 218;
     if (!ui.navigate("connections"))
         return 40;
     QTest::qWait(60);
@@ -564,6 +570,86 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(30);
     if (bindingDialog->property("visible").toBool())
         return 195;
+    // Exercise changes while the dialog has not finished opening or closing.
+    // Without a transition, opened changes synchronously and misses this race.
+    const auto previousEnter = bindingDialog->property("enter");
+    const auto previousExit = bindingDialog->property("exit");
+    QQmlComponent enterTransition(qmlEngine(bindingDialog));
+    enterTransition.setData("import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
+                            "from: 0; to: 1; duration: 250 } }",
+                            QUrl{});
+    QQmlComponent exitTransition(qmlEngine(bindingDialog));
+    exitTransition.setData("import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
+                           "from: 1; to: 0; duration: 250 } }",
+                           QUrl{});
+    auto* enter = enterTransition.create();
+    auto* exit = exitTransition.create();
+    if (enter)
+        enter->setParent(bindingDialog);
+    if (exit)
+        exit->setParent(bindingDialog);
+    if (!enter || !exit || !bindingDialog->setProperty("enter", QVariant::fromValue(enter)) ||
+        !bindingDialog->setProperty("exit", QVariant::fromValue(exit)))
+        return 226;
+    const QJsonObject bindingActive{
+        {"publicationGeneration", "1"},
+        {"epoch", "fixture"},
+        {"ready", true},
+        {"features", QJsonObject{{"userRuleBinding", QJsonObject{{"profileId", "rapid"},
+                                                                 {"profileName", "Rapid"},
+                                                                 {"groups", QJsonArray{"one"}}}}}}};
+    const QJsonObject bindingCleared{{"publicationGeneration", "1"},
+                                     {"epoch", "fixture"},
+                                     {"ready", true},
+                                     {"features", QJsonObject{}}};
+    ui.applyControl(bindingActive);
+    if (!bindingDialog->property("visible").toBool() || bindingDialog->property("opened").toBool())
+        return 227;
+    ui.applyControl(bindingCleared);
+    QTest::qWait(350);
+    if (bindingDialog->property("visible").toBool())
+        return 228;
+    ui.applyControl(bindingActive);
+    QTest::qWait(350);
+    if (!bindingDialog->property("opened").toBool())
+        return 229;
+    ui.applyControl(bindingCleared);
+    ui.applyControl(bindingActive);
+    QTest::qWait(350);
+    if (!bindingDialog->property("opened").toBool())
+        return 230;
+    ui.applyControl(bindingCleared);
+    QTest::qWait(350);
+    if (bindingDialog->property("visible").toBool())
+        return 231;
+    // Restore the production transitions for the remaining interaction checks.
+    if (!bindingDialog->setProperty("enter", previousEnter) ||
+        !bindingDialog->setProperty("exit", previousExit))
+        return 232;
+    ui.applyControl(
+        {{"publicationGeneration", "1"},
+         {"epoch", "fixture"},
+         {"ready", true},
+         {"features",
+          QJsonObject{{"userRuleBinding", QJsonObject{{"profileId", "other"},
+                                                      {"profileName", "Other"},
+                                                      {"groups", QJsonArray{"one", "two"}}}}}}});
+    QTest::qWait(30);
+    bindingGroup = host.window()->findChild<QObject*>("user_rule_binding_group");
+    QSignalSpy bindingAccepted(bindingDialog, SIGNAL(accepted()));
+    if (!bindingDialog->property("visible").toBool() || !bindingGroup ||
+        bindingGroup->property("count").toInt() != 3 ||
+        !bindingGroup->setProperty("currentIndex", 2) ||
+        bindingGroup->property("currentText").toString() != "two" ||
+        !QMetaObject::invokeMethod(bindingDialog, "accept") || bindingAccepted.size() != 1)
+        return 219;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"features", QJsonObject{}}});
+    QTest::qWait(30);
+    if (bindingDialog->property("visible").toBool())
+        return 220;
     const auto oldSize = host.window()->size();
     host.resizeWindow({360, 640});
     QTest::qWait(50);
@@ -795,6 +881,16 @@ int runRuntimeListProbe(ApplicationHost& host) {
     const auto instantiated = controls(controls, host.window()->contentItem());
     if (instantiated <= 0 || instantiated > 80)
         return 74;
+    auto* firstMember = findVisualItem(host.window()->contentItem(), "proxy_member_manual_node_0");
+    auto* firstDelay = firstMember ? firstMember->findChild<QObject*>("test_node") : nullptr;
+    if (!firstDelay ||
+        firstDelay->property("text") != ui.proxyState("node_0", "manual").value("text"))
+        return 221;
+    ui.applyData(
+        {2, "next", {{"delays", QJsonObject{{"node_0", "42 ms"}}}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    if (firstDelay->property("text") != "42 ms")
+        return 222;
     const auto findGrid = [&](auto&& self, QQuickItem* item) -> QQuickItem* {
         if (item->objectName() == QStringLiteral("proxy_node_grid"))
             return item;
@@ -935,6 +1031,25 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(150);
     if (host.qmlErrorCount() != 0 || !host.contentReady())
         return 58;
+    // A binding may already be pending when an unloaded window is rebuilt.
+    host.unloadWindow();
+    ui.applyControl({{"publicationGeneration", "2"},
+                     {"epoch", "next"},
+                     {"features", QJsonObject{{"userRuleBinding",
+                                               QJsonObject{{"profileId", "restore"},
+                                                           {"profileName", "Restored"},
+                                                           {"groups", QJsonArray{"one"}}}}}}});
+    if (!host.showWindow())
+        return 223;
+    QTest::qWait(60);
+    auto* restoredBinding = host.window()->findChild<QObject*>("user_rule_binding_dialog");
+    if (!restoredBinding || !restoredBinding->property("visible").toBool())
+        return 224;
+    ui.applyControl(
+        {{"publicationGeneration", "2"}, {"epoch", "next"}, {"features", QJsonObject{}}});
+    QTest::qWait(30);
+    if (restoredBinding->property("visible").toBool() || host.qmlErrorCount() != 0)
+        return 225;
     std::puts("Runtime lists: leases, tab/hide/destruction release, late delivery, captured close, "
               "log pause/follow, empty expansion and 500-node viewport passed");
     return 0;
@@ -946,6 +1061,23 @@ int runPageMemoryProbe(ApplicationHost& host) {
 #else
     // Isolate Qt/QML from subscription IO, SettingsService, core and platform actions.
     // Keep the same fonts, icons, window and fixture for hardware/software comparisons.
+    // A helper launched with SW_HIDE must transition visibility again before Windows can
+    // expose it; otherwise a hidden scene graph is not representative of the foreground.
+    host.window()->hide();
+    host.window()->show();
+    if (!QTest::qWaitForWindowExposed(host.window(), 5000))
+        return 119;
+    int fixtureNodes = 500;
+    const auto arguments = QCoreApplication::arguments();
+    for (const auto& argument : arguments) {
+        if (argument.startsWith(QStringLiteral("--page-memory-nodes="))) {
+            bool valid = false;
+            const auto requested = argument.mid(20).toInt(&valid);
+            if (!valid || requested < 1 || requested > 5000)
+                return 120;
+            fixtureNodes = requested;
+        }
+    }
     struct Counters : PROCESS_MEMORY_COUNTERS_EX {
         SIZE_T privateWorkingSetSize = 0;
         ULONGLONG sharedCommitUsage = 0;
@@ -1017,12 +1149,10 @@ int runPageMemoryProbe(ApplicationHost& host) {
         QElapsedTimer frameClock;
         frameClock.start();
         QVector<qint64> frameTimes;
-        QMetaObject::Connection frameConnection;
-        if (scroll) {
-            frameConnection =
-                QObject::connect(host.window(), &QQuickWindow::frameSwapped, host.window(),
-                                 [&] { frameTimes.append(frameClock.nsecsElapsed()); });
-        }
+        const auto frameConnection =
+            QObject::connect(host.window(), &QQuickWindow::frameSwapped, host.window(),
+                             [&] { frameTimes.append(frameClock.nsecsElapsed()); });
+        host.window()->requestUpdate();
         const int smoothMilliseconds = qEnvironmentVariableIntValue("QUICKCLASH_PROBE_SCROLL_MS");
         const int duration =
             scroll && smoothScroll
@@ -1072,9 +1202,8 @@ int runPageMemoryProbe(ApplicationHost& host) {
             peak.privateCommit = std::max(peak.privateCommit, endpoint.privateCommit);
             ++samples;
         }
-        if (frameConnection)
-            QObject::disconnect(frameConnection);
-        QJsonObject frameStats;
+        QObject::disconnect(frameConnection);
+        QJsonObject frameStats{{"swapped", static_cast<int>(frameTimes.size())}};
         if (frameTimes.size() > 1) {
             QVector<qint64> intervals;
             intervals.reserve(frameTimes.size() - 1);
@@ -1090,11 +1219,11 @@ int runPageMemoryProbe(ApplicationHost& host) {
             int slowFrames = 0;
             for (const auto interval : intervals)
                 slowFrames += interval > std::max<qint64>(1, static_cast<qint64>(median * 1.75e6));
-            frameStats = {{"count", static_cast<int>(intervals.size())},
-                          {"medianMs", median},
-                          {"p95Ms", percentile(0.95)},
-                          {"maxMs", static_cast<double>(intervals.last()) / 1.0e6},
-                          {"slowFrames", slowFrames}};
+            frameStats.insert("count", static_cast<int>(intervals.size()));
+            frameStats.insert("medianMs", median);
+            frameStats.insert("p95Ms", percentile(0.95));
+            frameStats.insert("maxMs", static_cast<double>(intervals.last()) / 1.0e6);
+            frameStats.insert("slowFrames", slowFrames);
         }
         const QJsonObject result{
             {"stage", QString::fromLatin1(name)},
@@ -1107,6 +1236,8 @@ int runPageMemoryProbe(ApplicationHost& host) {
             {"windowObjects", objects(host.window()).size()},
             {"pageObjects", objects(page()).size()},
             {"nodeControls", nodeControls()},
+            {"exposed", host.window()->isExposed()},
+            {"visible", host.window()->isVisible()},
             {"frames", frameStats},
             {"modelGroups", host.state().groups().size()},
             {"modelNodes", host.state().nodes().size()}};
@@ -1123,14 +1254,14 @@ int runPageMemoryProbe(ApplicationHost& host) {
         {"width", host.window()->width()},
         {"height", host.window()->height()},
         {"dpr", host.window()->devicePixelRatio()},
-        {"nodes", 500},
+        {"nodes", fixtureNodes},
         {"groups", 3}};
     std::printf("Page environment: %s\n",
                 QJsonDocument(environment).toJson(QJsonDocument::Compact).constData());
     if (!stage("startup_home", 1600))
         return 100;
     QJsonArray members, nodes, groups;
-    for (int i = 0; i < 500; ++i) {
+    for (int i = 0; i < fixtureNodes; ++i) {
         const auto name = QStringLiteral("日本高速%1|CTCU|0.5x").arg(i, 2, 10, QLatin1Char('0'));
         members.append(name);
         nodes.append(QJsonObject{{"name", name}, {"type", "HTTP"}, {"udp", true}});
@@ -1159,6 +1290,25 @@ int runPageMemoryProbe(ApplicationHost& host) {
           {"nodes", nodes},
           {"profiles", QJsonArray{QJsonObject{{"id", "page_memory"}, {"name", "公开切页夹具"}}}}},
          ui.dataDemands().generations});
+    if (arguments.contains(QStringLiteral("--page-memory-home-only"))) {
+        if (!stage("home_with_nodes", 2500))
+            return 121;
+        auto* card = host.window()->findChild<QQuickItem*>(QStringLiteral("home_proxy_card"));
+        auto* viewport = card ? card->parentItem() : nullptr;
+        while (viewport && !viewport->inherits("QQuickFlickable"))
+            viewport = viewport->parentItem();
+        auto* selector = host.window()->findChild<QObject*>(QStringLiteral("home_proxy_selector"));
+        auto* popup = selector ? selector->property("popup").value<QObject*>() : nullptr;
+        if (!card || !viewport || !popup)
+            return 122;
+        viewport->setProperty("contentY", card->y());
+        QTest::qWait(100);
+        if (!QMetaObject::invokeMethod(popup, "open") || !stage("home_popup_open", 1800))
+            return 123;
+        if (!QMetaObject::invokeMethod(popup, "close") || !stage("home_popup_closed", 1800))
+            return 124;
+        return 0;
+    }
     const QPointer<QObject> firstHome = page();
     if (!ui.navigate("proxies") || !stage("proxies_one_group", 2200, true))
         return 101;
