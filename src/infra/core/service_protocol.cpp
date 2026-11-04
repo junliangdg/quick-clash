@@ -86,7 +86,7 @@ ServiceProtocol::Decision ServiceProtocol::accept(const QJsonObject& message) {
         }
         if (results_.contains(id)) {
             decision.disposition = Disposition::Cached;
-            decision.response = results_.value(id);
+            decision.response = QJsonDocument::fromJson(results_.value(id)).object();
         } else
             decision.disposition = Disposition::Pending;
         return decision;
@@ -106,12 +106,21 @@ void ServiceProtocol::complete(const QString& id, const QJsonObject& response) {
     // Protocol errors and replay rejects must not replace an existing operation result.
     if (!pending_.remove(id))
         return;
-    results_.insert(id, response);
+    // Keep compact bytes instead of 32 independently expanded telemetry snapshots.
+    const auto bytes = QJsonDocument(response).toJson(QJsonDocument::Compact);
+    // An oversized result is delivered normally, but never retained. lastId_ still
+    // rejects its replay, so eviction cannot execute a completed mutation twice.
+    if (bytes.size() > kServiceReplayByteLimit) {
+        fingerprints_.remove(id);
+        return;
+    }
+    results_.insert(id, bytes);
+    resultBytes_ += bytes.size();
     order_.append(id);
-    while (order_.size() > 32) {
+    while (order_.size() > 32 || resultBytes_ > kServiceReplayByteLimit) {
         const auto expired = order_.takeFirst();
         fingerprints_.remove(expired);
-        results_.remove(expired);
+        resultBytes_ -= results_.take(expired).size();
     }
 }
 bool ServiceProtocol::pending(const QString& id) const {

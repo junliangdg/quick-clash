@@ -390,9 +390,12 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     }
     if (host.qmlErrorCount() || !host.contentReady())
         return 95;
-    auto* editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
-    if (!editor || !QMetaObject::invokeMethod(editor, "edit", Q_ARG(QVariant, "p0"),
-                                              Q_ARG(QVariant, "source")))
+    if (host.window()->findChild<QObject*>(QStringLiteral("profile_editor")) ||
+        !QMetaObject::invokeMethod(page, "editProfile", Q_ARG(QVariant, "p0"),
+                                   Q_ARG(QVariant, "source")))
+        return 101;
+    QPointer<QObject> editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
+    if (!editor)
         return 101;
     QTest::qWait(30);
     ui.applyData({1,
@@ -423,6 +426,17 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         return 104;
     ui.setUiVisible(true);
     QMetaObject::invokeMethod(editor, "close");
+    if (!QTest::qWaitFor([&] { return editor.isNull(); }, 1000) ||
+        !QMetaObject::invokeMethod(page, "editProfile", Q_ARG(QVariant, "p0"),
+                                   Q_ARG(QVariant, "overlay")))
+        return 118;
+    editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
+    if (!editor || editor->property("kind") != "overlay" ||
+        !editor->property("loadedToken").toString().isEmpty())
+        return 119;
+    QMetaObject::invokeMethod(editor, "close");
+    if (!QTest::qWaitFor([&] { return editor.isNull(); }, 1000))
+        return 120;
     std::puts("Subscription UI: bounded/reused delegates, stable actions, persistent management, "
               "incremental metadata, responsive long text and keyboard passed");
     return 0;

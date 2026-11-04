@@ -2,6 +2,7 @@
 #include "application_host.h"
 #include <QDir>
 #include <QJSValue>
+#include <QPointer>
 #include <QQuickItem>
 #include <QSet>
 #include <QTest>
@@ -110,9 +111,11 @@ int runCustomGroupsUiProbe(ApplicationHost& host) {
                "saved empty group warning visible"))
         return 15;
     auto* button = find(host.window(), "new_custom_group");
+    if (!check(!find(host.window(), "custom_group_editor"), "closed editor is not instantiated"))
+        return 27;
     if (!check(click(host, button), "new group opens"))
         return 2;
-    auto* editor = find(host.window(), "custom_group_editor");
+    QPointer<QObject> editor = find(host.window(), "custom_group_editor");
     if (!check(editor && editor->property("visible").toBool(), "editor visible"))
         return 3;
     if (!check(QMetaObject::invokeMethod(editor, "preset", Q_ARG(QVariant, 2)), "Hong Kong preset"))
@@ -274,9 +277,20 @@ int runCustomGroupsUiProbe(ApplicationHost& host) {
         return 11;
     QTest::keyClick(host.window(), Qt::Key_Escape);
     QTest::qWait(30);
-    if (!check(!editor->property("visible").toBool() && host.window()->activeFocusItem() == button,
+    if (!check(QTest::qWaitFor([&] { return editor.isNull(); }, 1000) &&
+                   host.window()->activeFocusItem() == button,
                "Escape cancels and returns focus"))
         return 13;
+    if (!check(click(host, button), "closed editor can be recreated"))
+        return 28;
+    editor = find(host.window(), "custom_group_editor");
+    if (!check(editor && editor->property("visible").toBool() &&
+                   editor->property("baseRevision") == "r1",
+               "recreated editor uses the current revision"))
+        return 29;
+    QMetaObject::invokeMethod(editor, "close");
+    if (!check(QTest::qWaitFor([&] { return editor.isNull(); }, 1000), "reopened editor released"))
+        return 30;
     application::RuntimeUpdate stale{1, "fixture", {{"custom_groups", state}}};
     stale.demandGenerations = ui.dataDemands().generations;
     ui.navigate("home");

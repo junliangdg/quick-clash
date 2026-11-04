@@ -512,11 +512,11 @@ Item {
                                     Accessible.role: Accessible.Button
                                     Accessible.name: qsTr("Drag to reorder")
                                     HoverHandler { cursorShape: Qt.SizeVerCursor }
-                                    Text {
+                                    UiIcon {
                                         anchors.centerIn: parent
-                                        text: "⋮⋮"
+                                        theme: root.theme
+                                        source: "qrc:/icons/controls/grip_vertical.svg"
                                         color: root.theme.accent
-                                        font.pixelSize: root.theme.scaledSize(18)
                                     }
                                     DragHandler {
                                         target: null
@@ -602,7 +602,9 @@ Item {
                                 ActionButton {
                                     theme: root.theme
                                     objectName: "user_rule_edit_" + row.index
-                                    text: root.width < root.theme.scaledSize(500) ? "✎" : qsTr("Edit")
+                                    text: qsTr("Edit")
+                                    display: root.width < root.theme.scaledSize(500) ? AbstractButton.IconOnly : AbstractButton.TextOnly
+                                    icon.source: root.width < root.theme.scaledSize(500) ? "qrc:/icons/controls/pencil.svg" : ""
                                     Accessible.name: qsTr("Edit rule")
                                     Layout.preferredWidth: root.theme.scaledSize(root.width < root.theme.scaledSize(500) ? 28 : 54)
                                     leftPadding: 2

@@ -212,6 +212,19 @@ int proxyLatencyProbe() {
                    targets.value("/other") == batchOther + 1;
         }))
         return 15;
+    runtime.featureCommand("refresh_groups", {});
+    QElapsedTimer pendingRefresh;
+    pendingRefresh.start();
+    while (pendingRefresh.elapsed() < 300) {
+        QCoreApplication::processEvents();
+        if (record("good", healthTarget).value("state") != "Testing" ||
+            record("good", otherTarget).value("state") != "Testing") {
+            std::cerr << "Pending latency disappeared during a group refresh: "
+                      << QJsonDocument(runtime.snapshot()).toJson().constData();
+            return 23;
+        }
+        QThread::msleep(2);
+    }
     runtime.featureCommand("cancel_delays", {});
     hold = false;
     for (const auto& socket : held)

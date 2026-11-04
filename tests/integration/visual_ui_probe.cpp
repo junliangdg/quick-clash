@@ -10,6 +10,7 @@
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPointer>
 #include <QQuickItem>
 #include <QSGRendererInterface>
 #include <QSignalSpy>
@@ -369,8 +370,20 @@ int runVisualProbe(ApplicationHost& host) {
     populate();
     // The nested delay controls must not also select a node or toggle the group.
     ui.navigate("proxies");
+    auto proxyGroups = groups;
+    proxyGroups.append(QJsonObject{{"name", "GLOBAL"},
+                                   {"type", "Selector"},
+                                   {"members", members},
+                                   {"current", members.first()},
+                                   {"canSelect", true}});
+    ui.applyData({1, "visual-fixture", {{"groups", proxyGroups}}, ui.dataDemands().generations});
     populate();
     QTest::qWait(80);
+    const auto firstNodeGroup = objects(QStringLiteral("proxy_group_节点选择"));
+    const auto firstNodeTile =
+        objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
+    if (firstNodeGroup.size() != 1 || firstNodeTile.size() != 1)
+        return 204;
     const auto group = objects(QStringLiteral("proxy_group_节点选择"));
     const auto tiles =
         objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
@@ -411,6 +424,59 @@ int runVisualProbe(ApplicationHost& host) {
     QTest::keyClick(host.window(), Qt::Key_Return);
     if (batchClicked.size() != 2 || !groupClicked.isEmpty())
         return 194;
+    // The control projection changes as a batch progresses, independently of
+    // the latency channel. An unfinished node must keep its pending label.
+    const auto pendingLatency = QJsonObject{{"state", "Testing"},
+                                            {"source", "Manual"},
+                                            {"targetHash", "visual-target"},
+                                            {"time", "2026-11-01T05:01:00Z"}};
+    const auto firstNode = members.first().toString();
+    ui.applyData(
+        {1,
+         "visual-fixture",
+         {{"delay_details",
+           QJsonObject{{firstNode, QJsonObject{{"latest", pendingLatency},
+                                               {"records", QJsonArray{pendingLatency}}}}}}},
+         ui.dataDemands().generations});
+    QTest::qWait(30);
+    const auto nodeDelayText = [&]() {
+        const auto visibleTiles = objects(QStringLiteral("proxy_member_节点选择_") + firstNode);
+        if (visibleTiles.size() != 1)
+            return QString{};
+        const auto* button = visibleTiles.first()->findChild<QQuickItem*>("test_node");
+        return button ? button->property("text").toString() : QString{};
+    };
+    const auto testingText = ui.proxyState(firstNode, "节点选择").value("text").toString();
+    if (ui.proxyState(firstNode, "节点选择").value("result") != "Testing" ||
+        nodeDelayText() != testingText || testingText.isEmpty()) {
+        qWarning() << "Proxy pending label mismatch before progress" << nodeDelayText()
+                   << testingText;
+        return 202;
+    }
+    const QPointer<QQuickItem> originalGroup = firstNodeGroup.first();
+    const QPointer<QQuickItem> originalNode = firstNodeTile.first();
+    auto runningControl = originalControl;
+    auto features = runningControl.value("features").toMap();
+    features.insert(
+        "delayTest",
+        QVariantMap{{"state", "Running"}, {"total", 6}, {"completed", 0}, {"failed", 0}});
+    runningControl.insert("features", features);
+    ui.applyControl(QJsonObject::fromVariantMap(runningControl));
+    QTest::qWait(30);
+    auto progress = features.value("delayTest").toMap();
+    progress.insert("completed", 1);
+    features.insert("delayTest", progress);
+    runningControl.insert("features", features);
+    ui.applyControl(QJsonObject::fromVariantMap(runningControl));
+    QTest::qWait(30);
+    if (!originalGroup || !originalNode || nodeDelayText() != testingText) {
+        qWarning() << "Proxy pending node recreated or label lost on progress" << nodeDelayText()
+                   << testingText << bool(originalGroup) << bool(originalNode);
+        return 203;
+    }
+    ui.applyControl(QJsonObject::fromVariantMap(originalControl));
+    populate();
+    QTest::qWait(30);
     const auto generation = host.engineGeneration();
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
         ui.setThemeMode(theme);

@@ -11,6 +11,7 @@ inline constexpr qint64 kServiceHandshakeMaxBytes = 16 * 1024;
 // flight. Keep the service backstop above the delay batch ceiling without making it
 // unbounded; the privileged service must still reject command storms.
 inline constexpr int kServiceRequestLimit = 40;
+inline constexpr qsizetype kServiceReplayByteLimit = 4 * 1024 * 1024;
 struct ServiceRequest {
     QString id;
     QString action;
@@ -40,7 +41,8 @@ class ServiceProtocol final {
   private:
     quint64 lastId_ = 0;
     QHash<QString, QByteArray> fingerprints_;
-    QHash<QString, QJsonObject> results_;
+    QHash<QString, QByteArray> results_;
+    qsizetype resultBytes_ = 0;
     QSet<QString> pending_;
     QStringList order_;
 };

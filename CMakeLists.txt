@@ -117,6 +117,7 @@ quickclash_warnings(quickclash_platform)
 add_library(quickclash_engine
     src/infra/core/core_health.cpp src/infra/core/core_health.h
     src/infra/core/listener_ports.cpp src/infra/core/listener_ports.h
+    src/infra/core/proxy_catalog.h
     src/infra/core/service_client.h
     src/infra/core/service_protocol.cpp src/infra/core/service_protocol.h
     src/infra/core/engine_session.cpp src/infra/core/engine_session.h)
@@ -216,6 +217,10 @@ if(QUICKCLASH_BUILD_UI)
               resources/icons/dashboard/eye_off.svg resources/icons/dashboard/chevron_right.svg
               resources/icons/dashboard/chevron_down.svg resources/icons/dashboard/arrow_down.svg
               resources/icons/dashboard/arrow_up.svg resources/icons/dashboard/wrench.svg)
+    qt_add_resources(quickclash quickclash_control_icons
+        PREFIX /icons/controls BASE resources/icons/controls
+        FILES resources/icons/controls/check.svg resources/icons/controls/minus.svg
+              resources/icons/controls/pencil.svg resources/icons/controls/grip_vertical.svg)
     qt_add_resources(quickclash quickclash_site_icons
         PREFIX /icons/sites BASE resources/icons/sites
         FILES resources/icons/sites/google.svg resources/icons/sites/youtube.svg

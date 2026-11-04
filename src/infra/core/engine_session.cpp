@@ -555,7 +555,8 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
                     handler(QJsonObject{});
                     return;
                 }
-                const auto document = QJsonDocument::fromJson(*bytes);
+                // Release transport storage before publishing or starting a dependent request.
+                const auto document = QJsonDocument::fromJson(std::exchange(*bytes, {}));
                 if (!document.isObject()) {
                     handler(coreError("CoreResponseInvalid"));
                     return;

@@ -194,6 +194,10 @@ int main(int argc, char* argv[]) {
             check(record("https://one.invalid/").value("state") == "Testing" &&
                       record("https://two.invalid/").value("state") == "Queued",
                   "same node exposes independent in-flight states for each target");
+            latency.ingest({}, now);
+            check(record("https://one.invalid/").value("state") == "Testing" &&
+                      record("https://two.invalid/").value("state") == "Queued",
+                  "a missing node in a concurrent refresh cannot erase pending tests");
             latency.manual("node", "https://one.invalid/", "Cancelled", now.addSecs(1));
             latency.manual("node", "https://two.invalid/", "Success", now.addSecs(2), 62);
             latency.ingest(
@@ -208,6 +212,8 @@ int main(int argc, char* argv[]) {
             check(record("https://one.invalid/").value("state") == "Cancelled" &&
                       record("https://two.invalid/").value("state") == "Stale",
                   "changing global target invalidates only its manual observations");
+            check(latency.ingest({}, now.addSecs(4)) && latency.details(now).isEmpty(),
+                  "missing nodes are released after all pending tests finish or cancel");
             latency.clear();
             for (int i = 0; i < 20; ++i)
                 latency.manual("node", QString("https://cancel%1.invalid/").arg(i), "Cancelled",

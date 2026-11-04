@@ -63,8 +63,8 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
         return epoch == liveEpoch_;
     publicationGeneration_ = generation;
     liveEpoch_ = epoch;
-    delays_.clear();
-    delayDetails_.clear();
+    delays_ = {};
+    delayDetails_ = {};
     appliedData_.remove(QStringLiteral("delays"));
     appliedData_.remove(QStringLiteral("delay_details"));
     emit delaysChanged();
@@ -133,21 +133,21 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
         } else if (it.key() == QStringLiteral("editor")) {
             emit editorChanged();
         } else if (it.key() == QStringLiteral("groups")) {
-            groups_ = it.value().toArray().toVariantList();
+            groups_ = it.value().toArray();
             ++proxyGroupRevision_;
             proxiesChanged = true;
             proxyGroupsChanged = true;
             emit groupsChanged();
         } else if (it.key() == QStringLiteral("nodes")) {
-            nodes_ = it.value().toArray().toVariantList();
+            nodes_ = it.value().toArray();
             proxiesChanged = true;
             emit nodesChanged();
         } else if (it.key() == QStringLiteral("delays")) {
-            delays_ = it.value().toObject().toVariantMap();
+            delays_ = it.value().toObject();
             proxiesChanged = true;
             emit delaysChanged();
         } else if (it.key() == QStringLiteral("delay_details")) {
-            delayDetails_ = it.value().toObject().toVariantMap();
+            delayDetails_ = it.value().toObject();
             proxiesChanged = true;
             emit delaysChanged();
         } else if (it.key() == QStringLiteral("connections")) {
@@ -169,16 +169,16 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
 }
 QVariantMap UiState::proxyGroup(const QString& name) const {
     for (const auto& value : groups_) {
-        const auto group = value.toMap();
+        const auto group = value.toObject();
         if (group.value(QStringLiteral("name")).toString() == name)
-            return group;
+            return group.toVariantMap();
     }
     return {};
 }
 QVariantMap UiState::proxyStates() const {
     QVariantMap states;
     for (const auto& value : nodes_) {
-        const auto name = value.toMap().value("name").toString();
+        const auto name = value.toObject().value("name").toString();
         states.insert(name, proxyState(name));
     }
     for (auto it = proxyGroups_.cbegin(); it != proxyGroups_.cend(); ++it)
@@ -203,28 +203,28 @@ QVariantMap UiState::proxyState(const QString& name, const QString& context) con
         if (!group.value("testTargetHash").toString().isEmpty())
             target = group.value("testTargetHash").toString();
         const auto next = group.value("current").toString();
-        current = group.value("members").toList().contains(next) ? next : QString{};
+        current = group.value("members").toArray().contains(next) ? next : QString{};
     }
     if (proxyGroups_.contains(current))
         current.clear(); // Cyclic or excessive depth; never invent a leaf.
-    auto detail = delayDetails_.value(current).toMap().value("latest").toMap();
+    auto detail = delayDetails_.value(current).toObject().value("latest").toObject();
     if (!target.isEmpty()) {
-        detail.clear();
-        const auto entry = delayDetails_.value(current).toMap();
-        for (const auto& value : entry.value("records").toList()) {
-            const auto record = value.toMap();
+        detail = {};
+        const auto entry = delayDetails_.value(current).toObject();
+        for (const auto& value : entry.value("records").toArray()) {
+            const auto record = value.toObject();
             if (record.value("targetHash") == target) {
                 detail = record;
                 break;
             }
         }
-        const auto latest = entry.value("latest").toMap();
+        const auto latest = entry.value("latest").toObject();
         if (latest.value("targetHash") == target)
             detail = latest;
     }
     const auto result = detail.isEmpty()
                             ? (target.isEmpty() ? delays_.value(current).toString() : QString{})
-                            : domain::ProxyLatency::text(QJsonObject::fromVariantMap(detail));
+                            : domain::ProxyLatency::text(detail);
     const auto text = result == "Timeout"     ? tr("Timed out")
                       : result == "Failed"    ? tr("Unavailable")
                       : result == "Testing"   ? tr("Testing…")
@@ -276,7 +276,7 @@ void UiState::updateProxyStates(bool groupsChanged) {
     if (groupsChanged) {
         proxyGroups_.clear();
         for (const auto& value : groups_) {
-            const auto group = value.toMap();
+            const auto group = value.toObject();
             proxyGroups_.insert(group.value("name").toString(), group);
         }
     }

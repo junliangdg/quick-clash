@@ -26,7 +26,8 @@ Item {
         const result = Object.create(null);
         for (const group of groups) {
             const matchesGroup = group.name.toLocaleLowerCase().includes(query);
-            result[group.name] = (group.members || []).filter(name => !query || matchesGroup || name.toLocaleLowerCase().includes(query));
+            const members = group.members || [];
+            result[group.name] = !query || matchesGroup ? members : members.filter(name => name.toLocaleLowerCase().includes(query));
         }
         return result;
     }
@@ -140,11 +141,21 @@ Item {
         const sources = group.sources || [];
         return sources.length > 0 ? qsTr("Provider: %1").arg(sources.join(", ")) : "";
     }
-    CustomGroupEditor {
-        id: groupEditor
-        parent: Overlay.overlay
-        ui: root.ui
-        theme: root.theme
+    function editGroup(spec, remove = false): void {
+        groupEditorLoader.active = true;
+        const editor = groupEditorLoader.item as CustomGroupEditor;
+        if (editor)
+            editor.edit(spec, remove);
+    }
+    Loader {
+        id: groupEditorLoader
+        active: false
+        sourceComponent: CustomGroupEditor {
+            parent: Overlay.overlay
+            ui: root.ui
+            theme: root.theme
+            onClosed: groupEditorLoader.active = false
+        }
     }
     Timer {
         id: locateTimer
@@ -254,7 +265,7 @@ Item {
                             prominent: true
                             enabled: !!root.runtime.selectedId && !root.runtime.busy && !!root.ui.customGroups.revision
                             Accessible.description: customGroupHint.text
-                            onClicked: groupEditor.edit({})
+                            onClicked: root.editGroup({})
                         }
                         Label {
                             id: customGroupHint
@@ -299,14 +310,14 @@ Item {
                                 theme: root.theme
                                 text: qsTr("Edit")
                                 enabled: !root.runtime.busy
-                                onClicked: groupEditor.edit(customRow.modelData)
+                                onClicked: root.editGroup(customRow.modelData)
                             }
                             ActionButton {
                                 width: Math.min(implicitWidth, parent.width)
                                 theme: root.theme
                                 text: qsTr("Delete…")
                                 enabled: !root.runtime.busy
-                                onClicked: groupEditor.edit(customRow.modelData, true)
+                                onClicked: root.editGroup(customRow.modelData, true)
                             }
                         }
                     }
@@ -397,10 +408,10 @@ Item {
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 10
-                                    Label {
-                                        text: groupTile.expanded ? "▾" : "▸"
+                                    UiIcon {
+                                        theme: root.theme
+                                        source: groupTile.expanded ? "qrc:/icons/dashboard/chevron_down.svg" : "qrc:/icons/dashboard/chevron_right.svg"
                                         color: root.theme.accent
-                                        font.pixelSize: root.theme.scaledSize(18)
                                     }
                                     Label {
                                         id: groupNameLabel

@@ -4,6 +4,7 @@
 #include "infra/core/delay_policy.h"
 #include "infra/core/listener_ports.h"
 #include "infra/core/provider_command.h"
+#include "infra/core/proxy_catalog.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
 #include "platform/core_artifacts.h"
@@ -662,7 +663,8 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
                             if (epoch != epoch_)
                                 return;
                             if (const auto* value = std::get_if<QJsonObject>(&result))
-                                groups_ = value->value(QStringLiteral("proxies")).toObject();
+                                groups_ = infra::proxySelectionCatalog(
+                                    value->value(QStringLiteral("proxies")).toObject());
                             if (peer && owner_ == peer)
                                 answer(peer, id, std::move(result));
                         });

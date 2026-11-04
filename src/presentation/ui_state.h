@@ -142,7 +142,7 @@ class UiState : public QObject {
         return appliedData_.value(QStringLiteral("editor")).toObject().toVariantMap();
     }
     [[nodiscard]] QVariantList groups() const {
-        return groups_;
+        return groups_.toVariantList();
     }
     [[nodiscard]] int groupCount() const {
         return static_cast<int>(groups_.size());
@@ -152,16 +152,16 @@ class UiState : public QObject {
     }
     Q_INVOKABLE QVariantMap proxyGroup(const QString& name) const;
     [[nodiscard]] QVariantList nodes() const {
-        return nodes_;
+        return nodes_.toVariantList();
     }
     [[nodiscard]] int nodeCount() const {
         return static_cast<int>(nodes_.size());
     }
     [[nodiscard]] QVariantMap delays() const {
-        return delays_;
+        return delays_.toVariantMap();
     }
     [[nodiscard]] QVariantMap delayDetails() const {
-        return delayDetails_;
+        return delayDetails_.toVariantMap();
     }
     // Compatibility projection for explicit consumers; normal UI bindings use the
     // revision and request only the currently displayed states.
@@ -371,13 +371,14 @@ class UiState : public QObject {
     QVariantMap connectionRule_;
     ProfileModel profileModel_{this};
     ProfileRowModel profileRows_{&profileModel_, this};
-    QVariantList groups_;
-    QVariantList nodes_;
+    // Share the channel JSON; expand only for explicit compatibility/page consumers.
+    QJsonArray groups_;
+    QJsonArray nodes_;
     quint64 proxyGroupRevision_ = 0;
-    QVariantMap delays_;
-    QVariantMap delayDetails_;
+    QJsonObject delays_;
+    QJsonObject delayDetails_;
     quint64 proxyStateRevision_ = 0;
-    QHash<QString, QVariantMap> proxyGroups_;
+    QHash<QString, QJsonObject> proxyGroups_;
     void updateProxyStates(bool groupsChanged);
     QVariantMap telemetry_;
     QJsonObject appliedData_;

@@ -23,12 +23,13 @@ CheckBox {
         color: !control.enabled ? theme.inset : control.checked ? (control.down ? theme.primaryPressed : control.hovered ? theme.primaryHover : theme.accent) : control.hovered ? theme.hover : theme.surface
         border.width: control.checked ? 0 : 1
         border.color: theme.controlOutline
-        Text {
+        UiIcon {
             anchors.centerIn: parent
-            text: control.checkState === Qt.PartiallyChecked ? "−" : "✓"
-            visible: control.checkState !== Qt.Unchecked
+            theme: control.theme
+            width: control.theme.scaledSize(14)
+            height: width
+            source: control.checkState === Qt.Checked ? "qrc:/icons/controls/check.svg" : control.checkState === Qt.PartiallyChecked ? "qrc:/icons/controls/minus.svg" : ""
             color: control.enabled ? control.theme.accentForeground : control.theme.muted
-            font.pixelSize: control.theme.scaledSize(14)
         }
     }
     contentItem: Text {

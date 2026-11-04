@@ -105,9 +105,22 @@ bool ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
                                   targetHash(target.key()));
         }
     }
+    QSet<QString> pendingNames;
+    for (auto it = manual_.constBegin(); it != manual_.constEnd(); ++it) {
+        const auto targets = it.value().toObject();
+        for (auto target = targets.constBegin(); target != targets.constEnd(); ++target) {
+            const auto state = target.value().toObject().value("state").toString();
+            if (state == "Queued" || state == "Testing") {
+                pendingNames.insert(it.key());
+                break;
+            }
+        }
+    }
     for (auto* values : {&records_, &manual_}) {
         for (auto it = values->begin(); it != values->end();) {
-            if (!names.contains(it.key())) {
+            // A concurrent group refresh can omit a node whose request is still
+            // pending. Keep its state until the test finishes or is cancelled.
+            if (!names.contains(it.key()) && !pendingNames.contains(it.key())) {
                 it = values->erase(it);
                 changed = true;
             } else {

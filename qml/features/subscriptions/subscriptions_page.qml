@@ -15,6 +15,12 @@ ListView {
     property string urlRequestToken: ""
     property string urlRequestAction: ""
     property string urlResult: ""
+    function editProfile(profileId, layer): void {
+        editorLoader.active = true;
+        const editor = editorLoader.item as ProfileEditor;
+        if (editor)
+            editor.edit(profileId, layer);
+    }
     function beginImport(command, arguments) {
         importDialog.profileCount = ui.profileModel.count;
         importDialog.attempted = true;
@@ -252,11 +258,15 @@ ListView {
             }
         }
     }
-    ProfileEditor {
-        id: editor
-        parent: Overlay.overlay
-        ui: root.ui
-        theme: root.theme
+    Loader {
+        id: editorLoader
+        active: false
+        sourceComponent: ProfileEditor {
+            parent: Overlay.overlay
+            ui: root.ui
+            theme: root.theme
+            onClosed: editorLoader.active = false
+        }
     }
     ThemedDialog {
         id: rollbackConfirmation
@@ -501,7 +511,7 @@ ListView {
                     theme: root.theme
                     text: qsTr("Edit original YAML…")
                     enabled: !root.ui.runtime.busy
-                    onClicked: editor.edit(root.managedId, "source")
+                    onClicked: root.editProfile(root.managedId, "source")
                 }
                 ActionButton {
                     Layout.minimumWidth: 0
@@ -509,7 +519,7 @@ ListView {
                     theme: root.theme
                     text: qsTr("Edit profile overrides…")
                     enabled: !root.ui.runtime.busy
-                    onClicked: editor.edit(root.managedId, "overlay")
+                    onClicked: root.editProfile(root.managedId, "overlay")
                 }
                 ThemedComboBox {
                     id: versions

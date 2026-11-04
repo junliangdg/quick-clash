@@ -53,11 +53,13 @@ ComboBox {
             Layout.minimumWidth: implicitWidth
         }
     }
-    indicator: Text {
+    indicator: UiIcon {
+        theme: control.theme
         x: control.width - width - 10
         y: (control.height - height) / 2
-        text: "▾"
-        font.pixelSize: control.theme.scaledSize(14)
+        width: control.theme.scaledSize(16)
+        height: width
+        source: "qrc:/icons/dashboard/chevron_down.svg"
         color: control.theme.muted
     }
     background: StateSurface {

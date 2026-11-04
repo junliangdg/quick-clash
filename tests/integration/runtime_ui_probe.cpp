@@ -1129,6 +1129,11 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!capturePath.isEmpty() &&
         !host.window()->grabWindow().save(QDir(capturePath).filePath("node_search_500.png")))
         return 280;
+    proxies->setProperty("searchText", "MANUAL");
+    QTest::qWait(60);
+    if (proxies->property("matchingCount").toInt() != 500 ||
+        controls(controls, host.window()->contentItem()) > 80)
+        return 282;
     proxies->setProperty("searchText", "missing-node");
     QTest::qWait(40);
     auto* emptySearch = host.window()->findChild<QQuickItem*>("proxy_search_empty");
@@ -1591,8 +1596,8 @@ int runPageMemoryProbe(ApplicationHost& host) {
             {"exposed", host.window()->isExposed()},
             {"visible", host.window()->isVisible()},
             {"frames", frameStats},
-            {"modelGroups", host.state().groups().size()},
-            {"modelNodes", host.state().nodes().size()}};
+            {"modelGroups", host.state().groupCount()},
+            {"modelNodes", host.state().nodeCount()}};
         std::printf("Page memory: %s\n",
                     QJsonDocument(result).toJson(QJsonDocument::Compact).constData());
         return host.contentReady() && host.qmlErrorCount() == 0;
@@ -1676,9 +1681,12 @@ int runPageMemoryProbe(ApplicationHost& host) {
     QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
     if (!firstProxies.isNull() || nodeControls() != 0)
         return 105;
-    auto* editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
-    if (!editor || !QMetaObject::invokeMethod(editor, "edit", Q_ARG(QVariant, "page_memory"),
-                                              Q_ARG(QVariant, "source")))
+    if (host.window()->findChild<QObject*>(QStringLiteral("profile_editor")) ||
+        !QMetaObject::invokeMethod(page(), "editProfile", Q_ARG(QVariant, "page_memory"),
+                                   Q_ARG(QVariant, "source")))
+        return 117;
+    QPointer<QObject> editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
+    if (!editor)
         return 117;
     ui.applyData({1,
                   "fixture",
@@ -1691,7 +1699,7 @@ int runPageMemoryProbe(ApplicationHost& host) {
     if (!stage("editor_512k", 2200) || ui.editor().isEmpty())
         return 118;
     QMetaObject::invokeMethod(editor, "close");
-    if (!stage("editor_released", 500) || !ui.editor().isEmpty())
+    if (!stage("editor_released", 500) || !ui.editor().isEmpty() || !editor.isNull())
         return 119;
     const QPointer<QObject> subscriptions = page();
     if (!ui.navigate("home") || !stage("home_after_pages", 3000))

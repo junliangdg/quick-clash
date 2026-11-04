@@ -100,7 +100,7 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
             finish(storageError(status == 404 ? "CoreTargetNotFound" : "CoreRequestFailed"));
             return;
         }
-        const auto payload = bytes->mid(headerEnd + 4);
+        auto payload = bytes->mid(headerEnd + 4);
         if (status == 204) {
             finish(QJsonObject{});
             return;
@@ -108,9 +108,11 @@ void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
         // HTTP/1.0 avoids chunked encoding. Streams yield one complete JSON line.
         const auto newline = payload.indexOf('\n');
         const auto doc = QJsonDocument::fromJson(newline >= 0 ? payload.first(newline) : payload);
-        if (doc.isObject())
+        if (doc.isObject()) {
+            payload = {};
+            *bytes = {};
             finish(doc.object());
-        else if (ended)
+        } else if (ended)
             finish(storageError("CoreResponseInvalid"));
     };
     QObject::connect(socket, &QIODevice::readyRead, socket, [parse] { parse(false); });

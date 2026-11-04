@@ -1,3 +1,4 @@
+#include "infra/core/proxy_catalog.h"
 #include "infra/core/service_protocol.h"
 #include <QCoreApplication>
 #include <QJsonArray>
@@ -77,6 +78,52 @@ int main(int argc, char** argv) {
     }
     if (protocol.accept(valid).disposition != Kind::Reject)
         return 12; // Eviction cannot permit an old ID to mutate again.
+    {
+        ServiceProtocol bounded;
+        const auto largeResponse = [](int id, qsizetype size) {
+            return QJsonObject{{"protocolVersion", 1},
+                               {"requestId", QString::number(id)},
+                               {"result", QJsonObject{{"text", QString(size, QLatin1Char('x'))}}}};
+        };
+        for (int id = 1; id <= 5; ++id) {
+            const auto value = largeResponse(id, 1024 * 1024);
+            if (bounded.accept(request(id, "groups")).disposition != Kind::Execute)
+                return 20;
+            bounded.complete(QString::number(id), value);
+            const auto cached = bounded.accept(request(id, "groups"));
+            if (cached.disposition != Kind::Cached || cached.response != value)
+                return 21;
+        }
+        if (bounded.accept(request(1, "groups")).disposition != Kind::Reject ||
+            bounded.accept(request(2, "groups")).disposition != Kind::Reject)
+            return 22; // Byte eviction happens before the 32-entry limit.
+        if (bounded.accept(request(6)).disposition != Kind::Execute)
+            return 23;
+        bounded.complete("6", largeResponse(6, quickclash::infra::kServiceReplayByteLimit));
+        if (bounded.accept(request(6)).disposition != Kind::Reject ||
+            bounded.accept(request(5, "groups")).disposition != Kind::Cached)
+            return 24; // Oversized delivery neither repeats nor clears unrelated cached results.
+        bounded.clear();
+        if (bounded.accept(request(1)).disposition != Kind::Execute)
+            return 25;
+        bounded.complete("1", response);
+        if (bounded.accept(request(1)).disposition != Kind::Cached)
+            return 26;
+    }
+    {
+        const auto catalog = quickclash::infra::proxySelectionCatalog(
+            {{"choose", QJsonObject{{"type", "Selector"},
+                                    {"all", QJsonArray{"DIRECT", "node"}},
+                                    {"now", "node"},
+                                    {"history", QJsonArray{QJsonObject{{"delay", 42}}}}}},
+             {"node", QJsonObject{{"type", "HTTP"}, {"extra", QJsonObject{{"large", 1}}}}},
+             {"DIRECT", QJsonObject{{"type", "Direct"}}}});
+        if (catalog.size() != 3 || !catalog.contains("node") || !catalog.contains("DIRECT") ||
+            !catalog.value("node").toObject().isEmpty() ||
+            catalog.value("choose").toObject() !=
+                QJsonObject{{"type", "Selector"}, {"all", QJsonArray{"DIRECT", "node"}}})
+            return 27;
+    }
     if (!ServiceProtocol::validResponse(response))
         return 13;
     response.insert(QStringLiteral("error"), QStringLiteral("error"));

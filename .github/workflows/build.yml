@@ -47,6 +47,7 @@ jobs:
         run: |
           ./scripts/build_design_docs.ps1 -Check
           ./scripts/check_source_layout.ps1
+          ./scripts/check_ui_glyphs.ps1
           ./scripts/check_platform_boundaries.ps1
           ./scripts/check_progress.ps1
           ./tests/scripts/check_progress_test.ps1
