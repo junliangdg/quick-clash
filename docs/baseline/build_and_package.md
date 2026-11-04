@@ -36,27 +36,27 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 
 脚本仍使用仓库 Ninja preset；可用 `-CMake` 指定 CMake 路径、`-BuildDirectory` 指定独立构建目录。默认使用 PATH 的 cmake，不隐式退到旧版本。Qt Creator/VS Code 可以选择兼容的 Qt ≥6.9 套件并提供 `CMAKE_PREFIX_PATH`，个人机器路径写入不提交的 `CMakeUserPresets.json`；首次先获取依赖，CMake 配置本身不联网。Qt 6.9.0 为最低版本 CI 配置，实际构建结论仍以相应版本的验收结果为准。
 
-构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。配置默认最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
+构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。默认配置最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；GitHub快速和完整验证均将构建/lint与整套CTest预算提高到1200秒，以容纳托管runner上的干净Qt 6.9 QML构建，本地默认值仍为600秒；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
 
 默认UI开发构建目录为`build/dev`，headless为`build/headless`，本地独立发行默认`build/release`；Windows CI完成测试后在同一`build/dev`切换为无测试发行配置以复用编译结果，详见下节。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
-快速迭代阶段，[日常CI](../../.github/workflows/build.yml)当前自动发布门禁仅覆盖Windows：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账/源码命名、脚本回归和格式检查只跑一个Windows job；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
+快速迭代阶段，[日常CI](../../.github/workflows/build.yml)当前自动发布门禁仅覆盖Windows：main推送和PR自动执行，其他分支在PR或手动运行时验证，`v*`标签强制完整Windows验证。纯文档提交只运行仓库检查；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，手动运行始终构建。仓库文档/台账、源码命名、平台边界及脚本回归只跑一个Windows job；验证范围由可独立回归的`select_ci_scope.ps1`统一输出product/full/publish，避免打包与发布条件漂移；同分支新提交取消旧验证，标签验证及发布任务不主动取消。
 
-Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-22.04/`linux_gcc_64`及macos-14/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；仓库检查job另装clang-format21.1.2。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-24.04/`linux_gcc_64`及macos-15/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；官方checkout/setup-python/cache及制品Actions使用Node24版本。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
 Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核、AppContainer或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
 仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
-Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签标记runtime、runtime_publication、recovery三项，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup，与快速构建排除的目标保持一致，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
 
-`v*`标签或手动勾选`full_validation`时，同次Windows运行改为全部CTest、独立headless构建/5项测试和官方内核API/监听归属/Job/AppContainer探针；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+`v*`标签或手动勾选`full_validation`时，同次Windows运行改为全部CTest、独立headless构建/6项测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
 
 ### GitHub持续交付与干净发行包
 
 PR仅验证。默认分支（当前main）Windows快速验证通过后更新GitHub Releases的`continuous`预发行版；`v*`标签完整Windows验证成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则，可用`full_validation`追加完整门槛。Linux/macOS独立手动验证，不是Windows发布依赖。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous仅代表快速验证的开发快照，版本发布还须结合已声明支持范围的验收证据。
 
-Windows验证runner复用已装工具/依赖，测试通过后执行`cmake --preset release -B build/dev`，在同一目录切换到`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`再构建。UI测试探针为仅测试静态库，测试宏/开发资产路径宏只作用于使用它们的源文件；切换时复用未变的公共对象/QML缓存，只重新编译有差异的代码及重新链接，不再启动第二套独立全量构建。目录中残留的测试文件不安装；配置和当前目标图均关闭测试，生产程序不再链接探针/QtTest。本地`cmake --preset release`仍默认独立目录，只有同工具链/同Qt/同源码且已完成测试的CI顺序流程采用目录复用。再次验证须先运行dev配置，不能对发行配置直接执行旧CTest清单。
+Windows验证runner复用已装工具/依赖；验证与打包在同一PowerShell步骤中顺序运行，直接沿用`build_windows.ps1`初始化的MSVC环境，不再依赖额外的MSVC Action。测试通过后执行`cmake --preset release -B build/dev`，在同一目录切换到`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`再构建。UI测试探针为仅测试静态库，测试宏/开发资产路径宏只作用于使用它们的源文件；切换时复用未变的公共对象/QML缓存，只重新编译有差异的代码及重新链接，不再启动第二套独立全量构建。目录中残留的测试文件不安装；配置和当前目标图均关闭测试，生产程序不再链接探针/QtTest。本地`cmake --preset release`仍默认独立目录，只有同工具链/同Qt/同源码且已完成测试的CI顺序流程采用目录复用。再次验证须先运行dev配置，不能对发行配置直接执行旧CTest清单。
 
 `scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和程序内置的固定动作服务安装入口（不附带 PowerShell 安装脚本）。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
 

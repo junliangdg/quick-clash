@@ -12,15 +12,15 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             arch: linux_gcc_64
-          - os: macos-14
+          - os: macos-15
             arch: clang_64
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.14'
       - name: Pinned build tools
@@ -36,8 +36,8 @@ jobs:
           py7zrversion: '==1.1.0'
       - name: Linux Qt runtime dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libegl1
-      - uses: actions/cache@v4
+        run: sudo apt-get update && sudo apt-get install -y libgl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libegl1 libopengl0 fonts-noto-cjk
+      - uses: actions/cache@v5
         with:
           path: .cache/yaml_cpp_*.tar.gz
           key: ${{ runner.os }}-yaml-${{ hashFiles('docs/baseline/release_matrix.json') }}
@@ -52,13 +52,13 @@ jobs:
       - name: Native tests
         # Windows-specific core/lease tests are registered only on Windows by CMake.
         # Unsupported adapters and shared unit/UI contracts still run here.
-        run: ctest --preset dev --output-junit native_tests.xml
+        run: ctest --preset dev --timeout 60 --output-junit build/dev/native_tests.xml
       - name: Headless boundary
         run: |
           cmake --preset headless
           cmake --build --preset headless --parallel 3
-          ctest --preset headless --output-junit headless_tests.xml
-      - uses: actions/upload-artifact@v4
+          ctest --preset headless --timeout 60 --output-junit build/headless/headless_tests.xml
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: platform_logs_${{ matrix.os }}
@@ -68,6 +68,6 @@ jobs:
             build/dev/CMakeFiles/CMakeConfigureLog.yaml
             build/headless/Testing/Temporary/
             build/headless/CMakeFiles/CMakeConfigureLog.yaml
-            native_tests.xml
-            headless_tests.xml
+            build/dev/native_tests.xml
+            build/headless/headless_tests.xml
             aqtinstall.log

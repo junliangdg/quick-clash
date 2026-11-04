@@ -142,6 +142,23 @@ int main(int argc, char* argv[]) {
             latency.ingest({{"node", QJsonObject{{"history", history(0, 0)}}}}, now);
             check(latest().value("state") == "Failed" && ProxyLatency::text(latest()) != "0 ms",
                   "zero in core history denotes failure");
+            // A real core observation may be a few seconds newer than an injected clock.
+            latency.clear();
+            latency.ingest({{"node", QJsonObject{{"history", history(34, 4)}}}}, now);
+            check(latency.details(now.addSecs(603))
+                          .value("node")
+                          .toObject()
+                          .value("latest")
+                          .toObject()
+                          .value("state") == "Success",
+                  "latency stays fresh until ten minutes after its observation timestamp");
+            check(latency.details(now.addSecs(604))
+                          .value("node")
+                          .toObject()
+                          .value("latest")
+                          .toObject()
+                          .value("state") == "Stale",
+                  "latency expires exactly ten minutes after its observation timestamp");
             latency.clear();
             latency.ingest({{"node", QJsonObject{{"history", history(34, 200)}}}}, now);
             check(latency.details(now).isEmpty(), "future observations are rejected");

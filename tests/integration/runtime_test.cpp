@@ -1743,6 +1743,17 @@ int main(int argc, char** argv) {
                      "batch delay tests every node and completes despite unavailable nodes",
                      managed))
             return 136;
+        // Mihomo timestamps observations with its real clock, which has advanced
+        // since this test froze managedNow. Age the newest returned observation,
+        // not the runtime's initialization time, by the full cache lifetime.
+        const auto observedDelays = managed.snapshot().value("delay_details").toObject();
+        for (const auto& detail : observedDelays) {
+            const auto latest = detail.toObject().value("latest").toObject();
+            const auto observedAt =
+                QDateTime::fromString(latest.value("time").toString(), Qt::ISODateWithMs);
+            if (observedAt > managedNow)
+                managedNow = observedAt;
+        }
         managedNow = managedNow.addSecs(601);
         managed.refresh();
         // A visible proxy demand shares the existing feature timer; no new cache timer.

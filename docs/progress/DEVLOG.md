@@ -1314,3 +1314,20 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 用户提供的 Actions 日志显示完整 Windows 验证 47/48 通过，唯一失败为 `runtime_publication`；在 CI 中的单项耗时 16.88 秒。本机以 Qt 6.9/MSVC Release 复现后确认该用例还有第二层问题：资源采样断言等待 7 秒时，一秒特性定时器在负载下可能尚未跨过完整五秒采样边界；继续运行到日志压力用例后，2100 次 `not_ready` 会逐次落盘错误历史，最终触发 CTest 的 60 秒上限。
 - 修复：将资源采样等待调整为 15 秒，保留失败超时而不跳过断言；将运行时的日志发布/释放用例缩减为 3 条日志，只验证发布、释放失效和重新获取；在 `contracts_test` 增加应用日志 100 条上限的纯内存断言。日志环形上限与 UTF-8 字节上限的既有契约测试未放宽。
 - 验证：VS18/CMake/Ninja Windows Release 增量构建 `runtime_publication_test`、`contracts_test` 通过；CTest `contracts` 0.66 秒 Pass，`runtime_publication` 11.34 秒 Pass，合计 2/2。完整 48 项、远端 Actions 结果及其他平台 NotRun。原始诊断日志仅留在 Git 忽略的 `build/`。
+
+## 2026-11-04 · GitHub Actions 完整构建超时
+
+- 上一轮 `runtime_publication` 修复后的完整 Windows CI 在干净 Qt 6.9 构建的 323/439 个目标处达到 `native_process.ps1` 的 600 秒脚本预算；日志显示仍在编译 QML cache 目标，没有编译器错误，因此不是代码构建失败。
+- 将完整验证的 UI/headless 构建、QML lint及整套 CTest 预算均提高到 1200 秒，Windows job 上限由 35 分钟提高到 60 分钟；打包前同目录 production rebuild 也提高到 1200 秒。快速 PR 路径和脚本本地默认值保持 600 秒。
+- 本次仅修改 CI 配置与构建说明；工作流 YAML 解析、进度/源码布局/平台边界/设计文档/格式差异检查通过，远端完整 Actions、Windows 全量测试与打包流程 NotRun。
+
+
+## 2026-11-04 · GitHub Actions 打包发布精简与本机核验
+
+- 保留进入会话时已有的工作区改动和此前完整构建 600 秒超时结论。日常 PR/main 改为快速构建、QML lint 和快速回归，main 更新 continuous；纯文档跳过产品，随包策略/依赖/许可变化例外。版本标签始终全量验证，手动仍可选完整模式，不删除完整测试或内核探针。快速及完整托管构建/lint、整套 CTest 均使用 1200 秒预算，Windows job 保持 60 分钟；本地脚本默认值不变。
+- 将差异及发布范围抽到 `select_ci_scope.ps1`，统一 product/full/publish 输出并增加 25 项脚本回归，覆盖 PR、文档、随包文件、默认/其他分支、标签、手动模式、缺失 push 基准、源文件移到 docs 及 diff 失败；禁用差异的重命名折叠，避免源文件删除被文档路径遮蔽。验证与打包合成同一个 PowerShell 步骤，直接复用 `build_windows.ps1` 初始化的 MSVC 环境，移除额外 MSVC Action；仍保留独立且仅此有 contents 写权限的发布 job，下载同次成品、不二次编译。
+- 官方 checkout/setup-python/cache/制品 Actions 更新为 Node24 版本；手动平台基线更新为 Ubuntu 24.04/macOS 15，补 Linux OpenGL/CJK 运行资源，并把 JUnit 写入 build。macOS 14 runner 已按[官方公告](https://github.com/actions/runner-images/issues/13518)于 2026-11-02 退役；跨平台配置检查不代表 Linux/macOS 原生构建通过。
+- 本机 Windows x64 / Qt 6.9.0 / MSVC 19.51 增量完整目标构建及 QML lint 通过（存在既有 QML 警告）。完整 CTest 首轮 47/48、722.07 秒，唯一失败为 `runtime` 的十分钟延迟缓存过期断言：注入时钟冻结在初始化，真实 Mihomo 观测晚约 3.35 秒，推进 601 秒时这些记录实际仅过去约 598 秒。测试改为从最新已返回观测时间推进；新增契约断言确认观测后 599 秒仍有效、600 秒过期，产品 TTL/逻辑及用例时限不变。重建后 `runtime` 187.43 秒、`contracts` 0.56 秒，定向 2/2 Pass；未将原完整 47/48 改写为修复后整套 48/48。
+- 验证：更新后 headless 增量构建及 6/6 CTest Pass；官方 Mihomo API、监听归属、Job 回收及临时 AppContainer 隔离探针 Pass，系统代理未改、TUN 未开启。actionlint 1.7.12、两份 YAML 及 7 段内嵌 PowerShell 解析、25 项范围选择、10 项进度脚本、原生进程/超时清理、11 项依赖脚本和发布编排模拟回归通过。Python 3.14 的 Windows/Linux x64/macOS arm64 固定二进制依赖解析通过；隔离冷缓存下载及离线再校验 YAML/Mihomo/Geo/许可成功，不改已有缓存或摘要。
+- 发行链路复验 Pass：执行 workflow 的原 PowerShell 步骤，仅将包输出定向到新的 build 目录；快速 CTest 35/35、113.83 秒，通过后同目录切换 BUILD_TESTING=OFF、production 重建、清开发 Qt PATH 的部署启动、ZIP/SHA256 校验均成功，验证了不依赖额外 MSVC Action 的同进程衔接。包清单记录 192 项运行文件（不含清单自身），无测试程序/QtTest；退出后已恢复 BUILD_TESTING=ON 并重建 quickclash_ci_fast，未覆盖已有 dist 包。这是本机部署冒烟，不是干净机器或整包功能验收。原始输出保留在忽略的 `build/ci_review/`、`build/dev/logs/`、`build/core_probe/`，不向 reports 提交原始日志或批量证据。
+- 限制与下一步：未认证仓库 Actions API 返回 404，当前无可用 GitHub API 凭证，未提交、推送或创建 Release，不能宣称远端已通过。推送修订后核对 main 的快速构建/continuous 成品，再用手动 full_validation 核对完整 Windows 范围；独立 platform_validation 验证 Linux/macOS。Windows 托管 MSVC 环境、跨平台原生执行和真实远端上传仍未验证，不以解析、wheel 可用或本机较新工具链替代。
