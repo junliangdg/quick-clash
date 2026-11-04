@@ -620,6 +620,19 @@ if(BUILD_TESTING)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;Could not find property;is not a type;is not installed;Required property;Error loading QML"
             TIMEOUT 15)
+        if(WIN32)
+            # Qt's offscreen plugin does not discover Windows fonts itself.
+            # Keep the UI probes independent of the caller's font environment.
+            foreach(quickclash_ui_test IN ITEMS ui_prototype qml_smoke ui_keyboard
+                    ui_accessibility ui_accessibility_zh ui_visual ui_responsive ui_runtime_lists
+                    ui_runtime_lists_zh ui_custom_groups ui_custom_groups_zh ui_subscriptions
+                    ui_subscriptions_zh ui_language host_lifecycle)
+                get_test_property(${quickclash_ui_test} ENVIRONMENT quickclash_ui_environment)
+                list(APPEND quickclash_ui_environment "QT_QPA_FONTDIR=$ENV{SystemRoot}/Fonts")
+                set_tests_properties(${quickclash_ui_test} PROPERTIES
+                    ENVIRONMENT "${quickclash_ui_environment}")
+            endforeach()
+        endif()
     endif()
     if(WIN32)
         add_executable(core_job_probe tests/integration/core_job_probe.cpp)
@@ -631,7 +644,11 @@ if(BUILD_TESTING)
     # Daily CI keeps all fast tests, including UI lifecycle regressions. Slow
     # integration tests and manual probes remain available in the full build.
     if(QUICKCLASH_BUILD_UI AND WIN32)
-        set_tests_properties(runtime runtime_publication recovery PROPERTIES LABELS ci_slow)
+        # runtime_test is excluded from quickclash_ci_fast; every test that
+        # launches it must be excluded by the matching CTest label as well.
+        set_tests_properties(runtime runtime_user_rules runtime_custom_groups runtime_proxy_latency
+            runtime_config_editor runtime_backup runtime_provider runtime_subscription_download
+            runtime_geo_update runtime_core_update runtime_publication recovery PROPERTIES LABELS ci_slow)
     endif()
     set(quickclash_full_only_targets runtime_test runtime_publication_test recovery_test engine_startup_test
         qt_cost_probe core_job_probe core_isolation_probe)

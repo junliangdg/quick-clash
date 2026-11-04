@@ -239,7 +239,7 @@ Item {
             ColumnLayout {
                 id: listContent
                 height: Math.max(implicitHeight, listPage.availableHeight - 2 * listPage.focusMargin)
-                spacing: 10
+                spacing: 6
                 GridLayout {
                     id: toolbar
                     objectName: "user_rules_toolbar"

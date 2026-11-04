@@ -233,14 +233,14 @@ Item {
         width: Math.max(0, Math.min(root.theme.scaledSize(920), parent ? parent.width - 48 : root.theme.scaledSize(920)))
         height: Math.max(0, Math.min(root.theme.scaledSize(760), parent ? parent.height - 48 : root.theme.scaledSize(760)))
         implicitHeight: height
-        padding: root.theme.panelPadding
+        padding: 12
         closePolicy: rulesEditor.saving ? Popup.NoAutoClose : Popup.CloseOnEscape
         standardButtons: Dialog.NoButton
         initialFocusItem: confirmCustomRules
         header: Label {
             objectName: "custom_rules_title"
             text: customRulesDialog.title
-            padding: root.theme.panelPadding
+            padding: 12
             color: root.theme.text
             font.pixelSize: root.theme.scaledSize(18)
             font.weight: Font.DemiBold
@@ -257,15 +257,15 @@ Item {
             objectName: "custom_rules_footer"
             width: rulesEditor.width
             implicitWidth: width
-            implicitHeight: footerLayout.implicitHeight + 8 + root.theme.panelPadding
+            implicitHeight: footerLayout.implicitHeight + 16
 
             GridLayout {
                 id: footerLayout
                 anchors.fill: parent
-                anchors.leftMargin: root.theme.panelPadding
-                anchors.rightMargin: root.theme.panelPadding
-                anchors.topMargin: 8
-                anchors.bottomMargin: root.theme.panelPadding
+                anchors.leftMargin: 12
+                anchors.rightMargin: 12
+                anchors.topMargin: 4
+                anchors.bottomMargin: 12
                 readonly property bool inlineHint: width >= Math.min(confirmHint.implicitWidth, root.theme.scaledSize(100)) + cancelCustomRules.implicitWidth + confirmCustomRules.implicitWidth + 2 * columnSpacing
                 columns: 3
                 columnSpacing: 8
