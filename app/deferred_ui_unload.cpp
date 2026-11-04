@@ -1,10 +1,9 @@
 #include "deferred_ui_unload.h"
 
 namespace quickclash {
-DeferredUiUnload::DeferredUiUnload(int delayMilliseconds, QObject* parent) : QObject(parent) {
+DeferredUiUnload::DeferredUiUnload(QObject* parent) : QObject(parent) {
     timer_.setSingleShot(true);
-    timer_.setTimerType(Qt::PreciseTimer);
-    timer_.setInterval(delayMilliseconds);
+    timer_.setInterval(0);
 }
 void DeferredUiUnload::cancel() {
     ++ticket_;

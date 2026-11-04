@@ -4,11 +4,11 @@
 #include <QTimer>
 
 namespace quickclash {
-// The host supplies current capability and visibility; this object owns only the deferred lease.
+// Queue destruction after the current UI event; the host owns eligibility and recovery checks.
 class DeferredUiUnload final : public QObject {
     Q_OBJECT
   public:
-    explicit DeferredUiUnload(int delayMilliseconds = 5000, QObject* parent = nullptr);
+    explicit DeferredUiUnload(QObject* parent = nullptr);
     void update(bool eligible, quint64 engineGeneration);
     void cancel();
     [[nodiscard]] bool pending() const {

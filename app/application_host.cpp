@@ -65,18 +65,18 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
         }
     });
     connect(&deferredUnload_, &DeferredUiUnload::due, this, [this](quint64 generation) {
-        if (generation != static_cast<quint64>(generation_) || !window_ || !backgroundWindow() ||
-            !state_.unloadWhenHidden() || !state_.settingsReady() || quitting_ || unloading_ ||
-            showing_)
+        if (generation != static_cast<quint64>(generation_) || !hiddenWindow() ||
+            state_.hostState() != QStringLiteral("Hidden") || quitting_ || unloading_ || showing_)
             return;
-        // Capability may disappear during the delay. Never destroy the only recovery surface.
+        // Capability may disappear before the queued callback. Keep a recovery surface,
+        // even if the preference was disabled or is being saved in the meantime.
         if (!recoverableFromTray()) {
             state_.setTrayAvailable(false);
-            if (window_->visibility() == QWindow::Hidden)
-                (void)showWindow();
+            (void)showWindow();
             return;
         }
-        unloadWindow();
+        if (state_.settingsReady() && state_.unloadWhenHidden())
+            unloadWindow();
     });
     connect(&state_, &presentation::UiState::closeRequested, this, &ApplicationHost::hideWindow);
     connect(&state_, &presentation::UiState::quitRequested, this, &ApplicationHost::quit,
@@ -359,17 +359,17 @@ void ApplicationHost::hideWindow(bool confirmed) {
 bool ApplicationHost::recoverableFromTray() const {
     return tray_ && tray_->isVisible() && QSystemTrayIcon::isSystemTrayAvailable();
 }
-bool ApplicationHost::backgroundWindow() const {
-    return window_ && (window_->visibility() == QWindow::Hidden ||
-                       window_->visibility() == QWindow::Minimized);
+bool ApplicationHost::hiddenWindow() const {
+    return window_ && window_->visibility() == QWindow::Hidden;
 }
 void ApplicationHost::updateDeferredUnload() {
-    const bool hostBackground = state_.hostState() == QStringLiteral("Hidden") ||
-                                state_.hostState() == QStringLiteral("Minimized");
-    deferredUnload_.update(!quitting_ && !showing_ && !unloading_ && engine_ &&
-                               state_.settingsReady() && state_.unloadWhenHidden() &&
-                               hostBackground && backgroundWindow() && recoverableFromTray(),
-                           static_cast<quint64>(generation_));
+    const bool hidden = !quitting_ && !showing_ && !unloading_ && engine_ &&
+                        state_.hostState() == QStringLiteral("Hidden") && hiddenWindow();
+    const bool trayAvailable = recoverableFromTray();
+    const bool trayLost = hidden && state_.trayAvailable() && !trayAvailable;
+    const bool shouldUnload =
+        hidden && trayAvailable && state_.settingsReady() && state_.unloadWhenHidden();
+    deferredUnload_.update(trayLost || shouldUnload, static_cast<quint64>(generation_));
 }
 void ApplicationHost::unloadWindow() {
     deferredUnload_.cancel();

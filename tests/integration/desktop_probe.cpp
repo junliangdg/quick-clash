@@ -13,6 +13,7 @@
 #include <QPointer>
 #include <QSGRendererInterface>
 #include <QSaveFile>
+#include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTest>
@@ -312,11 +313,11 @@ int runDesktopProbe(ApplicationHost& host) {
         const QPointer<QQuickWindow> oldWindow = host.window();
         ui.setUnloadWhenHidden(true);
         host.hideWindow(true);
-        if (!check(waitFor([&] { return !host.window(); }, 7000) && oldWindow.isNull() &&
+        if (!check(waitFor([&] { return !host.window(); }, 4000) && oldWindow.isNull() &&
                        ui.activeDemandCount() == 0 && ui.activeStreamCount() == 0 &&
                        ui.dataDemands().active.isEmpty() && ready() &&
                        ui.runtime().value(QStringLiteral("corePid")) == corePid && transfer(),
-                   "five-second hidden unload releases consumers and retains forwarding"))
+                   "queued tray unload releases consumers promptly and retains forwarding"))
             return 182;
         result.insert(QStringLiteral("hiddenTransfer"), true);
         if (!check(
@@ -332,6 +333,108 @@ int runDesktopProbe(ApplicationHost& host) {
                     ready() && transfer(),
                 "one QML rebuild restores the route and filter with the same core"))
             return 183;
+        // Submit an edit and close on the same UI turn, while the real runtime owns
+        // the transaction. Reopening must attach to the result without resubmitting.
+        if (!check(ui.navigate(QStringLiteral("rules")) && waitFor([&] {
+                       return host.window()->findChild<QObject*>("custom_rules_dialog") &&
+                              host.window()->findChild<QObject*>("user_rules_editor");
+                   }),
+                   "rule editor page for in-flight tray close"))
+            return 189;
+        auto* rulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+        auto* rulesEditor = host.window()->findChild<QObject*>("user_rules_editor");
+        if (!check(QMetaObject::invokeMethod(rulesDialog, "open") && waitFor([&] {
+                       return !ui.userRules().value("revision").toString().isEmpty() &&
+                              !rulesEditor->property("baseRevision").toString().isEmpty() &&
+                              !ui.runtime().value("busy").toBool();
+                   }),
+                   "real rule editor data loaded"))
+            return 190;
+        const auto previousAttempt = ui.userRules().value("attempt").toString().toULongLong();
+        auto* value = host.window()->findChild<QObject*>("user_rule_value");
+        if (!check(
+                value &&
+                    QMetaObject::invokeMethod(rulesEditor, "edit", Q_ARG(QVariant, QVariant(-1))) &&
+                    value->setProperty("text", "lifecycle.example") &&
+                    QMetaObject::invokeMethod(rulesEditor, "saveRuleForm") &&
+                    rulesEditor->property("globalDirty").toBool() &&
+                    QMetaObject::invokeMethod(rulesEditor, "confirm") &&
+                    rulesEditor->property("saving").toBool(),
+                "submit real rule edit before hiding"))
+            return 191;
+        const auto savingGeneration = host.engineGeneration();
+        const QPointer<QQuickWindow> savingWindow = host.window();
+        host.hideWindow(true);
+        if (!check(waitFor([&] { return !host.window(); }, 4000) && savingWindow.isNull() &&
+                       ui.userRulesDraft().value("saving").toBool(),
+                   "tray unload preserves in-flight rule save identity"))
+            return 192;
+        if (!check(host.showWindow() && host.engineGeneration() == savingGeneration + 1 &&
+                       waitFor([&] {
+                           return host.contentReady() &&
+                                  host.window()->findChild<QObject*>("custom_rules_dialog") &&
+                                  host.window()->findChild<QObject*>("user_rules_editor");
+                       }),
+                   "reopen after in-flight rule save"))
+            return 193;
+        rulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+        rulesEditor = host.window()->findChild<QObject*>("user_rules_editor");
+        QSignalSpy completed(rulesEditor, SIGNAL(saveCompleted()));
+        const bool opened = completed.isValid() &&
+                            QMetaObject::invokeMethod(rulesDialog, "open");
+        const bool reconciled = opened && waitFor([&] {
+                                    return completed.size() == 1 &&
+                                           !rulesEditor->property("saving").toBool() &&
+                                           !rulesEditor->property("dirty").toBool() &&
+                                           !rulesDialog->property("visible").toBool() &&
+                                           ui.userRulesDraft().isEmpty() && ready();
+                                });
+        // Successful completion closes the dialog and immediately releases the
+        // scoped result. Reopen it like a user to inspect a fresh snapshot instead
+        // of observing the same signal that QML can invalidate reentrantly.
+        const bool reopened = reconciled && QMetaObject::invokeMethod(rulesDialog, "open");
+        const bool reloaded = reopened && waitFor([&] {
+                                  const auto view = ui.userRules();
+                                  return view.value("result") == QStringLiteral("Saved") &&
+                                         view.value("attempt").toString().toULongLong() >
+                                             previousAttempt;
+                              });
+        const auto view = ui.userRules();
+        const auto observedAttempt = view.value("attempt").toString().toULongLong();
+        int savedRuleCopies = 0;
+        for (const auto& item : view.value("global").toList())
+            if (item.toMap().value("value") == QStringLiteral("lifecycle.example"))
+                ++savedRuleCopies;
+        const bool singleAttempt = observedAttempt == previousAttempt + 1;
+        const bool forwarded = reconciled && reloaded && savedRuleCopies == 1 && singleAttempt &&
+                               transfer();
+        if (!forwarded) {
+            result.insert("ruleSaveDiagnostics",
+                          QJsonObject{{"opened", opened},
+                                      {"reconciled", reconciled},
+                                      {"reopened", reopened},
+                                      {"reloaded", reloaded},
+                                      {"completedSignals", completed.size()},
+                                      {"savedRuleCopies", savedRuleCopies},
+                                      {"previousAttempt", QString::number(previousAttempt)},
+                                      {"observedAttempt", QString::number(observedAttempt)},
+                                      {"lastResult", view.value("result").toString()},
+                                      {"editorSaving", rulesEditor->property("saving").toBool()},
+                                      {"editorDirty", rulesEditor->property("dirty").toBool()},
+                                      {"dialogVisible", rulesDialog->property("visible").toBool()},
+                                      {"draftEmpty", ui.userRulesDraft().isEmpty()},
+                                      {"ready", ready()},
+                                      {"singleAttempt", singleAttempt}});
+        }
+        if (!check(forwarded, "one real rule save completes across unload and forwarding resumes"))
+            return 194;
+        if (!check(QMetaObject::invokeMethod(rulesDialog, "close") && waitFor([&] {
+                       return !rulesDialog->property("visible").toBool() &&
+                              !ui.dataDemands().active.contains(QStringLiteral("user_rules"));
+                   }),
+                   "closing the verified rule editor releases its scoped demand"))
+            return 195;
+        result.insert(QStringLiteral("hiddenRuleSave"), true);
         result.insert(QStringLiteral("forwardedRequests"), received);
     }
     if (phase == "proxy" &&

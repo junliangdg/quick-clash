@@ -1460,10 +1460,10 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="395" />
-      <source>Low memory: unload after 5 seconds hidden or minimized (experimental)</source>
-      <translation>低内存：隐藏或最小化 5 秒后卸载界面（实验性）</translation>
+      <source>Low memory: unload interface when closed to tray (experimental)</source>
+      <translation>低内存：关闭到托盘时卸载界面（实验性）</translation>
     </message>
-    <message><source>Off by default. Reuses your saved unload preference. Requires a working tray; without one, the minimized taskbar window is kept. The engine and subscription updates keep running; opening the tray rebuilds the interface.</source><translation>默认关闭，沿用已保存的卸载偏好。需要可用托盘；无托盘时保留最小化的任务栏窗口。内核与订阅更新继续运行；从托盘打开将重建界面。</translation></message>
+    <message><source>Off by default. Minimizing keeps the interface and taskbar window. Closing to an available tray unloads the interface; the network engine and subscription updates keep running. Reopening from the tray rebuilds the interface.</source><translation>默认关闭。最小化时保留界面和任务栏窗口；关闭到可用托盘时卸载界面，网络内核与订阅更新继续运行。从托盘打开时重建界面。</translation></message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="411" />
       <source>State %1 · Active views %2 · Streams %3</source>

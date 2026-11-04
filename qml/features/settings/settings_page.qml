@@ -1103,7 +1103,7 @@ ThemedScrollView {
                     id: unloadOption
                     theme: root.theme
                     font.family: root.theme.fontFamily
-                    text: qsTr("Low memory: unload after 5 seconds hidden or minimized (experimental)")
+                    text: qsTr("Low memory: unload interface when closed to tray (experimental)")
                     Layout.fillWidth: true
                     contentItem: Text {
                         text: unloadOption.text
@@ -1118,7 +1118,7 @@ ThemedScrollView {
                     onToggled: root.ui.unloadWhenHidden = checked
                 }
                 Label {
-                    text: qsTr("Off by default. Reuses your saved unload preference. Requires a working tray; without one, the minimized taskbar window is kept. The engine and subscription updates keep running; opening the tray rebuilds the interface.")
+                    text: qsTr("Off by default. Minimizing keeps the interface and taskbar window. Closing to an available tray unloads the interface; the network engine and subscription updates keep running. Reopening from the tray rebuilds the interface.")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

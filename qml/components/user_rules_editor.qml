@@ -18,7 +18,7 @@ Item {
     readonly property var targetLabels: scope.currentIndex === 0 ? [qsTr("Direct"), qsTr("Reject"), qsTr("Proxy")] : [qsTr("Direct"), qsTr("Reject")].concat(groups)
     readonly property var currentRules: scope.currentIndex === 0 ? globalDraft : localDraft
     readonly property bool dirty: globalDirty || localDirty || proxyDirty
-    readonly property bool canConfirm: !saving && !!state.revision && (!dirty || (!ui.runtime.busy && !ui.runtime.readOnly && baseProfile === (state.profileId || "")))
+    readonly property bool canConfirm: !formOpen && !pendingForm && !saving && !!state.revision && (!dirty || (!ui.runtime.busy && !ui.runtime.readOnly && baseProfile === (state.profileId || "")))
     property var globalDraft: []
     property var localDraft: []
     property string baseRevision: ""
@@ -31,6 +31,7 @@ Item {
     property string savingAttempt: ""
     property int editingIndex: -1
     property bool formOpen: false
+    property var pendingForm: null
     property int draggingIndex: -1
     signal saveCompleted()
 
@@ -45,10 +46,28 @@ Item {
             globalDirty = !!draft.globalDirty;
             localDirty = !!draft.localDirty;
             proxyDirty = !!draft.proxyDirty;
+            saving = !!draft.saving;
+            savingAttempt = draft.savingAttempt || "";
+            pendingForm = draft.form || null;
         }
+        reconcileState();
     }
     Component.onDestruction: {
-        ui.userRulesDraft = globalDirty || localDirty || proxyDirty ? {
+        // uiAboutToHide snapshots while all controls and the JS engine are still alive.
+        if (ui.uiVisible)
+            saveDraft();
+    }
+    function saveDraft(): void {
+        const form = formOpen ? {
+            "scope": scope.currentIndex,
+            "index": editingIndex,
+            "type": ruleType.currentText,
+            "value": ruleValue.text,
+            "provider": provider.currentText,
+            "target": ruleTarget.currentText,
+            "enabled": ruleEnabled.checked
+        } : pendingForm;
+        ui.userRulesDraft = dirty || form || saving ? {
             "global": globalDraft,
             "local": localDraft,
             "baseRevision": baseRevision,
@@ -56,8 +75,25 @@ Item {
             "proxy": proxyDraft,
             "globalDirty": globalDirty,
             "localDirty": localDirty,
-            "proxyDirty": proxyDirty
+            "proxyDirty": proxyDirty,
+            "saving": saving,
+            "savingAttempt": savingAttempt,
+            "form": form
         } : ({});
+    }
+    function restorePendingForm(): void {
+        if (!pendingForm || !state.revision)
+            return;
+        const form = pendingForm;
+        pendingForm = null;
+        scope.currentIndex = form.scope === 1 ? 1 : 0;
+        editingIndex = form.index;
+        formOpen = true;
+        ruleType.currentIndex = types.indexOf(form.type);
+        ruleValue.text = form.value || "";
+        provider.currentIndex = providers.indexOf(form.provider || "");
+        ruleTarget.currentIndex = targets.indexOf(form.target || "");
+        ruleEnabled.checked = !!form.enabled;
     }
     function copy(value): var {
         return JSON.parse(JSON.stringify(value || []));
@@ -101,6 +137,7 @@ Item {
         localDirty = false;
         proxyDirty = false;
         formOpen = false;
+        pendingForm = null;
         editingIndex = -1;
         if (state.revision) {
             loadState();
@@ -203,27 +240,35 @@ Item {
         editingIndex = -1;
     }
 
+    function reconcileState(): void {
+        if (!state.revision)
+            return;
+        if (!baseRevision) {
+            loadState();
+        } else if (saving && !ui.runtime.busy && state.attempt !== savingAttempt && state.result === "Saved") {
+            saving = false;
+            loadState();
+            ui.userRulesDraft = ({});
+            saveCompleted();
+        } else if (saving && !ui.runtime.busy && state.attempt !== savingAttempt && state.result === "Failed") {
+            saving = false;
+        } else if (!dirty && !formOpen && !pendingForm && !saving && state.revision !== baseRevision) {
+            loadState();
+        }
+        restorePendingForm();
+    }
+
     Connections {
         target: root.ui
+        function onUiAboutToHide(): void {
+            root.saveDraft();
+        }
         function onUserRulesChanged(): void {
-            if (!root.state.revision)
-                return;
-            if (!root.baseRevision) {
-                root.loadState();
-            } else if (root.saving && !root.ui.runtime.busy && root.state.attempt !== root.savingAttempt && root.state.result === "Saved") {
-                root.baseRevision = root.state.revision;
-                root.baseProfile = root.state.profileId || "";
-                root.globalDirty = false;
-                root.localDirty = false;
-                root.proxyDirty = false;
-                root.saving = false;
-                root.ui.userRulesDraft = ({});
-                root.saveCompleted();
-            } else if (root.saving && !root.ui.runtime.busy && root.state.attempt !== root.savingAttempt && root.state.result === "Failed") {
-                root.saving = false;
-            } else if (!root.globalDirty && !root.localDirty && !root.proxyDirty && !root.saving && root.state.revision !== root.baseRevision) {
-                root.loadState();
-            }
+            root.reconcileState();
+        }
+        function onRuntimeChanged(): void {
+            if (root.saving)
+                root.reconcileState();
         }
     }
 
@@ -680,6 +725,7 @@ Item {
                 }
                 ThemedSwitch {
                     id: ruleEnabled
+                    objectName: "user_rule_form_enabled"
                     theme: root.theme
                     text: qsTr("Enabled")
                 }

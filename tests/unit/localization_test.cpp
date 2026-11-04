@@ -60,9 +60,15 @@ int main(int argc, char* argv[]) {
         return 7;
     if (QCoreApplication::translate("subscription_card", "Manage") == "Manage" ||
         QCoreApplication::translate(
+            "settings_page", "Low memory: unload interface when closed to tray (experimental)") !=
+            "低内存：关闭到托盘时卸载界面（实验性）" ||
+        QCoreApplication::translate(
             "settings_page",
-            "Low memory: unload after 5 seconds hidden or minimized (experimental)") ==
-            "Low memory: unload after 5 seconds hidden or minimized (experimental)")
+            "Off by default. Minimizing keeps the interface and taskbar window. Closing to an "
+            "available tray unloads the interface; the network engine and subscription updates "
+            "keep running. Reopening from the tray rebuilds the interface.") !=
+            "默认关闭。最小化时保留界面和任务栏窗口；关闭到可用托盘时卸载界面，网络内核与订阅更新继"
+            "续运行。从托盘打开时重建界面。")
         return 8;
     if (QCoreApplication::translate("home_proxy_controls", "Proxy and network") != "代理与网络" ||
         QCoreApplication::translate("network_tools", "IP comparison") != "IP 对照" ||

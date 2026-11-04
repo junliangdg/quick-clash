@@ -51,13 +51,15 @@ class ApplicationHost final : public QObject {
     bool eventFilter(QObject* watched, QEvent* event) override;
 
   private:
+    // The native probe simulates loss of this application's tray icon.
+    friend int runTrayProbe(ApplicationHost& host);
     void setupTray(bool noTray);
     void applyLanguageMode(const QString& mode);
     void retranslateTray();
     void updateTrayStatus();
     void updateTrayIcon();
     [[nodiscard]] bool recoverableFromTray() const;
-    [[nodiscard]] bool backgroundWindow() const;
+    [[nodiscard]] bool hiddenWindow() const;
     void updateDeferredUnload();
     void centerInitialWindow();
     presentation::UiState state_;

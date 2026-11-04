@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -574,16 +575,17 @@ int runRuntimeListProbe(ApplicationHost& host) {
     // Without a transition, opened changes synchronously and misses this race.
     const auto previousEnter = bindingDialog->property("enter");
     const auto previousExit = bindingDialog->property("exit");
-    QQmlComponent enterTransition(qmlEngine(bindingDialog));
-    enterTransition.setData("import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
-                            "from: 0; to: 1; duration: 250 } }",
+    auto enterTransition = std::make_unique<QQmlComponent>(qmlEngine(bindingDialog));
+    enterTransition->setData(
+        "import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
+        "from: 0; to: 1; duration: 250 } }",
+        QUrl{});
+    auto exitTransition = std::make_unique<QQmlComponent>(qmlEngine(bindingDialog));
+    exitTransition->setData("import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
+                            "from: 1; to: 0; duration: 250 } }",
                             QUrl{});
-    QQmlComponent exitTransition(qmlEngine(bindingDialog));
-    exitTransition.setData("import QtQuick; Transition { NumberAnimation { property: \"opacity\"; "
-                           "from: 1; to: 0; duration: 250 } }",
-                           QUrl{});
-    auto* enter = enterTransition.create();
-    auto* exit = exitTransition.create();
+    auto* enter = enterTransition->create();
+    auto* exit = exitTransition->create();
     if (enter)
         enter->setParent(bindingDialog);
     if (exit)
@@ -626,6 +628,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!bindingDialog->setProperty("enter", previousEnter) ||
         !bindingDialog->setProperty("exit", previousExit))
         return 232;
+    enterTransition.reset();
+    exitTransition.reset();
     ui.applyControl(
         {{"publicationGeneration", "1"},
          {"epoch", "fixture"},
@@ -657,6 +661,32 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return 188;
     host.resizeWindow(oldSize);
     QTest::qWait(30);
+    // A tray close now tears down the engine on the next event-loop turn. Exercise the
+    // same boundary with both a staged rule and an unfinished rule form.
+    if (!ruleScope->setProperty("currentIndex", 0) ||
+        !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(-1))))
+        return 235;
+    ruleValue = host.window()->findChild<QObject*>("user_rule_value");
+    if (!ruleValue || !ruleValue->setProperty("text", "unfinished.example") ||
+        !ruleEditor->property("formOpen").toBool() || confirmRules->property("enabled").toBool())
+        return 236;
+    const auto rulesGeneration = host.engineGeneration();
+    const QPointer<QQuickWindow> rulesWindow = host.window();
+    host.unloadWindow();
+    const auto savedRulesDraft = ui.userRulesDraft();
+    const auto savedGlobalRules = savedRulesDraft.value("global").toList();
+    const auto savedRuleForm = savedRulesDraft.value("form").toMap();
+    if (!rulesWindow.isNull() || !savedRulesDraft.value("globalDirty").toBool() ||
+        savedGlobalRules.size() != globalRules.size() + 1 ||
+        savedGlobalRules.constLast().toMap().value("value") != "example.com" ||
+        savedRuleForm.value("value") != "unfinished.example") {
+        qWarning() << "Custom rule draft was not preserved through engine destruction:"
+                   << savedRulesDraft;
+        return 233;
+    }
+    if (!host.showWindow() || host.engineGeneration() != rulesGeneration + 1)
+        return 234;
+    QTest::qWait(40);
     if (!ui.navigate("home"))
         return 189;
     QTest::qWait(40);
@@ -681,9 +711,161 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (restoredDraft.toList().size() != globalRules.size() + 1 ||
         restoredDraft.toList().last().toMap().value("value") != "example.com")
         return 197;
-    if (!click(host, QStringLiteral("cancel_custom_rules")))
-        return 202;
+    ruleValue = host.window()->findChild<QObject*>("user_rule_value");
+    if (!ruleEditor->property("formOpen").toBool() || !ruleValue ||
+        ruleValue->property("text") != "unfinished.example" ||
+        !QMetaObject::invokeMethod(ruleEditor, "cancelForm") ||
+        !ruleEditor->property("globalDirty").toBool())
+        return 237;
+
+    // Leaving the page with its modal open must still retain the staged rule.
+    if (!ui.navigate("home"))
+        return 245;
+    QTest::qWait(40);
+    if (!ui.userRulesDraft().value("globalDirty").toBool() || !ui.navigate("rules"))
+        return 246;
+    QTest::qWait(50);
+    if (!click(host, "open_custom_rules"))
+        return 247;
     QTest::qWait(30);
+    ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    if (!ruleEditor || !ruleEditor->property("globalDirty").toBool() ||
+        ruleEditor->property("formOpen").toBool())
+        return 248;
+
+    // Also restore a non-default profile rule form, including its provider and target.
+    ruleScope = host.window()->findChild<QObject*>("user_rule_scope");
+    if (!ruleScope || !ruleScope->setProperty("currentIndex", 1) ||
+        !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(0))))
+        return 238;
+    auto* ruleType = host.window()->findChild<QObject*>("user_rule_type");
+    providerChoice = host.window()->findChild<QObject*>("user_rule_provider");
+    auto* targetChoice = host.window()->findChild<QObject*>("user_rule_target");
+    auto* enabledChoice = host.window()->findChild<QObject*>("user_rule_form_enabled");
+    if (!ruleType || ruleType->property("currentText") != "RULE-SET" || !providerChoice ||
+        !providerChoice->setProperty("currentIndex", 0) || !targetChoice ||
+        !targetChoice->setProperty("currentIndex", 2) || !enabledChoice ||
+        !enabledChoice->setProperty("checked", false))
+        return 239;
+    const auto nextRulesGeneration = host.engineGeneration();
+    const QPointer<QQuickWindow> secondRulesWindow = host.window();
+    host.unloadWindow();
+    const auto savedLocalForm = ui.userRulesDraft().value("form").toMap();
+    if (!secondRulesWindow.isNull() || savedLocalForm.value("scope").toInt() != 1 ||
+        savedLocalForm.value("index").toInt() != 0 || savedLocalForm.value("type") != "RULE-SET" ||
+        savedLocalForm.value("provider") != "first" || savedLocalForm.value("target") != "Alpha" ||
+        savedLocalForm.value("enabled").toBool()) {
+        qWarning() << "Profile rule form was not preserved through engine destruction:"
+                   << savedLocalForm;
+        return 240;
+    }
+    if (!host.showWindow() || host.engineGeneration() != nextRulesGeneration + 1)
+        return 241;
+    QTest::qWait(40);
+    if (!click(host, "open_custom_rules"))
+        return 242;
+    QTest::qWait(30);
+    ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    ruleScope = host.window()->findChild<QObject*>("user_rule_scope");
+    ruleType = host.window()->findChild<QObject*>("user_rule_type");
+    providerChoice = host.window()->findChild<QObject*>("user_rule_provider");
+    targetChoice = host.window()->findChild<QObject*>("user_rule_target");
+    enabledChoice = host.window()->findChild<QObject*>("user_rule_form_enabled");
+    confirmRules = host.window()->findChild<QObject*>("confirm_custom_rules");
+    if (!ruleEditor || !ruleEditor->property("formOpen").toBool() ||
+        ruleEditor->property("editingIndex").toInt() != 0 ||
+        !ruleEditor->property("globalDirty").toBool() || !ruleScope ||
+        ruleScope->property("currentIndex").toInt() != 1 || !ruleType ||
+        ruleType->property("currentText") != "RULE-SET" || !providerChoice ||
+        providerChoice->property("currentText") != "first" || !targetChoice ||
+        targetChoice->property("currentText") != "Alpha" || !enabledChoice ||
+        enabledChoice->property("checked").toBool() || !confirmRules ||
+        confirmRules->property("enabled").toBool() ||
+        !QMetaObject::invokeMethod(ruleEditor, "cancelForm"))
+        return 243;
+
+    // A save can finish after the window is destroyed. Reattach to its result
+    // without resubmitting, and preserve the draft if the operation fails.
+    if (!QMetaObject::invokeMethod(ruleEditor, "confirm") ||
+        !ruleEditor->property("saving").toBool())
+        return 249;
+    const auto firstAttempt = ruleEditor->property("savingAttempt").toString();
+    const QPointer<QQuickWindow> failedSaveWindow = host.window();
+    host.unloadWindow();
+    auto pendingSave = ui.userRulesDraft();
+    if (!failedSaveWindow.isNull() || !pendingSave.value("saving").toBool() ||
+        pendingSave.value("savingAttempt").toString() != firstAttempt ||
+        !pendingSave.value("globalDirty").toBool())
+        return 250;
+    if (!host.showWindow())
+        return 251;
+    QTest::qWait(40);
+    if (!click(host, "open_custom_rules"))
+        return 251;
+    QTest::qWait(30);
+    auto failedRuleView = customRuleView;
+    failedRuleView.insert("attempt", "1");
+    failedRuleView.insert("result", "Failed");
+    ui.applyData({1, "fixture", {{"user_rules", failedRuleView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    confirmRules = host.window()->findChild<QObject*>("confirm_custom_rules");
+    customRulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+    if (!ruleEditor || ruleEditor->property("saving").toBool() ||
+        !ruleEditor->property("globalDirty").toBool() || !confirmRules ||
+        !confirmRules->property("enabled").toBool() || !customRulesDialog ||
+        !customRulesDialog->property("visible").toBool())
+        return 252;
+    if (!QMetaObject::invokeMethod(ruleEditor, "confirm") ||
+        !ruleEditor->property("saving").toBool() || ruleEditor->property("savingAttempt") != "1")
+        return 253;
+    const QPointer<QQuickWindow> savedWindow = host.window();
+    host.unloadWindow();
+    pendingSave = ui.userRulesDraft();
+    if (!savedWindow.isNull() || !pendingSave.value("saving").toBool() ||
+        pendingSave.value("savingAttempt") != "1" || !pendingSave.value("globalDirty").toBool() ||
+        !host.showWindow())
+        return 254;
+    QTest::qWait(40);
+    if (!click(host, "open_custom_rules"))
+        return 254;
+    QTest::qWait(30);
+    ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    customRulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+    if (!ruleEditor || !customRulesDialog)
+        return 255;
+    auto completedRuleView = customRuleView;
+    completedRuleView.insert("global",
+                             QJsonArray::fromVariantList(pendingSave.value("global").toList()));
+    completedRuleView.insert("revision", "revision-2");
+    completedRuleView.insert("attempt", "2");
+    completedRuleView.insert("result", "Saved");
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"busy", true},
+                     {"selectedId", "selected-fixture"}});
+    ui.applyData({1, "fixture", {{"user_rules", completedRuleView}}, ui.dataDemands().generations});
+    if (!ruleEditor->property("saving").toBool())
+        return 255;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"busy", false},
+                     {"selectedId", "selected-fixture"}});
+    QTest::qWait(50);
+    if (ruleEditor->property("saving").toBool() || ruleEditor->property("dirty").toBool() ||
+        ruleEditor->property("baseRevision") != "revision-2" || !ui.userRulesDraft().isEmpty() ||
+        customRulesDialog->property("visible").toBool())
+        return 255;
+    section = host.window()->findChild<QObject*>(QStringLiteral("rules_section"));
+    view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
+    if (!section || !view)
+        return 244;
     section->setProperty("currentIndex", 1);
     QTest::qWait(30);
     if (ui.liveRules()->count() != 0 || ui.dataDemands().active.contains("rules") ||

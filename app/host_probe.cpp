@@ -13,6 +13,7 @@ int runTrayProbe(ApplicationHost& host) {
     }
     int step = 0;
     int confirmations = 0;
+    QPointer<QQuickWindow> trackedWindow;
     const auto confirmationConnection =
         QObject::connect(&host.state(), &presentation::UiState::closeConfirmationRequired, &host,
                          [&confirmations] { ++confirmations; });
@@ -28,7 +29,8 @@ int runTrayProbe(ApplicationHost& host) {
         };
         switch (step++) {
         case 0:
-            if (!require(host.contentReady(), "initial content"))
+            if (!require(host.contentReady() && !host.state().unloadWhenHidden(),
+                         "initial content and default-disabled unload"))
                 return;
             host.state().requestClose();
             if (!require(confirmations == 1 && host.window()->isVisible(), "first close confirms"))
@@ -44,61 +46,122 @@ int runTrayProbe(ApplicationHost& host) {
         case 1:
             if (!require(host.state().activeDemandCount() > 0, "restored page demand"))
                 return;
-            host.state().requestClose();
-            if (!require(confirmations == 1 && !host.window()->isVisible(), "acknowledged close"))
-                return;
             host.state().setUnloadWhenHidden(true);
+            trackedWindow = host.window();
+            host.state().requestMinimize();
+            if (!require(trackedWindow && host.window() == trackedWindow &&
+                             host.state().hostState() == QStringLiteral("Minimized"),
+                         "minimize keeps the original window"))
+                return;
             timer.setInterval(5500);
             break;
         case 2:
-            if (!require(!host.window() && host.state().hostState() == QStringLiteral("Unloaded"),
-                         "delayed hidden unload"))
+            if (!require(trackedWindow && host.window() == trackedWindow &&
+                             host.engineGeneration() == 1 &&
+                             host.window()->visibility() == QWindow::Minimized &&
+                             host.state().activeDemandCount() == 0,
+                         "minimized window and engine survive beyond the old five-second delay"))
                 return;
-            if (!require(host.showWindow() && host.engineGeneration() == 2,
-                         "tray restore rebuilds once"))
+            if (!require(host.showWindow() && host.showWindow() && host.window() == trackedWindow &&
+                             host.engineGeneration() == 1,
+                         "repeated minimize restore reuses one window"))
                 return;
             timer.setInterval(200);
             break;
         case 3:
             if (!require(host.contentReady() && host.state().activeDemandCount() > 0,
-                         "rebuilt content and consumers"))
+                         "minimize restore reacquires consumers"))
                 return;
-            host.state().requestMinimize();
-            timer.setInterval(5500);
+            // Exercise the QML onClosing callback. The emitter must survive its own event stack.
+            host.window()->close();
+            if (!require(trackedWindow && host.window() == trackedWindow &&
+                             !host.window()->isVisible() && host.engineGeneration() == 1,
+                         "close hides synchronously but defers destruction"))
+                return;
             break;
         case 4:
-            if (!require(!host.window() && host.state().activeDemandCount() == 0,
-                         "minimized tray host unloads after delay"))
+            if (!require(trackedWindow.isNull() && !host.window() &&
+                             host.state().hostState() == QStringLiteral("Unloaded"),
+                         "closed tray window unloads on the next event loop, without five seconds"))
                 return;
-            if (!require(host.showWindow() && host.showWindow() && host.engineGeneration() == 3,
-                         "repeated restore creates one engine"))
+            if (!require(host.showWindow() && host.showWindow() && host.engineGeneration() == 2,
+                         "tray restore rebuilds exactly one engine"))
                 return;
-            timer.setInterval(200);
+            trackedWindow = host.window();
             break;
         case 5:
             if (!require(host.contentReady() && host.state().activeDemandCount() > 0,
-                         "minimized restore reacquires consumers once"))
+                         "rebuilt content and consumers"))
                 return;
             host.state().requestClose();
             host.state().requestClose();
-            host.state().setUnloadWhenHidden(false);
-            timer.setInterval(5500);
+            if (!require(host.window() == trackedWindow && !host.window()->isVisible() &&
+                             host.showWindow(),
+                         "rapid reopen cancels repeated queued unloads"))
+                return;
             break;
         case 6:
-            if (!require(host.window() && !host.window()->isVisible() &&
-                             host.engineGeneration() == 3,
-                         "disable cancels repeated hidden lease"))
+            if (!require(host.window() == trackedWindow && host.window()->isVisible() &&
+                             host.engineGeneration() == 2 && host.state().activeDemandCount() > 0,
+                         "stale queued unload cannot destroy the restored window"))
                 return;
-            host.state().setUnloadWhenHidden(true);
-            if (!require(host.showWindow(), "show cancels a newly armed hidden lease"))
-                return;
-            timer.setInterval(5500);
+            host.state().requestClose();
+            host.state().setUnloadWhenHidden(false);
             break;
         case 7:
-            if (!require(host.window() && host.window()->isVisible() &&
-                             host.engineGeneration() == 3 && host.state().activeDemandCount() > 0,
-                         "old timeout cannot unload restored window"))
+            if (!require(host.window() == trackedWindow && !host.window()->isVisible() &&
+                             host.engineGeneration() == 2,
+                         "disabling unload cancels the queued callback"))
                 return;
+            host.state().setUnloadWhenHidden(true);
+            if (!require(host.showWindow(), "show cancels a newly queued hidden unload"))
+                return;
+            break;
+        case 8:
+            if (!require(host.window() == trackedWindow && host.window()->isVisible() &&
+                             host.engineGeneration() == 2,
+                         "restored window survives a stale queued callback"))
+                return;
+            host.state().requestClose();
+            break;
+        case 9:
+            if (!require(trackedWindow.isNull() && !host.window(), "subsequent close unloads"))
+                return;
+            if (!require(host.showWindow() && host.showWindow() && host.engineGeneration() == 3,
+                         "subsequent tray restore creates one engine"))
+                return;
+            break;
+        case 10:
+            if (!require(host.contentReady() && host.state().activeDemandCount() > 0,
+                         "subsequent rebuild reacquires consumers"))
+                return;
+            trackedWindow = host.window();
+            host.state().requestClose();
+            if (!require(host.tray_ && trackedWindow && !trackedWindow->isVisible(),
+                         "tray loss test starts with a queued hidden window"))
+                return;
+            host.tray_->hide();
+            break;
+        case 11:
+            if (!require(trackedWindow && host.window() == trackedWindow &&
+                             host.window()->isVisible() && !host.state().trayAvailable() &&
+                             host.engineGeneration() == 3,
+                         "tray loss before unload restores the original window"))
+                return;
+            host.tray_->show();
+            host.state().setTrayAvailable(true);
+            host.state().requestClose();
+            host.tray_->hide();
+            host.state().setUnloadWhenHidden(false);
+            break;
+        case 12:
+            if (!require(trackedWindow && host.window() == trackedWindow &&
+                             host.window()->isVisible() && !host.state().trayAvailable() &&
+                             !host.state().unloadWhenHidden() && host.engineGeneration() == 3,
+                         "disabling unload during tray loss still restores the hidden window"))
+                return;
+            host.tray_->show();
+            host.state().setTrayAvailable(QSystemTrayIcon::isSystemTrayAvailable());
             timer.stop();
             std::puts("Native tray host probe passed");
             QCoreApplication::quit();
@@ -191,6 +254,11 @@ int runHostProbe(ApplicationHost& host) {
                                  trafficGeneration &&
                              host.state().uploadHistory().constLast().toDouble() == 1.0,
                          "minimized taskbar retains only traffic without clearing history"))
+                return;
+            host.state().requestClose(true);
+            if (!require(confirmations == 3 && host.window() &&
+                             host.state().hostState() == QStringLiteral("Minimized"),
+                         "enabled unload cannot hide or destroy the no-tray taskbar window"))
                 return;
             if (!require(host.showWindow(), "restore minimized window"))
                 return;

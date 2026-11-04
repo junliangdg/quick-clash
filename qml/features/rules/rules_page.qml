@@ -334,9 +334,12 @@ Item {
                 }
             }
         }
-        onRejected: rulesEditor.discardDraft()
+        onRejected: {
+            if (root.ui.uiVisible && !preserveDraftOnClose)
+                rulesEditor.discardDraft();
+        }
         onVisibleChanged: {
-            if (!visible && !preserveDraftOnClose)
+            if (!visible && root.ui.uiVisible && !preserveDraftOnClose)
                 rulesEditor.discardDraft();
             preserveDraftOnClose = false;
             root.syncDemand();
