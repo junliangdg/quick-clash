@@ -86,6 +86,8 @@ void UiState::applyControl(const QJsonObject& control) {
     if (runtime_ == value)
         return;
     runtime_ = value;
+    if (settingsSession_.observe(value))
+        emit settingsSessionChanged();
     emit runtimeChanged();
 }
 void UiState::applyData(const application::RuntimeUpdate& update) {
@@ -1027,6 +1029,65 @@ void UiState::copyText(const QString& text) {
     if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) && text.size() <= 8192 &&
         QGuiApplication::clipboard())
         QGuiApplication::clipboard()->setText(text);
+}
+void UiState::editSetting(const QString& field, const QString& value) {
+    settingsSession_.edit(field, value);
+    emit settingsSessionChanged();
+}
+void UiState::resetSettingsDraft(const QString& group, bool keepInput) {
+    settingsSession_.reset(group, keepInput);
+    emit settingsSessionChanged();
+}
+bool UiState::submitNetworkSettings(const QStringList& confirmation) {
+    if (!settingsReady_ || !settings_)
+        return false;
+    const auto args = settingsSession_.submitNetwork(confirmation);
+    if (args.isEmpty())
+        return false;
+    emit settingsSessionChanged();
+    runtimeCommand(QStringLiteral("network_settings"), args);
+    return true;
+}
+bool UiState::submitDelayTarget() {
+    if (!settingsReady_ || !settings_)
+        return false;
+    const auto args = settingsSession_.submitTarget();
+    if (args.isEmpty())
+        return false;
+    emit settingsSessionChanged();
+    runtimeCommand(QStringLiteral("delay_target"), args);
+    return true;
+}
+bool UiState::useSuggestedPorts(const QString& token, const QString& epoch,
+                                const QString& selectionGeneration) {
+    const auto candidate =
+        runtime_.value("features").toMap().value("listenerPortCandidate").toMap();
+    if (token.isEmpty() || token != candidate.value("token").toString() ||
+        epoch != runtime_.value("epoch").toString() ||
+        selectionGeneration != runtime_.value("selectionGeneration", "0").toString() ||
+        settingsSession().value("networkPending").toBool())
+        return false;
+    settingsSession_.edit(QStringLiteral("mixedPort"), candidate.value("mixedPort").toString());
+    settingsSession_.edit(QStringLiteral("controllerPort"),
+                          candidate.value("controllerPort").toString());
+    emit settingsSessionChanged();
+    runtimeCommand(QStringLiteral("cancel_listener_ports"));
+    return true;
+}
+void UiState::setSettingsCategory(int category) {
+    settingsSession_.setCategory(category);
+    emit settingsSessionChanged();
+}
+void UiState::rememberSettingsView(int category, double position, const QString& focus) {
+    settingsSession_.remember(category, position, focus);
+}
+void UiState::discardSettingsAndQuit() {
+    settingsSession_.reset(QStringLiteral("network"));
+    settingsSession_.reset(QStringLiteral("target"));
+    settingsQuitApproved_ = true;
+    // Pending edits are already submitted; their worker lifetime does not depend on the UI.
+    emit settingsSessionChanged();
+    emit quitRequested();
 }
 void UiState::setDashboardOption(const QString& key, bool value) {
     if (!dashboard_.contains(key) || dashboard_.value(key).toBool() == value)

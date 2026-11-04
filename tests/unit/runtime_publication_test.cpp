@@ -9,6 +9,9 @@
 #include <QTemporaryDir>
 #include <QTest>
 #include <QUrl>
+#ifdef Q_OS_WIN
+#include <qt_windows.h>
+#endif
 
 namespace {
 class ProxySettings final : public quickclash::platform::ProxySettings {
@@ -398,6 +401,60 @@ class RuntimePublicationTest final : public QObject {
         reopened.initialize();
         QCOMPARE(reopened.snapshot().value("settingsState").toObject().value("saved"),
                  state.value("saved"));
+        QCOMPARE(settings.writes, 0);
+    }
+    void settingsRequestReceiptsAndWriteFailurePreserveSavedFile() {
+        QTemporaryDir directory;
+        quickclash::infra::JsonStore store(directory.path());
+        QVERIFY(std::holds_alternative<std::monostate>(store.open()));
+        ProxySettings settings;
+        quickclash::application::DesktopRuntime runtime(store, nullptr, &settings);
+        runtime.initialize();
+        const auto epoch = runtime.snapshot().value("epoch").toString();
+        const auto receipt = [&runtime](const char* name) {
+            return runtime.snapshot()
+                .value("features")
+                .toObject()
+                .value(QLatin1String(name))
+                .toObject();
+        };
+        runtime.featureCommand("network_settings",
+                               {"global", "17891", "19091", "profile", epoch, "0", "request-a"});
+        QCOMPARE(receipt("settingsNetworkRequest"),
+                 (QJsonObject{{"id", "request-a"}, {"state", "Accepted"}}));
+        const auto saved = runtime.snapshot().value("settingsState").toObject().value("saved");
+        const auto path = directory.filePath("config/runtime_defaults.json");
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const auto bytes = file.readAll();
+        file.close();
+#ifdef Q_OS_WIN
+        // Deny writing/replacement of only this temporary fixture, including QSaveFile commit.
+        const auto handle =
+            CreateFileW(reinterpret_cast<LPCWSTR>(path.utf16()), GENERIC_READ, FILE_SHARE_READ,
+                        nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+        QVERIFY(handle != INVALID_HANDLE_VALUE);
+        runtime.featureCommand("network_settings",
+                               {"direct", "17892", "19092", "profile", epoch, "0", "request-b"});
+        CloseHandle(handle);
+        QCOMPARE(receipt("settingsNetworkRequest").value("id"), QJsonValue("request-b"));
+        QCOMPARE(runtime.snapshot().value("settingsState").toObject().value("saved"), saved);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        QCOMPARE(file.readAll(), bytes);
+        file.close();
+#endif
+        runtime.featureCommand("network_settings", {"direct", "17892", "19092", "profile",
+                                                    "old-epoch", "0", "request-c"});
+        QCOMPARE(receipt("settingsNetworkRequest"),
+                 (QJsonObject{{"id", "request-c"}, {"state", "Rejected"}}));
+        QCOMPARE(runtime.snapshot().value("settingsState").toObject().value("saved"), saved);
+        runtime.featureCommand("delay_target", {"http://invalid.example/", "target-a"});
+        QCOMPARE(receipt("settingsTargetRequest"),
+                 (QJsonObject{{"id", "target-a"}, {"state", "Failed"}}));
+        store.freeze();
+        runtime.featureCommand("delay_target", {"https://example.org/", "target-b"});
+        QCOMPARE(receipt("settingsTargetRequest"),
+                 (QJsonObject{{"id", "target-b"}, {"state", "Failed"}}));
         QCOMPARE(settings.writes, 0);
     }
     void serviceLogDemandRetriesAndClearsReusedLease() {

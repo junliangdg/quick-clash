@@ -143,8 +143,10 @@ bool checkPageAlignment(QQuickWindow* window) {
         content = page;
     const auto heading = title->mapRectToScene(title->boundingRect());
     const auto body = content->mapRectToScene(content->boundingRect());
+    const bool cappedSettings = page->objectName() == "settings_page" && page->width() > 1040;
     if (std::abs(heading.left() - body.left()) > 0.75 ||
-        std::abs(heading.right() - body.right()) > 0.75) {
+        (!cappedSettings && std::abs(heading.right() - body.right()) > 0.75) ||
+        (cappedSettings && (body.right() > heading.right() + 0.75 || body.width() > 1040))) {
         std::fprintf(stderr,
                      "Page alignment mismatch: %s (%s), content=%s (%s), "
                      "body=%.1f..%.1f heading=%.1f..%.1f hostWidth=%.1f outsets=%.1f,%.1f\n",
@@ -166,8 +168,11 @@ bool checkPageAlignment(QQuickWindow* window) {
     }
     QQuickItem* bar = nullptr;
     if (page->property("form").value<QQuickItem*>()) {
+        auto* scrollOwner = page->objectName() == "settings_page"
+                                ? page->findChild<QQuickItem*>("settings_body")
+                                : page;
         for (auto* candidate : page->findChildren<QQuickItem*>("themed_vertical_scroll_bar"))
-            if (candidate->parentItem() == page)
+            if (candidate->parentItem() == scrollOwner)
                 bar = candidate;
         if (!bar) {
             std::fprintf(stderr, "Page scrollbar unavailable\n");

@@ -493,6 +493,20 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         publish();
         return;
     }
+    if (command == QStringLiteral("discard_backup_preview")) {
+        if (backupRestore_ && !backupRestore_->active) {
+            cancelBackupRestore();
+            publish();
+        }
+        return;
+    }
+    if (command == QStringLiteral("clear_preview")) {
+        if (!effectivePreview_.isEmpty()) {
+            effectivePreview_.clear();
+            publish();
+        }
+        return;
+    }
     if (command == QStringLiteral("cancel_test")) {
         if (!testReply_ && testQueue_.isEmpty() &&
             featureState_.value(QStringLiteral("websiteTest"))
@@ -513,17 +527,24 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         return;
     }
     if (command == QStringLiteral("delay_target")) {
+        const auto receipt = [this, &args](const QString& state) {
+            if (args.size() == 2 && args[1].size() <= 64)
+                featureState_.insert(QStringLiteral("settingsTargetRequest"),
+                                     QJsonObject{{"id", args[1]}, {"state", state}});
+        };
         const auto targetText = args.value(0).trimmed();
         const QUrl target(targetText);
-        if (delayRunning_ || !target.isValid() || target.scheme() != QStringLiteral("https") ||
-            target.host().isEmpty() || !target.userInfo().isEmpty() || target.hasFragment() ||
-            targetText.size() > 8192) {
+        if (store_.readOnly() || delayRunning_ || !target.isValid() ||
+            target.scheme() != QStringLiteral("https") || target.host().isEmpty() ||
+            !target.userInfo().isEmpty() || target.hasFragment() || targetText.size() > 8192) {
+            receipt(QStringLiteral("Failed"));
             error(QStringLiteral("InvalidDelayTarget"));
             return;
         }
         const auto saved = credentials_->write(
             QStringLiteral("6c7a5e7f-56c4-4f6e-a2c1-15c0a2f2ef31"), targetText.toUtf8());
         if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+            receipt(QStringLiteral("Failed"));
             error(failure->code);
             return;
         }
@@ -531,6 +552,7 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         delayTarget_ = targetText;
         syncDelayViews();
         featureState_.remove(QStringLiteral("delayTest"));
+        receipt(QStringLiteral("Saved"));
         publish();
         return;
     }
@@ -547,8 +569,14 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         return;
     }
     if (command == QStringLiteral("network_settings")) {
-        if (busy_ || store_.readOnly() || args.size() != 6 || args[4] != epoch_ ||
-            args[5] != QString::number(selectionGeneration())) {
+        const auto receipt = [this, &args](const QString& state) {
+            if (args.size() == 7 && args[6].size() <= 64)
+                featureState_.insert(QStringLiteral("settingsNetworkRequest"),
+                                     QJsonObject{{"id", args[6]}, {"state", state}});
+        };
+        if (busy_ || store_.readOnly() || (args.size() != 6 && args.size() != 7) ||
+            args[4] != epoch_ || args[5] != QString::number(selectionGeneration())) {
+            receipt(QStringLiteral("Rejected"));
             error(QStringLiteral("OperationUnavailable"));
             return;
         }
@@ -562,9 +590,11 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
             !QStringList{QStringLiteral("profile"), QStringLiteral("fake-ip"),
                          QStringLiteral("redir-host")}
                  .contains(args[3])) {
+            receipt(QStringLiteral("Rejected"));
             error(QStringLiteral("InvalidNetworkSettings"));
             return;
         }
+        receipt(QStringLiteral("Accepted"));
         auto candidate = runtimePreferences_;
         candidate.insert(QStringLiteral("mode"), args[0]);
         candidate.insert(QStringLiteral("mixedPort"), mixed);

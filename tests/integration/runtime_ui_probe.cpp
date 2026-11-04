@@ -1094,6 +1094,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return 78;
     if (!ui.navigate("settings"))
         return 81;
+    ui.setSettingsCategory(1);
     const QJsonObject savedSettings{
         {"mode", "rule"}, {"mixedPort", 7890}, {"controllerPort", 9090}, {"dnsMode", "profile"}};
     auto requestedSettings = savedSettings;
@@ -1109,14 +1110,17 @@ int runRuntimeListProbe(ApplicationHost& host) {
                                                    {"running", true},
                                                    {"pending", true}}}});
     QTest::qWait(50);
-    auto* settingsPage = host.window()->findChild<QObject*>("settings_page");
+    auto* settingsPage = host.window()->findChild<QObject*>("settings_network");
     auto* settingsText = host.window()->findChild<QObject*>("network_settings_state");
+    auto* settingsComparison = host.window()->findChild<QObject*>("network_settings_comparison");
+    ui.editSetting("mixedPort", "7891");
     if (!settingsPage || !settingsText ||
-        !settingsText->property("text").toString().contains("7891") ||
-        !settingsText->property("text").toString().contains("7890") ||
+        !settingsText->property("text").toString().contains("7891") || !settingsComparison ||
+        !settingsComparison->property("text").toString().contains("7890") ||
         !QMetaObject::invokeMethod(settingsPage, "requestNetworkSettings"))
         return 82;
-    auto* settingsDialog = host.window()->findChild<QObject*>("network_settings_confirmation");
+    QPointer<QObject> settingsDialog =
+        host.window()->findChild<QObject*>("network_settings_confirmation");
     auto pending = settingsPage->property("pendingNetworkArgs");
     if (pending.metaType() == QMetaType::fromType<QJSValue>())
         pending = pending.value<QJSValue>().toVariant();
@@ -1126,27 +1130,32 @@ int runRuntimeListProbe(ApplicationHost& host) {
         capturedSettings[4] != "next" || capturedSettings[5] != "7")
         return 83;
     QMetaObject::invokeMethod(settingsDialog, "reject");
-    ui.applyControl({{"publicationGeneration", "2"},
-                     {"epoch", "next"},
-                     {"features", QJsonObject{{"listenerPortCandidate",
-                                               QJsonObject{{"token", "port_preview"},
-                                                           {"mixedPort", 7893},
-                                                           {"controllerPort", 9092}}}}}});
+    QTest::qWait(20);
+    auto portControl = QJsonObject::fromVariantMap(ui.runtime());
+    portControl.insert(
+        "features", QJsonObject{{"listenerPortCandidate", QJsonObject{{"token", "port_preview"},
+                                                                      {"mixedPort", 7893},
+                                                                      {"controllerPort", 9092}}}});
+    ui.applyControl(portControl);
     QTest::qWait(40);
-    pending = settingsPage->property("pendingNetworkArgs");
-    if (pending.metaType() == QMetaType::fromType<QJSValue>())
-        pending = pending.value<QJSValue>().toVariant();
-    if (!settingsDialog->property("visible").toBool() || pending.toList().value(1) != "7893" ||
-        pending.toList().value(2) != "9092" || pending.toList().value(4) != "next")
+    auto* portDialog = host.window()->findChild<QObject*>("settings_port_confirmation");
+    if (settingsDialog || !portDialog || !portDialog->property("visible").toBool() ||
+        ui.settingsSession().value("network").toMap().value("mixedPort") != "7891")
         return 181;
-    QMetaObject::invokeMethod(settingsDialog, "reject");
+    QMetaObject::invokeMethod(portDialog, "accept");
+    if (ui.settingsSession().value("network").toMap().value("mixedPort") != "7893" ||
+        ui.settingsSession().value("network").toMap().value("controllerPort") != "9092")
+        return 181;
+    ui.setSettingsCategory(3);
+    QTest::qWait(25);
     const QJsonObject maintenancePreview{
         {"token", "fixed-support"}, {"kind", "diagnostics"}, {"text", "{\"schemaVersion\":1}"}};
     ui.applyControl({{"publicationGeneration", "2"},
                      {"epoch", "next"},
                      {"features", QJsonObject{{"maintenancePreview", maintenancePreview}}}});
     QTest::qWait(40);
-    auto* maintenanceDialog = host.window()->findChild<QObject*>("maintenance_confirmation");
+    QPointer<QObject> maintenanceDialog =
+        host.window()->findChild<QObject*>("maintenance_confirmation");
     if (!maintenanceDialog || !maintenanceDialog->property("visible").toBool())
         return 139;
     host.window()->resize(360, 480);
@@ -1155,7 +1164,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
         maintenanceDialog->property("height").toReal() > 448)
         return 140;
     ui.setUiVisible(false);
-    if (maintenanceDialog->property("visible").toBool())
+    QTest::qWait(20); // Loader releases the hidden preview at the deferred deletion boundary.
+    if (maintenanceDialog && maintenanceDialog->property("visible").toBool())
         return 141;
     ui.setUiVisible(true);
     ui.applyControl(
@@ -1170,7 +1180,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
                      {"epoch", "next"},
                      {"features", QJsonObject{{"backupPreview", backupPreview}}}});
     QTest::qWait(40);
-    auto* backupDialog = host.window()->findChild<QObject*>("backup_restore_confirmation");
+    QPointer<QObject> backupDialog =
+        host.window()->findChild<QObject*>("backup_restore_confirmation");
     if (!backupDialog || !backupDialog->property("visible").toBool())
         return 84;
     host.window()->resize(360, 480);
@@ -1179,13 +1190,14 @@ int runRuntimeListProbe(ApplicationHost& host) {
         backupDialog->property("height").toReal() > 448)
         return 85;
     ui.setUiVisible(false);
-    if (backupDialog->property("visible").toBool())
+    QTest::qWait(20);
+    if (backupDialog && backupDialog->property("visible").toBool())
         return 86;
     ui.applyControl({{"publicationGeneration", "2"},
                      {"epoch", "next"},
                      {"features", QJsonObject{{"backupPreview", backupPreview}}}});
     QTest::qWait(20);
-    if (backupDialog->property("visible").toBool())
+    if (backupDialog && backupDialog->property("visible").toBool())
         return 87;
     ui.setUiVisible(true);
     ui.applyControl(
@@ -1199,9 +1211,10 @@ int runRuntimeListProbe(ApplicationHost& host) {
                      {"epoch", "next"},
                      {"features", QJsonObject{{"backupPreview", globalOnlyPreview}}}});
     QTest::qWait(40);
+    backupDialog = host.window()->findChild<QObject*>("backup_restore_confirmation");
     auto* restoreGlobal = host.window()->findChild<QQuickItem*>("backup_restore_global_rules");
     auto* restoreAccept = host.window()->findChild<QQuickItem*>("backup_restore_accept");
-    if (!backupDialog->property("visible").toBool() ||
+    if (!backupDialog || !backupDialog->property("visible").toBool() ||
         !backupDialog->property("globalOnly").toBool() || !restoreGlobal || !restoreAccept ||
         restoreGlobal->property("checked").toBool() || restoreAccept->isEnabled())
         return 193;

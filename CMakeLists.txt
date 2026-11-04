@@ -252,6 +252,10 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/themed_spin_box.qml
         qml/components/themed_dialog.qml
         qml/components/themed_scroll_view.qml
+        qml/components/settings_tabs.qml
+        qml/components/settings_row.qml
+        qml/components/settings_group.qml
+        qml/components/settings_action.qml
         qml/components/themed_tool_tip.qml
         qml/components/themed_progress.qml
         qml/components/deferred_content.qml
@@ -280,7 +284,12 @@ if(QUICKCLASH_BUILD_UI)
         qml/features/rules/rules_page.qml
         qml/features/logs/logs_page.qml
         qml/features/tests/tests_page.qml
-        qml/features/settings/settings_page.qml)
+        qml/features/settings/settings_page.qml
+        qml/features/settings/settings_general.qml
+        qml/features/settings/settings_network.qml
+        qml/features/settings/settings_resources.qml
+        qml/features/settings/settings_data.qml
+        qml/features/settings/settings_about.qml)
     foreach(qml_file IN LISTS QUICKCLASH_QML_FILES)
         get_filename_component(qml_stem "${qml_file}" NAME_WE)
         string(REPLACE "_" ";" qml_words "${qml_stem}")
@@ -299,6 +308,7 @@ if(QUICKCLASH_BUILD_UI)
         RESOURCE_PREFIX /qt/qml
         QML_FILES ${QUICKCLASH_QML_FILES}
         SOURCES src/presentation/ui_state.cpp src/presentation/ui_state.h
+                src/presentation/settings_session.cpp src/presentation/settings_session.h
                 src/presentation/profile_model.cpp src/presentation/profile_model.h
                 src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
                 src/presentation/replay_model.cpp src/presentation/replay_model.h)
@@ -434,6 +444,12 @@ if(BUILD_TESTING)
             set_tests_properties(recovery PROPERTIES TIMEOUT 60 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
         endif()
         find_package(Qt6 ${QUICKCLASH_MINIMUM_QT_VERSION} REQUIRED COMPONENTS Test)
+        add_executable(settings_session_test tests/unit/settings_session_test.cpp
+            src/presentation/settings_session.cpp src/presentation/settings_session.h)
+        target_link_libraries(settings_session_test PRIVATE quickclash_domain Qt6::Test)
+        quickclash_warnings(settings_session_test)
+        add_test(NAME settings_session COMMAND settings_session_test)
+        set_tests_properties(settings_session PROPERTIES TIMEOUT 15)
         if(WIN32)
             add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
             add_executable(startup_test tests/unit/startup_test.cpp)
@@ -521,6 +537,7 @@ if(BUILD_TESTING)
             tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h
             tests/integration/custom_groups_ui_probe.cpp tests/integration/custom_groups_ui_probe.h
             tests/integration/language_ui_probe.cpp tests/integration/language_ui_probe.h
+            tests/integration/settings_ui_probe.cpp tests/integration/settings_ui_probe.h
             tests/integration/subscription_memory_probe.cpp tests/integration/network_fixture.cpp
             tests/integration/visual_ui_probe.cpp)
         target_include_directories(quickclash_test_probes PRIVATE app tests/integration src/presentation)
@@ -538,6 +555,7 @@ if(BUILD_TESTING)
         target_link_libraries(qt_cost_probe PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets)
         quickclash_warnings(qt_cost_probe)
         add_executable(ui_state_test tests/unit/ui_state_test.cpp
+            src/presentation/settings_session.cpp src/presentation/settings_session.h
             src/presentation/profile_model.cpp src/presentation/profile_model.h
             src/presentation/runtime_list_model.cpp src/presentation/runtime_list_model.h
             src/presentation/feature_registry.cpp src/presentation/ui_state.cpp src/presentation/ui_state.h
@@ -597,6 +615,12 @@ if(BUILD_TESTING)
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
             TIMEOUT 15)
         add_test(NAME ui_language COMMAND quickclash --language-test)
+        add_test(NAME ui_settings COMMAND quickclash --settings-ui-test --probe-language=en-US)
+        add_test(NAME ui_settings_zh COMMAND quickclash --settings-ui-test --probe-language=zh-CN)
+        set_tests_properties(ui_settings ui_settings_zh PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
+            TIMEOUT 45)
         set_tests_properties(ui_language PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
@@ -626,7 +650,7 @@ if(BUILD_TESTING)
             foreach(quickclash_ui_test IN ITEMS ui_prototype qml_smoke ui_keyboard
                     ui_accessibility ui_accessibility_zh ui_visual ui_responsive ui_runtime_lists
                     ui_runtime_lists_zh ui_custom_groups ui_custom_groups_zh ui_subscriptions
-                    ui_subscriptions_zh ui_language host_lifecycle)
+                    ui_subscriptions_zh ui_language ui_settings ui_settings_zh host_lifecycle)
                 get_test_property(${quickclash_ui_test} ENVIRONMENT quickclash_ui_environment)
                 list(APPEND quickclash_ui_environment "QT_QPA_FONTDIR=$ENV{SystemRoot}/Fonts")
                 set_tests_properties(${quickclash_ui_test} PROPERTIES

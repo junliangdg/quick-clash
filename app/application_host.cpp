@@ -395,6 +395,11 @@ void ApplicationHost::quit() {
     if (quitting_) {
         return;
     }
+    if (state_.hasSettingsDraft()) {
+        if (showWindow())
+            emit state_.settingsQuitConfirmationRequired();
+        return;
+    }
     quitting_ = true;
     restorePending_ = false;
     deferredUnload_.cancel();

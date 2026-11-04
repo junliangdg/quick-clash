@@ -64,6 +64,11 @@ ApplicationWindow {
     Component.onCompleted: syncUserRuleBinding()
     Connections {
         target: window.ui
+        function onSettingsQuitConfirmationRequired(): void {
+            settingsQuitLoader.active = true;
+            const dialog = settingsQuitLoader.item as ThemedDialog;
+            if (dialog) dialog.open();
+        }
         function onCloseConfirmationRequired(): void {
             closeDialogLoader.active = true;
             const dialog = closeDialogLoader.item as ThemedDialog;
@@ -71,6 +76,34 @@ ApplicationWindow {
                 dialog.open();
         }
         function onRuntimeChanged(): void { window.syncUserRuleBinding(); }
+    }
+    Loader {
+        id: settingsQuitLoader
+        active: false
+        sourceComponent: ThemedDialog {
+            theme: tokens
+            parent: Overlay.overlay
+            anchors.centerIn: parent
+            width: Math.min(480, parent.width - 32)
+            height: Math.min(360, parent.height - 32)
+            implicitHeight: height
+            objectName: "settings_quit_confirmation"
+            title: qsTr("Quit with unapplied settings?")
+            modal: true
+            standardButtons: Dialog.Ok | Dialog.Cancel
+            contentItem: ThemedScrollView {
+                theme: tokens
+                form: quitSettingsBody
+                Label {
+                    id: quitSettingsBody
+                    text: qsTr("Unsubmitted network and delay target edits will be discarded. Cancel to continue editing.")
+                    wrapMode: Text.WordWrap
+                    color: tokens.text
+                }
+            }
+            onAccepted: window.ui.discardSettingsAndQuit()
+            onClosed: settingsQuitLoader.active = false
+        }
     }
     Loader {
         id: userRuleBindingLoader
@@ -243,7 +276,7 @@ ApplicationWindow {
                 anchors.topMargin: window.pageMargin
                 anchors.bottomMargin: window.pageMargin
                 width: Math.min(parent.width - 2 * window.pageContentMargin, 1440)
-                spacing: tokens.gap
+                spacing: window.ui.currentPage === "settings" ? 8 : tokens.gap
                 RowLayout {
                     objectName: "page_title_row"
                     Layout.fillWidth: true
@@ -264,6 +297,22 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         elide: Text.ElideRight
+                    }
+                    ActionButton {
+                        theme: tokens
+                        objectName: "settings_more_pages"
+                        visible: window.narrow && window.ui.currentPage === "settings"
+                        text: "⋯"
+                        Accessible.name: qsTr("More pages")
+                        Layout.preferredWidth: 48
+                        onClicked: settingsPagesMenu.open()
+                        Menu {
+                            id: settingsPagesMenu
+                            MenuItem { text: qsTranslate("FeatureRegistry", "Connections"); onTriggered: window.ui.navigate("connections") }
+                            MenuItem { text: qsTranslate("FeatureRegistry", "Rules"); onTriggered: window.ui.navigate("rules") }
+                            MenuItem { text: qsTranslate("FeatureRegistry", "Logs"); onTriggered: window.ui.navigate("logs") }
+                            MenuItem { text: qsTranslate("FeatureRegistry", "Tests"); onTriggered: window.ui.navigate("tests") }
+                        }
                     }
                     Rectangle {
                         id: runtimeStatusBadge

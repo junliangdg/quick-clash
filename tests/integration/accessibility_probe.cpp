@@ -198,24 +198,38 @@ int runAccessibilityProbe(ApplicationHost& host) {
                     QTest::qWait(25);
                 }
                 if (QString::fromLatin1(page) == "settings") {
-                    for (const auto* name :
-                         {"core_update_confirmation", "network_settings_confirmation",
-                          "maintenance_confirmation", "backup_confirmation",
-                          "backup_restore_confirmation"}) {
-                        auto* popup = window->findChild<QObject*>(QString::fromLatin1(name));
+                    struct DialogCase {
+                        int category;
+                        const char* loader;
+                    };
+                    for (const auto& entry : {DialogCase{2, "settings_loader_coreDialog"},
+                                              DialogCase{1, "settings_loader_networkDialog"},
+                                              DialogCase{3, "settings_loader_maintenanceDialog"},
+                                              DialogCase{3, "settings_loader_backupDialog"},
+                                              DialogCase{3, "settings_loader_restoreDialog"}}) {
+                        ui.setSettingsCategory(entry.category);
+                        QTest::qWait(25);
+                        if (!auditNames(window, names))
+                            return 187;
+                        auto* loader = window->findChild<QObject*>(QLatin1String(entry.loader));
+                        if (!loader || !loader->setProperty("active", true))
+                            return 187;
+                        auto* popup = loader->property("item").value<QObject*>();
                         if (!popup || !QMetaObject::invokeMethod(popup, "open"))
                             return 187;
                         QTest::qWait(25);
                         if (!popup->property("visible").toBool())
                             return 188;
                         focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
-                        if (width == 360 && QString::fromLatin1(name) == "backup_confirmation" &&
+                        if (width == 360 &&
+                            QLatin1String(entry.loader) == "settings_loader_backupDialog" &&
                             !capture(
                                 QStringLiteral("backup_font_%1_width_%2").arg(pixels).arg(width)))
                             return 156;
                         QMetaObject::invokeMethod(popup, "reject");
                         QTest::qWait(25);
                     }
+                    ui.setSettingsCategory(0);
                 }
                 if (pixels == 32 && width == 360 &&
                     (QString::fromLatin1(page) == "subscriptions" ||
@@ -247,6 +261,8 @@ int runAccessibilityProbe(ApplicationHost& host) {
     for (const auto* page : {"home", "settings"}) {
         if (!ui.navigate(QString::fromLatin1(page)))
             return 185;
+        if (QString::fromLatin1(page) == "settings")
+            ui.setSettingsCategory(1);
         QTest::qWait(30);
         for (const auto* feature : {"system_proxy", "tun"}) {
             auto* control = findItem(host.window(), QString::fromLatin1(page) + '_' + feature);

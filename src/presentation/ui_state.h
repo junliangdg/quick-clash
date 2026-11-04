@@ -4,6 +4,7 @@
 #include "presentation/profile_model.h"
 #include "presentation/replay_model.h"
 #include "presentation/runtime_list_model.h"
+#include "presentation/settings_session.h"
 #include <QHash>
 #include <QObject>
 #include <QTimer>
@@ -39,6 +40,7 @@ class UiState : public QObject {
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap dashboard READ dashboard NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
+    Q_PROPERTY(QVariantMap settingsSession READ settingsSession NOTIFY settingsSessionChanged)
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
     Q_PROPERTY(QVariantMap customGroups READ customGroups NOTIFY customGroupsChanged)
@@ -79,6 +81,30 @@ class UiState : public QObject {
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
     }
+    [[nodiscard]] QVariantMap settingsSession() const {
+        return settingsSession_.snapshot();
+    }
+    [[nodiscard]] bool hasSettingsDraft() const {
+        return settingsSession_.hasDraft() && !settingsQuitApproved_;
+    }
+    Q_INVOKABLE void editSetting(const QString& field, const QString& value);
+    Q_INVOKABLE void resetSettingsDraft(const QString& group, bool keepInput = false);
+    Q_INVOKABLE QStringList prepareNetworkSettings() const {
+        return settingsSession_.prepareNetwork();
+    }
+    Q_INVOKABLE bool submitNetworkSettings(const QStringList& confirmation);
+    Q_INVOKABLE bool submitDelayTarget();
+    Q_INVOKABLE bool useSuggestedPorts(const QString& token, const QString& epoch,
+                                       const QString& selectionGeneration);
+    Q_INVOKABLE void setSettingsCategory(int category);
+    Q_INVOKABLE void rememberSettingsView(int category, double position, const QString& focus);
+    Q_INVOKABLE double settingsPosition(int category) const {
+        return settingsSession_.position(category);
+    }
+    Q_INVOKABLE QString settingsFocus(int category) const {
+        return settingsSession_.focus(category);
+    }
+    Q_INVOKABLE void discardSettingsAndQuit();
     [[nodiscard]] QVariantList profiles() const {
         return appliedData_.value(QStringLiteral("profiles")).toArray().toVariantList();
     }
@@ -265,6 +291,8 @@ class UiState : public QObject {
     void routeChanged();
     void storageChanged();
     void runtimeChanged();
+    void settingsSessionChanged();
+    void settingsQuitConfirmationRequired();
     void profilesChanged();
     void telemetryChanged();
     void editorChanged();
@@ -330,6 +358,8 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
+    SettingsSession settingsSession_;
+    bool settingsQuitApproved_ = false;
     QVariantMap userRulesDraft_;
     ProfileModel profileModel_{this};
     ProfileRowModel profileRows_{&profileModel_, this};

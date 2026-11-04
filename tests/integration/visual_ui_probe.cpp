@@ -425,6 +425,8 @@ int runVisualProbe(ApplicationHost& host) {
                 !test::checkPageAlignment(host.window()))
                 return 112;
             if (page == "settings") {
+                ui.setSettingsCategory(4);
+                QTest::qWait(25);
                 const auto versions = objects("application_version");
                 const auto views = objects("settings_page");
                 const auto expectedVersion =
@@ -434,7 +436,10 @@ int runVisualProbe(ApplicationHost& host) {
                     views.size() != 1 ||
                     versions.first()->property("text").toString() != expectedVersion)
                     return 197;
-                auto* viewport = views.first()->property("contentItem").value<QQuickItem*>();
+                auto* settingsBody = objects("settings_body").value(0);
+                auto* viewport = settingsBody
+                                     ? settingsBody->property("contentItem").value<QQuickItem*>()
+                                     : nullptr;
                 if (!viewport ||
                     !viewport->setProperty("contentY",
                                            viewport->property("contentHeight").toReal() -
@@ -682,36 +687,28 @@ int runVisualProbe(ApplicationHost& host) {
         QTest::qWait(50);
         if (ui.dataDemands().active.contains("resources"))
             return 129;
+        ui.setSettingsCategory(1);
+        QTest::qWait(25);
         const auto fields = objects("delay_target");
-        if (fields.size() != 1 || !fields.first()->setProperty("text", "https://draft.example/"))
-            return 114;
         const auto ports = objects("mixed_port");
-        if (ports.size() != 1)
-            return 122;
-        auto* editor =
-            qobject_cast<QQuickItem*>(ports.first()->property("contentItem").value<QObject*>());
-        if (!editor)
-            return 122;
+        if (fields.size() != 1 || ports.size() != 1)
+            return 114;
+        ui.editSetting("target", "https://draft.example/");
+        auto* editor = ports.first();
         editor->forceActiveFocus(Qt::TabFocusReason);
         QTest::keyClick(host.window(), Qt::Key_A, Qt::ControlModifier);
         for (const auto digit : QStringLiteral("17990"))
             QTest::keyClick(host.window(), static_cast<Qt::Key>(digit.unicode()));
-        QTest::keyClick(host.window(), Qt::Key_Return);
-        if (ports.first()->property("value").toInt() != 17990)
+        if (ports.first()->property("text") != "17990")
             return 122;
         auto* currentPage = fields.first()->parentItem();
-        const auto appearance = objects(theme == "light" ? "appearance_dark" : "appearance_light");
-        if (appearance.size() != 1 || !QMetaObject::invokeMethod(appearance.first(), "clicked"))
-            return 115;
+        ui.setThemeMode(theme == "light" ? "dark" : "light");
         QTest::qWait(20);
         if (fields.first()->property("text") != "https://draft.example/" ||
-            ports.first()->property("value").toInt() != 17990 ||
+            ports.first()->property("text") != "17990" ||
             fields.first()->parentItem() != currentPage || host.engineGeneration() != generation)
             return 115;
-        const auto restoreAppearance = objects("appearance_" + theme);
-        if (restoreAppearance.size() != 1 ||
-            !QMetaObject::invokeMethod(restoreAppearance.first(), "clicked"))
-            return 115;
+        ui.setThemeMode(theme);
         ui.navigate("home");
         QTest::qWait(50);
         const auto combos = objects("home_profile_selector");
@@ -854,8 +851,10 @@ int runVisualProbe(ApplicationHost& host) {
             for (const auto& page : {QStringLiteral("home"), QStringLiteral("settings")}) {
                 if (!ui.navigate(page))
                     return 140;
+                if (page == "settings")
+                    ui.setSettingsCategory(1);
                 QTest::qWait(40);
-                const auto targets = objects(page == "home" ? "home_system_card" : "settings_page");
+                const auto targets = objects(page == "home" ? "home_system_card" : "settings_body");
                 if (targets.size() != 1)
                     return 140;
                 auto* view = targets.first();
@@ -922,6 +921,8 @@ int runVisualProbe(ApplicationHost& host) {
                         return 143;
                 }
                 if (page == "settings") {
+                    ui.setSettingsCategory(4);
+                    QTest::qWait(25);
                     const auto versions = objects("application_version");
                     if (versions.size() != 1 ||
                         !viewport->mapRectToScene(viewport->boundingRect())
@@ -929,6 +930,8 @@ int runVisualProbe(ApplicationHost& host) {
                                  versions.first()->boundingRect())) ||
                         !capture(QStringLiteral("%1_settings_about_%2").arg(theme).arg(width)))
                         return 199;
+                    ui.setSettingsCategory(1);
+                    QTest::qWait(25);
                 }
                 viewport->setProperty("contentY", origin + range / 2);
                 bar->setProperty("active", true);

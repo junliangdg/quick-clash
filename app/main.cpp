@@ -11,6 +11,7 @@
 #include "language_ui_probe.h"
 #include "runtime_ui_probe.h"
 #include "service_probe.h"
+#include "settings_ui_probe.h"
 #include "subscription_memory_probe.h"
 #include "subscription_ui_probe.h"
 #endif
@@ -145,10 +146,11 @@ int main(int argc, char* argv[]) {
     const bool customGroupsUiTest = arguments.contains(QStringLiteral("--custom-groups-ui-test"));
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool languageTest = arguments.contains(QStringLiteral("--language-test"));
+    const bool settingsUiTest = arguments.contains(QStringLiteral("--settings-ui-test"));
     const bool isolated = desktopTest || smoke || prototype || hostTest || trayTest ||
                           keyboardTest || accessibilityTest || responsiveTest || visualTest ||
                           runtimeListTest || customGroupsUiTest || subscriptionUiTest ||
-                          languageTest || pageMemoryTest ||
+                          languageTest || settingsUiTest || pageMemoryTest ||
                           arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
 #else
@@ -176,7 +178,7 @@ int main(int argc, char* argv[]) {
             quickclash::test::desktopProbeSettings(option(QStringLiteral("--desktop-root")));
         if (probeSettings.isEmpty())
             return 15;
-    } else if (isolated && (!runtimeProbe.isEmpty() || languageTest ||
+    } else if (isolated && (!runtimeProbe.isEmpty() || languageTest || settingsUiTest ||
                             arguments.contains(QStringLiteral("--subscription-memory-test")))) {
         probeDirectory = std::make_unique<QTemporaryDir>();
         if (!probeDirectory->isValid())
@@ -368,6 +370,9 @@ int main(int argc, char* argv[]) {
     }
     if (languageTest) {
         return quickclash::runLanguageUiProbe(host);
+    }
+    if (settingsUiTest) {
+        return quickclash::runSettingsUiProbe(host);
     }
     if (runtimeListTest) {
         return quickclash::runRuntimeListProbe(host);

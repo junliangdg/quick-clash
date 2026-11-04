@@ -1128,6 +1128,12 @@
   </context>
   <context>
     <name>settings_page</name>
+    <message><source>Open data and recovery</source><translation>打开数据与恢复</translation></message>
+    <message><source>Authorization required</source><translation>需要授权</translation></message>
+    <message><source>Blocked</source><translation>已阻止</translation></message>
+    <message><source>Cleanup is uncertain</source><translation>清理状态待核对</translation></message>
+    <message><source>Adapter missing</source><translation>未检测到网卡</translation></message>
+    <message><source>Unknown</source><translation>未知</translation></message>
     <message><source>About</source><translation>关于</translation></message>
     <message><source>Version: %1</source><translation>版本：%1</translation></message>
     <message><source>Export this support package?</source><translation>导出此支持包？</translation></message>
@@ -2923,5 +2929,269 @@
     <message><source>Back</source><translation>返回</translation></message>
     <message><source>Save rule</source><translation>保存规则</translation></message>
     <message><source>Cancel</source><translation>取消</translation></message>
+  </context>
+  <context>
+    <name>settings_page</name>
+    <message>
+      <source>Settings are read-only or could not be saved. Existing data is preserved; recovery is available under Data.</source>
+      <translation>设置只读或保存失败，已有数据已保留。可在“数据与诊断”中查看恢复操作。</translation>
+    </message>
+    <message>
+      <source>Backup and restore</source>
+      <translation>备份与恢复</translation>
+    </message>
+    <message>
+      <source>Back up profiles and rules. Application settings are excluded. Backups can contain plain text credentials; keep them private.</source>
+      <translation>备份配置与规则，不包含应用设置。备份可能含有明文凭据，请妥善保管。</translation>
+    </message>
+    <message>
+      <source>Local data</source>
+      <translation>本地数据</translation>
+    </message>
+    <message>
+      <source>Diagnostics</source>
+      <translation>诊断与排障</translation>
+    </message>
+    <message>
+      <source>Recovery</source>
+      <translation>故障恢复</translation>
+    </message>
+    <message>
+      <source>Recovery archives may contain credentials. Stop the core and finish active operations before archiving.</source>
+      <translation>恢复归档可能含有凭据。请先停止内核并完成正在进行的操作，再归档。</translation>
+    </message>
+    <message>
+      <source>Appearance and language</source>
+      <translation>外观与语言</translation>
+    </message>
+    <message>
+      <source>Theme</source>
+      <translation>主题</translation>
+    </message>
+    <message>
+      <source>Changes apply immediately.</source>
+      <translation>更改保存后立即生效。</translation>
+    </message>
+    <message>
+      <source>Unload interface when closed to tray (experimental)</source>
+      <translation>关闭到托盘后卸载界面（实验性）</translation>
+    </message>
+    <message>
+      <source>Closing hides the window to the tray. Use Quit to stop QuickClash.</source>
+      <translation>关闭窗口会隐藏到托盘；使用“退出”停止 QuickClash。</translation>
+    </message>
+    <message>
+      <source>No tray is available. Closing offers a recoverable window or Quit.</source>
+      <translation>当前无可用托盘。关闭时可保留可恢复窗口，或退出。</translation>
+    </message>
+    <message>
+      <source>Proxy integration</source>
+      <translation>代理接管</translation>
+    </message>
+    <message>
+      <source>Requested: %1 · Actual: %2</source>
+      <translation>保存意图：%1 · 实际状态：%2</translation>
+    </message>
+    <message>
+      <source>Unavailable: check the profile, permissions and platform support.</source>
+      <translation>暂不可用：请检查配置、权限和平台支持。</translation>
+    </message>
+    <message>
+      <source>Runtime configuration</source>
+      <translation>运行配置</translation>
+    </message>
+    <message>
+      <source>1024–65535; the two ports must differ.</source>
+      <translation>范围 1024—65535，两个端口不能相同。</translation>
+    </message>
+    <message>
+      <source>Saved and active settings differ.</source>
+      <translation>保存值与实际生效值不同。</translation>
+    </message>
+    <message>
+      <source>Saved network settings are active.</source>
+      <translation>已保存的网络设置正在生效。</translation>
+    </message>
+    <message>
+      <source>Active: core stopped</source>
+      <translation>生效值：内核已停止</translation>
+    </message>
+    <message>
+      <source>The configuration or saved values changed. Reload, or keep your input and review against the current values.</source>
+      <translation>配置或保存值已变化。请重新载入，或保留输入并根据当前值重新确认。</translation>
+    </message>
+    <message>
+      <source>Reload saved values</source>
+      <translation>重新载入保存值</translation>
+    </message>
+    <message>
+      <source>Keep input and review again</source>
+      <translation>保留输入并重新确认</translation>
+    </message>
+    <message>
+      <source>Applying network changes…</source>
+      <translation>正在应用网络更改…</translation>
+    </message>
+    <message>
+      <source>Enter two different ports from 1024 to 65535.</source>
+      <translation>请输入两个不同的端口，范围为 1024—65535。</translation>
+    </message>
+    <message>
+      <source>Could not apply settings. Your input has been kept.</source>
+      <translation>无法应用设置，已保留输入。</translation>
+    </message>
+    <message>
+      <source>Network settings saved.</source>
+      <translation>网络设置已保存。</translation>
+    </message>
+    <message>
+      <source>You have unapplied network changes.</source>
+      <translation>有未应用的网络更改。</translation>
+    </message>
+    <message>
+      <source>No network changes.</source>
+      <translation>无网络更改。</translation>
+    </message>
+    <message>
+      <source>Discard changes</source>
+      <translation>放弃更改</translation>
+    </message>
+    <message>
+      <source>The saved target changed. Reload, or keep your input and review again.</source>
+      <translation>保存的目标已变化。请重新载入，或保留输入并重新确认。</translation>
+    </message>
+    <message>
+      <source>Saving target…</source>
+      <translation>正在保存目标…</translation>
+    </message>
+    <message>
+      <source>Use an HTTPS URL without credentials or a fragment.</source>
+      <translation>请输入不含凭据和片段标识的 HTTPS 网址。</translation>
+    </message>
+    <message>
+      <source>Could not save the target. Your input has been kept.</source>
+      <translation>无法保存目标，已保留输入。</translation>
+    </message>
+    <message>
+      <source>Delay target saved.</source>
+      <translation>测速目标已保存。</translation>
+    </message>
+    <message>
+      <source>Saved separately from network settings.</source>
+      <translation>与网络设置分别保存。</translation>
+    </message>
+    <message>
+      <source>Previous saved values: %1</source>
+      <translation>原保存值：%1</translation>
+    </message>
+    <message>
+      <source>Configuration: %1</source>
+      <translation>当前配置：%1</translation>
+    </message>
+    <message>
+      <source>No profile selected</source>
+      <translation>未选择配置</translation>
+    </message>
+    <message>
+      <source>Settings changed while confirming. Review your input and apply again.</source>
+      <translation>确认期间设置已变化。请检查输入后重新应用。</translation>
+    </message>
+    <message>
+      <source>Fill available ports into the draft?</source>
+      <translation>将可用端口填入草稿？</translation>
+    </message>
+    <message>
+      <source>Proxy port: %1 · Controller port: %2. This only fills the draft. Review and apply network settings separately; ports are checked again when applying.</source>
+      <translation>代理端口：%1 · 控制器端口：%2。此操作仅填入草稿，请检查后应用网络设置；应用时会再次检查端口。</translation>
+    </message>
+    <message>
+      <source>The port suggestion expired. Request another suggestion.</source>
+      <translation>端口建议已失效，请重新查找。</translation>
+    </message>
+    <message>
+      <source>Advanced recovery</source>
+      <translation>高级恢复</translation>
+    </message>
+    <message>
+      <source>Geo databases</source>
+      <translation>Geo 数据库</translation>
+    </message>
+    <message>
+      <source>Current proxy</source>
+      <translation>当前代理</translation>
+    </message>
+    <message>
+      <source>Scheduled downloads do not apply the downloaded snapshot automatically.</source>
+      <translation>定期下载不会自动应用已下载的快照。</translation>
+    </message>
+  </context>
+  <context>
+    <name>main</name>
+    <message>
+      <source>Quit with unapplied settings?</source>
+      <translation>放弃未提交的设置并退出？</translation>
+    </message>
+    <message>
+      <source>Unsubmitted network and delay target edits will be discarded. Cancel to continue editing.</source>
+      <translation>退出将放弃尚未提交的网络和测速目标更改。选择取消可继续编辑。</translation>
+    </message>
+    <message>
+      <source>Proxy group</source>
+      <translation>代理组</translation>
+    </message>
+    <message>
+      <source>More pages</source>
+      <translation>更多页面</translation>
+    </message>
+  </context>
+  <context>
+    <name>settings_tabs</name>
+    <message>
+      <source>General</source>
+      <translation>通用</translation>
+    </message>
+    <message>
+      <source>Network</source>
+      <translation>网络</translation>
+    </message>
+    <message>
+      <source>Core &amp; Geo</source>
+      <translation>内核与资源</translation>
+    </message>
+    <message>
+      <source>Data</source>
+      <translation>数据与诊断</translation>
+    </message>
+    <message>
+      <source>About</source>
+      <translation>关于</translation>
+    </message>
+    <message>
+      <source>Settings categories</source>
+      <translation>设置分类</translation>
+    </message>
+    <message>
+      <source>Scroll settings categories backward</source>
+      <translation>向前滚动设置分类</translation>
+    </message>
+    <message>
+      <source>Contains unapplied changes</source>
+      <translation>包含未应用的更改</translation>
+    </message>
+    <message>
+      <source>Scroll settings categories forward</source>
+      <translation>向后滚动设置分类</translation>
+    </message>
+  </context>
+  <context>
+    <name>settings_tabs</name>
+    <message>
+      <source>Core and resources</source>
+      <translation>内核与资源</translation>
+    </message>
+    <message>
+      <source>Data and diagnostics</source>
+      <translation>数据与诊断</translation>
+    </message>
   </context>
 </TS>
