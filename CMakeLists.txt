@@ -598,7 +598,7 @@ if(BUILD_TESTING)
         set_tests_properties(ui_visual PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
-            TIMEOUT 30)
+            TIMEOUT 60)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
         add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test --probe-language=en-US)
         add_test(NAME ui_runtime_lists_zh COMMAND quickclash --runtime-list-test --probe-language=zh-CN)

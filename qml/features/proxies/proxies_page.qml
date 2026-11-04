@@ -18,6 +18,8 @@ Item {
     readonly property var stateRevision: ui.proxyStateRevision
     readonly property var progress: (runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
+    // Selected cards already use accentSurface; lift the nested hover fill so it stays visible.
+    readonly property color selectedDelayHover: Qt.tint(theme.accentSurface, theme.dark ? "#14FFFFFF" : "#80FFFFFF")
     readonly property bool active: ui.uiVisible && visible && !ui.replay
     // O(1) lookups for per-node delegate bindings instead of linear scans.
     readonly property var nodeByName: {
@@ -140,12 +142,15 @@ Item {
                             objectName: "new_custom_group"
                             theme: root.theme
                             text: qsTr("New strategy group")
+                            prominent: true
                             enabled: !!root.runtime.selectedId && !root.runtime.busy && !!root.ui.customGroups.revision
+                            Accessible.description: customGroupHint.text
                             onClicked: groupEditor.edit({})
                         }
                         Label {
+                            id: customGroupHint
                             objectName: "custom_group_hint"
-                            text: qsTr("Local groups survive subscription updates")
+                            text: !root.runtime.selectedId ? qsTr("Select a subscription first") : root.runtime.busy ? qsTr("Wait for the current operation to finish") : !root.ui.customGroups.revision ? qsTr("Loading strategy groups…") : qsTr("Local groups survive subscription updates")
                             color: root.theme.muted
                             width: Math.min(implicitWidth, parent.width)
                             height: Math.max(root.theme.controlHeight, implicitHeight)
@@ -251,14 +256,14 @@ Item {
                             id: groupToggle
                             objectName: "proxy_group_" + groupTile.modelData.name
                             Layout.fillWidth: true
-                            implicitHeight: headerContent.implicitHeight
-                            padding: 0
+                            implicitHeight: implicitContentHeight + topPadding + bottomPadding
+                            padding: root.theme.focusExtent
                             activeFocusOnTab: true
                             Accessible.name: groupTile.modelData.name
                             onClicked: root.toggleGroup(groupTile.modelData.name)
                             background: StateSurface {
                                 theme: root.theme
-                                hovered: groupToggle.hovered
+                                hovered: groupToggle.hovered && !testGroup.hovered
                                 down: groupToggle.down
                                 focused: groupToggle.activeFocus
                                 insetFocus: true
@@ -301,6 +306,17 @@ Item {
                                         icon.source: "qrc:/icons/dashboard/gauge.svg"
                                         text: groupToggle.width >= root.theme.scaledSize(420) ? qsTr("Test latency") : ""
                                         implicitHeight: root.theme.compactHeight
+                                        insetFocus: true
+                                        background: StateSurface {
+                                            theme: root.theme
+                                            focused: testGroup.activeFocus
+                                            insetFocus: true
+                                            color: !testGroup.enabled ? root.theme.inset : testGroup.down ? root.theme.selectedHover : testGroup.hovered ? root.theme.accentSurface : root.theme.inset
+                                        }
+                                        HoverHandler {
+                                            enabled: testGroup.enabled
+                                            cursorShape: Qt.PointingHandCursor
+                                        }
                                         Accessible.name: qsTr("Test delay for group %1").arg(groupTile.modelData.name)
                                         ThemedToolTip {
                                             theme: root.theme
@@ -447,7 +463,7 @@ Item {
                                     background: StateSurface {
                                         theme: root.theme
                                         selected: nodeTile.current
-                                        hovered: nodeTile.enabled && nodeTile.hovered
+                                        hovered: nodeTile.enabled && nodeTile.hovered && !testNode.hovered
                                         down: nodeTile.enabled && nodeTile.down
                                         focused: nodeTile.activeFocus
                                         insetFocus: true
@@ -504,6 +520,7 @@ Item {
                                                     down: testNode.enabled && testNode.down
                                                     focused: testNode.activeFocus
                                                     insetFocus: true
+                                                    color: !testNode.enabled ? "transparent" : testNode.down ? root.theme.selectedHover : testNode.hovered ? (nodeTile.current ? root.selectedDelayHover : root.theme.accentSurface) : "transparent"
                                                 }
                                                 contentItem: DelayLabel {
                                                     theme: root.theme

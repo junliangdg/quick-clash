@@ -277,12 +277,20 @@ ApplicationWindow {
                 anchors.bottomMargin: window.pageMargin
                 width: Math.min(parent.width - 2 * window.pageContentMargin, 1440)
                 spacing: window.ui.currentPage === "settings" ? 8 : tokens.gap
-                RowLayout {
+                GridLayout {
+                    id: pageHeading
                     objectName: "page_title_row"
+                    readonly property bool stackedStatus: window.narrow && width < pageTitle.implicitWidth + runtimeBadgeContent.implicitWidth + 18 + (backButton.visible ? backButton.implicitWidth + columnSpacing : morePagesButton.visible ? morePagesButton.implicitWidth + columnSpacing : 0) + columnSpacing
+                    columns: stackedStatus ? 2 : backButton.visible || morePagesButton.visible ? 3 : 2
+                    columnSpacing: 8
+                    rowSpacing: 4
                     Layout.fillWidth: true
-                    Layout.preferredHeight: tokens.controlHeight
+                    Layout.preferredHeight: Math.max(tokens.controlHeight, implicitHeight)
                     ActionButton {
+                        id: backButton
                         theme: tokens
+                        Layout.row: 0
+                        Layout.column: 0
                         visible: window.narrow && !["home", "proxies", "subscriptions", "settings"].includes(window.ui.currentPage)
                         text: "←"
                         ghost: true
@@ -290,6 +298,10 @@ ApplicationWindow {
                         onClicked: window.ui.navigate("settings")
                     }
                     Label {
+                        id: pageTitle
+                        Layout.row: 0
+                        Layout.column: backButton.visible ? 1 : 0
+                        Layout.columnSpan: pageHeading.stackedStatus && !backButton.visible && !morePagesButton.visible ? 2 : 1
                         text: window.ui.pageTitle
                         font.pixelSize: window.narrow ? tokens.scaledSize(22) : tokens.titleSize
                         font.weight: Font.DemiBold
@@ -299,24 +311,65 @@ ApplicationWindow {
                         elide: Text.ElideRight
                     }
                     ActionButton {
+                        id: morePagesButton
                         theme: tokens
+                        Layout.row: 0
+                        Layout.column: 1
                         objectName: "settings_more_pages"
                         visible: window.narrow && window.ui.currentPage === "settings"
-                        text: "⋯"
+                        text: qsTr("Other")
                         Accessible.name: qsTr("More pages")
-                        Layout.preferredWidth: 48
+                        selected: settingsPagesMenu.visible
                         onClicked: settingsPagesMenu.open()
                         Menu {
                             id: settingsPagesMenu
-                            MenuItem { text: qsTranslate("FeatureRegistry", "Connections"); onTriggered: window.ui.navigate("connections") }
-                            MenuItem { text: qsTranslate("FeatureRegistry", "Rules"); onTriggered: window.ui.navigate("rules") }
-                            MenuItem { text: qsTranslate("FeatureRegistry", "Logs"); onTriggered: window.ui.navigate("logs") }
-                            MenuItem { text: qsTranslate("FeatureRegistry", "Tests"); onTriggered: window.ui.navigate("tests") }
+                            objectName: "settings_pages_menu"
+                            y: morePagesButton.height + 6
+                            margins: window.pageMargin
+                            padding: 6
+                            width: Math.min(Math.max(200, connectionsMenuItem.implicitWidth + leftPadding + rightPadding), window.width - 2 * window.pageMargin)
+                            palette.window: tokens.surface
+                            palette.windowText: tokens.text
+                            palette.light: tokens.hover
+                            palette.midlight: tokens.pressed
+                            palette.dark: tokens.controlOutline
+                            background: Rectangle {
+                                implicitWidth: 200
+                                implicitHeight: 40
+                                radius: tokens.controlRadius
+                                color: tokens.surface
+                                border.width: 1
+                                border.color: tokens.border
+                            }
+                            component PageMenuItem: MenuItem {
+                                id: entry
+                                palette.windowText: highlighted ? tokens.onSelection : tokens.text
+                                background: StateSurface {
+                                    theme: tokens
+                                    implicitWidth: 200
+                                    implicitHeight: 40
+                                    selected: entry.highlighted
+                                    hovered: entry.hovered
+                                    down: entry.down
+                                }
+                            }
+                            onClosed: {
+                                if (morePagesButton.visible)
+                                    morePagesButton.forceActiveFocus(Qt.PopupFocusReason);
+                            }
+                            PageMenuItem { id: connectionsMenuItem; objectName: "settings_page_connections"; text: qsTranslate("FeatureRegistry", "Connections"); onTriggered: window.ui.navigate("connections") }
+                            PageMenuItem { objectName: "settings_page_rules"; text: qsTranslate("FeatureRegistry", "Rules"); onTriggered: window.ui.navigate("rules") }
+                            PageMenuItem { objectName: "settings_page_logs"; text: qsTranslate("FeatureRegistry", "Logs"); onTriggered: window.ui.navigate("logs") }
+                            PageMenuItem { objectName: "settings_page_tests"; text: qsTranslate("FeatureRegistry", "Tests"); onTriggered: window.ui.navigate("tests") }
                         }
                     }
                     Rectangle {
                         id: runtimeStatusBadge
                         objectName: "runtime_status_badge"
+                        Layout.row: pageHeading.stackedStatus ? 1 : 0
+                        Layout.column: pageHeading.stackedStatus ? 0 : backButton.visible || morePagesButton.visible ? 2 : 1
+                        Layout.columnSpan: pageHeading.stackedStatus ? 2 : 1
+                        Layout.alignment: Qt.AlignRight
                         Layout.preferredWidth: runtimeBadgeContent.implicitWidth + 18
                         Layout.preferredHeight: Math.max(28, runtimeBadgeContent.implicitHeight + 8)
                         radius: 14

@@ -133,6 +133,13 @@ Item {
                 theme: root.theme
                 Layout.maximumWidth: root.width * 0.64
                 text: qsTr("Manage custom rules…")
+                prominent: true
+                insetFocus: true
+                ThemedToolTip {
+                    theme: root.theme
+                    visible: customRulesButton.hovered || customRulesButton.activeFocus
+                    text: customRulesButton.text
+                }
                 contentItem: Text {
                     text: customRulesButton.text
                     font: customRulesButton.font

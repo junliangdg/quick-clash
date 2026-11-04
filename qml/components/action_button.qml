@@ -65,6 +65,7 @@ Button {
         theme: control.theme
         focused: control.activeFocus
         insetFocus: control.insetFocus
+        focusColor: control.insetFocus && control.prominent && control.enabled && !control.pending ? theme.accentForeground : theme.accent
         color: control.pending ? theme.accentSurface : !control.enabled ? theme.inset : control.destructive ? (control.down ? theme.errorPressed : control.hovered ? theme.errorHover : theme.errorSurface) : control.prominent ? (control.down ? theme.primaryPressed : control.hovered ? theme.primaryHover : theme.accent) : control.selected ? theme.stateColor(true, control.hovered, control.down) : control.down ? theme.pressed : control.hovered ? theme.hover : control.ghost ? "transparent" : theme.inset
     }
 }

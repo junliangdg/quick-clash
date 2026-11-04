@@ -668,6 +668,7 @@
   </context>
   <context>
     <name>main</name>
+    <message><source>Other</source><translation>其他</translation></message>
     <message><source>Running normally</source><translation>运行正常</translation></message>
     <message><source>Runtime error</source><translation>运行异常</translation></message>
     <message><source>Back to settings</source><translation>返回设置</translation></message>
@@ -741,6 +742,9 @@
   </context>
   <context>
     <name>proxies_page</name>
+    <message><source>Select a subscription first</source><translation>请先选择订阅</translation></message>
+    <message><source>Wait for the current operation to finish</source><translation>请等待当前操作完成</translation></message>
+    <message><source>Loading strategy groups…</source><translation>正在加载策略组…</translation></message>
     <message><source>Test latency</source><translation>测延迟</translation></message>
     <message><source>Test delay for group %1</source><translation>测试分组 %1 的延迟</translation></message>
     <message><source>Test delay for %1</source><translation>测试 %1 的延迟</translation></message>

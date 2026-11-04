@@ -171,6 +171,51 @@ int runSettingsUiProbe(ApplicationHost& host) {
             }
         }
     }
+    // Compact navigation exposes readable text, keyboard dismissal and every secondary route.
+    for (const auto pixels : {14, 32}) {
+        auto font = originalFont;
+        font.setPixelSize(pixels);
+        QApplication::setFont(font);
+        host.resizeWindow({360, 480});
+        for (const auto* page : {"connections", "rules", "logs", "tests"}) {
+            if (!ui.navigate("settings") || !waitFor([&] { return item("settings_more_pages"); }))
+                return fail("compact settings navigation loads");
+            auto* more = item("settings_more_pages");
+            if (!waitFor([&] {
+                    return more->property("text").toString() ==
+                               QCoreApplication::translate("main", "Other") &&
+                           more->width() + 0.5 >= more->implicitWidth();
+                }))
+                return fail("compact navigation shows the complete Other label");
+            more->forceActiveFocus(Qt::TabFocusReason);
+            QTest::keyClick(host.window(), Qt::Key_Return);
+            if (!waitFor(
+                    [&] { return object("settings_pages_menu")->property("visible").toBool(); }))
+                return fail("Other opens from the keyboard");
+            if (!output.isEmpty() && QLatin1String(page) == "connections" &&
+                !host.window()->grabWindow().save(
+                    QDir(output).filePath(QStringLiteral("other_menu_%1.png").arg(pixels))))
+                return fail("the compact Other menu capture succeeds");
+            QTest::keyClick(host.window(), Qt::Key_Escape);
+            if (!waitFor([&] { return more->hasActiveFocus(); }))
+                return fail("dismissing Other restores keyboard focus");
+            if (!activate("settings_more_pages"))
+                return fail("Other can reopen");
+            const auto name = QByteArray("settings_page_") + page;
+            if (!waitFor(
+                    [&] { return item(name.constData()) && item(name.constData())->isVisible(); }))
+                return fail("secondary menu items are visible");
+            auto* entry = item(name.constData());
+            if (entry->width() + 0.5 < entry->implicitWidth())
+                return fail("secondary menu labels fit at large fonts");
+            QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier,
+                              entry->mapToScene(entry->boundingRect().center()).toPoint());
+            if (!waitFor([&] { return ui.currentPage() == QLatin1String(page); }))
+                return fail("all compact secondary routes are reachable");
+        }
+    }
+    ui.navigate("settings");
+    QTest::qWait(25);
     // A long recovery warning must scroll with the form, even at the minimum window size.
     if (!waitFor([&] { return ui.settingsReady(); }))
         return fail("preference saves finish before the read-only fixture");

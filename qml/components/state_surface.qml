@@ -9,6 +9,7 @@ Rectangle {
     property bool down: false
     property bool focused: false
     property bool insetFocus: false
+    property color focusColor: theme.accent
     property real focusClipLeft: 0
     property real focusClipRight: 0
     radius: theme.controlRadius
@@ -19,6 +20,7 @@ Rectangle {
         clipLeft: root.focusClipLeft
         clipRight: root.focusClipRight
         surfaceRadius: root.radius
+        border.color: root.focusColor
         visible: root.focused
     }
 }

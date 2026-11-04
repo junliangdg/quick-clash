@@ -1,6 +1,7 @@
 #include "application_host.h"
 #include "focus_layout_checks.h"
 #include "host_probe.h"
+#include <QApplication>
 #include <QColor>
 #include <QDateTime>
 #include <QDebug>
@@ -229,6 +230,9 @@ int runVisualProbe(ApplicationHost& host) {
              {{"profiles", QJsonArray{profile}},
               {"groups", groups},
               {"nodes", nodes},
+              {"custom_groups", QJsonObject{{"profileId", "visual"},
+                                            {"revision", "visual-groups"},
+                                            {"definitions", QJsonArray{}}}},
               {"samples", QJsonObject{{"coreUptimeSeconds", 9300}}},
               {"resources",
                QJsonObject{
@@ -416,6 +420,50 @@ int runVisualProbe(ApplicationHost& host) {
                                        : QStringLiteral("qrc:/icons/brand/qcat_tray_dark.svg");
         if (brand.size() != 1 || brand.first()->property("source").toUrl() != QUrl(expectedBrand))
             return 196;
+        ui.navigate("proxies");
+        populate();
+        QTest::qWait(50);
+        const auto checkDelayHover = [&](QQuickItem* container, const QString& actionName,
+                                         const QString& captureName) {
+            auto* action = container ? container->findChild<QQuickItem*>(actionName) : nullptr;
+            auto* background =
+                action ? action->property("background").value<QQuickItem*>() : nullptr;
+            auto* outer =
+                container ? container->property("background").value<QQuickItem*>() : nullptr;
+            auto* label = action ? action->property("contentItem").value<QQuickItem*>() : nullptr;
+            if (!background || !outer || !label || !action->isEnabled())
+                return false;
+            QSignalSpy clicked(action, SIGNAL(clicked()));
+            QTest::mouseMove(host.window(), QPoint(1, 1));
+            QTest::qWait(20);
+            const auto idleColor = background->property("color").value<QColor>();
+            const auto textColor = label->property("color").value<QColor>();
+            QTest::mouseMove(host.window(),
+                             action->mapToScene(action->boundingRect().center()).toPoint());
+            QTest::qWait(20);
+            const auto hoverColor = background->property("color").value<QColor>();
+            if (!action->property("hovered").toBool() || hoverColor == idleColor ||
+                hoverColor == outer->property("color").value<QColor>() ||
+                label->property("color").value<QColor>() != textColor || !clicked.isEmpty() ||
+                !capture(captureName))
+                return false;
+            QTest::mouseMove(host.window(), QPoint(1, 1));
+            QTest::qWait(20);
+            return !action->property("hovered").toBool() &&
+                   background->property("color").value<QColor>() == idleColor;
+        };
+        const auto hoverHeaders = objects(QStringLiteral("proxy_group_节点选择"));
+        if (hoverHeaders.size() != 1 ||
+            !checkDelayHover(hoverHeaders.first(), "test_group", theme + "_group_delay_hover"))
+            return 204;
+        for (int index = 0; index < 2; ++index) {
+            const auto hoverNodes =
+                objects(QStringLiteral("proxy_member_节点选择_") + members[index].toString());
+            if (hoverNodes.size() != 1 ||
+                !checkDelayHover(hoverNodes.first(), "test_node",
+                                 theme + QStringLiteral("_node_delay_hover_%1").arg(index)))
+                return 205;
+        }
         for (const auto& entry : ui.navigation()) {
             const auto page = entry.toMap().value("pageId").toString();
             if (!ui.navigate(page))
@@ -970,6 +1018,82 @@ int runVisualProbe(ApplicationHost& host) {
                 return 147;
         }
     }
+    // Page actions and nested group controls must fit at large fonts and narrow widths.
+    const auto originalFont = QApplication::font();
+    for (const auto pixels : {14, 21, 32}) {
+        auto font = originalFont;
+        font.setPixelSize(pixels);
+        QApplication::setFont(font);
+        for (const auto width : {1000, 600, 360}) {
+            host.resizeWindow({width, 640});
+            for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+                ui.setThemeMode(theme);
+                for (const auto& page : {QStringLiteral("proxies"), QStringLiteral("subscriptions"),
+                                         QStringLiteral("rules")}) {
+                    ui.navigate(page);
+                    populate();
+                    QTest::qWait(35);
+                    const auto actionName = page == "proxies"         ? "new_custom_group"
+                                            : page == "subscriptions" ? "open_subscription_import"
+                                                                      : "open_custom_rules";
+                    const auto actions = objects(QString::fromLatin1(actionName));
+                    if (actions.size() != 1 || !actions.first()->property("prominent").toBool())
+                        return 200;
+                    if (page == "subscriptions") {
+                        // ListView headers precede the first row and can have a negative Y.
+                        const auto pages = objects("subscriptions_page");
+                        if (pages.size() != 1 ||
+                            !QMetaObject::invokeMethod(pages.first(), "positionViewAtBeginning"))
+                            return 201;
+                        actions.first()->forceActiveFocus(Qt::TabFocusReason);
+                        QTest::qWait(25);
+                        bool found = false;
+                        for (auto* ring :
+                             actions.first()->findChildren<QQuickItem*>("focus_ring")) {
+                            if (!ring->isVisible())
+                                continue;
+                            found = true;
+                            for (auto* ancestor = ring->parentItem(); ancestor;
+                                 ancestor = ancestor->parentItem())
+                                if (ancestor->clip() && !ancestor->boundingRect()
+                                                             .adjusted(-0.75, -0.75, 0.75, 0.75)
+                                                             .contains(ring->mapRectToItem(
+                                                                 ancestor, ring->boundingRect())))
+                                    return 201;
+                        }
+                        if (!found)
+                            return 201;
+                    } else if (actions.first()->isEnabled() &&
+                               !test::focusInScroll(actions.first())) {
+                        return 201;
+                    }
+                    if (page == "proxies") {
+                        const auto headers = objects(QStringLiteral("proxy_group_节点选择"));
+                        auto* button = headers.size() == 1
+                                           ? headers.first()->findChild<QQuickItem*>("test_group")
+                                           : nullptr;
+                        const auto bounds =
+                            headers.size() == 1 ? headers.first()->boundingRect() : QRectF{};
+                        if (!button ||
+                            !bounds.adjusted(1, 1, -1, -1)
+                                 .contains(button->mapRectToItem(headers.first(),
+                                                                 button->boundingRect())) ||
+                            !test::focusInScroll(button)) {
+                            std::fprintf(stderr, "Group action overflow: font=%d width=%d\n",
+                                         pixels, width);
+                            return 202;
+                        }
+                    }
+                    if (!capture(QStringLiteral("%1_action_%2_%3_%4")
+                                     .arg(theme, page)
+                                     .arg(pixels)
+                                     .arg(width)))
+                        return 203;
+                }
+            }
+        }
+    }
+    QApplication::setFont(originalFont);
     if (host.qmlErrorCount() || host.engineGeneration() != generation ||
         ui.uploadHistory().size() != 60)
         return 120;

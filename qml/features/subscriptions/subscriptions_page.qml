@@ -567,6 +567,7 @@ ListView {
                 theme: root.theme
                 text: qsTr("Add subscription")
                 prominent: true
+                insetFocus: true
                 enabled: !root.ui.runtime.busy && root.ui.settingsReady && !root.ui.runtime.readOnly
                 onClicked: importDialog.open()
             }
