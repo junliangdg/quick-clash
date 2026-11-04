@@ -1,5 +1,6 @@
 #include "host_probe.h"
 #include "application_host.h"
+#include <QAction>
 #include <QCoreApplication>
 #include <QPointer>
 #include <QTimer>
@@ -11,6 +12,51 @@ int runTrayProbe(ApplicationHost& host) {
         std::fputs("Tray probe requires an available native desktop tray.\n", stderr);
         return 77;
     }
+    const auto trayDemand = host.state().activeStreamCount();
+    QJsonObject trayControl{
+        {"publicationGeneration", "1"},
+        {"epoch", "tray-fixture"},
+        {"ready", true},
+        {"selectedId", "fixture"},
+        {"selectedName", "R&D profile"},
+        {"outbound", QJsonObject{{"node", "confirmed-node"}, {"confirmed", true}}},
+        {"preferences",
+         QJsonObject{{"mode", "global"}, {"systemProxyDesired", true}, {"tunDesired", true}}},
+        {"settingsState",
+         QJsonObject{{"running", true}, {"effective", QJsonObject{{"mode", "rule"}}}}},
+        {"systemProxy", false},
+        {"tunState", "Blocked"}};
+    host.state().applyControl(trayControl);
+    if (!host.trayModeActions_[0]->isChecked() || host.trayModeActions_[1]->isChecked() ||
+        host.traySystemProxyAction_->isChecked() || host.trayTunAction_->isChecked() ||
+        !host.trayProfileAction_->text().contains("R&&D profile") ||
+        !host.trayOutboundAction_->text().contains("confirmed-node") ||
+        !host.tray_->toolTip().contains("confirmed-node") ||
+        host.state().activeStreamCount() != trayDemand) {
+        std::fputs("Tray mode/status projection failed.\n", stderr);
+        return 11;
+    }
+    host.trayModeActions_[1]->trigger();
+    host.traySystemProxyAction_->trigger();
+    if (!host.trayModeActions_[0]->isChecked() || host.trayModeActions_[1]->isChecked() ||
+        host.traySystemProxyAction_->isChecked()) {
+        std::fputs("Tray requests were displayed as confirmed before publication.\n", stderr);
+        return 11;
+    }
+    trayControl.insert("busy", true);
+    trayControl.insert("outbound", QJsonObject{{"balanced", true}, {"node", "stale-node"}});
+    host.state().applyControl(trayControl);
+    if (host.trayModeMenu_->isEnabled() || host.traySystemProxyAction_->isEnabled() ||
+        host.trayTunAction_->isEnabled() || host.trayOutboundAction_->text().contains("stale-node"))
+        return 11;
+    trayControl.insert("busy", false);
+    trayControl.insert("ready", false);
+    trayControl.insert("error", "CoreStartFailed");
+    trayControl.insert("outbound", QJsonObject{{"node", "old-node"}});
+    host.state().applyControl(trayControl);
+    if (host.trayOutboundAction_->text().contains("old-node"))
+        return 11;
+    host.state().applyControl({{"publicationGeneration", "1"}, {"epoch", "tray-fixture"}});
     int step = 0;
     int confirmations = 0;
     QPointer<QQuickWindow> trackedWindow;

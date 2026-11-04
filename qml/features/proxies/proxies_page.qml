@@ -6,15 +6,39 @@ import QuickClash.Ui
 
 Item {
     id: root
+    objectName: "proxies_page"
     required property UiState ui
     required property ThemeTokens theme
     property var expandedGroups: []
+    property string searchText: ""
+    property bool restoringView: false
+    property string locateGroup: ""
+    property string locateMember: ""
+    signal locateRequested(string group, string member)
     readonly property string stateKey: "proxies:" + (ui.runtime.selectedId || "")
     // Channel values are read once per change notification; delegates never
     // re-materialize the whole channel JSON on every binding evaluation.
     readonly property var runtime: ui.runtime
     readonly property var groups: ui.groups.filter(group => group.name !== "GLOBAL" || (runtime.preferences || {}).mode === "global" || ui.groups.length === 1)
     readonly property var nodes: ui.nodes
+    readonly property string query: searchText.trim().toLocaleLowerCase()
+    readonly property var matchingMembers: {
+        const result = Object.create(null);
+        for (const group of groups) {
+            const matchesGroup = group.name.toLocaleLowerCase().includes(query);
+            result[group.name] = (group.members || []).filter(name => !query || matchesGroup || name.toLocaleLowerCase().includes(query));
+        }
+        return result;
+    }
+    readonly property int matchingCount: groups.reduce((count, group) => count + (matchingMembers[group.name] || []).length, 0)
+    readonly property string currentGroup: {
+        if (!runtime.ready || (runtime.outbound || {}).balanced || (runtime.preferences || {}).mode === "direct")
+            return "";
+        const policy = (runtime.outbound || {}).policy;
+        const preferred = groups.find(group => group.name === policy && canLocate(group));
+        const fallback = groups.find(group => canLocate(group));
+        return preferred ? preferred.name : fallback ? fallback.name : "";
+    }
     readonly property var stateRevision: ui.proxyStateRevision
     readonly property var progress: (runtime.features || {}).delayTest || ({})
     readonly property bool testing: progress.state === "Running"
@@ -50,18 +74,47 @@ Item {
     }
     // Groups expand independently; the remembered set is per subscription.
     function restoreExpandedGroups(): void {
-        const saved = ui.readState(stateKey).groups;
+        restoringView = true;
+        const view = ui.readState(stateKey);
+        const saved = view.groups;
         // QStringList arrives as a QML sequence, which is not a JavaScript Array.
         const hasSaved = saved !== undefined && saved !== null && typeof saved.length === "number";
         const remembered = hasSaved ? Array.from(saved).filter(name => typeof name === "string") : [];
         const policy = (runtime.outbound || {}).policy;
         expandedGroups = hasSaved ? remembered : policy ? [policy] : [];
+        searchText = typeof view.filter === "string" ? view.filter : "";
+        if (locateTimer)
+            locateTimer.stop();
+        restoringView = false;
+    }
+    function rememberView(): void {
+        if (!restoringView)
+            ui.saveState(stateKey, { groups: expandedGroups, filter: searchText });
+    }
+    onSearchTextChanged: {
+        if (groupList)
+            groupList.contentY = 0;
+        rememberView();
     }
     function toggleGroup(name): void {
         expandedGroups = expandedGroups.includes(name) ? expandedGroups.filter(entry => entry !== name) : expandedGroups.concat([name]);
-        ui.saveState(stateKey, {
-            groups: expandedGroups
-        });
+        rememberView();
+    }
+    function locateCurrent(name): void {
+        const group = groups.find(entry => entry.name === name);
+        if (!canLocate(group))
+            return;
+        searchText = "";
+        if (!expandedGroups.includes(name))
+            expandedGroups = expandedGroups.concat([name]);
+        rememberView();
+        locateGroup = name;
+        locateMember = group.current;
+        locateTimer.restart();
+    }
+    function canLocate(group): bool {
+        return !!runtime.ready && !!group && !["LoadBalance", "load-balance"].includes(group.type) &&
+            !!group.current && (group.members || []).includes(group.current);
     }
     function nodeDetails(name): string {
         const node = nodeByName[name];
@@ -93,6 +146,11 @@ Item {
         ui: root.ui
         theme: root.theme
     }
+    Timer {
+        id: locateTimer
+        interval: 16
+        onTriggered: root.locateRequested(root.locateGroup, root.locateMember)
+    }
     // Group cards are few and laid out directly; only the expanded group
     // instantiates its node grid. The page keeps a single scrollbar whose
     // length derives from the real layout, so recycled variable-height rows
@@ -106,11 +164,54 @@ Item {
         stream: "proxies"
         replayModel: root.ui.proxyModel
     }
+    GridLayout {
+        id: searchTools
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        visible: !root.ui.replay && root.groups.length > 0
+        columns: width >= root.theme.scaledSize(620) ? 3 : 1
+        columnSpacing: 8
+        rowSpacing: 8
+        ThemedField {
+            objectName: "proxy_node_search"
+            theme: root.theme
+            Layout.fillWidth: true
+            Layout.minimumWidth: 0
+            maximumLength: 128
+            placeholderText: qsTr("Search nodes or groups")
+            Accessible.name: qsTr("Search nodes or groups")
+            text: root.searchText
+            onTextEdited: root.searchText = text
+        }
+        ActionButton {
+            objectName: "proxy_clear_search"
+            theme: root.theme
+            Layout.fillWidth: searchTools.columns === 1
+            Layout.minimumWidth: 0
+            text: qsTr("Clear search")
+            enabled: root.searchText.length > 0
+            onClicked: root.searchText = ""
+        }
+        ActionButton {
+            objectName: "proxy_locate_current"
+            theme: root.theme
+            Layout.fillWidth: searchTools.columns === 1
+            Layout.minimumWidth: 0
+            text: qsTr("Locate current node")
+            enabled: root.currentGroup.length > 0
+            onClicked: root.locateCurrent(root.currentGroup)
+        }
+    }
     Flickable {
         id: groupList
         objectName: "proxy_group_list"
         visible: !root.ui.replay
-        anchors.fill: parent
+        anchors.top: searchTools.visible ? searchTools.bottom : parent.top
+        anchors.topMargin: searchTools.visible ? 12 : 0
+        anchors.bottom: parent.bottom
+        anchors.left: parent.left
+        anchors.right: parent.right
         anchors.rightMargin: -root.theme.scrollBarWidth
         clip: true
         contentWidth: width
@@ -125,6 +226,14 @@ Item {
             objectName: "proxy_content_column"
             width: root.width
             spacing: 12
+            Label {
+                objectName: "proxy_search_empty"
+                visible: root.groups.length > 0 && root.query.length > 0 && root.matchingCount === 0
+                text: qsTr("No matching nodes or groups")
+                color: root.theme.muted
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
             FlatTile {
                 theme: root.theme
                 Layout.fillWidth: true
@@ -240,13 +349,27 @@ Item {
                 FlatTile {
                     id: groupTile
                     required property var modelData
-                    readonly property bool expanded: root.expandedGroups.includes(modelData.name)
+                    readonly property var viewMembers: root.matchingMembers[modelData.name] || []
+                    readonly property bool expanded: root.query.length > 0 || root.expandedGroups.includes(modelData.name)
                     readonly property int nodeColumns: Math.max(1, Math.floor((width - 36) / 232))
                     readonly property real nodeCardWidth: (width - 28 - 8 * (nodeColumns - 1)) / nodeColumns
                     theme: root.theme
+                    visible: root.query.length === 0 || viewMembers.length > 0
                     Layout.fillWidth: true
                     implicitHeight: groupContent.implicitHeight + 28
                     border.color: root.theme.border
+                    function locate(name): void {
+                        const index = nodeGrid.members.indexOf(name);
+                        if (index >= 0)
+                            nodeGrid.focusMember(index);
+                    }
+                    Connections {
+                        target: root
+                        function onLocateRequested(group: string, member: string): void {
+                            if (group === groupTile.modelData.name)
+                                groupTile.locate(member);
+                        }
+                    }
                     ColumnLayout {
                         id: groupContent
                         anchors.fill: parent
@@ -361,6 +484,14 @@ Item {
                                 wrapMode: Text.WordWrap
                             }
                             ActionButton {
+                                objectName: "proxy_locate_group_" + groupTile.modelData.name
+                                theme: root.theme
+                                text: qsTr("Locate current")
+                                implicitHeight: root.theme.compactHeight
+                                enabled: root.canLocate(groupTile.modelData)
+                                onClicked: root.locateCurrent(groupTile.modelData.name)
+                            }
+                            ActionButton {
                                 theme: root.theme
                                 text: qsTr("Cancel")
                                 visible: root.testing
@@ -375,7 +506,7 @@ Item {
                         Item {
                             id: nodeGrid
                             objectName: "proxy_node_grid"
-                            readonly property var members: groupTile.modelData.members || []
+                            readonly property var members: groupTile.viewMembers
                             readonly property int rowHeight: root.theme.scaledSize(64) + 8
                             readonly property int rows: Math.ceil(members.length / groupTile.nodeColumns)
                             readonly property real pageY: groupTile.y + groupContent.y + y

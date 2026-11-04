@@ -2,6 +2,7 @@
 #include "presentation/localization.h"
 #include "ui_font.h"
 #include <QAction>
+#include <QActionGroup>
 #include <QApplication>
 #include <QCursor>
 #include <QEvent>
@@ -11,6 +12,7 @@
 #include <QScopedValueRollback>
 #include <QScreen>
 #include <QStyleHints>
+#include <algorithm>
 #ifdef Q_OS_WIN
 #include <QSettings>
 #endif
@@ -31,6 +33,19 @@ bool darkTrayBackground() {
 #endif
     return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
 }
+QString trayLabel(QString value, int limit = 48) {
+    // Profile and node names are untrusted text; keep each native menu/tooltip line bounded.
+    for (auto& character : value)
+        if (character.isSpace() || character.category() == QChar::Other_Control)
+            character = QLatin1Char(' ');
+    return value.size() > limit ? value.left(limit - 1) + QChar(0x2026) : value;
+}
+QString modeLabel(const QString& mode) {
+    return mode == QStringLiteral("rule")     ? ApplicationHost::tr("Rule")
+           : mode == QStringLiteral("global") ? ApplicationHost::tr("Global")
+           : mode == QStringLiteral("direct") ? ApplicationHost::tr("Direct")
+                                              : ApplicationHost::tr("Unavailable");
+}
 } // namespace
 ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* parent)
     : QObject(parent), state_(std::move(settingsFile)) {
@@ -45,6 +60,12 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
         updateTrayIcon();
     });
     setupTray(noTray);
+    connect(&state_, &presentation::UiState::runtimeChanged, this,
+            &ApplicationHost::updateCriticalAlerts);
+    connect(&state_, &presentation::UiState::profilesChanged, this,
+            &ApplicationHost::updateCriticalAlerts);
+    connect(&state_, &presentation::UiState::uiVisibleChanged, this,
+            &ApplicationHost::updateCriticalAlerts);
     connect(&systemEvents_, &SystemEvents::typographyChanged, this,
             &ApplicationHost::updateTrayIcon, Qt::QueuedConnection);
     connect(
@@ -119,41 +140,42 @@ void ApplicationHost::setupTray(bool noTray) {
     trayStatusAction_->setEnabled(false);
     connect(&state_, &presentation::UiState::runtimeChanged, this,
             &ApplicationHost::updateTrayStatus);
+    trayProfileAction_ = trayMenu_->addAction(QString{});
+    trayProfileAction_->setEnabled(false);
+    trayOutboundAction_ = trayMenu_->addAction(QString{});
+    trayOutboundAction_->setEnabled(false);
+    trayModeMenu_ = trayMenu_->addMenu(tr("Outbound mode"));
+    auto* modeGroup = new QActionGroup(trayModeMenu_);
+    const std::array<QString, 3> modes{QStringLiteral("rule"), QStringLiteral("global"),
+                                       QStringLiteral("direct")};
+    for (std::size_t i = 0; i < modes.size(); ++i) {
+        const auto& mode = modes[i];
+        auto* action = trayModeMenu_->addAction(modeLabel(mode));
+        action->setObjectName(QStringLiteral("tray_mode_") + mode);
+        action->setData(mode);
+        action->setCheckable(true);
+        modeGroup->addAction(action);
+        trayModeActions_[i] = action;
+        connect(action, &QAction::triggered, this, [this, mode] {
+            state_.runtimeCommand(QStringLiteral("mode"), {mode});
+            // A request is not confirmation. Keep the last published mode until it succeeds.
+            updateTrayStatus();
+        });
+    }
     traySystemProxyAction_ = trayMenu_->addAction(tr("System proxy"));
     trayTunAction_ = trayMenu_->addAction(tr("Virtual network adapter (TUN)"));
     traySystemProxyAction_->setCheckable(true);
     trayTunAction_->setCheckable(true);
-    const auto syncNetwork = [this] {
-        auto* systemProxy = traySystemProxyAction_;
-        auto* tun = trayTunAction_;
-        if (!systemProxy || !tun)
-            return;
-        const auto runtime = state_.runtime();
-        const auto preferences = runtime.value(QStringLiteral("preferences")).toMap();
-        const bool enabled = !runtime.value(QStringLiteral("selectedId")).toString().isEmpty() &&
-                             !runtime.value(QStringLiteral("busy")).toBool() &&
-                             !runtime.value(QStringLiteral("readOnly")).toBool();
-        const auto capabilities = runtime.value(QStringLiteral("capabilities")).toMap();
-        systemProxy->setEnabled(enabled && capabilities.value(QStringLiteral("systemProxy")) !=
-                                               QStringLiteral("Unsupported"));
-        tun->setEnabled(enabled &&
-                        capabilities.value(QStringLiteral("tun")) != QStringLiteral("Unsupported"));
-        systemProxy->setChecked(runtime.value(QStringLiteral("systemProxy")).toBool() ||
-                                preferences.value(QStringLiteral("systemProxyDesired")).toBool());
-        tun->setChecked(runtime.value(QStringLiteral("tunState")).toString() ==
-                            QStringLiteral("On") ||
-                        preferences.value(QStringLiteral("tunDesired")).toBool());
-    };
-    connect(&state_, &presentation::UiState::runtimeChanged, traySystemProxyAction_, syncNetwork);
     connect(traySystemProxyAction_, &QAction::triggered, this, [this](bool checked) {
         state_.runtimeCommand(QStringLiteral("system_proxy"),
                               {checked ? QStringLiteral("true") : QStringLiteral("false")});
+        updateTrayStatus();
     });
     connect(trayTunAction_, &QAction::triggered, this, [this](bool checked) {
         state_.runtimeCommand(QStringLiteral("tun"),
                               {checked ? QStringLiteral("true") : QStringLiteral("false")});
+        updateTrayStatus();
     });
-    syncNetwork();
     trayMenu_->addSeparator();
     traySettingsAction_ = trayMenu_->addAction(tr("Settings"), this, [this] {
         (void)state_.navigate(QStringLiteral("settings"));
@@ -164,6 +186,11 @@ void ApplicationHost::setupTray(bool noTray) {
     updateTrayIcon();
     tray_->setToolTip(QStringLiteral("QuickClash"));
     tray_->setContextMenu(trayMenu_.get());
+    connect(tray_.get(), &QSystemTrayIcon::messageClicked, this, [this] {
+        if (!alertPage_.isEmpty())
+            (void)state_.navigate(alertPage_);
+        (void)showWindow();
+    });
     connect(tray_.get(), &QSystemTrayIcon::activated, this,
             [this](QSystemTrayIcon::ActivationReason reason) {
                 if (reason == QSystemTrayIcon::Trigger || reason == QSystemTrayIcon::DoubleClick) {
@@ -172,6 +199,7 @@ void ApplicationHost::setupTray(bool noTray) {
             });
     tray_->show();
     state_.setTrayAvailable(true);
+    updateTrayStatus();
 }
 void ApplicationHost::setLanguageController(presentation::Localization* localization) {
     if (!localization)
@@ -203,17 +231,142 @@ void ApplicationHost::retranslateTray() {
         traySettingsAction_->setText(tr("Settings"));
     if (trayQuitAction_)
         trayQuitAction_->setText(tr("Quit"));
+    for (auto* action : trayModeActions_)
+        if (action)
+            action->setText(modeLabel(action->data().toString()));
     updateTrayStatus();
 }
 void ApplicationHost::updateTrayStatus() {
     if (!trayStatusAction_)
         return;
     const auto runtime = state_.runtime();
-    trayStatusAction_->setText(runtime.value(QStringLiteral("ready")).toBool()
-                                   ? tr("Network engine ready")
-                               : runtime.value(QStringLiteral("selectedId")).toString().isEmpty()
-                                   ? tr("Waiting for a valid profile")
-                                   : tr("Network engine starting or recovering"));
+    const auto settings = runtime.value(QStringLiteral("settingsState")).toMap();
+    const auto preferences = runtime.value(QStringLiteral("preferences")).toMap();
+    const auto mode = (settings.value(QStringLiteral("running")).toBool()
+                           ? settings.value(QStringLiteral("effective")).toMap()
+                           : preferences)
+                          .value(QStringLiteral("mode"))
+                          .toString();
+    const bool enabled = !runtime.value(QStringLiteral("selectedId")).toString().isEmpty() &&
+                         !runtime.value(QStringLiteral("busy")).toBool() &&
+                         !runtime.value(QStringLiteral("readOnly")).toBool();
+    const auto capabilities = runtime.value(QStringLiteral("capabilities")).toMap();
+    traySystemProxyAction_->setEnabled(enabled &&
+                                       capabilities.value(QStringLiteral("systemProxy")) !=
+                                           QStringLiteral("Unsupported"));
+    trayTunAction_->setEnabled(enabled && capabilities.value(QStringLiteral("tun")) !=
+                                              QStringLiteral("Unsupported"));
+    traySystemProxyAction_->setChecked(runtime.value(QStringLiteral("systemProxy")).toBool());
+    trayTunAction_->setChecked(runtime.value(QStringLiteral("tunState")) == QStringLiteral("On"));
+    traySystemProxyAction_->setText(
+        preferences.value(QStringLiteral("systemProxyDesired")).toBool() &&
+                !traySystemProxyAction_->isChecked()
+            ? tr("System proxy (requested, inactive)")
+            : tr("System proxy"));
+    trayTunAction_->setText(preferences.value(QStringLiteral("tunDesired")).toBool() &&
+                                    !trayTunAction_->isChecked()
+                                ? tr("Virtual network adapter (TUN, requested, inactive)")
+                                : tr("Virtual network adapter (TUN)"));
+    const bool attention = runtime.value(QStringLiteral("readOnly")).toBool() ||
+                           runtime.value(QStringLiteral("proxyConflict")).toBool() ||
+                           runtime.value(QStringLiteral("tunState")) == QStringLiteral("Uncertain");
+    const auto status = attention ? tr("Network needs attention")
+                        : runtime.value(QStringLiteral("ready")).toBool()
+                            ? tr("Network engine ready")
+                        : runtime.value(QStringLiteral("selectedId")).toString().isEmpty()
+                            ? tr("Waiting for a valid profile")
+                        : !runtime.value(QStringLiteral("error")).toString().isEmpty()
+                            ? tr("Network engine unavailable")
+                            : tr("Network engine starting or recovering");
+    trayStatusAction_->setText(status);
+    trayModeMenu_->setTitle(tr("Mode: %1").arg(modeLabel(mode)));
+    trayModeMenu_->setEnabled(enabled);
+    for (auto* action : trayModeActions_)
+        action->setChecked(action->data().toString() == mode);
+    const auto profile = runtime.value(QStringLiteral("selectedName")).toString();
+    const auto outbound = runtime.value(QStringLiteral("outbound")).toMap();
+    const auto node = !runtime.value(QStringLiteral("ready")).toBool() ? tr("Unavailable")
+                      : !outbound.value(QStringLiteral("confirmed")).toBool()
+                          ? tr("Awaiting confirmation")
+                      : outbound.value(QStringLiteral("balanced")).toBool() ? tr("Load balancing")
+                      : outbound.value(QStringLiteral("node")).toString().isEmpty()
+                          ? tr("Awaiting confirmation")
+                          : outbound.value(QStringLiteral("node")).toString();
+    const auto profileText =
+        tr("Profile: %1").arg(trayLabel(profile.isEmpty() ? tr("None") : profile));
+    const auto outboundText = tr("Outbound: %1").arg(trayLabel(node));
+    trayProfileAction_->setText(QString(profileText).replace("&", "&&"));
+    trayOutboundAction_->setText(QString(outboundText).replace("&", "&&"));
+    if (tray_) {
+        // Windows has a small native tooltip budget; the menu keeps the longer bounded labels.
+        tray_->setToolTip(
+            (QStringLiteral("QuickClash · ") + status + QLatin1Char('\n') +
+             tr("Mode: %1").arg(modeLabel(mode)) + QLatin1Char('\n') +
+             tr("Profile: %1").arg(trayLabel(profile.isEmpty() ? tr("None") : profile, 24)) +
+             QLatin1Char('\n') + tr("Outbound: %1").arg(trayLabel(node, 24)))
+                .left(127));
+    }
+}
+void ApplicationHost::updateCriticalAlerts() {
+    QJsonArray profiles;
+    auto* model = state_.profileModel();
+    for (int i = 0; i < model->count(); ++i)
+        profiles.append(model->entryAt(i));
+    const auto alerts = criticalAlerts_.update(
+        QJsonObject::fromVariantMap(state_.runtime()), profiles,
+        tray_ && recoverableFromTray() && QSystemTrayIcon::supportsMessages() &&
+            !state_.uiVisible() && !quitting_);
+    if (alerts.isEmpty())
+        return;
+    using Kind = presentation::CriticalAlerts::Kind;
+    QStringList messages;
+    bool network = false;
+    for (const auto kind : alerts) {
+        switch (kind) {
+        case Kind::TunCleanup:
+            network = true;
+            messages.append(tr("TUN cleanup needs verification. Check network settings."));
+            break;
+        case Kind::RecoveryStopped:
+            network = true;
+            messages.append(tr("Automatic network recovery stopped. Check network settings."));
+            break;
+        case Kind::ProxyConflict:
+            network = true;
+            messages.append(
+                tr("Another application changed the system proxy. Review before taking over."));
+            break;
+        case Kind::SubscriptionExpired:
+            messages.append(tr("A subscription has expired."));
+            break;
+        case Kind::QuotaExhausted:
+            messages.append(tr("A subscription has used all its traffic allowance."));
+            break;
+        case Kind::UpdateFailed:
+            messages.append(
+                tr("A subscription update failed. The previous configuration was retained."));
+            break;
+        case Kind::QuotaLow:
+            messages.append(tr("A subscription has 10% or less traffic remaining."));
+            break;
+        case Kind::SubscriptionExpiring:
+            messages.append(tr("A subscription expires within 7 days."));
+            break;
+        }
+    }
+    if (messages.join(QLatin1Char('\n')).size() > 240) {
+        messages.clear();
+        if (network)
+            messages.append(
+                tr("Check network settings for recovery, proxy conflicts or TUN cleanup."));
+        if (std::any_of(alerts.cbegin(), alerts.cend(),
+                        [](Kind kind) { return kind >= Kind::SubscriptionExpired; }))
+            messages.append(
+                tr("Check subscriptions for failed updates, traffic allowance and expiry."));
+    }
+    alertPage_ = network ? QStringLiteral("settings") : QStringLiteral("subscriptions");
+    tray_->showMessage(network ? tr("Network needs attention") : tr("Subscription needs attention"),
+                       messages.join(QLatin1Char('\n')), QSystemTrayIcon::Warning);
 }
 void ApplicationHost::updateTrayIcon() {
     if (tray_) {

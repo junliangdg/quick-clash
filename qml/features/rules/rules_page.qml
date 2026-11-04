@@ -109,7 +109,11 @@ Item {
         }
         syncDemand();
     }
-    Component.onCompleted: syncDemand()
+    Component.onCompleted: {
+        syncDemand();
+        if (ui.connectionRule.profileId)
+            customRulesDialog.open();
+    }
     Component.onDestruction: ui.setDemand(demandKey, "rules", false)
 
     ColumnLayout {
@@ -346,8 +350,10 @@ Item {
                 rulesEditor.discardDraft();
         }
         onVisibleChanged: {
-            if (!visible && root.ui.uiVisible && !preserveDraftOnClose)
+            if (!visible && root.ui.uiVisible && !preserveDraftOnClose) {
+                root.ui.clearConnectionRule();
                 rulesEditor.discardDraft();
+            }
             preserveDraftOnClose = false;
             root.syncDemand();
         }

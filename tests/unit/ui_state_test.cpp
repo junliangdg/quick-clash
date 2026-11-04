@@ -31,6 +31,88 @@ int main(int argc, char* argv[]) {
     try {
         FeatureRegistry registry;
         {
+            UiState rules;
+            rules.setUiVisible(true);
+            rules.setDemand("connection-rule", "connections", true);
+            QJsonObject control{{"publicationGeneration", "1"},
+                                {"epoch", "rule-source"},
+                                {"ready", true},
+                                {"selectedId", "profile-one"},
+                                {"selectionGeneration", "7"}};
+            rules.applyControl(control);
+            const auto publish = [&](const QJsonObject& metadata) {
+                rules.applyData({1,
+                                 "rule-source",
+                                 {{"connections", QJsonArray{QJsonObject{{"id", "connection"},
+                                                                         {"epoch", "rule-source"},
+                                                                         {"metadata", metadata}}}}},
+                                 rules.dataDemands().generations});
+            };
+            publish({{"host", "WWW.Example.COM."}, {"destinationIP", "192.0.2.42"}});
+            check(rules.beginConnectionRule("rule-source", "connection").isEmpty() &&
+                      rules.currentPage() == "rules" &&
+                      rules.connectionRule().value("type") == "DOMAIN" &&
+                      rules.connectionRule().value("value") == "www.example.com" &&
+                      rules.connectionRule().value("profileId") == "profile-one" &&
+                      rules.userRulesDraft().isEmpty(),
+                  "live connection suggests an exact domain for explicit editor review");
+            rules.clearConnectionRule();
+            publish({{"destinationIP", "192.0.2.42"}});
+            check(rules.beginConnectionRule("rule-source", "connection").isEmpty() &&
+                      rules.connectionRule().value("type") == "IP-CIDR" &&
+                      rules.connectionRule().value("value") == "192.0.2.42/32",
+                  "IP fallback covers only the selected IPv4 host");
+            rules.clearConnectionRule();
+            publish({{"destinationIP", "2001:db8::42"}});
+            check(rules.beginConnectionRule("rule-source", "connection").isEmpty() &&
+                      rules.connectionRule().value("type") == "IP-CIDR6" &&
+                      rules.connectionRule().value("value") == "2001:db8::42/128",
+                  "IPv6 fallback covers only the selected host");
+            rules.clearConnectionRule();
+            for (const auto& host : QStringList{"", "a,REJECT", "bad\nhost", "https://example.com",
+                                                "*.example.com", "example.com:443", "a..example",
+                                                "fe80::1%7", QString(254, QLatin1Char('a'))}) {
+                publish({{"host", host}});
+                check(!rules.beginConnectionRule("rule-source", "connection").isEmpty() &&
+                          rules.connectionRule().isEmpty(),
+                      "missing, malformed and rule-injection targets cannot create drafts");
+            }
+            publish({{"host", "example.com"}});
+            const QVariantMap existing{{"baseRevision", "old"},
+                                       {"form", QVariantMap{{"value", "keep.me"}}}};
+            rules.setUserRulesDraft(existing);
+            check(!rules.beginConnectionRule("rule-source", "connection").isEmpty() &&
+                      rules.userRulesDraft() == existing && rules.connectionRule().isEmpty(),
+                  "existing edits are retained without replacement");
+            rules.setUserRulesDraft({});
+            check(!rules.beginConnectionRule("old-epoch", "connection").isEmpty() &&
+                      !rules.beginConnectionRule("rule-source", "ended").isEmpty(),
+                  "stale epoch and ended connection cannot seed a rule");
+            check(rules.beginConnectionRule("rule-source", "connection").isEmpty(),
+                  "valid live source remains available after rejection");
+            control.insert("selectedId", "profile-two");
+            control.insert("selectionGeneration", "8");
+            rules.applyControl(control);
+            check(rules.connectionRule().isEmpty(),
+                  "profile switch invalidates pending suggestion");
+            control.insert("readOnly", true);
+            rules.applyControl(control);
+            check(!rules.beginConnectionRule("rule-source", "connection").isEmpty(),
+                  "read-only state rejects suggestion before navigation");
+            control.insert("readOnly", false);
+            rules.applyControl(control);
+            rules.applyData({1,
+                             "rule-source",
+                             {{"connection_status", QJsonObject{{"connectionsStale", true}}}},
+                             rules.dataDemands().generations});
+            check(!rules.beginConnectionRule("rule-source", "connection").isEmpty(),
+                  "stale snapshot cannot seed a fresh rule");
+        }
+        if (app.arguments().contains(QStringLiteral("--connection-rule"))) {
+            std::cout << "Connection rule identity, validation and draft retention passed\n";
+            return 0;
+        }
+        {
             UiState proxies;
             int stateNotifications = 0;
             quint64 signalledGroupRevision = 0;

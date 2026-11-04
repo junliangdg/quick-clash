@@ -4,6 +4,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QHostAddress>
 #include <QSet>
 #include <QThread>
 #include <QUuid>
@@ -86,6 +87,11 @@ void UiState::applyControl(const QJsonObject& control) {
     if (runtime_ == value)
         return;
     runtime_ = value;
+    if (!connectionRule_.isEmpty() &&
+        (connectionRule_.value("epoch") != runtime_.value("epoch") ||
+         connectionRule_.value("profileId") != runtime_.value("selectedId") ||
+         connectionRule_.value("selectionGeneration") != runtime_.value("selectionGeneration")))
+        clearConnectionRule();
     if (settingsSession_.observe(value))
         emit settingsSessionChanged();
     emit runtimeChanged();
@@ -727,6 +733,65 @@ bool UiState::navigate(const QString& pageId, const QVariantMap& context) {
         emit routeChanged();
     }
     return true;
+}
+QString UiState::beginConnectionRule(const QString& epoch, const QString& id) {
+    const auto profileId = runtime_.value("selectedId").toString();
+    if (!runtime_.value("ready").toBool() || runtime_.value("busy").toBool() ||
+        runtime_.value("readOnly").toBool() || profileId.isEmpty())
+        return tr("Wait for a ready, writable profile before creating a rule.");
+    if (!userRulesDraft_.isEmpty() || !connectionRule_.isEmpty())
+        return tr("Finish or discard the existing custom rule draft first.");
+    const auto entry = liveConnections_.connection(epoch, id);
+    if (epoch != runtime_.value("epoch").toString() || entry.isEmpty() ||
+        telemetry_.value("connectionsStale").toBool() ||
+        telemetry_.value("connectionsPaused").toBool())
+        return tr("This connection is no longer current. Select a live connection.");
+    const auto metadata = entry.value("metadata").toMap();
+    auto value = metadata.value("host").toString();
+    if (value.isEmpty())
+        value = metadata.value("destinationIP").toString();
+    QString type;
+    QHostAddress address;
+    if (value.size() <= 253 && !value.contains(QLatin1Char('%')) && address.setAddress(value)) {
+        const bool ipv4 = address.protocol() == QAbstractSocket::IPv4Protocol;
+        type = ipv4 ? QStringLiteral("IP-CIDR") : QStringLiteral("IP-CIDR6");
+        value = address.toString() + (ipv4 ? QStringLiteral("/32") : QStringLiteral("/128"));
+    } else {
+        // Only exact DNS names are suggested. Reject URLs, ports, wildcards and rule syntax.
+        bool valid = !value.isEmpty() && value.size() <= 253;
+        for (const auto character : value)
+            valid &= character.isLetterOrNumber() || character == QLatin1Char('-') ||
+                     character == QLatin1Char('.');
+        if (value.endsWith(QLatin1Char('.')))
+            value.chop(1);
+        const auto ascii = valid ? QUrl::toAce(value).toLower() : QByteArray{};
+        valid &= !ascii.isEmpty() && ascii.size() <= 253;
+        for (const auto& label : ascii.split('.')) {
+            valid &= !label.isEmpty() && label.size() <= 63 && !label.startsWith('-') &&
+                     !label.endsWith('-');
+            for (const auto character : label)
+                valid &= (character >= 'a' && character <= 'z') ||
+                         (character >= '0' && character <= '9') || character == '-';
+        }
+        if (!valid)
+            return tr("This connection has no valid domain or destination IP for a rule.");
+        type = QStringLiteral("DOMAIN");
+        value = QString::fromLatin1(ascii);
+    }
+    connectionRule_ = {{"profileId", profileId},
+                       {"epoch", epoch},
+                       {"selectionGeneration", runtime_.value("selectionGeneration")},
+                       {"type", type},
+                       {"value", value}};
+    emit connectionRuleChanged();
+    (void)navigate(QStringLiteral("rules"));
+    return {};
+}
+void UiState::clearConnectionRule() {
+    if (connectionRule_.isEmpty())
+        return;
+    connectionRule_.clear();
+    emit connectionRuleChanged();
 }
 QUrl UiState::embeddedSource(const QString& contentId, const QVariantMap& context) const {
     const auto* descriptor = registry_.resolveEmbedded(contentId, context);

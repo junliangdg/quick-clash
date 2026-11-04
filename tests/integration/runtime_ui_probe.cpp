@@ -85,13 +85,15 @@ bool checkCustomRulesLayout(ApplicationHost& host, bool listVisible = true) {
     const auto fits = [](QQuickItem* target) {
         return target->width() > 0 && target->height() + 0.5 >= target->implicitHeight();
     };
+    // Native layout rounds to physical pixels; accept at most one pixel of edge alignment.
+    const auto edgeTolerance = std::max(0.5, 1.0 / host.window()->devicePixelRatio());
     if (!fits(title) || !fits(hint) || rect(title).bottom() > rect(editor).top() + 0.5 ||
         rect(editor).bottom() > rect(hint).top() + 0.5 ||
         rect(editor).bottom() > rect(cancel).top() + 0.5 || rect(hint).intersects(rect(cancel)) ||
         rect(hint).intersects(rect(confirm)) || rect(confirm).right() > rect(cancel).left() + 0.5 ||
         rect(hint).left() > rect(editor).left() + 0.5 ||
-        rect(cancel).right() < rect(editor).right() - 0.5 ||
-        rect(cancel).right() > rect(editor).right() + 0.5 ||
+        rect(cancel).right() < rect(editor).right() - edgeTolerance ||
+        rect(cancel).right() > rect(editor).right() + edgeTolerance ||
         rect(confirm).left() < rect(editor).left() - 0.5) {
         qWarning("Custom rules dialog frame overlaps at %dx%d", host.window()->width(),
                  host.window()->height());
@@ -209,6 +211,22 @@ bool checkCustomRuleRow(ApplicationHost& host) {
 } // namespace
 int runRuntimeListProbe(ApplicationHost& host) {
     // No SettingsService, core, network or platform actions: only synthetic GUI channel delivery.
+    if (QGuiApplication::platformName() != QStringLiteral("offscreen")) {
+        // SW_HIDE startup requires another visibility transition before native layout/rendering.
+        host.window()->hide();
+        host.window()->show();
+        if (!QTest::qWaitForWindowExposed(host.window(), 5000)) {
+            std::fputs("Native runtime list window was not exposed.\n", stderr);
+            return 283;
+        }
+        const QJsonObject environment{
+            {"qt", QString::fromLatin1(qVersion())},
+            {"graphicsApi", static_cast<int>(host.window()->rendererInterface()->graphicsApi())},
+            {"dpr", host.window()->devicePixelRatio()},
+            {"exposed", host.window()->isExposed()}};
+        std::printf("Runtime list environment: %s\n",
+                    QJsonDocument(environment).toJson(QJsonDocument::Compact).constData());
+    }
     auto& ui = host.state();
     ui.setReplay(false);
     ui.applyControl({{"publicationGeneration", "1"},
@@ -362,13 +380,24 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return 81;
     const auto beforeCustomRulesSize = host.window()->size();
     host.resizeWindow({360, 640});
-    QTest::qWait(40);
-    auto* customRulesEntry = host.window()->findChild<QQuickItem*>("open_custom_rules");
-    const auto entryPosition =
-        customRulesEntry ? customRulesEntry->mapToScene(QPointF(0, 0)) : QPointF(-1, -1);
-    if (!customRulesEntry || !customRulesEntry->isVisible() || entryPosition.x() < 0 ||
-        entryPosition.x() + customRulesEntry->width() > host.window()->width())
+    QQuickItem* customRulesEntry = nullptr;
+    // Native resize and its QML layout can finish in different event turns.
+    if (!QTest::qWaitFor(
+            [&] {
+                customRulesEntry = host.window()->findChild<QQuickItem*>("open_custom_rules");
+                if (!customRulesEntry || !customRulesEntry->isVisible())
+                    return false;
+                const auto position = customRulesEntry->mapToScene(QPointF(0, 0));
+                return position.x() >= 0 &&
+                       position.x() + customRulesEntry->width() <= host.window()->width();
+            },
+            1000)) {
+        std::fprintf(stderr,
+                     "Custom rule entry did not fit the native window: width=%d entry=%g x=%g\n",
+                     host.window()->width(), customRulesEntry ? customRulesEntry->width() : -1,
+                     customRulesEntry ? customRulesEntry->mapToScene(QPointF(0, 0)).x() : -1);
         return 199;
+    }
     if (!click(host, "open_custom_rules"))
         return 196;
     host.resizeWindow(beforeCustomRulesSize);
@@ -1025,6 +1054,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return 56;
     ui.applyControl({{"publicationGeneration", "2"},
                      {"epoch", "next"},
+                     {"ready", true},
                      {"selectedId", "proxy_fixture"},
                      {"outbound", QJsonObject{{"policy", "manual"}}}});
     ui.saveState("proxies:proxy_fixture", {{"groups", QStringList{}}});
@@ -1047,6 +1077,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
                   {{"groups", QJsonArray{QJsonObject{{"name", "manual"},
                                                      {"type", "Selector"},
                                                      {"canSelect", true},
+                                                     {"current", "node_499"},
                                                      {"members", members}}}},
                    {"nodes", nodes},
                    {"delays", QJsonObject{{"node_0", "Timeout"}}}},
@@ -1088,6 +1119,45 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (grid->property("endIndex").toInt() != 500 ||
         controls(controls, host.window()->contentItem()) > 80)
         return 76;
+    // Search traverses the data, not all 500 delegates, and keeps exact member names for actions.
+    if (!proxies->setProperty("searchText", "NODE_49"))
+        return 223;
+    QTest::qWait(60);
+    if (proxies->property("matchingCount").toInt() != 11 ||
+        controls(controls, host.window()->contentItem()) > 11)
+        return 224;
+    if (!capturePath.isEmpty() &&
+        !host.window()->grabWindow().save(QDir(capturePath).filePath("node_search_500.png")))
+        return 280;
+    proxies->setProperty("searchText", "missing-node");
+    QTest::qWait(40);
+    auto* emptySearch = host.window()->findChild<QQuickItem*>("proxy_search_empty");
+    if (proxies->property("matchingCount").toInt() != 0 || !emptySearch ||
+        !emptySearch->isVisible() || controls(controls, host.window()->contentItem()) != 0)
+        return 225;
+    if (!click(host, "proxy_locate_current"))
+        return 226;
+    QTest::qWait(80);
+    auto* located = findVisualItem(host.window()->contentItem(), "proxy_member_manual_node_499");
+    if (!proxies->property("searchText").toString().isEmpty() || !located ||
+        !located->hasActiveFocus() || grid->property("endIndex").toInt() != 500 ||
+        controls(controls, host.window()->contentItem()) > 80)
+        return 227;
+    if (!capturePath.isEmpty() &&
+        !host.window()->grabWindow().save(QDir(capturePath).filePath("node_located_500.png")))
+        return 281;
+    proxies->setProperty("searchText", "NODE_49");
+    if (!ui.navigate("home") || !ui.navigate("proxies"))
+        return 228;
+    QTest::qWait(60);
+    loader = host.window()->findChild<QObject*>("active_page_host");
+    proxies = loader ? loader->property("item").value<QObject*>() : nullptr;
+    // Page destruction releases the heavy channels, while the in-session query survives.
+    if (!proxies || proxies->property("searchText") != "NODE_49") {
+        std::fputs("Node search was not restored after page reconstruction.\n", stderr);
+        return 229;
+    }
+    proxies->setProperty("searchText", "");
     proxies->setProperty("expandedGroups", QStringList{});
     QTest::qWait(30);
     if (controls(controls, host.window()->contentItem()) != 0)
@@ -1245,8 +1315,95 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(30);
     if (restoredBinding->property("visible").toBool() || host.qmlErrorCount() != 0)
         return 225;
+    // Generating a rule only seeds the existing editor. The connection identity and
+    // selected profile are checked again before a scoped rules baseline can arrive.
+    host.resizeWindow({1000, 760});
+    ui.setUserRulesDraft({});
+    QJsonObject ruleControl{{"publicationGeneration", "3"},
+                            {"epoch", "rule-flow"},
+                            {"ready", true},
+                            {"selectedId", "rule-profile"},
+                            {"selectionGeneration", "1"},
+                            {"preferences", QJsonObject{{"mode", "rule"}}}};
+    ui.applyControl(ruleControl);
+    if (!ui.navigate("connections"))
+        return 260;
+    QTest::qWait(40);
+    auto connection = entry("rule-connection", "Exact.Example.com");
+    connection.insert("epoch", "rule-flow");
+    const auto publishConnection = [&] {
+        ui.applyData({3,
+                      "rule-flow",
+                      {{"connections", QJsonArray{connection}}},
+                      ui.dataDemands().generations});
+    };
+    const auto openConnection = [&] {
+        auto* connectionPage = host.window()->findChild<QObject*>("connections_page");
+        return connectionPage &&
+               QMetaObject::invokeMethod(connectionPage, "showDetails",
+                                         Q_ARG(QVariant, connection.toVariantMap()));
+    };
+    publishConnection();
+    if (!openConnection())
+        return 261;
+    QTest::qWait(150);
+    if (!click(host, "connection_create_rule"))
+        return 262;
+    QTest::qWait(40);
+    auto* generatedDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
+    if (ui.currentPage() != "rules" || !generatedDialog ||
+        !generatedDialog->property("visible").toBool() ||
+        !ui.dataDemands().active.contains("user_rules"))
+        return 263;
+    const QJsonObject generatedView{
+        {"revision", "generated-1"},     {"profileId", "rule-profile"},
+        {"profileName", "Rule fixture"}, {"global", QJsonArray{}},
+        {"local", QJsonArray{}},         {"groups", QJsonArray{"Proxy"}}};
+    ui.applyData({3, "rule-flow", {{"user_rules", generatedView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    auto* generatedEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    auto* generatedScope = host.window()->findChild<QObject*>("user_rule_scope");
+    auto* generatedType = host.window()->findChild<QObject*>("user_rule_type");
+    auto* generatedValue = host.window()->findChild<QObject*>("user_rule_value");
+    if (!generatedEditor || !generatedEditor->property("formOpen").toBool() ||
+        generatedEditor->property("dirty").toBool() || !generatedScope ||
+        generatedScope->property("currentIndex").toInt() != 1 || !generatedType ||
+        generatedType->property("currentText") != "DOMAIN" || !generatedValue ||
+        generatedValue->property("text") != "exact.example.com" || !ui.connectionRule().isEmpty() ||
+        generatedEditor->property("canConfirm").toBool())
+        return 264;
+    if (!capturePath.isEmpty() &&
+        !host.window()->grabWindow().save(QDir(capturePath).filePath("connection_rule_review.png")))
+        return 282;
+    if (!QMetaObject::invokeMethod(generatedEditor, "saveRuleForm") ||
+        !generatedEditor->property("localDirty").toBool() ||
+        generatedEditor->property("globalDirty").toBool() ||
+        !generatedEditor->property("canConfirm").toBool() || !click(host, "cancel_custom_rules") ||
+        !ui.userRulesDraft().isEmpty())
+        return 265;
+    if (!ui.navigate("connections"))
+        return 266;
+    QTest::qWait(50);
+    publishConnection();
+    if (!openConnection())
+        return 267;
+    QTest::qWait(150);
+    if (!click(host, "connection_create_rule"))
+        return 268;
+    QTest::qWait(30);
+    ruleControl.insert("selectedId", "other-profile");
+    ruleControl.insert("selectionGeneration", "2");
+    ui.applyControl(ruleControl);
+    ui.applyData({3, "rule-flow", {{"user_rules", generatedView}}, ui.dataDemands().generations});
+    QTest::qWait(30);
+    generatedEditor = host.window()->findChild<QObject*>("user_rules_editor");
+    if (!ui.connectionRule().isEmpty() || !generatedEditor ||
+        generatedEditor->property("formOpen").toBool() ||
+        generatedEditor->property("dirty").toBool() || !click(host, "cancel_custom_rules") ||
+        host.qmlErrorCount() != 0)
+        return 269;
     std::puts("Runtime lists: leases, tab/hide/destruction release, late delivery, captured close, "
-              "log pause/follow, empty expansion and 500-node viewport passed");
+              "log pause/follow, 500-node search/locate and connection rule review passed");
     return 0;
 }
 int runPageMemoryProbe(ApplicationHost& host) {

@@ -47,6 +47,7 @@ class UiState : public QObject {
     Q_PROPERTY(QVariantMap userRules READ userRules NOTIFY userRulesChanged)
     Q_PROPERTY(QVariantMap userRulesDraft READ userRulesDraft WRITE setUserRulesDraft NOTIFY
                    userRulesDraftChanged)
+    Q_PROPERTY(QVariantMap connectionRule READ connectionRule NOTIFY connectionRuleChanged)
     Q_PROPERTY(QVariantList profiles READ profiles NOTIFY profilesChanged)
     Q_PROPERTY(quickclash::presentation::ProfileModel* profileModel READ profileModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ProfileRowModel* profileRows READ profileRows CONSTANT)
@@ -132,6 +133,11 @@ class UiState : public QObject {
         userRulesDraft_ = draft;
         emit userRulesDraftChanged();
     }
+    [[nodiscard]] QVariantMap connectionRule() const {
+        return connectionRule_;
+    }
+    Q_INVOKABLE QString beginConnectionRule(const QString& epoch, const QString& id);
+    Q_INVOKABLE void clearConnectionRule();
     [[nodiscard]] QVariantMap editor() const {
         return appliedData_.value(QStringLiteral("editor")).toObject().toVariantMap();
     }
@@ -299,6 +305,7 @@ class UiState : public QObject {
     void customGroupsChanged();
     void userRulesChanged();
     void userRulesDraftChanged();
+    void connectionRuleChanged();
     void groupsChanged();
     void nodesChanged();
     void delaysChanged();
@@ -361,6 +368,7 @@ class UiState : public QObject {
     SettingsSession settingsSession_;
     bool settingsQuitApproved_ = false;
     QVariantMap userRulesDraft_;
+    QVariantMap connectionRule_;
     ProfileModel profileModel_{this};
     ProfileRowModel profileRows_{&profileModel_, this};
     QVariantList groups_;

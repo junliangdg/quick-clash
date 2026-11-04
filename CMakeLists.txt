@@ -193,6 +193,7 @@ if(QUICKCLASH_BUILD_UI)
         app/deferred_ui_unload.cpp app/deferred_ui_unload.h
         app/system_events.cpp app/system_events.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
+    target_sources(quickclash PRIVATE src/presentation/critical_alerts.cpp src/presentation/critical_alerts.h)
     target_compile_definitions(quickclash PRIVATE QUICKCLASH_VERSION="${PROJECT_VERSION}")
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network Qt6::Svg quickclash_application quickclash_runtime quickclash_localization)
     qt_add_resources(quickclash quickclash_navigation_icons
@@ -564,6 +565,14 @@ if(BUILD_TESTING)
         quickclash_warnings(ui_state_test)
         add_test(NAME ui_state COMMAND ui_state_test)
         set_tests_properties(ui_state PROPERTIES TIMEOUT 30)
+        add_test(NAME connection_rule COMMAND ui_state_test --connection-rule)
+        set_tests_properties(connection_rule PROPERTIES TIMEOUT 10)
+        add_executable(critical_alerts_test tests/unit/critical_alerts_test.cpp
+            src/presentation/critical_alerts.cpp src/presentation/critical_alerts.h)
+        target_link_libraries(critical_alerts_test PRIVATE quickclash_application)
+        quickclash_warnings(critical_alerts_test)
+        add_test(NAME critical_alerts COMMAND critical_alerts_test)
+        set_tests_properties(critical_alerts PROPERTIES TIMEOUT 10)
         add_executable(single_instance_test tests/unit/single_instance_test.cpp
             app/single_instance.cpp app/single_instance.h)
         target_include_directories(single_instance_test PRIVATE app)

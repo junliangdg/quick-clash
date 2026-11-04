@@ -1,5 +1,6 @@
 #pragma once
 #include "deferred_ui_unload.h"
+#include "presentation/critical_alerts.h"
 #include "presentation/ui_state.h"
 #include "system_events.h"
 #include <QElapsedTimer>
@@ -11,6 +12,7 @@
 #include <QSize>
 #include <QSystemTrayIcon>
 #include <QTimer>
+#include <array>
 #include <memory>
 
 namespace quickclash::presentation {
@@ -57,6 +59,7 @@ class ApplicationHost final : public QObject {
     void applyLanguageMode(const QString& mode);
     void retranslateTray();
     void updateTrayStatus();
+    void updateCriticalAlerts();
     void updateTrayIcon();
     [[nodiscard]] bool recoverableFromTray() const;
     [[nodiscard]] bool hiddenWindow() const;
@@ -71,10 +74,16 @@ class ApplicationHost final : public QObject {
     std::unique_ptr<QSystemTrayIcon> tray_;
     QAction* trayOpenAction_ = nullptr;
     QAction* trayStatusAction_ = nullptr;
+    QAction* trayProfileAction_ = nullptr;
+    QAction* trayOutboundAction_ = nullptr;
+    QMenu* trayModeMenu_ = nullptr;
+    std::array<QAction*, 3> trayModeActions_{};
     QAction* traySystemProxyAction_ = nullptr;
     QAction* trayTunAction_ = nullptr;
     QAction* traySettingsAction_ = nullptr;
     QAction* trayQuitAction_ = nullptr;
+    presentation::CriticalAlerts criticalAlerts_;
+    QString alertPage_;
     DeferredUiUnload deferredUnload_;
     QRect geometry_;
     QSize requestedSize_;

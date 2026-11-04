@@ -33,6 +33,7 @@ Item {
     property bool formOpen: false
     property var pendingForm: null
     property int draggingIndex: -1
+    property bool initialized: false
     signal saveCompleted()
 
     Component.onCompleted: {
@@ -50,6 +51,7 @@ Item {
             savingAttempt = draft.savingAttempt || "";
             pendingForm = draft.form || null;
         }
+        initialized = true;
         reconcileState();
     }
     Component.onDestruction: {
@@ -95,6 +97,21 @@ Item {
         ruleTarget.currentIndex = targets.indexOf(form.target || "");
         ruleEnabled.checked = !!form.enabled;
     }
+    function importConnectionRule(): void {
+        if (!initialized || !ui || !visible)
+            return;
+        const suggestion = ui.connectionRule;
+        if (!suggestion.profileId || !state.revision || state.profileId !== suggestion.profileId ||
+            dirty || formOpen || pendingForm || saving)
+            return;
+        loadState();
+        scope.currentIndex = 1;
+        edit(-1);
+        ruleType.currentIndex = types.indexOf(suggestion.type);
+        ruleValue.text = suggestion.value;
+        ui.clearConnectionRule();
+    }
+    onVisibleChanged: importConnectionRule()
     function copy(value): var {
         return JSON.parse(JSON.stringify(value || []));
     }
@@ -256,6 +273,7 @@ Item {
             loadState();
         }
         restorePendingForm();
+        importConnectionRule();
     }
 
     Connections {
@@ -265,6 +283,9 @@ Item {
         }
         function onUserRulesChanged(): void {
             root.reconcileState();
+        }
+        function onConnectionRuleChanged(): void {
+            root.importConnectionRule();
         }
         function onRuntimeChanged(): void {
             if (root.saving)

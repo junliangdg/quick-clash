@@ -3198,4 +3198,52 @@
       <translation>数据与诊断</translation>
     </message>
   </context>
+  <context>
+    <name>proxies_page</name>
+    <message><source>Search nodes or groups</source><translation>搜索节点或策略组</translation></message>
+    <message><source>Clear search</source><translation>清空搜索</translation></message>
+    <message><source>Locate current node</source><translation>定位当前节点</translation></message>
+    <message><source>Locate current</source><translation>定位当前节点</translation></message>
+    <message><source>No matching nodes or groups</source><translation>没有匹配的节点或策略组</translation></message>
+  </context>
+  <context>
+    <name>quickclash::ApplicationHost</name>
+    <message><source>Rule</source><translation>规则</translation></message>
+    <message><source>Global</source><translation>全局</translation></message>
+    <message><source>Direct</source><translation>直连</translation></message>
+    <message><source>Unavailable</source><translation>不可用</translation></message>
+    <message><source>Outbound mode</source><translation>出站模式</translation></message>
+    <message><source>Mode: %1</source><translation>模式：%1</translation></message>
+    <message><source>System proxy (requested, inactive)</source><translation>系统代理（已请求，未生效）</translation></message>
+    <message><source>Virtual network adapter (TUN, requested, inactive)</source><translation>虚拟网卡（TUN，已请求，未生效）</translation></message>
+    <message><source>Network needs attention</source><translation>网络状态需要处理</translation></message>
+    <message><source>Network engine unavailable</source><translation>网络引擎不可用</translation></message>
+    <message><source>Load balancing</source><translation>负载均衡</translation></message>
+    <message><source>Awaiting confirmation</source><translation>等待内核确认</translation></message>
+    <message><source>Profile: %1</source><translation>订阅：%1</translation></message>
+    <message><source>Outbound: %1</source><translation>出站：%1</translation></message>
+    <message><source>None</source><translation>无</translation></message>
+    <message><source>TUN cleanup needs verification. Check network settings.</source><translation>TUN 清理结果待确认，请检查网络设置。</translation></message>
+    <message><source>Automatic network recovery stopped. Check network settings.</source><translation>网络自动恢复已停止，请检查网络设置。</translation></message>
+    <message><source>Another application changed the system proxy. Review before taking over.</source><translation>其他应用修改了系统代理，请检查后再决定是否接管。</translation></message>
+    <message><source>A subscription has expired.</source><translation>有订阅已到期。</translation></message>
+    <message><source>A subscription has used all its traffic allowance.</source><translation>有订阅的流量额度已耗尽。</translation></message>
+    <message><source>A subscription update failed. The previous configuration was retained.</source><translation>有订阅更新失败，已保留原有配置。</translation></message>
+    <message><source>A subscription has 10% or less traffic remaining.</source><translation>有订阅剩余流量不足或等于 10%。</translation></message>
+    <message><source>A subscription expires within 7 days.</source><translation>有订阅将在 7 天内到期。</translation></message>
+    <message><source>Subscription needs attention</source><translation>订阅状态需要处理</translation></message>
+    <message><source>Check network settings for recovery, proxy conflicts or TUN cleanup.</source><translation>请检查网络设置中的恢复状态、代理冲突或 TUN 清理提示。</translation></message>
+    <message><source>Check subscriptions for failed updates, traffic allowance and expiry.</source><translation>请检查订阅的更新失败、流量额度与到期提示。</translation></message>
+  </context>
+  <context>
+    <name>connections_page</name>
+    <message><source>Create rule…</source><translation>生成规则…</translation></message>
+  </context>
+  <context>
+    <name>quickclash::presentation::UiState</name>
+    <message><source>Wait for a ready, writable profile before creating a rule.</source><translation>请等待当前订阅就绪并可写后再生成规则。</translation></message>
+    <message><source>Finish or discard the existing custom rule draft first.</source><translation>请先完成或放弃已有的自定义规则草稿。</translation></message>
+    <message><source>This connection is no longer current. Select a live connection.</source><translation>此连接已失效，请选择当前活动连接。</translation></message>
+    <message><source>This connection has no valid domain or destination IP for a rule.</source><translation>此连接没有可用于规则的有效域名或目标 IP。</translation></message>
+  </context>
 </TS>

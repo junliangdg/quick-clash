@@ -22,6 +22,7 @@ Item {
     property bool selectedEnded: false
     property string selectedSample: ""
     property bool rawVisible: false
+    property string ruleError: ""
     readonly property string selectedKey: selectedId ? selectedEpoch + String.fromCharCode(0) + selectedId : ""
     readonly property var columns: [
         { "title": qsTr("Target"), "weight": 2.4 },
@@ -53,6 +54,7 @@ Item {
         selectedId = entry.id;
         selectedEntry = entry;
         rawVisible = false;
+        ruleError = "";
         updateSelection();
         details.open();
     }
@@ -358,6 +360,24 @@ Item {
                     wrapMode: TextEdit.WrapAnywhere
                     color: root.theme.text
                     font.pixelSize: root.theme.supportingSize
+                }
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: root.ruleError.length > 0
+                text: root.ruleError
+                wrapMode: Text.WordWrap
+                color: root.theme.warning
+            }
+            ActionButton {
+                objectName: "connection_create_rule"
+                theme: root.theme
+                text: qsTr("Create rule…")
+                enabled: !root.selectedEnded && !!root.runtime.ready && !!root.runtime.selectedId && !root.runtime.busy && !root.runtime.readOnly
+                onClicked: {
+                    const error = root.ui.beginConnectionRule(root.selectedEpoch, root.selectedId);
+                    if (error)
+                        root.ruleError = error;
                 }
             }
             ActionButton {
