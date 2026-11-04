@@ -405,6 +405,11 @@ int main(int argc, char* argv[]) {
                       countRing.entries().first().toObject().value("localSeq") == "7" &&
                       countRing.status().value("droppedLogs") == "7",
                   "log count budget drops oldest entries");
+            LogBuffer appRing(100, 512 * 1024);
+            for (quint64 i = 0; i < 110; ++i)
+                appRing.append(redactedLogEntry(i, "time", "App", "info", "small"));
+            check(appRing.entries().size() == 100 && appRing.status().value("droppedLogs") == "10",
+                  "application log budget retains the latest 100 entries");
             LogBuffer byteRing(2000, 4 * 1024 * 1024);
             for (quint64 i = 0; i < 2100; ++i)
                 byteRing.append(

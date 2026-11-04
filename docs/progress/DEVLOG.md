@@ -1308,3 +1308,9 @@ P3-02更新内存切片实现已同步：流式Geo/缩短扫描生命周期/未�
 - 按用户提供的 Windows 构建失败复现：Qt 6.12 `qmlcachegen` 编译 `user_rules_editor.qml` 时访问冲突，退出码 `0xC0000005`。用同一资源和模块参数隔离后，崩溃由 `Component.onCompleted` 中对 `draft.baseRevision` 的直接真值判断触发；不带该条件及使用显式字符串长度判断的对照均通过。
 - 将条件改为 `typeof draft.baseRevision === "string" && draft.baseRevision.length > 0`。修复后的源码用构建日志里的完整 `qmlcachegen` 参数直接生成缓存 C++ 与 AOT 统计文件，退出 0；未运行产品测试。
 - 完整 Windows 增量构建未完成：本机 Ninja 在构建重检/自动重配阶段停滞，未启动目标编译；尝试手动配置及临时关闭重配后仍未获得完整目标构建结果。TASKS 保持进行中并将本轮完整构建记为 NotRun；下一步在可正常推进的 Ninja 会话重跑 `quickclash` 增量构建。
+
+## 2026-11-04 · GitHub Actions 完整验证 runtime_publication 失败
+
+- 用户提供的 Actions 日志显示完整 Windows 验证 47/48 通过，唯一失败为 `runtime_publication`；在 CI 中的单项耗时 16.88 秒。本机以 Qt 6.9/MSVC Release 复现后确认该用例还有第二层问题：资源采样断言等待 7 秒时，一秒特性定时器在负载下可能尚未跨过完整五秒采样边界；继续运行到日志压力用例后，2100 次 `not_ready` 会逐次落盘错误历史，最终触发 CTest 的 60 秒上限。
+- 修复：将资源采样等待调整为 15 秒，保留失败超时而不跳过断言；将运行时的日志发布/释放用例缩减为 3 条日志，只验证发布、释放失效和重新获取；在 `contracts_test` 增加应用日志 100 条上限的纯内存断言。日志环形上限与 UTF-8 字节上限的既有契约测试未放宽。
+- 验证：VS18/CMake/Ninja Windows Release 增量构建 `runtime_publication_test`、`contracts_test` 通过；CTest `contracts` 0.66 秒 Pass，`runtime_publication` 11.34 秒 Pass，合计 2/2。完整 48 项、远端 Actions 结果及其他平台 NotRun。原始诊断日志仅留在 Git 忽略的 `build/`。

@@ -262,10 +262,13 @@ class RuntimePublicationTest final : public QObject {
             runtime.setDemands({"resources"});
         QCOMPARE(runtime.snapshot().value("features").toObject().value("memorySample"),
                  first.value("memorySample"));
+        // The one-second feature timer refreshes resources only after the full
+        // five-second sampling interval. Keep enough headroom for delayed timer
+        // delivery on a loaded Windows CI runner without disabling the timeout.
         QTRY_VERIFY_WITH_TIMEOUT(
             runtime.snapshot().value("features").toObject().value("memorySample") !=
                 first.value("memorySample"),
-            7000);
+            15000);
         const auto second = runtime.snapshot().value("features").toObject();
         QVERIFY(second.value("memorySample") != first.value("memorySample"));
         qInfo().noquote()
@@ -458,13 +461,15 @@ class RuntimePublicationTest final : public QObject {
         quickclash::application::DesktopRuntime runtime(store, nullptr, &settings);
         QSignalSpy updates(&runtime, &quickclash::application::DesktopRuntime::dataPublished);
         runtime.setDemands({"logs", "rules", "providers", "connections"});
-        for (int i = 0; i < 2100; ++i)
+        // Buffer capacity is covered in-memory by contracts_test. Keep this integration test
+        // focused on publication/release behavior instead of persisting thousands of errors.
+        for (int i = 0; i < 3; ++i)
             runtime.featureCommand("not_ready", {});
         QTRY_VERIFY(!updates.isEmpty());
-        QCOMPARE(runtime.snapshot().value("logs").toArray().size(), qsizetype{2000});
-        QCOMPARE(runtime.snapshot().value("droppedLogs").toString(), QStringLiteral("100"));
+        QCOMPARE(runtime.snapshot().value("logs").toArray().size(), qsizetype{3});
+        QCOMPARE(runtime.snapshot().value("droppedLogs").toString(), QStringLiteral("0"));
         QCOMPARE(runtime.snapshot().value("dataLifecycle").toObject().value("appLogCount").toInt(),
-                 100);
+                 3);
         updates.clear();
         runtime.setDemands({});
         const auto released = runtime.snapshot();
