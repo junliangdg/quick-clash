@@ -302,16 +302,37 @@ int runSettingsUiProbe(ApplicationHost& host) {
                 return fail("closed confirmation releases its QML instance");
         }
     }
-    QApplication::setFont(originalFont);
+    // Force overflow even when the localized labels fit at the platform's default font size.
+    auto scrollFont = originalFont;
+    scrollFont.setPixelSize(32);
+    QApplication::setFont(scrollFont);
     host.resizeWindow({360, 480});
     ui.setSettingsCategory(0);
-    QTest::qWait(25);
     auto* tabs = item("settings_tabs");
-    if (!tabs->property("overflowing").toBool() || !activate("settings_tabs_next") ||
-        session().value("category").toInt() != 0)
-        return fail("scroll arrows move the strip without selecting a category");
     auto* strip = item("settings_tabs_viewport");
-    strip->setProperty("contentX", 0);
+    auto* firstTab = item("settings_tab_0");
+    auto* nextTab = object("settings_tabs_next");
+    if (!tabs || !strip || !firstTab || !nextTab)
+        return fail("settings tabs are available for the scrolling probe");
+    firstTab->forceActiveFocus(Qt::TabFocusReason);
+    if (!waitFor([&] {
+            return tabs->property("overflowing").toBool() &&
+                   strip->property("contentX").toReal() <= 0.5 &&
+                   nextTab->property("enabled").toBool();
+        })) {
+        std::fprintf(stderr, "Tabs: width=%.1f contentWidth=%.1f viewport=%.1f x=%.1f\n",
+                     tabs->width(), strip->property("contentWidth").toReal(), strip->width(),
+                     strip->property("contentX").toReal());
+        return fail("large-font categories overflow with the first tab visible");
+    }
+    if (!activate("settings_tabs_next") ||
+        !waitFor([&] { return strip->property("contentX").toReal() > 0.5; }) ||
+        session().value("category").toInt() != 0)
+        return fail("forward scroll moves the strip without selecting a category");
+    if (!activate("settings_tabs_previous") ||
+        !waitFor([&] { return strip->property("contentX").toReal() <= 0.5; }) ||
+        session().value("category").toInt() != 0)
+        return fail("backward scroll returns the strip without selecting a category");
     const auto point =
         strip->mapToScene(QPointF(strip->width() * 0.8, strip->height() / 2)).toPoint();
     const std::unique_ptr<QPointingDevice> touch(QTest::createTouchDevice());
@@ -325,6 +346,7 @@ int runSettingsUiProbe(ApplicationHost& host) {
     QTest::qWait(20);
     if (session().value("category").toInt() != 0 || strip->property("contentX").toReal() <= 0)
         return fail("touch dragging scrolls the strip without activating a tab");
+    QApplication::setFont(originalFont);
     ui.setSettingsCategory(0);
     item("settings_tab_0")->forceActiveFocus(Qt::TabFocusReason);
     QTest::keyClick(host.window(), Qt::Key_End);

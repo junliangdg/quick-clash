@@ -3,7 +3,9 @@ namespace quickclash::platform {
 struct CoreArchive::State {};
 CoreArchive::CoreArchive(QObject* parent) : QObject(parent), state_(std::make_unique<State>()) {}
 CoreArchive::~CoreArchive() = default;
-void CoreArchive::cancel() {}
+domain::CommandResult CoreArchive::cancel() {
+    return std::monostate{};
+}
 bool CoreArchive::running() const {
     return false;
 }

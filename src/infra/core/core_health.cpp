@@ -4,6 +4,22 @@
 #include <algorithm>
 
 namespace quickclash::infra {
+RecoveryFailure classifyRecoveryFailure(const QString& code) {
+    if (code == QStringLiteral("ServiceCleanupUncertain") ||
+        code == QStringLiteral("CoreStopFailed") || code == QStringLiteral("CoreStopTimeout"))
+        return RecoveryFailure::CleanupUncertain;
+    if (code == QStringLiteral("ServiceUnavailable") || code == QStringLiteral("ServiceTimeout") ||
+        code == QStringLiteral("ServiceBusy") || code == QStringLiteral("ServiceStartTimeout") ||
+        code == QStringLiteral("ServiceTunReadbackFailed") ||
+        code == QStringLiteral("ServiceNetworkInspectionFailed") ||
+        code == QStringLiteral("CoreReadyTimeout") ||
+        code == QStringLiteral("CoreConfigReadbackFailed") ||
+        code == QStringLiteral("CoreExitedDuringStart") ||
+        code == QStringLiteral("CoreExitedDuringApply") ||
+        code == QStringLiteral("CoreProcessFailed") || code == QStringLiteral("CoreRequestTimeout"))
+        return RecoveryFailure::Retry;
+    return RecoveryFailure::Pause;
+}
 namespace {
 QString normalizedTunState(const QJsonObject& status) {
     const auto reported = status.value(QStringLiteral("tunState")).toString();
@@ -19,8 +35,9 @@ QString normalizedTunState(const QJsonObject& status) {
 QJsonObject exitDiagnostics(const QJsonObject& status) {
     QJsonObject result;
     const auto code = status.value(QStringLiteral("coreExitCode"));
-    if (code.isDouble() && code.toDouble() == code.toInt() && code.toInt() >= 0)
-        result.insert(QStringLiteral("coreExitCode"), code.toInt());
+    if (code.isDouble() && code.toDouble() >= 0 && code.toDouble() <= 4294967295.0 &&
+        code.toDouble() == static_cast<double>(code.toInteger()))
+        result.insert(QStringLiteral("coreExitCode"), code.toInteger());
     const auto exitedAt = status.value(QStringLiteral("coreExitedAt")).toString();
     if (!exitedAt.isEmpty() && exitedAt.size() <= 64)
         result.insert(QStringLiteral("coreExitedAt"), exitedAt);

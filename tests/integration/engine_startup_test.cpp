@@ -1,7 +1,9 @@
 #include "infra/config/config_preflight.h"
 #include "infra/core/engine_session.h"
 #include "infra/core/listener_ports.h"
+#include "infra/storage/json_store.h"
 #include "platform/desktop_services.h"
+#include "platform/windows/owned_process.h"
 #include <QFile>
 #include <QHostAddress>
 #include <QSignalSpy>
@@ -12,14 +14,21 @@
 namespace {
 class DelayedProcess final : public quickclash::application::IDesktopProcess {
   public:
-    DelayedProcess() : process(quickclash::platform::makeDesktopProcess()) {}
+    DelayedProcess() : process(quickclash::platform::makeDesktopProcess()) {
+        connect(process.get(), &IDesktopProcess::finished, this, &IDesktopProcess::finished);
+    }
     quickclash::domain::CommandResult start(const QString& executable, const QStringList& arguments,
                                             const QString& directory, bool isolated) override {
         ++starts;
         return process->start(executable, arguments, directory, isolated);
     }
-    void stop() override {
-        process->stop();
+    quickclash::domain::CommandResult stop() override {
+        if (rejectStop && process->running())
+            return quickclash::infra::storageError("CoreStopTimeout");
+        return process->stop();
+    }
+    QJsonObject exitDiagnostics() const override {
+        return process->exitDiagnostics();
     }
     bool running() const override {
         return process->running();
@@ -37,6 +46,7 @@ class DelayedProcess final : public quickclash::application::IDesktopProcess {
     std::unique_ptr<IDesktopProcess> process;
     int delayedChecks = 4;
     int starts = 0;
+    bool rejectStop = false;
     mutable int checks = 0;
 };
 quint16 freePort() {
@@ -47,6 +57,59 @@ quint16 freePort() {
 class EngineStartupTest final : public QObject {
     Q_OBJECT
   private slots:
+    void outputAndExit() {
+        quickclash::platform::OwnedProcess process;
+        QSignalSpy finished(&process, &quickclash::platform::OwnedProcess::finished);
+        const auto result = process.start(QCoreApplication::applicationFilePath(),
+                                          {QStringLiteral("--output-child")}, QDir::tempPath());
+        QVERIFY(std::holds_alternative<std::monostate>(result));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 5000);
+        QCOMPARE(finished.first().first().toInt(), 42);
+        QVERIFY(process.outputBytes() >= 512 * 1024);
+        QVERIFY(process.outputTail().size() <= 4096);
+        QVERIFY(process.outputTail().contains("tail_marker"));
+        QVERIFY(!process.exitDiagnostics().value("coreStderr").toString().contains("secret_value"));
+        QVERIFY(!process.running());
+        QVERIFY(std::holds_alternative<std::monostate>(process.stop()));
+    }
+    void failedStopRetainsIdentity() {
+        auto process = std::make_unique<DelayedProcess>();
+        auto* observed = process.get();
+        observed->rejectStop = true;
+        quickclash::infra::EngineSession engine(std::move(process), nullptr);
+        QVERIFY(std::holds_alternative<std::monostate>(
+            observed->start(QCoreApplication::applicationFilePath(),
+                            {QStringLiteral("--idle-child")}, QDir::tempPath(), false)));
+        const auto pid = engine.pid();
+        QVERIFY(std::holds_alternative<quickclash::domain::Error>(engine.stop()));
+        QVERIFY(engine.cleanupUncertain());
+        QVERIFY(engine.running());
+        QCOMPARE(engine.pid(), pid);
+        QSignalSpy failed(&engine, &quickclash::infra::EngineSession::failed);
+        engine.start({}, {}, {}, QByteArray(32, 'x'), freePort(), freePort(),
+                     QStringLiteral("rule"));
+        QCOMPARE(failed.first().first().toString(), QStringLiteral("CoreAlreadyRunning"));
+        observed->rejectStop = false;
+        QVERIFY(std::holds_alternative<std::monostate>(engine.stop()));
+        QVERIFY(!engine.cleanupUncertain());
+        QVERIFY(!engine.running());
+    }
+    void sessionCapturesStartupExit() {
+        auto process = std::make_unique<DelayedProcess>();
+        auto* observed = process.get();
+        quickclash::infra::EngineSession engine(std::move(process), nullptr);
+        QSignalSpy failed(&engine, &quickclash::infra::EngineSession::failed);
+        QVERIFY(std::holds_alternative<std::monostate>(
+            observed->start(QCoreApplication::applicationFilePath(),
+                            {QStringLiteral("--output-child")}, QDir::tempPath(), false)));
+        QTRY_COMPARE_WITH_TIMEOUT(failed.size(), 1, 5000);
+        QCOMPARE(failed.first().first().toString(), QStringLiteral("CoreExitedDuringStart"));
+        const auto diagnostics = engine.coreExitDiagnostics();
+        QCOMPARE(diagnostics.value("coreExitCode").toInt(), 42);
+        QVERIFY(!diagnostics.value("coreExitedAt").toString().isEmpty());
+        QVERIFY(diagnostics.value("coreStderr").toString().contains("tail_marker"));
+        QVERIFY(!diagnostics.value("coreStderr").toString().contains("secret_value"));
+    }
     void unavailablePort_data() {
         QTest::addColumn<bool>("controller");
         QTest::newRow("mixed_port_occupied") << false;
@@ -134,5 +197,23 @@ class EngineStartupTest final : public QObject {
         QVERIFY(!engine.running());
     }
 };
-QTEST_GUILESS_MAIN(EngineStartupTest)
+int main(int argc, char** argv) {
+    QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--output-child"))) {
+        QFile output;
+        if (!output.open(stdout, QIODevice::WriteOnly))
+            return 2;
+        const QByteArray chunk(4096, 'x');
+        for (int i = 0; i < 128; ++i)
+            if (output.write(chunk) != chunk.size())
+                return 3;
+        output.write("\ntail_marker password=secret_value\n");
+        output.flush();
+        return 42;
+    }
+    if (app.arguments().contains(QStringLiteral("--idle-child")))
+        return app.exec();
+    EngineStartupTest test;
+    return QTest::qExec(&test, argc, argv);
+}
 #include "engine_startup_test.moc"

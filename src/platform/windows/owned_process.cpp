@@ -1,6 +1,8 @@
 #include "platform/windows/owned_process.h"
+#include "domain/log_buffer.h"
 #include "infra/storage/json_store.h"
 #include "platform/desktop_services.h"
+#include <QTimer>
 #include <algorithm>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -12,6 +14,7 @@
 #include <userenv.h>
 #include <aclapi.h>
 // clang-format on
+#include <QWinEventNotifier>
 #endif
 
 namespace quickclash::platform {
@@ -86,6 +89,14 @@ struct OwnedProcess::State {
     Handle job;
     Handle process;
     Handle output;
+    Handle outputEvent;
+    OVERLAPPED read{};
+    char buffer[4096]{};
+    bool readPending = false;
+    bool outputClosed = false;
+    bool assignedToJob = false;
+    std::unique_ptr<QWinEventNotifier> processNotifier;
+    std::unique_ptr<QWinEventNotifier> outputNotifier;
     quint32 pid = 0;
     ProcessIdentity identity;
     QString profile;
@@ -93,8 +104,16 @@ struct OwnedProcess::State {
     QString grantedExecutable;
     PSID sid = nullptr;
     ~State() {
+        processNotifier.reset();
+        outputNotifier.reset();
         // Kill before removing the temporary security profile.
         job.reset();
+        if (readPending) {
+            (void)CancelIoEx(output.get(), &read);
+            DWORD ignored = 0;
+            // OVERLAPPED and its buffer must outlive cancellation completion.
+            (void)GetOverlappedResult(output.get(), &read, &ignored, TRUE);
+        }
         if (sid) {
             if (!grantedDirectory.isEmpty())
                 (void)grant(grantedDirectory, sid, 0, true);
@@ -111,10 +130,7 @@ struct OwnedProcess::State {
 struct OwnedProcess::State {};
 #endif
 OwnedProcess::OwnedProcess(QObject* parent)
-    : IDesktopProcess(parent), state_(std::make_unique<State>()) {
-    timer_.setInterval(50);
-    connect(&timer_, &QTimer::timeout, this, &OwnedProcess::poll);
-}
+    : IDesktopProcess(parent), state_(std::make_unique<State>()) {}
 OwnedProcess::~OwnedProcess() {
     stop();
 }
@@ -164,17 +180,26 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
         return infra::storageError("CoreJobFailed");
     }
     SECURITY_ATTRIBUTES inheritance{sizeof(SECURITY_ATTRIBUTES), nullptr, TRUE};
-    HANDLE output = nullptr;
-    HANDLE writer = nullptr;
-    if (!CreatePipe(&output, &writer, &inheritance, 0)) {
+    const auto pipeName = QStringLiteral("\\\\.\\pipe\\QuickClash.Output.") +
+                          QUuid::createUuid().toString(QUuid::WithoutBraces);
+    state_->output.reset(CreateNamedPipeW(
+        reinterpret_cast<LPCWSTR>(pipeName.utf16()),
+        PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+        PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT | PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096,
+        0, nullptr));
+    if (state_->output.get() == INVALID_HANDLE_VALUE)
         return infra::storageError("CorePipeFailed");
-    }
-    state_->output.reset(output);
     Handle writeHandle;
-    writeHandle.reset(writer);
-    if (!SetHandleInformation(output, HANDLE_FLAG_INHERIT, 0)) {
+    writeHandle.reset(CreateFileW(reinterpret_cast<LPCWSTR>(pipeName.utf16()), GENERIC_WRITE, 0,
+                                  &inheritance, OPEN_EXISTING, 0, nullptr));
+    state_->outputEvent.reset(CreateEventW(nullptr, TRUE, FALSE, nullptr));
+    if (writeHandle.get() == INVALID_HANDLE_VALUE || !state_->outputEvent.get()) {
         return infra::storageError("CorePipeFailed");
     }
+    state_->read.hEvent = state_->outputEvent.get();
+    if (!ConnectNamedPipe(state_->output.get(), &state_->read) &&
+        GetLastError() != ERROR_PIPE_CONNECTED)
+        return infra::storageError("CorePipeFailed");
     Handle input;
     input.reset(CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &inheritance,
                             OPEN_EXISTING, 0, nullptr));
@@ -216,7 +241,7 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
             return infra::storageError("CoreValidationIsolationFailed");
         }
     }
-    HANDLE inherited[] = {writer, input.get()};
+    HANDLE inherited[] = {writeHandle.get(), input.get()};
     if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited,
                                    sizeof(inherited), nullptr, nullptr)) {
         return infra::storageError("CoreProcessFailed");
@@ -225,8 +250,8 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     startup.StartupInfo.cb = sizeof(startup);
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
     startup.StartupInfo.hStdInput = input.get();
-    startup.StartupInfo.hStdOutput = writer;
-    startup.StartupInfo.hStdError = writer;
+    startup.StartupInfo.hStdOutput = writeHandle.get();
+    startup.StartupInfo.hStdError = writeHandle.get();
     startup.lpAttributeList = list;
     QString command = quote(executable);
     for (const auto& argument : arguments) {
@@ -247,17 +272,18 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
         return infra::storageError("CoreProcessFailed");
     }
     state_->process.reset(process.hProcess);
+    state_->pid = process.dwProcessId;
     FILETIME created{}, exited{}, kernel{}, user{};
     if (GetProcessTimes(process.hProcess, &created, &exited, &kernel, &user))
         state_->identity = {process.dwProcessId,
                             (quint64{created.dwHighDateTime} << 32) | created.dwLowDateTime};
     Handle thread;
     thread.reset(process.hThread);
-    if (!AssignProcessToJobObject(state_->job.get(), process.hProcess) ||
-        ResumeThread(thread.get()) == static_cast<DWORD>(-1)) {
-        (void)TerminateProcess(process.hProcess, 1);
-        (void)WaitForSingleObject(process.hProcess, 2000);
-        state_ = std::make_unique<State>();
+    state_->assignedToJob = AssignProcessToJobObject(state_->job.get(), process.hProcess);
+    if (!state_->assignedToJob || ResumeThread(thread.get()) == static_cast<DWORD>(-1)) {
+        const auto stopped = stop();
+        if (std::holds_alternative<domain::Error>(stopped))
+            return stopped;
         return infra::storageError("CoreJobFailed");
     }
     state_->pid = process.dwProcessId;
@@ -265,7 +291,15 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     outputTail_.clear();
     exitCode_ = 0;
     exitedAt_ = {};
-    timer_.start();
+    state_->processNotifier = std::make_unique<QWinEventNotifier>(state_->process.get());
+    connect(state_->processNotifier.get(), &QWinEventNotifier::activated, this, [this] {
+        state_->processNotifier->setEnabled(false);
+        QTimer::singleShot(0, this, &OwnedProcess::poll);
+    });
+    state_->outputNotifier = std::make_unique<QWinEventNotifier>(state_->outputEvent.get());
+    connect(state_->outputNotifier.get(), &QWinEventNotifier::activated, this,
+            [this] { drainOutput(); });
+    drainOutput();
     return std::monostate{};
 #else
     Q_UNUSED(executable)
@@ -289,7 +323,6 @@ void OwnedProcess::poll() {
         (void)GetExitCodeProcess(state_->process.get(), &exit);
         exitCode_ = static_cast<int>(exit);
         exitedAt_ = QDateTime::currentDateTimeUtc();
-        timer_.stop();
         state_ = std::make_unique<State>();
         emit finished(exitCode_);
     }
@@ -297,37 +330,87 @@ void OwnedProcess::poll() {
 }
 void OwnedProcess::drainOutput() {
 #ifdef Q_OS_WIN
-    // Keep only a small tail in memory. The service redacts it before exposing diagnostics.
-    // Drain at most 64 KiB per event to keep control operations responsive.
-    DWORD available = 0;
-    char buffer[4096];
+    if (!running() || state_->outputClosed || !state_->outputNotifier)
+        return;
+    state_->outputNotifier->setEnabled(false);
+    // Only completion events wake the worker. Yield after 64 KiB under a noisy child.
     DWORD consumed = 0;
-    while (consumed < 64 * 1024 &&
-           PeekNamedPipe(state_->output.get(), nullptr, 0, nullptr, &available, nullptr) &&
-           available) {
+    while (consumed < 64 * 1024) {
         DWORD read = 0;
-        if (!ReadFile(state_->output.get(), buffer, std::min<DWORD>(available, sizeof(buffer)),
-                      &read, nullptr) ||
-            !read) {
-            break;
+        if (state_->readPending) {
+            if (!GetOverlappedResult(state_->output.get(), &state_->read, &read, FALSE)) {
+                if (GetLastError() == ERROR_IO_INCOMPLETE) {
+                    state_->outputNotifier->setEnabled(true);
+                    return;
+                }
+                state_->readPending = false;
+                state_->outputClosed = true;
+                return;
+            }
+            state_->readPending = false;
+        } else {
+            ResetEvent(state_->outputEvent.get());
+            if (!ReadFile(state_->output.get(), state_->buffer, sizeof(state_->buffer), &read,
+                          &state_->read)) {
+                if (GetLastError() == ERROR_IO_PENDING) {
+                    state_->readPending = true;
+                    state_->outputNotifier->setEnabled(true);
+                } else
+                    state_->outputClosed = true;
+                return;
+            }
+        }
+        if (!read) {
+            state_->outputClosed = true;
+            return;
         }
         consumed += read;
-        outputTail_.append(buffer, static_cast<qsizetype>(read));
+        outputTail_.append(state_->buffer, static_cast<qsizetype>(read));
         if (outputTail_.size() > 4096)
             outputTail_ = outputTail_.right(4096);
         outputBytes_ = std::min<qsizetype>(outputBytes_ + read, 1024 * 1024 * 1024);
     }
+    const auto pid = state_->pid;
+    QTimer::singleShot(0, this, [this, pid] {
+        if (running() && state_->pid == pid)
+            drainOutput();
+    });
 #endif
 }
-void OwnedProcess::stop() {
-    timer_.stop();
+domain::CommandResult OwnedProcess::stop() {
 #ifdef Q_OS_WIN
     if (running()) {
-        (void)TerminateJobObject(state_->job.get(), 0);
-        (void)WaitForSingleObject(state_->process.get(), 2000);
+        const auto observed = WaitForSingleObject(state_->process.get(), 0);
+        if (observed != WAIT_OBJECT_0) {
+            const bool terminated = state_->assignedToJob
+                                        ? TerminateJobObject(state_->job.get(), 0)
+                                        : TerminateProcess(state_->process.get(), 1);
+            if (!terminated)
+                return infra::storageError("CoreStopFailed");
+            const auto waited = WaitForSingleObject(state_->process.get(), 2000);
+            if (waited != WAIT_OBJECT_0)
+                return infra::storageError(waited == WAIT_TIMEOUT ? "CoreStopTimeout"
+                                                                  : "CoreStopFailed");
+        }
+        drainOutput();
+        DWORD code = 0;
+        if (GetExitCodeProcess(state_->process.get(), &code))
+            exitCode_ = static_cast<int>(code);
+        exitedAt_ = QDateTime::currentDateTimeUtc();
     }
 #endif
     state_ = std::make_unique<State>();
+    return std::monostate{};
+}
+QJsonObject OwnedProcess::exitDiagnostics() const {
+    if (!exitedAt_.isValid())
+        return {};
+    const auto safe =
+        domain::redactedLogEntry(0, {}, QStringLiteral("Core"), QStringLiteral("error"),
+                                 QString::fromUtf8(outputTail_), true);
+    return {{QStringLiteral("coreExitCode"), static_cast<qint64>(static_cast<quint32>(exitCode_))},
+            {QStringLiteral("coreExitedAt"), exitedAt_.toString(Qt::ISODateWithMs)},
+            {QStringLiteral("coreStderr"), safe.value(QStringLiteral("message"))}};
 }
 bool OwnedProcess::ownsListener(quint16 port) const {
 #ifdef Q_OS_WIN

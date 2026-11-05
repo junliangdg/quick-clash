@@ -161,10 +161,9 @@ void DesktopRuntime::cancelGeo() {
         downloadReply_->abort();
         downloadReply_.clear();
     }
-    validator_->stop();
-    validationDeadline_.stop();
-    validationCompletion_ = {};
-    staging_.reset();
+    const auto stopped = stopValidation();
+    if (const auto* failure = std::get_if<domain::Error>(&stopped))
+        error(failure->code);
     restorePreferences();
     busy_ = false;
     featureState_.insert(QStringLiteral("geoResult"), QStringLiteral("Cancelled"));

@@ -146,6 +146,10 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
     });
     reconcileTimer_.setSingleShot(true);
     reconcileTimer_.setInterval(1500);
+    delayReconcileTimer_.setSingleShot(true);
+    delayReconcileTimer_.setInterval(1500);
+    connect(&delayReconcileTimer_, &QTimer::timeout, this,
+            &DesktopRuntime::resumeDelayTestsAfterReconcile);
     connect(&reconcileTimer_, &QTimer::timeout, this, [this] {
         if (shuttingDown_)
             return;
@@ -163,10 +167,11 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         publish();
     });
     connect(&validationDeadline_, &QTimer::timeout, this, [this] {
-        validator_->stop();
-        if (validationCompletion_) {
-            auto completion = std::move(validationCompletion_);
-            staging_.reset();
+        auto completion = std::move(validationCompletion_);
+        const auto stopped = stopValidation();
+        if (const auto* failure = std::get_if<domain::Error>(&stopped))
+            error(failure->code);
+        if (completion) {
             completion(false);
         }
     });
@@ -193,6 +198,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         publish();
     });
     connect(&engine_, &infra::EngineSession::failed, this, [this](const QString& code) {
+        recordCoreExit();
         tunPending_ = false;
         tunDisabling_ = false;
         if (code.startsWith(QStringLiteral("CoreListener"))) {
@@ -203,6 +209,11 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         if (applying_) {
             failedApply(code);
         } else {
+            if (infra::classifyRecoveryFailure(code) == infra::RecoveryFailure::CleanupUncertain) {
+                status_ = QStringLiteral("Uncertain");
+                backgroundSuppressed_ = true;
+                recoveryTimer_.stop();
+            }
             error(code);
         }
     });
@@ -263,24 +274,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             const auto released = proxyLease_->release();
             if (const auto* failure = std::get_if<domain::Error>(&released))
                 error(failure->code);
-            const auto diagnostics = engine_.coreExitDiagnostics();
-            if (!diagnostics.isEmpty()) {
-                auto detail =
-                    QStringLiteral("Core exit diagnostics: code=%1, time=%2")
-                        .arg(diagnostics.value(QStringLiteral("coreExitCode")).toInt())
-                        .arg(diagnostics.value(QStringLiteral("coreExitedAt")).toString());
-                const auto reason = diagnostics.value(QStringLiteral("stopReason")).toString();
-                if (!reason.isEmpty())
-                    detail += QStringLiteral(", reason=%1").arg(reason);
-                const auto stopDetail = diagnostics.value(QStringLiteral("stopDetail")).toString();
-                if (!stopDetail.isEmpty())
-                    detail += QStringLiteral(", detail=%1").arg(stopDetail);
-                const auto output = diagnostics.value(QStringLiteral("coreStderr")).toString();
-                if (!output.isEmpty())
-                    detail += QStringLiteral("; last output: %1").arg(output);
-                appendLog(QStringLiteral("App"), QStringLiteral("error"), detail);
-                coreExitDetail_ = detail;
-            }
+            recordCoreExit();
             error(QStringLiteral("CoreExited"));
             if (backgroundManaged_) {
                 const bool ranLongEnough = coreUptime_.isValid() && coreUptime_.elapsed() >= 60000;
@@ -469,6 +463,10 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
 DesktopRuntime::~DesktopRuntime() {
     cancelIpQueries(false);
     stop(domain::StopReason::AppExit);
+    if (staging_ && validator_->running())
+        staging_->setAutoRemove(false);
+    if (coreStage_ && coreArchive_.running())
+        coreStage_->setAutoRemove(false);
 }
 void DesktopRuntime::initialize() {
     refreshStartup();
@@ -654,21 +652,16 @@ void DesktopRuntime::scheduleBackgroundStart(bool afterFailure, bool shortFailur
     if (afterFailure) {
         const bool tunSession = runtimePreferences_.value(QStringLiteral("tunDesired")).toBool() &&
                                 !tunRecoveryBlocked_;
-        if (shortFailure && tunSession) {
-            ++shortFailures_;
-            if (shortFailures_ >= 3) {
-                shortFailures_ = 0;
-                tunRecoveryBlocked_ = true;
-                appendLog(QStringLiteral("App"), QStringLiteral("error"),
-                          QStringLiteral("TUN failed repeatedly in a short time. Automatic TUN "
-                                         "restart is paused; restarting in proxy-only mode."));
-                error(QStringLiteral("TunRecoveryExhausted"));
-                if (!recoveryTimer_.isActive())
-                    recoveryTimer_.start(0);
-                return;
-            }
-        } else {
-            shortFailures_ = 0;
+        if (tunRecoveryBudget_.failed(tunSession, shortFailure)) {
+            tunRecoveryBudget_.reset();
+            tunRecoveryBlocked_ = true;
+            appendLog(QStringLiteral("App"), QStringLiteral("error"),
+                      QStringLiteral("TUN failed repeatedly in a short time. Automatic TUN "
+                                     "restart is paused; restarting in proxy-only mode."));
+            error(QStringLiteral("TunRecoveryExhausted"));
+            if (!recoveryTimer_.isActive())
+                recoveryTimer_.start(0);
+            return;
         }
         recoveryFailures_ = std::min(recoveryFailures_ + 1, 6);
         status_ = QStringLiteral("RecoveryBackoff");
@@ -1037,7 +1030,9 @@ void DesktopRuntime::error(const QString& code) {
         {QStringLiteral("time"), QDateTime::currentDateTimeUtc().toString(Qt::ISODate)},
         {QStringLiteral("code"), code}};
     // Keep the service-reported exit cause beside the code so a field report stays actionable.
-    if (code == QStringLiteral("CoreExited") && !coreExitDetail_.isEmpty())
+    if ((code.startsWith(QStringLiteral("CoreExited")) ||
+         code == QStringLiteral("CoreReadyTimeout")) &&
+        !coreExitDetail_.isEmpty())
         entry.insert(QStringLiteral("detail"), coreExitDetail_.left(2048));
     errors_.append(entry);
     while (errors_.size() > 100) {
@@ -1210,6 +1205,11 @@ void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
 }
 void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(bool)> completion) {
     lastError_.clear();
+    if (validator_->running()) {
+        error(QStringLiteral("CoreStopFailed"));
+        completion(false);
+        return;
+    }
     if (platformInfo_.capabilities.value(QStringLiteral("core")) != QStringLiteral("Supported")) {
         error(QStringLiteral("CorePlatformUnsupported"));
         completion(false);
@@ -1269,7 +1269,8 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
                           staging_->path(), true);
     if (const auto* failure = std::get_if<domain::Error>(&launched)) {
         auto callback = std::move(validationCompletion_);
-        staging_.reset();
+        if (!validator_->running())
+            staging_.reset();
         error(failure->code);
         callback(false);
         return;
@@ -1840,6 +1841,30 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             previousPreferences_.remove(QStringLiteral("schemaVersion"));
         }
         proxyDesired_ = previouslyProxied_;
+        if (modeOnlyApply_ && engine_.ready()) {
+            const auto staged = repository_.phase(QStringLiteral("CoreApplying"));
+            if (const auto* failure = std::get_if<domain::Error>(&staged)) {
+                failedApply(failure->code);
+                return;
+            }
+            status_ = QStringLiteral("Reloading");
+            discardConfigTransaction();
+            publish();
+            if (generation != operationGeneration_ || !modeOnlyApply_)
+                return;
+            engine_.changeMode(runtimePreferences_.value(QStringLiteral("mode")).toString(),
+                               [this, generation](bool success) {
+                                   if (generation != operationGeneration_ || !modeOnlyApply_)
+                                       return;
+                                   if (!success) {
+                                       failedApply(QStringLiteral("CoreModeReadbackFailed"));
+                                       return;
+                                   }
+                                   sessionPreferences_ = runtimePreferences_;
+                                   confirmed();
+                               });
+            return;
+        }
         if (previouslyProxied_) {
             const auto suspended = proxyLease_->suspend();
             if (const auto* failure = std::get_if<domain::Error>(&suspended)) {
@@ -1860,7 +1885,11 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             failedApply(failure->code);
             return;
         }
-        engine_.stop();
+        const auto stopped = engine_.stop();
+        if (const auto* failure = std::get_if<domain::Error>(&stopped)) {
+            failedApply(failure->code);
+            return;
+        }
         cleanupSession();
         QTimer::singleShot(0, this, [this, generation] {
             if (generation == operationGeneration_ && applying_)
@@ -1880,6 +1909,10 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
         QTimer::singleShot(0, this, [commit = std::move(commit)]() mutable { commit(true); });
 }
 void DesktopRuntime::launch() {
+    if (engine_.running() && !engine_.usingService()) {
+        failedApply(QStringLiteral("CoreStopFailed"));
+        return;
+    }
     loadedFeatures_.clear();
     pendingFeatureRequests_.clear();
     cancelDelayTests();
@@ -2037,7 +2070,7 @@ void DesktopRuntime::confirmed() {
             return;
         }
     }
-    if (proxyDesired_) {
+    if (proxyDesired_ && !modeOnlyApply_) {
         if (applying_) {
             const auto intent = repository_.phase(QStringLiteral("PlatformApplying"));
             if (const auto* failure = std::get_if<domain::Error>(&intent)) {
@@ -2064,12 +2097,16 @@ void DesktopRuntime::confirmed() {
                 const auto released = proxyLease_->release();
                 if (const auto* restoreFailure = std::get_if<domain::Error>(&released))
                     error(restoreFailure->code);
-                engine_.stop();
+                const auto stopped = engine_.stop();
+                const auto* stopFailure = std::get_if<domain::Error>(&stopped);
                 cleanupSession();
                 busy_ = false;
-                status_ = QStringLiteral("Failed");
-                error(failure->code);
-                finishOperation(domain::OperationState::Failed, failure->code);
+                status_ = stopFailure ? QStringLiteral("Uncertain") : QStringLiteral("Failed");
+                const auto code = stopFailure ? stopFailure->code : failure->code;
+                error(code);
+                finishOperation(stopFailure ? domain::OperationState::Uncertain
+                                            : domain::OperationState::Failed,
+                                code);
             }
             if (!backgroundManaged_)
                 return;
@@ -2095,7 +2132,7 @@ void DesktopRuntime::confirmed() {
         finishOperation(domain::OperationState::Succeeded);
         return;
     }
-    if (proxyDesired_) {
+    if (proxyDesired_ && !modeOnlyApply_) {
         previousProxyIntent_ = persistedProxyIntent_;
         const auto saved = saveProxyIntent(true);
         if (const auto* failure = std::get_if<domain::Error>(&saved)) {
@@ -2105,6 +2142,10 @@ void DesktopRuntime::confirmed() {
     }
     const auto committed = repository_.commit();
     if (const auto* failure = std::get_if<domain::Error>(&committed)) {
+        if (modeOnlyApply_) {
+            failedApply(failure->code);
+            return;
+        }
         if (store_.readOnly()) {
             if (previousProxyIntent_) {
                 const auto restored = saveProxyIntent(*previousProxyIntent_);
@@ -2114,13 +2155,17 @@ void DesktopRuntime::confirmed() {
             }
             applying_ = false;
             busy_ = false;
-            engine_.stop();
+            const auto stopped = engine_.stop();
+            const auto* stopFailure = std::get_if<domain::Error>(&stopped);
             const auto released = proxyLease_->release();
             Q_UNUSED(released)
             cleanupSession();
-            status_ = QStringLiteral("Failed");
-            error(failure->code);
-            finishOperation(domain::OperationState::Failed, failure->code);
+            status_ = stopFailure ? QStringLiteral("Uncertain") : QStringLiteral("Failed");
+            const auto code = stopFailure ? stopFailure->code : failure->code;
+            error(code);
+            finishOperation(stopFailure ? domain::OperationState::Uncertain
+                                        : domain::OperationState::Failed,
+                            code);
             return;
         }
         failedApply(failure->code);
@@ -2153,6 +2198,7 @@ void DesktopRuntime::confirmed() {
     }
     const bool catalogSaved = saveCatalog(catalog);
     previousPreferences_ = {};
+    modeOnlyApply_ = false;
     applying_ = false;
     busy_ = false;
     savedPreferences_ = runtimePreferences_;
@@ -2173,10 +2219,32 @@ void DesktopRuntime::confirmed() {
     publish();
 }
 void DesktopRuntime::failedApply(const QString& code) {
+    if (modeOnlyApply_ && engine_.ready()) {
+        failModeChange(code);
+        return;
+    }
+    modeOnlyApply_ = false;
+    const bool failedTunStart =
+        sessionPreferences_.value(QStringLiteral("tunDesired")).toBool() && !tunRecoveryBlocked_;
     tunPending_ = false;
     tunDisabling_ = false;
     discardConfigTransaction();
-    engine_.stop();
+    const auto stopped = engine_.stop();
+    const auto* stopFailure = std::get_if<domain::Error>(&stopped);
+    if (stopFailure || engine_.cleanupUncertain() ||
+        infra::classifyRecoveryFailure(code) == infra::RecoveryFailure::CleanupUncertain) {
+        const auto failureCode = stopFailure ? stopFailure->code : code;
+        applying_ = false;
+        busy_ = false;
+        status_ = QStringLiteral("Uncertain");
+        recoveryTimer_.stop();
+        backgroundSuppressed_ = true;
+        error(failureCode);
+        const auto released = proxyLease_->release();
+        Q_UNUSED(released)
+        finishOperation(domain::OperationState::Uncertain, failureCode);
+        return;
+    }
     cleanupSession();
     restorePreferences();
     if (previousProxyIntent_) {
@@ -2214,8 +2282,86 @@ void DesktopRuntime::failedApply(const QString& code) {
     }
     publish();
     finishOperation(domain::OperationState::Failed, code);
-    scheduleBackgroundStart(true);
+    const auto recovery = infra::classifyRecoveryFailure(code);
+    if (recovery == infra::RecoveryFailure::Retry && !engine_.cleanupUncertain())
+        scheduleBackgroundStart(true, failedTunStart);
+    else {
+        backgroundSuppressed_ = true;
+        recoveryTimer_.stop();
+        if (recovery == infra::RecoveryFailure::CleanupUncertain)
+            status_ = QStringLiteral("Uncertain");
+    }
     publish();
+}
+void DesktopRuntime::failModeChange(const QString& code) {
+    const auto operationId = repository_.pending().value(QStringLiteral("operationId")).toString();
+    if (!operationId.isEmpty() &&
+        repository_.manifest().value(QStringLiteral("committedOperationId")) == operationId) {
+        // Manifest replacement is the commit point even if journal finalization failed.
+        modeOnlyApply_ = false;
+        previousPreferences_ = {};
+        savedPreferences_ = runtimePreferences_;
+        effectivePreferences_ = sessionPreferences_;
+        applying_ = false;
+        busy_ = false;
+        status_ = QStringLiteral("Ready");
+        error(code);
+        finishOperation(domain::OperationState::Uncertain, code);
+        publish();
+        return;
+    }
+    // The original journal stays pending until rollback is confirmed on the live core.
+    const auto generation = operationGeneration_;
+    const auto oldPreferences = previousPreferences_;
+    engine_.changeMode(oldPreferences.value(QStringLiteral("mode")).toString(),
+                       [this, generation, oldPreferences, code](bool restored) {
+                           if (generation != operationGeneration_ || !modeOnlyApply_)
+                               return;
+                           modeOnlyApply_ = false;
+                           runtimePreferences_ = oldPreferences;
+                           previousPreferences_ = {};
+                           sessionPreferences_ = oldPreferences;
+                           effectivePreferences_ = oldPreferences;
+                           applying_ = false;
+                           busy_ = false;
+                           if (!restored) {
+                               const auto stopped = engine_.stop();
+                               Q_UNUSED(stopped)
+                               const auto released = proxyLease_->release();
+                               Q_UNUSED(released)
+                               status_ = QStringLiteral("Uncertain");
+                               backgroundSuppressed_ = true;
+                               recoveryTimer_.stop();
+                               error(QStringLiteral("CoreModeRecoveryRequired"));
+                               finishOperation(domain::OperationState::Uncertain,
+                                               QStringLiteral("CoreModeRecoveryRequired"));
+                           } else {
+                               const auto rolledBack = repository_.rollback();
+                               const auto* failure = std::get_if<domain::Error>(&rolledBack);
+                               status_ = QStringLiteral("Ready");
+                               error(failure ? failure->code : code);
+                               finishOperation(failure ? domain::OperationState::Uncertain
+                                                       : domain::OperationState::Failed,
+                                               failure ? failure->code : code);
+                           }
+                           publish();
+                       });
+}
+void DesktopRuntime::recordCoreExit() {
+    const auto diagnostics = engine_.coreExitDiagnostics();
+    if (diagnostics.isEmpty())
+        return;
+    auto detail = QStringLiteral("Core exit diagnostics: code=%1, time=%2")
+                      .arg(diagnostics.value(QStringLiteral("coreExitCode")).toInteger())
+                      .arg(diagnostics.value(QStringLiteral("coreExitedAt")).toString());
+    for (const auto* key : {"stopReason", "stopDetail", "coreStderr"}) {
+        const auto value = diagnostics.value(QLatin1String(key)).toString();
+        if (!value.isEmpty())
+            detail += QStringLiteral("; %1=%2").arg(QLatin1String(key), value);
+    }
+    if (coreExitDetail_ != detail)
+        appendLog(QStringLiteral("App"), QStringLiteral("error"), detail);
+    coreExitDetail_ = detail;
 }
 void DesktopRuntime::start(bool systemProxy) {
     listenerRecoveryBlocked_ = false;
@@ -2235,7 +2381,7 @@ void DesktopRuntime::start(bool systemProxy) {
                                          : QStringLiteral("start_core"));
     if (!restartAttempt_) {
         crashTimes_.clear();
-        shortFailures_ = 0;
+        tunRecoveryBudget_.reset();
     }
     restartAttempt_ = false;
     proxyDesired_ = systemProxy;
@@ -2274,9 +2420,11 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
     return result;
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
+    modeOnlyApply_ = false;
     cancelCoreUpdate();
-    coreArchive_.cancel();
-    coreStage_.reset();
+    const auto archiveStopped = coreArchive_.cancel();
+    if (!coreArchive_.running())
+        coreStage_.reset();
     if (coreOperationActive_) {
         coreOperationActive_ = false;
         coreUpdateState_.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
@@ -2307,6 +2455,10 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     if (!updatingSubscription_.isEmpty())
         completeSubscriptionUpdate(QStringLiteral("Cancelled"));
     stopFailure_.clear();
+    if (const auto* failure = std::get_if<domain::Error>(&archiveStopped)) {
+        stopFailure_ = failure->code;
+        error(failure->code);
+    }
     finishOperation(domain::OperationState::Cancelled, QStringLiteral("UserStopped"));
     ++operationGeneration_;
     providerImport_.reset();
@@ -2314,6 +2466,7 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     discardConfigTransaction();
     recoveryTimer_.stop();
     reconcileTimer_.stop();
+    delayReconcileTimer_.stop();
     proxyDesired_ = false;
     if (previousProxyIntent_) {
         const auto restored = saveProxyIntent(*previousProxyIntent_);
@@ -2341,16 +2494,26 @@ void DesktopRuntime::stop(domain::StopReason reason) {
         }
     }
     invalidateWebsiteTest();
-    validator_->stop();
-    validationDeadline_.stop();
-    validationCompletion_ = {};
-    staging_.reset();
+    const auto validationStopped = stopValidation();
+    if (const auto* failure = std::get_if<domain::Error>(&validationStopped)) {
+        stopFailure_ = failure->code;
+        error(failure->code);
+    }
     const auto released = proxyLease_->release();
     if (const auto* failure = std::get_if<domain::Error>(&released)) {
         stopFailure_ = failure->code;
         error(failure->code);
     }
-    engine_.stop();
+    const auto coreStopped = engine_.stop();
+    if (const auto* failure = std::get_if<domain::Error>(&coreStopped)) {
+        stopFailure_ = failure->code;
+        busy_ = false;
+        applying_ = false;
+        status_ = QStringLiteral("Uncertain");
+        error(failure->code);
+        publish();
+        return;
+    }
     busy_ = false;
     pendingGroup_.clear();
     pendingMember_.clear();
@@ -2358,7 +2521,7 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     restoringNodes_ = false;
     applying_ = false;
     recovering_ = false;
-    status_ = QStringLiteral("Stopped");
+    status_ = stopFailure_.isEmpty() ? QStringLiteral("Stopped") : QStringLiteral("Uncertain");
     groups_ = {};
     testResult_.clear();
     cleanupSession();
@@ -2376,7 +2539,7 @@ void DesktopRuntime::setTun(bool desired) {
         return;
     // An explicit TUN action is a fresh user retry; clear the automatic restart cap.
     tunRecoveryBlocked_ = false;
-    shortFailures_ = 0;
+    tunRecoveryBudget_.reset();
     if (platformInfo_.capabilities.value(QStringLiteral("tun")) == QStringLiteral("Unsupported")) {
         error(QStringLiteral("ServicePlatformUnsupported"));
         return;
@@ -2466,6 +2629,8 @@ void DesktopRuntime::finishTunSetup(int exitCode) {
     retryTunAfterSetup();
 }
 void DesktopRuntime::cleanupSession() {
+    if (engine_.running() && !engine_.usingService())
+        return;
     for (const auto& stream :
          {QStringLiteral("connections"), QStringLiteral("rules"), QStringLiteral("providers"),
           QStringLiteral("traffic"), QStringLiteral("resources")})
@@ -2658,6 +2823,15 @@ void DesktopRuntime::restorePreferences() {
     if (!previousPreferences_.isEmpty())
         runtimePreferences_ = previousPreferences_;
     previousPreferences_ = {};
+    modeOnlyApply_ = false;
+}
+domain::CommandResult DesktopRuntime::stopValidation() {
+    validationDeadline_.stop();
+    validationCompletion_ = {};
+    const auto stopped = validator_->stop();
+    if (!validator_->running())
+        staging_.reset();
+    return stopped;
 }
 void DesktopRuntime::setMode(const QString& mode) {
     if (busy_ || selectedId_.isEmpty() ||
@@ -2669,6 +2843,9 @@ void DesktopRuntime::setMode(const QString& mode) {
         error(QStringLiteral("RepositoryReadOnly"));
         return;
     }
+    if (runtimePreferences_.value(QStringLiteral("mode")) == mode)
+        return;
+    modeOnlyApply_ = engine_.ready();
     previousPreferences_ = runtimePreferences_;
     runtimePreferences_.insert(QStringLiteral("mode"), mode);
     applyProfile(selectedId_, engine_.ready());
@@ -2807,13 +2984,16 @@ void DesktopRuntime::reconcile() {
     if (shuttingDown_)
         return;
     ++reconcileRequests_;
+    const bool wasPending = delayReconcilePending_;
+    restartDelayTestsAfterReconcile();
+    delayReconcileTimer_.start();
     if (!reconcileTimer_.isActive()) {
         // Invalidate immediately: an old reply can finish during the debounce window.
         invalidateWebsiteTest();
-        cancelDelayTests();
         reconcileTimer_.start();
         publish();
-    }
+    } else if (!wasPending && delayReconcilePending_)
+        publish();
 }
 QUuid DesktopRuntime::setSystemProxy(bool desired) {
     if (platformInfo_.capabilities.value(QStringLiteral("systemProxy")) !=

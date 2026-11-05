@@ -54,6 +54,10 @@ QJsonObject LogBuffer::status() const {
 }
 QJsonObject redactedLogEntry(quint64 sequence, const QString& time, const QString& source,
                              const QString& level, const QString& message) {
+    return redactedLogEntry(sequence, time, source, level, message, false);
+}
+QJsonObject redactedLogEntry(quint64 sequence, const QString& time, const QString& source,
+                             const QString& level, const QString& message, bool retainTail) {
     // Bound regex work by the transport line budget; redact before truncating output.
     auto safe = message.left(65536);
     static const QRegularExpression url(QStringLiteral(R"qc((?i)[a-z][a-z0-9+.-]*://[^\s]+)qc"));
@@ -68,7 +72,7 @@ QJsonObject redactedLogEntry(quint64 sequence, const QString& time, const QStrin
     safe.replace(bearer, QStringLiteral("[credential]"));
     safe.replace(spacedCredential, QStringLiteral("[credential]"));
     const bool truncated = message.size() > 2048 || safe.size() > 2048;
-    safe = safe.left(2048);
+    safe = retainTail ? safe.right(2048) : safe.left(2048);
     auto normalized = level.left(32).toLower();
     if (normalized == QStringLiteral("warn"))
         normalized = QStringLiteral("warning");

@@ -61,13 +61,22 @@ void DesktopRuntime::cancelCoreUpdate() {
         downloadReply_->abort();
         downloadReply_.clear();
     }
-    coreArchive_.cancel();
-    coreStage_.reset();
+    const auto stopped = coreArchive_.cancel();
+    if (const auto* failure = std::get_if<domain::Error>(&stopped)) {
+        coreUpdateState_.insert(QStringLiteral("state"), QStringLiteral("Uncertain"));
+        error(failure->code);
+    } else {
+        coreStage_.reset();
+        coreUpdateState_.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
+    }
     busy_ = false;
-    coreUpdateState_.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
     publish();
 }
 void DesktopRuntime::downloadCore() {
+    if (coreArchive_.running()) {
+        error(QStringLiteral("CoreStopFailed"));
+        return;
+    }
     const auto artifact = platform::coreArtifact();
     const auto id = artifact.value(QStringLiteral("id")).toString();
     const auto target = platform::managedCorePath(bundledCoreExecutable(), id);
@@ -182,7 +191,8 @@ void DesktopRuntime::downloadCore() {
                     const auto artifact = platform::coreArtifact(id);
                     const auto source = coreStage_->filePath(artifact.value("entry").toString());
                     if (const auto* failure = std::get_if<domain::Error>(&result)) {
-                        coreStage_.reset();
+                        if (!coreArchive_.running())
+                            coreStage_.reset();
                         busy_ = false;
                         error(failure->code);
                         return;

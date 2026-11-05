@@ -100,11 +100,47 @@ int runDesktopProbe(ApplicationHost& host) {
     if (!check(!output.isEmpty() &&
                    (phase == "import" || phase == "lifecycle" || phase == "hold" ||
                     phase == "reopen" || phase == "repair" || phase == "proxy" || phase == "flow" ||
-                    phase == "flow_reopen" || phase == "traffic"),
+                    phase == "flow_reopen" || phase == "traffic" || phase == "startup"),
                "explicit output and supported phase required") ||
         !check(waitFor([&] { return ui.settingsReady() && host.contentReady(); }),
                "real settings worker and QML content"))
         return 170;
+    if (phase == "startup") {
+        // Reopen an existing isolated store, including multi-profile/Unicode
+        // fixtures. Never import, alter ports, or enable a network switch here.
+        if (!check(waitFor(ready) && ui.profileModel()->count() > 0 &&
+                       !ui.runtime().value("systemProxy").toBool() &&
+                       ui.runtime().value("tunState") == QStringLiteral("Off"),
+                   "existing profiles reopen ready with network takeover disabled"))
+            return 196;
+        const auto corePid = ui.runtime().value("corePid");
+        const auto selected = ui.runtime().value("selectedId");
+        const auto profiles = ui.profileModel()->count();
+        for (int cycle = 0; cycle < 3; ++cycle) {
+            for (const auto* page : {"proxies", "subscriptions", "settings", "home"}) {
+                if (!check(ui.navigate(QString::fromLatin1(page)) &&
+                               waitFor([&] { return host.contentReady(); }),
+                           "startup routes remain responsive"))
+                    return 196;
+                QTest::qWait(100);
+            }
+            const auto generation = host.engineGeneration();
+            host.unloadWindow();
+            if (!check(!host.window() && host.showWindow() && waitFor([&] {
+                    return host.contentReady();
+                }) && host.engineGeneration() == generation + 1 &&
+                           ready() && ui.runtime().value("corePid") == corePid &&
+                           ui.runtime().value("selectedId") == selected &&
+                           ui.profileModel()->count() == profiles && host.qmlErrorCount() == 0,
+                       "window rebuild preserves ready session and profile identity"))
+                return 196;
+            QTest::qWait(100);
+        }
+        result.insert("profileCount", profiles);
+        result.insert("rebuildCycles", 3);
+        result.insert(QStringLiteral("passed"), true);
+        return snapshot(QStringLiteral("completed")) ? 0 : 185;
+    }
     if (phase == "flow" || phase == "flow_reopen") {
         if (!check(desktopFlowProbe(host, phase == "flow_reopen", result),
                    "real GUI subscription, selection, mode and forwarding"))
@@ -380,8 +416,7 @@ int runDesktopProbe(ApplicationHost& host) {
         rulesDialog = host.window()->findChild<QObject*>("custom_rules_dialog");
         rulesEditor = host.window()->findChild<QObject*>("user_rules_editor");
         QSignalSpy completed(rulesEditor, SIGNAL(saveCompleted()));
-        const bool opened = completed.isValid() &&
-                            QMetaObject::invokeMethod(rulesDialog, "open");
+        const bool opened = completed.isValid() && QMetaObject::invokeMethod(rulesDialog, "open");
         const bool reconciled = opened && waitFor([&] {
                                     return completed.size() == 1 &&
                                            !rulesEditor->property("saving").toBool() &&
@@ -393,12 +428,12 @@ int runDesktopProbe(ApplicationHost& host) {
         // scoped result. Reopen it like a user to inspect a fresh snapshot instead
         // of observing the same signal that QML can invalidate reentrantly.
         const bool reopened = reconciled && QMetaObject::invokeMethod(rulesDialog, "open");
-        const bool reloaded = reopened && waitFor([&] {
-                                  const auto view = ui.userRules();
-                                  return view.value("result") == QStringLiteral("Saved") &&
-                                         view.value("attempt").toString().toULongLong() >
-                                             previousAttempt;
-                              });
+        const bool reloaded =
+            reopened && waitFor([&] {
+                const auto view = ui.userRules();
+                return view.value("result") == QStringLiteral("Saved") &&
+                       view.value("attempt").toString().toULongLong() > previousAttempt;
+            });
         const auto view = ui.userRules();
         const auto observedAttempt = view.value("attempt").toString().toULongLong();
         int savedRuleCopies = 0;
@@ -406,8 +441,8 @@ int runDesktopProbe(ApplicationHost& host) {
             if (item.toMap().value("value") == QStringLiteral("lifecycle.example"))
                 ++savedRuleCopies;
         const bool singleAttempt = observedAttempt == previousAttempt + 1;
-        const bool forwarded = reconciled && reloaded && savedRuleCopies == 1 && singleAttempt &&
-                               transfer();
+        const bool forwarded =
+            reconciled && reloaded && savedRuleCopies == 1 && singleAttempt && transfer();
         if (!forwarded) {
             result.insert("ruleSaveDiagnostics",
                           QJsonObject{{"opened", opened},

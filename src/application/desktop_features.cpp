@@ -14,12 +14,6 @@
 #include <utility>
 
 namespace quickclash::application {
-namespace {
-constexpr int kDelayConcurrencyService = 32;
-// QNetworkAccessManager opens at most six HTTP/1.1 connections per host. Keeping the
-// direct-mode batch at that ceiling avoids a long local queue behind the control API.
-constexpr int kDelayConcurrencyDirect = 6;
-} // namespace
 void DesktopRuntime::loadOfflineGroups() {
     if (engine_.ready())
         return;
@@ -164,10 +158,9 @@ void DesktopRuntime::releaseFeature(const QString& stream) {
             discardConfigTransaction();
             // The validator is exclusively owned by this cancelled preview. Stop it before
             // releasing busy, so a new operation cannot reuse its callback or staging files.
-            validationDeadline_.stop();
-            validationCompletion_ = {};
-            validator_->stop();
-            staging_.reset();
+            const auto stopped = stopValidation();
+            if (const auto* failure = std::get_if<domain::Error>(&stopped))
+                error(failure->code);
             busy_ = false;
         }
     } else if (stream == QStringLiteral("proxies")) {
@@ -596,14 +589,23 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
             return;
         }
         receipt(QStringLiteral("Accepted"));
-        auto candidate = runtimePreferences_;
+        auto baseline = runtimePreferences_;
+        baseline.insert(QStringLiteral("dnsMode"), preferences().dnsMode);
+        auto candidate = baseline;
         candidate.insert(QStringLiteral("mode"), args[0]);
         candidate.insert(QStringLiteral("mixedPort"), mixed);
         candidate.insert(QStringLiteral("controllerPort"), controller);
         candidate.insert(QStringLiteral("dnsMode"), args[3]);
         featureState_.remove(QStringLiteral("listenerPortCandidate"));
-        if (candidate == runtimePreferences_) {
+        if (candidate == baseline) {
             publish();
+            return;
+        }
+        auto withoutMode = candidate;
+        withoutMode.insert(QStringLiteral("mode"),
+                           runtimePreferences_.value(QStringLiteral("mode")));
+        if (engine_.ready() && withoutMode == baseline) {
+            setMode(args[0]);
             return;
         }
         listenerRecoveryBlocked_ = false;
@@ -875,11 +877,8 @@ void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes, const QStr
     QHash<QString, int> targetsPerNode;
     QSet<QString> targets;
     for (const auto& probe : probes) {
-        const QUrl target(probe.target);
         if (!identities_.contains(probe.name) || !testable.contains(probe.name) ||
-            !target.isValid() || (target.scheme() != "https" && target.scheme() != "http") ||
-            target.host().isEmpty() || !target.userInfo().isEmpty() || target.hasFragment() ||
-            probe.target.size() > 8192)
+            !infra::validNodeDelayTarget(probe.target))
             return;
         if (keys.contains(probe.key()))
             continue;
@@ -890,7 +889,9 @@ void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes, const QStr
         queue.append(probe);
     }
     ++delayGeneration_;
-    delayQueue_ = std::move(queue);
+    delayReconcilePending_ = delayReconcileTimer_.isActive();
+    delayQueue_ = queue;
+    delayProbes_ = std::move(queue);
     for (const auto& probe : delayQueue_) {
         proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Queued"), clock_());
     }
@@ -910,11 +911,15 @@ void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes, const QStr
     pumpDelayTests();
 }
 void DesktopRuntime::pumpDelayTests() {
+    if (delayReconcilePending_) {
+        syncDelayViews();
+        publish();
+        return;
+    }
     const auto generation = delayGeneration_;
     const auto epoch = epoch_;
-    const auto concurrency =
-        engine_.usingService() ? kDelayConcurrencyService : kDelayConcurrencyDirect;
-    while (delayRunning_ && activeDelays_.size() < concurrency && !delayQueue_.isEmpty()) {
+    while (delayRunning_ && activeDelays_.size() < infra::kNodeDelayConcurrency &&
+           !delayQueue_.isEmpty()) {
         const auto probe = delayQueue_.takeFirst();
         activeDelays_.insert(probe.key(), probe);
         proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Testing"), clock_());
@@ -954,6 +959,7 @@ void DesktopRuntime::pumpDelayTests() {
     }
     if (delayRunning_ && delayQueue_.isEmpty() && activeDelays_.isEmpty()) {
         delayRunning_ = false;
+        delayProbes_.clear();
         auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
         progress.insert(QStringLiteral("state"), QStringLiteral("Completed"));
         featureState_.insert(QStringLiteral("delayTest"), progress);
@@ -964,21 +970,56 @@ void DesktopRuntime::pumpDelayTests() {
 }
 void DesktopRuntime::cancelDelayTests() {
     ++delayGeneration_;
+    delayReconcilePending_ = false;
     if (!delayRunning_)
         return;
     delayRunning_ = false;
+    engine_.cancelQueuedDelays();
     for (const auto& probe : activeDelays_)
         proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Cancelled"), clock_());
     for (const auto& probe : delayQueue_)
         proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Cancelled"), clock_());
     activeDelays_.clear();
     delayQueue_.clear();
+    delayProbes_.clear();
     syncDelayViews();
     auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
     if (!progress.isEmpty()) {
         progress.insert(QStringLiteral("state"), QStringLiteral("Cancelled"));
         featureState_.insert(QStringLiteral("delayTest"), progress);
     }
+}
+void DesktopRuntime::restartDelayTestsAfterReconcile() {
+    if (!delayRunning_)
+        return;
+    if (delayReconcilePending_)
+        return;
+    delayReconcilePending_ = true;
+    ++delayGeneration_;
+    engine_.cancelQueuedDelays();
+    // Already-sent core probes can still finish and appear in /proxies history after
+    // their replacement. Fence their bounded deadline for each affected target.
+    const auto oldProbeDeadline = clock_().addMSecs(infra::kNodeDelayHistoryFenceMs);
+    for (const auto& probe : std::as_const(activeDelays_))
+        proxyLatency_.fenceCoreHistory(probe.name, probe.target, oldProbeDeadline);
+    activeDelays_.clear();
+    delayQueue_ = delayProbes_;
+    for (const auto& probe : std::as_const(delayQueue_)) {
+        proxyLatency_.invalidate(probe.name, probe.target);
+        proxyLatency_.manual(probe.name, probe.target, QStringLiteral("Queued"), clock_());
+    }
+    auto progress = featureState_.value(QStringLiteral("delayTest")).toObject();
+    // Results measured before a network transition are not comparable to new ones.
+    progress.insert(QStringLiteral("completed"), 0);
+    progress.insert(QStringLiteral("failed"), 0);
+    progress.insert(QStringLiteral("total"), delayQueue_.size());
+    featureState_.insert(QStringLiteral("delayTest"), progress);
+    syncDelayViews();
+}
+void DesktopRuntime::resumeDelayTestsAfterReconcile() {
+    delayReconcilePending_ = false;
+    if (delayRunning_)
+        pumpDelayTests();
 }
 void DesktopRuntime::resetConnectionClose() {
     closingConnections_ = false;

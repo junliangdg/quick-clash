@@ -28,45 +28,67 @@ domain::Error coreError(const char* code) {
 EngineSession::EngineSession(QObject* parent)
     : EngineSession(platform::makeDesktopProcess(), parent) {}
 EngineSession::EngineSession(std::unique_ptr<application::IDesktopProcess> process, QObject* parent)
-    : QObject(parent), process_(std::move(process)) {
-    servicePoll_.setInterval(1000);
+    : QObject(parent), process_(std::move(process)),
+      serviceTraffic_(
+          [this](ServiceTraffic::Handler handler) {
+              service_.command(QStringLiteral("traffic"), {}, std::move(handler));
+          },
+          [this](const QJsonObject& sample) {
+              emit streamData(QStringLiteral("traffic"), sample);
+          }) {
+    servicePoll_.setTimerType(Qt::PreciseTimer);
+    servicePoll_.setInterval(5000);
     connect(&servicePoll_, &QTimer::timeout, this, [this] {
         if (!serviceMode_ || !ready_)
             return;
         syncServiceLogs();
         const auto generation = generation_;
-        service_.command(QStringLiteral("status"), {},
-                         [this, generation](domain::Result<QJsonObject> result) {
-                             if (generation != generation_)
-                                 return;
-                             const auto health = interpretServiceStatus(result);
-                             if (health.lifecycle == CoreLifecycle::Unknown) {
-                                 // A timed-out or rejected status request is control-plane
-                                 // uncertainty, not proof that the owned core exited. Keep the
-                                 // session and only surface degraded TUN observation after
-                                 // repeated failures.
-                                 if (++statusFailures_ >= 3)
-                                     setTunState(tunTracker_.observe(QStringLiteral("Unknown")));
-                                 return;
-                             }
-                             statusFailures_ = 0;
-                             if (health.lifecycle == CoreLifecycle::Exited) {
-                                 coreExitDiagnostics_ = health.exitDiagnostics;
-                                 stop();
-                                 emit stopped(true);
-                                 return;
-                             }
-                             setTunState(tunTracker_.observe(health.tunState));
-                         });
+        if ((!serviceHealthClock_.isValid() || serviceHealthClock_.elapsed() >= 5000) &&
+            !servicePollPending_.contains(QStringLiteral("status"))) {
+            serviceHealthClock_.start();
+            servicePollPending_.insert(QStringLiteral("status"));
+            service_.command(QStringLiteral("status"), {},
+                             [this, generation](domain::Result<QJsonObject> result) {
+                                 if (generation != generation_)
+                                     return;
+                                 servicePollPending_.remove(QStringLiteral("status"));
+                                 const auto health = interpretServiceStatus(result);
+                                 if (health.lifecycle == CoreLifecycle::Unknown) {
+                                     // A timed-out or rejected status request is control-plane
+                                     // uncertainty, not proof that the owned core exited. Keep the
+                                     // session and only surface degraded TUN observation after
+                                     // repeated failures.
+                                     if (++statusFailures_ >= 3)
+                                         setTunState(
+                                             tunTracker_.observe(QStringLiteral("Unknown")));
+                                     return;
+                                 }
+                                 statusFailures_ = 0;
+                                 if (health.lifecycle == CoreLifecycle::Exited) {
+                                     coreExitDiagnostics_ = health.exitDiagnostics;
+                                     stop();
+                                     emit stopped(true);
+                                     return;
+                                 }
+                                 setTunState(tunTracker_.observe(health.tunState));
+                             });
+        }
         for (const auto& name : serviceStreams_) {
+            if (name == QStringLiteral("traffic"))
+                continue;
             const auto streamGeneration = streamGenerations_.value(name);
             if (name == QStringLiteral("logs") && !serviceLogDemand_.receiving(streamGeneration))
                 continue;
+            if (servicePollPending_.contains(name))
+                continue;
+            servicePollPending_.insert(name);
             service_.command(
                 name, {},
                 [this, name, generation, streamGeneration](domain::Result<QJsonObject> result) {
-                    if (generation != generation_ || !serviceMode_ ||
-                        streamGeneration != streamGenerations_.value(name) ||
+                    if (generation != generation_ || !serviceMode_)
+                        return;
+                    servicePollPending_.remove(name);
+                    if (streamGeneration != streamGenerations_.value(name) ||
                         !serviceStreams_.contains(name))
                         return;
                     if (const auto* value = std::get_if<QJsonObject>(&result)) {
@@ -116,8 +138,15 @@ EngineSession::EngineSession(std::unique_ptr<application::IDesktopProcess> proce
              : listenersPending_ ? QStringLiteral("CoreListenersNotOwned")
                                  : QStringLiteral("CoreReadyTimeout"));
     });
-    connect(process_.get(), &application::IDesktopProcess::finished, this, [this](int) {
+    connect(process_.get(), &application::IDesktopProcess::finished, this, [this](int code) {
         const bool unexpected = ready_;
+        coreExitDiagnostics_ = process_->exitDiagnostics();
+        if (coreExitDiagnostics_.isEmpty())
+            coreExitDiagnostics_ = {
+                {QStringLiteral("coreExitCode"), static_cast<qint64>(static_cast<quint32>(code))},
+                {QStringLiteral("coreExitedAt"),
+                 QDateTime::currentDateTimeUtc().toString(Qt::ISODateWithMs)}};
+        coreExitDiagnostics_.insert(QStringLiteral("stopReason"), QStringLiteral("CoreExited"));
         stop();
         emit stopped(unexpected);
         if (!unexpected) {
@@ -127,6 +156,7 @@ EngineSession::EngineSession(std::unique_ptr<application::IDesktopProcess> proce
 }
 EngineSession::~EngineSession() {
     serviceMode_ = false;
+    serviceTraffic_.reset();
     service_.close();
     stop();
 }
@@ -222,7 +252,10 @@ void EngineSession::start(const QString& executable, const QString& config,
                 tunDevice_ = value.value(QStringLiteral("tunDevice")).toString();
                 ready_ = true;
                 setTunState(QStringLiteral("On"));
+                servicePoll_.setInterval(serviceStreams_.contains(QStringLiteral("logs")) ? 1000
+                                                                                          : 5000);
                 servicePoll_.start();
+                serviceHealthClock_.invalidate();
                 emit becameReady(value.value(QStringLiteral("version")).toString());
                 refreshGroups();
             });
@@ -251,7 +284,12 @@ void EngineSession::start(const QString& executable, const QString& config,
     deadline_.start();
     probe();
 }
-void EngineSession::stop() {
+domain::CommandResult EngineSession::stop() {
+    return stopSession(false);
+}
+domain::CommandResult EngineSession::stopSession(bool preserveFailure) {
+    if (!preserveFailure)
+        deferredFailure_.clear();
     ++generation_;
     groupsPending_ = false;
     groupsQueued_ = false;
@@ -262,7 +300,10 @@ void EngineSession::stop() {
     servicePid_ = 0;
     tunDevice_.clear();
     servicePoll_.stop();
+    serviceTraffic_.reset();
     serviceStreams_.clear();
+    servicePollPending_.clear();
+    serviceHealthClock_.invalidate();
     serviceLogDemand_ = {};
     afterServiceStop_ = {};
     if (stopService && !serviceStopping_ && service_.hadSession()) {
@@ -274,8 +315,15 @@ void EngineSession::stop() {
             service_.close();
             if (const auto* error = std::get_if<domain::Error>(&result)) {
                 serviceCleanupUncertain_ = true;
-                emit failed(error->code);
+                deferredFailure_.clear();
+                Q_UNUSED(error)
+                emit failed(QStringLiteral("ServiceCleanupUncertain"));
                 return;
+            }
+            serviceCleanupUncertain_ = false;
+            if (!deferredFailure_.isEmpty()) {
+                const auto code = std::exchange(deferredFailure_, {});
+                emit failed(code);
             }
             if (continuation)
                 continuation();
@@ -308,9 +356,11 @@ void EngineSession::stop() {
             reply->abort();
         }
     }
-    process_->stop();
+    const auto stopped = process_->stop();
+    localCleanupUncertain_ = std::holds_alternative<domain::Error>(stopped);
     secret_.fill('\0');
     secret_.clear();
+    return stopped;
 }
 void EngineSession::setTunState(const QString& state) {
     if (tunState_ == state)
@@ -364,6 +414,9 @@ void EngineSession::api(const QByteArray& method, const QByteArray& path, const 
     }
     request(method, path, body, std::move(handler));
 }
+void EngineSession::cancelQueuedDelays() {
+    service_.cancelQueuedDelays();
+}
 void EngineSession::setStream(const QString& name, bool enabled) {
     if (name != QStringLiteral("traffic") && name != QStringLiteral("logs"))
         return;
@@ -376,7 +429,15 @@ void EngineSession::setStream(const QString& name, bool enabled) {
             serviceStreams_.insert(name);
         else
             serviceStreams_.remove(name);
-        if (name == QStringLiteral("logs"))
+        const auto interval = serviceStreams_.contains(QStringLiteral("logs")) ? 1000 : 5000;
+        if (servicePoll_.interval() != interval)
+            servicePoll_.setInterval(interval);
+        if (name == QStringLiteral("traffic")) {
+            serviceTraffic_.setEnabled(enabled && ready_);
+            if (wasEnabled && !(enabled && ready_))
+                service_.command(QStringLiteral("traffic"), {{QStringLiteral("enabled"), false}},
+                                 [](domain::Result<QJsonObject>) {});
+        } else
             syncServiceLogs();
         return;
     }
@@ -424,8 +485,22 @@ void EngineSession::setStream(const QString& name, bool enabled) {
     });
 }
 void EngineSession::fail(const QString& code) {
-    stop();
-    emit failed(code);
+    const bool hadLocalProcess = process_->running();
+    const bool deferred = serviceMode_ && service_.hadSession();
+    if (deferred)
+        deferredFailure_ = code;
+    const auto stopped = stopSession(true);
+    if (hadLocalProcess) {
+        const auto diagnostics = process_->exitDiagnostics();
+        if (!diagnostics.isEmpty())
+            coreExitDiagnostics_ = diagnostics;
+    }
+    if (const auto* error = std::get_if<domain::Error>(&stopped)) {
+        emit failed(error->code);
+        return;
+    }
+    if (!deferred)
+        emit failed(code);
 }
 void EngineSession::request(const QByteArray& method, const QByteArray& path,
                             const QJsonObject& body, ReplyHandler handler) {
@@ -434,7 +509,13 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
         QJsonObject payload;
         if (method == "GET" && path == "/proxies")
             action = QStringLiteral("groups");
-        else if (method == "GET" && path == "/rules")
+        else if (method == "GET" && path == "/configs")
+            action = QStringLiteral("configs");
+        else if (method == "PATCH" && path == "/configs" && body.size() == 1 &&
+                 body.contains(QStringLiteral("mode"))) {
+            action = QStringLiteral("mode");
+            payload = body;
+        } else if (method == "GET" && path == "/rules")
             action = QStringLiteral("rules");
         else if (method == "GET" && path == "/connections")
             action = QStringLiteral("connections");
@@ -718,19 +799,33 @@ void EngineSession::select(const QString& group, const QString& member) {
             });
 }
 void EngineSession::setMode(const QString& mode) {
+    changeMode(mode,
+               [this](bool success) { emit mutationFinished(QStringLiteral("mode"), success); });
+}
+void EngineSession::changeMode(const QString& mode, std::function<void(bool)> completed) {
     if (!ready_ || (mode != QStringLiteral("rule") && mode != QStringLiteral("global") &&
                     mode != QStringLiteral("direct"))) {
-        emit mutationFinished(QStringLiteral("mode"), false);
+        completed(false);
         return;
     }
-    request("PATCH", "/configs", {{QStringLiteral("mode"), mode}},
-            [this, mode](domain::Result<QJsonObject>) {
-                request("GET", "/configs", {}, [this, mode](domain::Result<QJsonObject> result) {
-                    const auto* object = std::get_if<QJsonObject>(&result);
-                    emit mutationFinished(QStringLiteral("mode"),
-                                          object && object->value(QStringLiteral("mode")) == mode);
-                });
-            });
+    const auto generation = generation_;
+    request(
+        "PATCH", "/configs", {{QStringLiteral("mode"), mode}},
+        [this, generation, mode, completed = std::move(completed)](domain::Result<QJsonObject>) {
+            if (generation != generation_ || !ready_)
+                return;
+            request("GET", "/configs", {},
+                    [this, generation, mode, completed](domain::Result<QJsonObject> result) {
+                        if (generation != generation_ || !ready_)
+                            return;
+                        const auto* object = std::get_if<QJsonObject>(&result);
+                        const bool success =
+                            object && object->value(QStringLiteral("mode")) == mode;
+                        if (success)
+                            expectedMode_ = mode;
+                        completed(success);
+                    });
+        });
 }
 void EngineSession::reload(const QString& config) {
     if (!ready_) {

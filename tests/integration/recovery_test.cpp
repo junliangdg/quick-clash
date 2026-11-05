@@ -5,6 +5,9 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonDocument>
+#include <QNetworkAccessManager>
+#include <QNetworkProxy>
+#include <QNetworkReply>
 #include <QProcess>
 #include <QSaveFile>
 #include <QTcpServer>
@@ -13,6 +16,7 @@
 #include <QUrl>
 #include <iostream>
 #include <utility>
+#include <yaml-cpp/yaml.h>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -105,8 +109,15 @@ bool import(DesktopRuntime& runtime) {
                                                "tests/fixtures/mvp/inline_valid.yaml")))
                            .toString(),
                        QStringLiteral("Recovery fixture"));
-    return waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }) &&
-           !runtime.snapshot().value("selectedId").toString().isEmpty();
+    const bool imported = waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }) &&
+                          !runtime.snapshot().value("selectedId").toString().isEmpty();
+    if (!imported)
+        std::cerr << "fixture import: "
+                  << QJsonDocument(runtime.snapshot().value("errors").toArray())
+                         .toJson(QJsonDocument::Compact)
+                         .constData()
+                  << '\n';
+    return imported;
 }
 int child(const QStringList& arguments) {
     const auto root = arguments.value(2);
@@ -360,6 +371,14 @@ bool networkAndConflict() {
                    waitFor([&] { return runtime.snapshot().value("recovering").toBool(); }),
                "core crash enters backoff"))
         return false;
+    bool diagnosed = false;
+    for (const auto& value : runtime.snapshot().value("errors").toArray()) {
+        const auto entry = value.toObject();
+        diagnosed |= entry.value("code") == "CoreExited" &&
+                     entry.value("detail").toString().contains("code=42");
+    }
+    if (!check(diagnosed, "ordinary core crash records its actual exit code"))
+        return false;
     runtime.stop();
     QElapsedTimer timer;
     timer.start();
@@ -402,14 +421,93 @@ bool failedStopPreservesProfile() {
     return check(preserved && settings.value == originalSettings(),
                  "failed proxy release must preserve active profile and selection for repair");
 }
+QString actualMode(JsonStore& store, const QJsonObject& state) {
+    const auto bytes = store.readBytes(
+        QStringLiteral("data/sessions/%1/config.yaml").arg(state.value("epoch").toString()));
+    if (!std::holds_alternative<QByteArray>(bytes))
+        return {};
+    const auto config = YAML::Load(std::get<QByteArray>(bytes).toStdString());
+    QNetworkAccessManager network;
+    network.setProxy(QNetworkProxy::NoProxy);
+    QNetworkRequest request(
+        QUrl(QStringLiteral("http://127.0.0.1:%1/configs")
+                 .arg(state.value("preferences").toObject().value("controllerPort").toInt())));
+    request.setRawHeader("Authorization",
+                         "Bearer " + QByteArray::fromStdString(config["secret"].as<std::string>()));
+    request.setTransferTimeout(3000);
+    auto* reply = network.get(request);
+    if (!waitFor([&] { return reply->isFinished(); }, 4000) ||
+        reply->error() != QNetworkReply::NoError)
+        return {};
+    return QJsonDocument::fromJson(reply->readAll()).object().value("mode").toString();
+}
+bool modeCommitFailureRestoresCore() {
+    QTemporaryDir directory;
+    JsonStore store(directory.path());
+    Settings settings;
+    if (!passed(store.open()))
+        return false;
+    DesktopRuntime runtime(store, nullptr, &settings);
+    runtime.initialize();
+    if (!import(runtime))
+        return false;
+    runtime.start(true);
+    if (!waitFor([&] { return ready(runtime); }))
+        return false;
+    const auto before = runtime.snapshot();
+    for (const auto* mode : {"global", "direct", "rule"}) {
+        runtime.setMode(QLatin1String(mode));
+        if (!check(waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }) &&
+                       ready(runtime) &&
+                       runtime.snapshot().value("corePid") == before.value("corePid") &&
+                       runtime.snapshot().value("epoch") == before.value("epoch") &&
+                       actualMode(store, runtime.snapshot()) == QLatin1String(mode),
+                   "mode PATCH confirms actual core without replacing process or epoch"))
+            return false;
+    }
+    const auto committed = runtime.snapshot();
+    HANDLE manifestLock = INVALID_HANDLE_VALUE;
+    // Allow reads and staging, but deny replacement of the original manifest. This
+    // exercises compensation after the real core has accepted the new mode.
+    QObject::connect(&runtime, &DesktopRuntime::changed, &runtime, [&](const QJsonObject& state) {
+        if (manifestLock == INVALID_HANDLE_VALUE && state.value("status") == "Reloading") {
+            const auto path = store.root() + QStringLiteral("/data/runtime/current.json");
+            manifestLock =
+                CreateFileW(reinterpret_cast<LPCWSTR>(path.utf16()), GENERIC_READ,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, 0, nullptr);
+        }
+    });
+    runtime.setMode(QStringLiteral("global"));
+    const bool finished = waitFor([&] { return !runtime.snapshot().value("busy").toBool(); });
+    const bool locked = manifestLock != INVALID_HANDLE_VALUE;
+    if (locked)
+        CloseHandle(manifestLock);
+    const auto after = runtime.snapshot();
+    const bool restored =
+        finished && locked && ready(runtime) && after.value("corePid") == before.value("corePid") &&
+        after.value("epoch") == before.value("epoch") &&
+        after.value("preferences").toObject().value("mode") == "rule" &&
+        after.value("settingsState").toObject().value("effective").toObject().value("mode") ==
+            "rule" &&
+        after.value("selectionGeneration") == committed.value("selectionGeneration") &&
+        after.value("systemProxy").toBool() && !after.value("error").toString().isEmpty();
+    const bool actualRestored = actualMode(store, after) == QStringLiteral("rule");
+    runtime.stop();
+    return check(restored && actualRestored && settings.value == originalSettings(),
+                 "mode commit failure restores the live mode, manifest and proxy lease");
+}
 } // namespace
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     const auto arguments = app.arguments();
     if (arguments.contains(QStringLiteral("--child")))
         return child(arguments);
-    if (!firstFailures() || !networkAndConflict() || !failedStopPreservesProfile() ||
-        !killedWorker(arguments.contains(QStringLiteral("--native-system-proxy"))))
+    if (!check(firstFailures(), "first failure scenarios") ||
+        !check(networkAndConflict(), "network and conflict scenarios") ||
+        !check(failedStopPreservesProfile(), "failed stop preservation") ||
+        !check(modeCommitFailureRestoresCore(), "mode commit compensation") ||
+        !check(killedWorker(arguments.contains(QStringLiteral("--native-system-proxy"))),
+               "killed worker recovery"))
         return 1;
     std::cout << "First port/platform/disk failures, managed partial failure, merged network "
                  "conflict, forced worker exit, Job cleanup, journal and lease recovery passed.\n";

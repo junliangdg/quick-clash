@@ -3,6 +3,8 @@
 #include "application/ports.h"
 #include "infra/core/core_health.h"
 #include "infra/core/service_client.h"
+#include "infra/core/service_traffic.h"
+#include <QElapsedTimer>
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -52,13 +54,15 @@ class EngineSession final : public QObject {
                const QString& coreArtifactId = {});
     void probeService(ApiHandler handler);
     void serviceResources(ApiHandler handler);
-    void stop();
+    domain::CommandResult stop();
     void refreshGroups();
     void select(const QString& group, const QString& member);
     void setMode(const QString& mode);
+    void changeMode(const QString& mode, std::function<void(bool)> completed);
     void reload(const QString& config);
     void api(const QByteArray& method, const QByteArray& path, const QJsonObject& body,
              ApiHandler handler);
+    void cancelQueuedDelays();
     void setStream(const QString& name, bool enabled);
     [[nodiscard]] bool running() const {
         return process_->running() || serviceMode_;
@@ -73,7 +77,7 @@ class EngineSession final : public QObject {
         return tunDevice_;
     }
     [[nodiscard]] bool cleanupUncertain() const {
-        return serviceCleanupUncertain_;
+        return serviceCleanupUncertain_ || localCleanupUncertain_;
     }
     [[nodiscard]] bool tunActive() const {
         return tunState_ == QStringLiteral("On");
@@ -110,18 +114,24 @@ class EngineSession final : public QObject {
                  ReplyHandler handler);
     void probe();
     void fail(const QString& code);
+    domain::CommandResult stopSession(bool preserveFailure);
     void syncServiceLogs();
     void setTunState(const QString& state);
     std::unique_ptr<application::IDesktopProcess> process_;
     ServiceClient service_;
+    ServiceTraffic serviceTraffic_;
     QTimer servicePoll_;
+    QElapsedTimer serviceHealthClock_;
     QSet<QString> serviceStreams_;
+    QSet<QString> servicePollPending_;
     QHash<QString, quint64> streamGenerations_;
     ServiceLogDemand serviceLogDemand_;
     bool serviceMode_ = false;
     quint32 servicePid_ = 0;
     bool serviceStopping_ = false;
     bool serviceCleanupUncertain_ = false;
+    bool localCleanupUncertain_ = false;
+    QString deferredFailure_;
     std::function<void()> afterServiceStop_;
     QNetworkAccessManager network_;
     QTimer probeTimer_;

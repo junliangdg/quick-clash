@@ -19,6 +19,27 @@ struct CoreHealth {
 // core having exited. Only an explicit ready=false response means the owned core is gone.
 [[nodiscard]] CoreHealth interpretServiceStatus(const domain::Result<QJsonObject>& result);
 
+enum class RecoveryFailure { Retry, Pause, CleanupUncertain };
+[[nodiscard]] RecoveryFailure classifyRecoveryFailure(const QString& code);
+
+// Shared by pre-Ready startup failures and short lived running TUN sessions.
+class TunRecoveryBudget final {
+  public:
+    [[nodiscard]] bool failed(bool tun, bool shortFailure) {
+        if (!tun || !shortFailure) {
+            failures_ = 0;
+            return false;
+        }
+        return ++failures_ >= 3;
+    }
+    void reset() {
+        failures_ = 0;
+    }
+
+  private:
+    int failures_ = 0;
+};
+
 // TUN observation is separate from core health. Debounce sustained loss so a single transient
 // adapter or route-table enumeration failure does not immediately surface to the user.
 class TunObservationTracker final {

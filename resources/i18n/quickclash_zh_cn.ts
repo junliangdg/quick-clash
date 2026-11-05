@@ -2013,6 +2013,9 @@
     <message><source>The Windows service could not be reached. Enable TUN again to retry; if it persists, check the service in Windows Services.</source><translation>无法连接 Windows 服务。再次开启 TUN 重试；若持续失败，请在 Windows 服务中检查服务状态。</translation></message>
     <message><source>The proxy core exited unexpectedly. TUN is no longer active. Retry; if it repeats, review the app log for the core exit code.</source><translation>代理内核意外退出，TUN 已不再生效。请重试；若反复发生，请在应用日志中查看核心退出码。</translation></message>
     <message><source>The proxy core exited while starting. Review the configuration and app log.</source><translation>代理内核在启动过程中退出。请检查配置和应用日志。</translation></message>
+    <message><source>The proxy core could not be confirmed stopped. Retry cleanup before starting another session.</source><translation>无法确认代理内核已停止。请先重试清理，再启动其他会话。</translation></message>
+    <message><source>The proxy mode could not be confirmed. The previous mode was restored.</source><translation>无法确认代理模式，已恢复之前的模式。</translation></message>
+    <message><source>The proxy mode could not be restored. Session stop was requested; review recovery before restarting.</source><translation>无法恢复代理模式，已请求停止会话；请先检查恢复状态，再重新启动。</translation></message>
     <message><source>The proxy core stopped while applying the profile. The previous profile was restored.</source><translation>代理内核在应用配置时停止，已恢复之前的配置。</translation></message>
     <message><source>The proxy core stopped repeatedly in a short time. Automatic restart is paused. Review the app log, then start it again.</source><translation>代理内核在短时间内反复停止，已暂停自动重启。请查看应用日志后手动重新启动。</translation></message>
     <message><source>TUN stopped repeatedly in a short time. QuickClash is running in proxy-only mode. Turn TUN on again to retry after checking other VPN or TUN software.</source><translation>TUN 在短时间内反复停止，QuickClash 已切换为仅代理模式。请检查其他 VPN 或 TUN 软件后，再次开启 TUN 重试。</translation></message>

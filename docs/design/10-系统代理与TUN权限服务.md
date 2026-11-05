@@ -86,15 +86,17 @@ TUN 设置提供受支持栈、DNS、自动路由和绕过范围的基础选项�
 
 ### 5.2 服务状态观测与诊断
 
-服务周期 status 返回 ready、tunState 和兼容布尔 tun。客户端只把明确 ready=false 视为 owned 内核退出；请求超时、IPC 错误或缺少响应对象一律视为 Unknown，不得停止内核或报告 CoreExited。tunState 的 On/Missing/Unknown 与内核健康独立；Missing 表示核心仍运行但目标适配器当前不可见，Unknown 表示网络枚举失败，均不得用于杀核。服务端连续三次轮询均为 Missing/Unknown 后才向界面报告 TUN 不可用，瞬时抖动保留 On。
+服务周期 status 返回 ready、tunState 和兼容布尔 tun。客户端健康查询默认每5秒一次；日志按需读取。流量需求期间服务持续连接内核 `/traffic`，单个在途请求等待下一条真实样本，客户端完成后立即申请下一条；停止需求后短暂空闲即关闭服务流，失败有界退避并保留真实断档。各流和状态不得并发重复请求，旧会话及需求的迟到结果不能发布。已认证命令续租，显式心跳只在10秒无命令发送时补充，并避免重复在途。客户端只把明确 ready=false 视为 owned 内核退出；请求超时、IPC 错误或缺少响应对象一律视为 Unknown，不得停止内核或报告 CoreExited。tunState 的 On/Missing/Unknown 与内核健康独立；Missing 表示核心仍运行但目标适配器当前不可见，Unknown 表示网络枚举失败，均不得用于杀核。客户端连续三次轮询均为 Missing/Unknown 后才向界面报告 TUN 不可用，瞬时抖动保留 On。
 
-内核真实退出时，服务在同一次 status 中返回 coreExitCode、coreExitedAt 和有界 coreStderr。原始 stderr 仅在服务内存保留最后 4 KiB，发送前按日志规则脱敏并截断至 2 KiB；客户端只记录这些字段，不拼接无限输出。自动恢复连续 3 次核心运行不足 60 秒的 TUN 会话后，设置 Blocked 并停止自动重开 TUN，以普通代理继续；用户显式操作 TUN 时清除该状态并重新计数。
+内核真实退出时，服务在同一次 status 中返回 coreExitCode、coreExitedAt 和有界 coreStderr。原始 stderr 仅在服务内存保留最后 4 KiB，发送前按日志规则脱敏并截断至 2 KiB；客户端只记录这些字段，不拼接无限输出。自动恢复连续3次核心运行不足60秒或Ready前可重试启动失败的TUN会话后，设置Blocked并停止自动重开TUN，以普通代理继续；启动失败必须先确认服务清理。权限、安装、配置与完整性错误暂停自动重试；清理不确定保留事务并禁止自动替代会话。用户显式操作TUN时清除阻断并重新计数。
 
 ## 6. 权限服务职责
 
 服务仅支持版本化固定协议。目标会话类：probeVersion/openSession/startCore/stopCore/querySession/closeSession/heartbeat；配置类：applyApprovedConfig；受限控制类：selectProxy/testLatency/closeConnections/refreshProvider；遥测类：setTelemetryDemand/queryMetrics；代理租约类：acquireProxyLease/queryProxyLease/releaseProxyLease；更新类：stageCoreUpdate/activateCoreVersion。实际开放命令由握手能力和平台版本约束，不以该目标列表隐含开放尚未实现的租约或更新操作。安装/服务升级/卸载走平台授权机制。startSession/stopSession 仅为 03 的应用门面，映射 open/start 和 stop/close，不是额外 IPC。
 
-每个请求固定 payload schema：资源用受管逻辑引用，组/节点校验当前 revision，关闭连接校验 epoch 与目标集合，提供者仅操作当前配置声明资源；更新只接受项目签名发行描述符和受限传输，不接受任意可执行路径。模式/TUN 经 applyApprovedConfig，不新增任意 PATCH 转发。禁止 shell、任意程序、任意路径写入及通用 HTTP/WS 隧道。
+模式热修改仅开放Ready会话的固定`mode`命令（单字段，枚举rule/global/direct）及`configs`只读回读，握手声明对应能力。客户端按[05](05-内核生命周期与控制API.md)的配置事务提交或补偿，不开放任意PATCH、端点或原始HTTP转发。
+
+每个请求固定 payload schema：资源用受管逻辑引用，组/节点校验当前 revision，关闭连接校验 epoch 与目标集合，提供者仅操作当前配置声明资源；更新只接受项目签名发行描述符和受限传输，不接受任意可执行路径。TUN及其他配置经 applyApprovedConfig，纯模式修改使用上述固定命令，不新增任意 PATCH 转发。禁止 shell、任意程序、任意路径写入及通用 HTTP/WS 隧道。
 
 IPC 包含 protocolVersion、requestId、sessionId、action、受限 payload；验证报文长度、字段、状态和请求速率，拒绝未知指令。客户端操作与服务内核所有权绑定，不接受仅凭猜测 sessionId 的控制。
 
@@ -137,6 +139,8 @@ Windows 版本只接受当前活动控制台桌面会话；已有owner时其他�
 握手比较协议主版本与能力；不兼容时禁用相关权限操作，提供升级服务，普通代理仍可使用。服务崩溃由系统服务管理器恢复，但不能未核对旧内核就再起一份。安装失败不自动降级为 root GUI。
 
 握手完成后的单次控制请求超时不得关闭已验证会话、停止 owned 内核或触发重新安装；它只影响该次操作的结果。服务状态只在明确 ready=false 时判定内核退出。
+
+所有客户端服务请求共用有界FIFO调度，实际发送至少间隔50ms，状态、心跳和遥测同样计入发送预算；排队与已发送请求合计最多40项，逐请求截止从实际发送开始。取消测速时删除尚未发送的测速请求，关闭或失联时取消调度、清空队列，旧回调不得进入新会话。服务保留每1000ms最多24个请求的背压预算；超额新请求记录并返回ServiceBusy，不断开owner连接或回收健康内核。缓存重放超限同样仅返回忙碌且保留原结果；改报文复用ID仍断开，真实断连仍按既有owned Job清理规则处理。
 
 日志只记操作与结果，不记录配置秘密。权限服务的配置大小、并发和启动次数有上限，避免普通客户端让高权限进程无限分配资源。
 

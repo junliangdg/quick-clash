@@ -1,5 +1,6 @@
 #include "application/ports.h"
 #include "domain/connection_snapshot.h"
+#include "domain/json_lookup.h"
 #include "domain/log_buffer.h"
 #include "domain/proxy_latency.h"
 #include "domain/resource_snapshot.h"
@@ -64,6 +65,49 @@ int main(int argc, char* argv[]) {
         return std::holds_alternative<Error>(result) ? 1 : 0;
     }
     try {
+        {
+            // Exercise the client lookup with absent, prefix and Unicode names.
+            const auto name = QStringLiteral("中文节点测速记录长名称");
+            const QJsonObject values{{name, 42}};
+            check(
+                jsonValue(values, QString{}).isUndefined() &&
+                    jsonValue(values, QStringLiteral("中文")).isUndefined() &&
+                    jsonValue(values, QStringLiteral("中文节点测速记录长名称更长")).isUndefined() &&
+                    jsonValue(values, name).toInt() == 42,
+                "client lookup matches the complete Unicode node name");
+            QJsonObject mixed{{QString{}, 0},
+                              {QStringLiteral("é"), 1},
+                              {QStringLiteral("🛰️节点"), 2},
+                              {QStringLiteral("中"), 3}};
+            for (int index = 0; index < 256; ++index)
+                mixed.insert(QStringLiteral("node_%1_中文").arg(index), index + 10);
+            const auto bytes = QJsonDocument(mixed).toJson();
+            for (const auto& object : {mixed, QJsonDocument::fromJson(bytes).object()}) {
+                for (auto entry = object.constBegin(); entry != object.constEnd(); ++entry)
+                    check(jsonValue(object, entry.key()) == entry.value(),
+                          "client lookup preserves every key across JSON roundtrip");
+                for (const auto& absent : {QStringLiteral("n"), QStringLiteral("node_99"),
+                                           QStringLiteral("中文"), QStringLiteral("🛰️")})
+                    check(jsonValue(object, absent).isUndefined(),
+                          "prefix names cannot borrow another node's value");
+            }
+            check(jsonValue({}, name).isUndefined(), "empty snapshot has no node value");
+            ProxyLatency latency;
+            const auto now = QDateTime::fromString("2026-11-05T00:00:00Z", Qt::ISODate);
+            const QStringList names{name, QStringLiteral("中文"),
+                                    QStringLiteral("中文节点测速记录长名称更长")};
+            for (int index = 0; index < names.size(); ++index)
+                latency.manual(names[index], "https://fixture.invalid/", "Success",
+                               now.addSecs(index), 40 + index);
+            const auto details = latency.details(now.addSecs(3));
+            for (int index = 0; index < names.size(); ++index)
+                check(jsonValue(details, names[index])
+                              .toObject()
+                              .value("latest")
+                              .toObject()
+                              .value("delayMs") == 40 + index,
+                      "latency records keep short and long Unicode node identities distinct");
+        }
         {
             QDirIterator files(QStringLiteral(QUICKCLASH_SOURCE_DIR "/qml"), {"*.qml"}, QDir::Files,
                                QDirIterator::Subdirectories);
@@ -212,6 +256,32 @@ int main(int argc, char* argv[]) {
             check(record("https://one.invalid/").value("state") == "Cancelled" &&
                       record("https://two.invalid/").value("state") == "Stale",
                   "changing global target invalidates only its manual observations");
+            latency.manual("node", "https://one.invalid/", "Success", now.addSecs(4), 38);
+            latency.invalidate("node", "https://one.invalid/");
+            latency.manual("node", "https://one.invalid/", "Queued", now.addSecs(5));
+            latency.manual("node", "https://one.invalid/", "Cancelled", now.addSecs(6));
+            check(record("https://one.invalid/").value("state") == "Cancelled" &&
+                      record("https://two.invalid/").value("state") == "Stale",
+                  "cancelling a network-restarted batch cannot revive the old target result");
+            latency.fenceCoreHistory("node", "https://one.invalid/", now.addSecs(10));
+            latency.manual("node", "https://one.invalid/", "Success", now.addSecs(7), 41);
+            latency.ingest(
+                {{"node",
+                  QJsonObject{{"extra", QJsonObject{{"https://one.invalid/",
+                                                     QJsonObject{{"history", history(900, 9)}}},
+                                                    {"https://two.invalid/",
+                                                     QJsonObject{{"history", history(63, 9)}}}}}}}},
+                now.addSecs(10));
+            check(record("https://one.invalid/").value("delayMs") == 41 &&
+                      record("https://two.invalid/").value("delayMs") == 63,
+                  "late old history cannot replace a retry or block another target");
+            latency.ingest(
+                {{"node", QJsonObject{{"extra",
+                                       QJsonObject{{"https://one.invalid/",
+                                                    QJsonObject{{"history", history(42, 11)}}}}}}}},
+                now.addSecs(11));
+            check(record("https://one.invalid/").value("delayMs") == 42,
+                  "core observations after the fence can update normally");
             check(latency.ingest({}, now.addSecs(4)) && latency.details(now).isEmpty(),
                   "missing nodes are released after all pending tests finish or cancel");
             latency.clear();
@@ -428,6 +498,13 @@ int main(int argc, char* argv[]) {
             check(!bytes.contains("LEAK"), "log credential variants are redacted before storage");
             check(safe.value("level") == "warning" && safe.value("originalLevel") == "Warn",
                   "log level normalization preserves safe original value");
+            const auto tail =
+                redactedLogEntry(2, "time", "Core", "error",
+                                 QString(4096, 'x') + "\ntail_marker password=LEAK_TAIL", true);
+            check(tail.value("message").toString().size() <= 2048 &&
+                      tail.value("message").toString().contains("tail_marker") &&
+                      !QJsonDocument(tail).toJson().contains("LEAK_TAIL"),
+                  "exit diagnostics keep the final output after redacting the whole tail");
             LogBuffer countRing(3, 4096);
             for (quint64 i = 0; i < 10; ++i)
                 countRing.append(redactedLogEntry(i, "time", "App", "info", "small"));

@@ -14,7 +14,9 @@ class Process final : public application::IDesktopProcess {
     domain::CommandResult start(const QString&, const QStringList&, const QString&, bool) override {
         return unsupported("CorePlatformUnsupported");
     }
-    void stop() override {}
+    domain::CommandResult stop() override {
+        return std::monostate{};
+    }
     bool running() const override {
         return false;
     }

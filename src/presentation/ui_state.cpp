@@ -1,4 +1,5 @@
 #include "presentation/ui_state.h"
+#include "domain/json_lookup.h"
 #include "domain/proxy_latency.h"
 #include <QClipboard>
 #include <QDateTime>
@@ -104,6 +105,8 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
         return;
     bool proxiesChanged = false;
     bool proxyGroupsChanged = false;
+    bool nodeListChanged = false;
+    bool latencyChanged = false;
     for (const auto& channel : update.invalidated) {
         const auto stream = application::channelStream(channel);
         if (!stream.isEmpty() && update.demandGenerations.value(stream) != 0 &&
@@ -140,19 +143,18 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
             ++proxyGroupRevision_;
             proxiesChanged = true;
             proxyGroupsChanged = true;
-            emit groupsChanged();
         } else if (it.key() == QStringLiteral("nodes")) {
             nodes_ = it.value().toArray();
             proxiesChanged = true;
-            emit nodesChanged();
+            nodeListChanged = true;
         } else if (it.key() == QStringLiteral("delays")) {
             delays_ = it.value().toObject();
             proxiesChanged = true;
-            emit delaysChanged();
+            latencyChanged = true;
         } else if (it.key() == QStringLiteral("delay_details")) {
             delayDetails_ = it.value().toObject();
             proxiesChanged = true;
-            emit delaysChanged();
+            latencyChanged = true;
         } else if (it.key() == QStringLiteral("connections")) {
             connectionRows_.apply(it.value().toArray());
         } else if (it.key() == QStringLiteral("rules")) {
@@ -167,6 +169,14 @@ void UiState::applyData(const application::RuntimeUpdate& update) {
     }
     if (proxiesChanged)
         updateProxyStates(proxyGroupsChanged);
+    // QML callbacks run synchronously. Publish only after the complete proxy
+    // snapshot and its group index agree, including current-node confirmation.
+    if (proxyGroupsChanged)
+        emit groupsChanged();
+    if (nodeListChanged)
+        emit nodesChanged();
+    if (latencyChanged)
+        emit delaysChanged();
     if (telemetryChanged)
         refreshTelemetry();
 }
@@ -215,10 +225,14 @@ QVariantMap UiState::proxyState(const QString& name, const QString& context) con
     }
     if (proxyGroups_.contains(current))
         current.clear(); // Cyclic or excessive depth; never invent a leaf.
-    auto detail = delayDetails_.value(current).toObject().value("latest").toObject();
-    if (!target.isEmpty()) {
+    // A group can arrive before its confirmed current member during startup.
+    // No node means no latency lookup, even when other nodes already have results.
+    QJsonObject detail;
+    if (!current.isEmpty())
+        detail = domain::jsonValue(delayDetails_, current).toObject().value("latest").toObject();
+    if (!current.isEmpty() && !target.isEmpty()) {
         detail = {};
-        const auto entry = delayDetails_.value(current).toObject();
+        const auto entry = domain::jsonValue(delayDetails_, current).toObject();
         for (const auto& value : entry.value("records").toArray()) {
             const auto record = value.toObject();
             if (record.value("targetHash") == target) {
@@ -230,9 +244,11 @@ QVariantMap UiState::proxyState(const QString& name, const QString& context) con
         if (latest.value("targetHash") == target)
             detail = latest;
     }
-    const auto result = detail.isEmpty()
-                            ? (target.isEmpty() ? delays_.value(current).toString() : QString{})
-                            : domain::ProxyLatency::text(detail);
+    const auto result =
+        current.isEmpty() ? QString{}
+        : detail.isEmpty()
+            ? (target.isEmpty() ? domain::jsonValue(delays_, current).toString() : QString{})
+            : domain::ProxyLatency::text(detail);
     const auto text = result == "Timeout"     ? tr("Timed out")
                       : result == "Failed"    ? tr("Unavailable")
                       : result == "Testing"   ? tr("Testing…")
@@ -500,6 +516,15 @@ QString UiState::runtimeError() const {
     if (code == QStringLiteral("CoreExited"))
         return tr("The proxy core exited unexpectedly. TUN is no longer active. Retry; if it "
                   "repeats, review the app log for the core exit code.");
+    if (code == QStringLiteral("CoreStopFailed") || code == QStringLiteral("CoreStopTimeout"))
+        return tr("The proxy core could not be confirmed stopped. Retry cleanup before starting "
+                  "another session.");
+    if (code == QStringLiteral("CoreModeReadbackFailed"))
+        return tr("The proxy mode could not be confirmed. The previous mode was restored.");
+    if (code == QStringLiteral("CoreModeRecoveryRequired"))
+        return tr(
+            "The proxy mode could not be restored. Session stop was requested; review recovery "
+            "before restarting.");
     if (code == QStringLiteral("CoreExitedDuringStart"))
         return tr("The proxy core exited while starting. Review the configuration and app log.");
     if (code == QStringLiteral("CoreExitedDuringApply"))

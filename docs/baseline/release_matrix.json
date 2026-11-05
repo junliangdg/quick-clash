@@ -4,7 +4,7 @@
   "internal_name": "quickclash",
   "license": "GPL-3.0-only",
   "license_file": "LICENSE",
-  "recorded_at": "2026-11-03",
+  "recorded_at": "2026-11-05",
   "toolchain": {
     "cxx_standard": 20,
     "qt": "6.9.0",
@@ -96,7 +96,7 @@
   },
   "support": {
     "windows": {
-      "development": "Windows x64 / CI minimum Qt 6.9.0; local Qt 6.12.0",
+      "development": "Windows x64 / CI minimum Qt 6.9.0; local validation tracked in docs/progress/TASKS.md",
       "validation": "P3-11 Windows daily subscription path: Release/WX build, affected 7/7 CTest, final runtime native WinINet HTTPS and exact restore, subscription schedule/auto apply/compensation, representative 56-node VLESS global HTTPS200/1MiB/TLS/node-chain and update/forwarding passed. Package dist/p3_daily, 10s Ready home private working set 59.62MB; G2 Blocked/G3 NotRun, clean ordinary-user environment and full P3 pending. See docs/progress/reports/20261025_daily_use.md",
       "runtime_minimum_candidate": "Windows 10 1809 candidate; clean-system verification P2-16"
     },

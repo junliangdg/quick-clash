@@ -27,7 +27,7 @@ FetchContent_Declare(yaml_cpp URL "${QUICKCLASH_YAML_ARCHIVE}"
     URL_HASH SHA256=${QUICKCLASH_YAML_SHA256}
     DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
 FetchContent_MakeAvailable(yaml_cpp)
-add_library(quickclash_domain src/domain/contracts.h src/domain/operation.cpp src/domain/operation.h
+add_library(quickclash_domain src/domain/contracts.h src/domain/json_lookup.h src/domain/operation.cpp src/domain/operation.h
     src/domain/log_buffer.cpp src/domain/log_buffer.h
     src/domain/subscription_usage.cpp src/domain/subscription_usage.h
     src/domain/subscription_name.cpp src/domain/subscription_name.h
@@ -120,6 +120,7 @@ add_library(quickclash_engine
     src/infra/core/proxy_catalog.h
     src/infra/core/service_client.h
     src/infra/core/service_protocol.cpp src/infra/core/service_protocol.h
+    src/infra/core/service_traffic.cpp src/infra/core/service_traffic.h
     src/infra/core/engine_session.cpp src/infra/core/engine_session.h)
 set_target_properties(quickclash_engine PROPERTIES AUTOMOC ON)
 target_link_libraries(quickclash_engine PUBLIC quickclash_storage Qt6::Network PRIVATE quickclash_platform)
@@ -444,7 +445,7 @@ if(BUILD_TESTING)
             set_tests_properties(runtime_subscription_download PROPERTIES TIMEOUT 90 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime PROPERTIES TIMEOUT 240 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_executable(recovery_test tests/integration/recovery_test.cpp)
-            target_link_libraries(recovery_test PRIVATE quickclash_runtime)
+            target_link_libraries(recovery_test PRIVATE quickclash_runtime yaml-cpp::yaml-cpp)
             quickclash_warnings(recovery_test)
             add_test(NAME recovery COMMAND recovery_test)
             set_tests_properties(recovery PROPERTIES TIMEOUT 60 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
@@ -458,6 +459,13 @@ if(BUILD_TESTING)
         set_tests_properties(settings_session PROPERTIES TIMEOUT 15)
         if(WIN32)
             add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
+            add_executable(service_core_pipe_test tests/integration/service_core_pipe_test.cpp
+                src/infra/core/pipe_http.cpp src/infra/core/pipe_http.h)
+            target_link_libraries(service_core_pipe_test PRIVATE quickclash_engine)
+            quickclash_warnings(service_core_pipe_test)
+            add_test(NAME service_core_pipe COMMAND service_core_pipe_test)
+            set_tests_properties(service_core_pipe PROPERTIES TIMEOUT 30
+                ENVIRONMENT "QUICKCLASH_TEST_CORE=${CMAKE_SOURCE_DIR}/.cache/mihomo/mihomo.exe")
             add_executable(startup_test tests/unit/startup_test.cpp)
             target_link_libraries(startup_test PRIVATE quickclash_platform)
             quickclash_warnings(startup_test)
@@ -590,6 +598,11 @@ if(BUILD_TESTING)
         quickclash_warnings(service_protocol_test)
         add_test(NAME service_protocol COMMAND service_protocol_test)
         set_tests_properties(service_protocol PROPERTIES TIMEOUT 15)
+        add_executable(service_traffic_test tests/unit/service_traffic_test.cpp)
+        target_link_libraries(service_traffic_test PRIVATE quickclash_engine)
+        quickclash_warnings(service_traffic_test)
+        add_test(NAME service_traffic COMMAND service_traffic_test)
+        set_tests_properties(service_traffic PROPERTIES TIMEOUT 15)
         add_executable(core_health_test tests/unit/core_health_test.cpp)
         target_link_libraries(core_health_test PRIVATE quickclash_engine)
         quickclash_warnings(core_health_test)
@@ -651,6 +664,13 @@ if(BUILD_TESTING)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             TIMEOUT 15)
         add_test(NAME host_lifecycle COMMAND quickclash --host-test)
+        if(WIN32)
+            add_test(NAME startup_reopen COMMAND pwsh -NoProfile -File
+                "${CMAKE_SOURCE_DIR}/tests/scripts/startup_reopen_test.ps1"
+                -Executable $<TARGET_FILE:quickclash>)
+            set_tests_properties(startup_reopen PROPERTIES LABELS ci_slow TIMEOUT 120
+                ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1;QT_QPA_FONTDIR=$ENV{SystemRoot}/Fonts")
+        endif()
         set_tests_properties(host_lifecycle PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             TIMEOUT 15)

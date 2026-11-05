@@ -13,7 +13,7 @@ class CoreArchive final : public QObject {
     ~CoreArchive() override;
     void extract(const QString& archive, const QString& directory, const QString& id,
                  std::function<void(domain::CommandResult)> completion);
-    void cancel();
+    domain::CommandResult cancel();
     [[nodiscard]] bool running() const;
     [[nodiscard]] QJsonObject memory() const;
 

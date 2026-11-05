@@ -7,6 +7,12 @@
 namespace quickclash::infra {
 inline constexpr int kServiceHandshakeTimeoutMs = 3000;
 inline constexpr qint64 kServiceHandshakeMaxBytes = 16 * 1024;
+inline constexpr int kServiceRateWindowMs = 1000;
+inline constexpr int kServiceRateLimit = 24;
+// Pace all commands, including status and telemetry, below the service's shared rate limit.
+// Concurrent probes keep their own deadlines, starting only after dispatch to the service.
+inline constexpr int kServiceRequestSpacingMs = 50;
+static_assert(kServiceRateWindowMs / kServiceRequestSpacingMs < kServiceRateLimit);
 // One GUI session may have several bounded feature requests and a node-delay batch in
 // flight. Keep the service backstop above the delay batch ceiling without making it
 // unbounded; the privileged service must still reject command storms.

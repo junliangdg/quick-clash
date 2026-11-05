@@ -27,4 +27,7 @@ class LogBuffer final {
 [[nodiscard]] QJsonObject redactedLogEntry(quint64 sequence, const QString& time,
                                            const QString& source, const QString& level,
                                            const QString& message);
+[[nodiscard]] QJsonObject redactedLogEntry(quint64 sequence, const QString& time,
+                                           const QString& source, const QString& level,
+                                           const QString& message, bool retainTail);
 } // namespace quickclash::domain

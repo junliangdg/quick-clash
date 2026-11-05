@@ -35,6 +35,9 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
     deadline_.setSingleShot(true);
     deadline_.setInterval(kRequestTimeoutMs);
     heartbeat_.setInterval(10000);
+    writeTimer_.setSingleShot(true);
+    writeTimer_.setTimerType(Qt::PreciseTimer);
+    connect(&writeTimer_, &QTimer::timeout, this, &ServiceClient::sendPendingCommands);
     // This timer only bounds connection and handshake. Once verified, every request owns its
     // timeout so one unanswered response does not abort the session.
     connect(&deadline_, &QTimer::timeout, this, [this] {
@@ -42,7 +45,14 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
             fail("ServiceTimeout");
     });
     connect(&heartbeat_, &QTimer::timeout, this, [this] {
-        command(QStringLiteral("heartbeat"), {}, [](domain::Result<QJsonObject>) {});
+        if (heartbeatPending_ || (activity_.isValid() && activity_.elapsed() < 10000))
+            return;
+        heartbeatPending_ = true;
+        const auto generation = closeGeneration_;
+        command(QStringLiteral("heartbeat"), {}, [this, generation](domain::Result<QJsonObject>) {
+            if (generation == closeGeneration_)
+                heartbeatPending_ = false;
+        });
     });
     connect(&socket_, &QLocalSocket::connected, this, [this] {
 #ifdef Q_OS_WIN
@@ -137,18 +147,7 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
                 sessionId_ = session;
                 handshakeId_.clear();
                 deadline_.stop();
-                for (const auto& bytes : pendingWrites_) {
-                    auto message = QJsonDocument::fromJson(bytes).object();
-                    message.insert(QStringLiteral("sessionId"), sessionId_);
-                    socket_.write(QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n');
-                    const auto id = message.value(QStringLiteral("requestId")).toString();
-                    QTimer::singleShot(kRequestTimeoutMs, this, [this, id] {
-                        auto handler = handlers_.take(id);
-                        if (handler)
-                            handler(storageError("ServiceTimeout"));
-                    });
-                }
-                pendingWrites_.clear();
+                sendPendingCommands();
                 heartbeat_.start();
                 continue;
             }
@@ -202,23 +201,58 @@ void ServiceClient::command(const QString& action, const QJsonObject& payload, H
         return;
     }
     handlers_.insert(id, std::move(handler));
+    pendingWrites_.append(bytes);
     if (connected()) {
-        socket_.write(bytes);
-        const auto timeout =
-            action == QStringLiteral("delay") ? kDelayRequestTimeoutMs : kRequestTimeoutMs;
-        QTimer::singleShot(timeout, this, [this, id] {
-            auto handler = handlers_.take(id);
-            if (handler)
-                handler(storageError("ServiceTimeout"));
-        });
-    } else {
-        pendingWrites_.append(bytes);
-        if (socket_.state() == QLocalSocket::UnconnectedState) {
-            connectService();
-        }
+        sendPendingCommands();
+    } else if (socket_.state() == QLocalSocket::UnconnectedState) {
+        connectService();
     }
     if (!verified_ && !deadline_.isActive())
         deadline_.start();
+}
+void ServiceClient::sendPendingCommands() {
+    if (!connected() || failing_ || pendingWrites_.isEmpty())
+        return;
+    const auto remaining =
+        writeClock_.isValid() ? kServiceRequestSpacingMs - writeClock_.elapsed() : 0;
+    if (remaining > 0) {
+        writeTimer_.start(static_cast<int>(remaining));
+        return;
+    }
+    // Keep request IDs in FIFO order. The bounded handlers_ ledger includes queued commands.
+    auto message = QJsonDocument::fromJson(pendingWrites_.takeFirst()).object();
+    message.insert(QStringLiteral("sessionId"), sessionId_);
+    const auto bytes = QJsonDocument(message).toJson(QJsonDocument::Compact) + '\n';
+    if (socket_.write(bytes) != bytes.size()) {
+        fail("ServiceUnavailable");
+        return;
+    }
+    writeClock_.start();
+    activity_.start();
+    const auto id = message.value(QStringLiteral("requestId")).toString();
+    const auto timeout = message.value(QStringLiteral("action")) == QStringLiteral("delay")
+                             ? kDelayRequestTimeoutMs
+                             : kRequestTimeoutMs;
+    QTimer::singleShot(timeout, this, [this, id] {
+        auto handler = handlers_.take(id);
+        if (handler)
+            handler(storageError("ServiceTimeout"));
+    });
+    if (!pendingWrites_.isEmpty())
+        writeTimer_.start(kServiceRequestSpacingMs);
+}
+void ServiceClient::cancelQueuedDelays() {
+    for (auto it = pendingWrites_.begin(); it != pendingWrites_.end();) {
+        const auto request = QJsonDocument::fromJson(*it).object();
+        if (request.value(QStringLiteral("action")) == QStringLiteral("delay")) {
+            handlers_.remove(request.value(QStringLiteral("requestId")).toString());
+            it = pendingWrites_.erase(it);
+        } else {
+            ++it;
+        }
+    }
+    if (pendingWrites_.isEmpty())
+        writeTimer_.stop();
 }
 void ServiceClient::connectService(int attempt) {
     if (pendingWrites_.isEmpty() || verified_ || socket_.state() != QLocalSocket::UnconnectedState)
@@ -261,6 +295,10 @@ void ServiceClient::fail(const char* code) {
     ++closeGeneration_;
     deadline_.stop();
     heartbeat_.stop();
+    writeTimer_.stop();
+    writeClock_.invalidate();
+    heartbeatPending_ = false;
+    activity_.invalidate();
     pendingWrites_.clear();
     input_.clear();
     sessionId_.clear();
@@ -286,6 +324,10 @@ void ServiceClient::close() {
     handshakeId_.clear();
     failing_ = true;
     heartbeat_.stop();
+    writeTimer_.stop();
+    writeClock_.invalidate();
+    heartbeatPending_ = false;
+    activity_.invalidate();
     deadline_.stop();
     handlers_.clear();
     pendingWrites_.clear();

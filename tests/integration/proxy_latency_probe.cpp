@@ -297,8 +297,76 @@ int proxyLatencyProbe() {
     runtime.featureCommand("delay", {"good", "https://injected.invalid/"});
     if (requests != previousRequests || progress() != previousProgress)
         return 18;
+    // A network notification invalidates the in-flight attempt, then retries the remaining
+    // work after reconciliation; the old core response cannot overwrite the new result.
+    hold = true;
+    const auto beforeNetworkChange = targets.value("/health");
+    runtime.featureCommand("delay", {"good", "auto"});
+    if (!wait([&] { return targets.value("/health") == beforeNetworkChange + 1; }))
+        return 28;
+    runtime.reconcile();
+    if (progress().value("state") != "Running" ||
+        record("good", healthTarget).value("state") != "Queued")
+        return 29;
+    hold = false;
+    if (!wait([&] {
+            return targets.value("/health") == beforeNetworkChange + 2 &&
+                   progress().value("state") == "Completed";
+        }) ||
+        record("good", healthTarget).value("state") != "Success")
+        return 30;
+    const auto freshDelay = record("good", healthTarget).value("delayMs").toInt();
+    for (const auto& socket : held)
+        if (socket) {
+            socket->write(
+                "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket->disconnectFromHost();
+        }
+    held.clear();
+    QElapsedTimer networkLate;
+    networkLate.start();
+    while (networkLate.elapsed() < 150) {
+        QCoreApplication::processEvents();
+        QThread::msleep(2);
+    }
+    runtime.featureCommand("refresh_groups", {});
+    QElapsedTimer historyRefresh;
+    historyRefresh.start();
+    while (historyRefresh.elapsed() < 400) {
+        QCoreApplication::processEvents();
+        QThread::msleep(2);
+    }
+    if (progress().value("state") != "Completed" ||
+        record("good", healthTarget).value("state") != "Success" ||
+        record("good", healthTarget).value("delayMs").toInt() != freshDelay)
+        return 31;
+    // Explicit cancellation while reconciliation is pending still prevents a restart.
+    hold = true;
+    const auto beforeCancel = targets.value("/health");
+    runtime.featureCommand("delay", {"good", "auto"});
+    if (!wait([&] { return targets.value("/health") == beforeCancel + 1; }))
+        return 32;
+    runtime.reconcile();
+    runtime.featureCommand("cancel_delays", {});
+    hold = false;
+    for (const auto& socket : held)
+        if (socket) {
+            socket->write(
+                "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket->disconnectFromHost();
+        }
+    held.clear();
+    QElapsedTimer cancelledSettle;
+    cancelledSettle.start();
+    while (cancelledSettle.elapsed() < 1800) {
+        QCoreApplication::processEvents();
+        QThread::msleep(2);
+    }
+    if (progress().value("state") != "Cancelled" || targets.value("/health") != beforeCancel + 1 ||
+        record("good", healthTarget).value("state") != "Cancelled")
+        return 33;
     runtime.featureCommand("delay_target", {"https://changed.invalid/"});
-    if (record("good", healthTarget).value("state") != "Success" ||
+    if (record("good", healthTarget).value("state") != "Cancelled" ||
         record("good", otherTarget).value("state") != "Success")
         return 19;
     runtime.selectProxy("parent", "bad");
@@ -322,15 +390,28 @@ int proxyLatencyProbe() {
         return 21;
     clockOffsetSeconds = 0;
     runtime.featureCommand("refresh_groups", {});
+    if (record("good", healthTarget).value("state") == "Success")
+        return 22; // A clock reversal must not revive a network-invalidated result.
+    // A completed node in a still-running batch must also be invalidated and cancelled.
+    hold = true;
+    runtime.featureCommand("delay_batch", {"parent"});
     if (!wait([&] {
-            return record("good", healthTarget).value("state") == "Success" &&
-                   publishedControl.value("features")
-                       .toObject()
-                       .value("delayTimes")
-                       .toObject()
-                       .contains("good");
+            return progress().value("completed").toInt() >= 1 &&
+                   progress().value("state") == "Running";
         }))
-        return 22;
+        return 34;
+    runtime.reconcile();
+    runtime.featureCommand("cancel_delays", {});
+    if (record("bad", healthTarget).value("state") != "Cancelled")
+        return 35;
+    hold = false;
+    for (const auto& socket : held)
+        if (socket) {
+            socket->write(
+                "HTTP/1.1 204 No Content\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+            socket->disconnectFromHost();
+        }
+    held.clear();
     runtime.stop();
     if (!runtime.snapshot().value("delay_details").toObject().isEmpty() ||
         !publishedControl.value("features").toObject().value("delayTimes").toObject().isEmpty())

@@ -22,6 +22,7 @@
 #include <QStandardPaths>
 #include <QTcpServer>
 #include <QUrl>
+#include <utility>
 #include <yaml-cpp/yaml.h>
 // clang-format off
 #define WIN32_LEAN_AND_MEAN
@@ -128,7 +129,10 @@ bool protectedPath(const QString& path) {
 } // namespace
 ServiceHost::ServiceHost(QObject* parent)
     : QObject(parent), store_(serviceData()),
-      buildId_(infra::ServiceProtocol::executableBuild(QCoreApplication::applicationFilePath())) {
+      buildId_(infra::ServiceProtocol::executableBuild(QCoreApplication::applicationFilePath())),
+      traffic_([this](std::function<void(const QJsonObject&)> handler) {
+          return infra::pipeJsonStream(this, pipe_, "/traffic", std::move(handler));
+      }) {
     corePath_ = portableCorePath(installation());
     directory_ = store_.root() + QStringLiteral("/session");
     configPath_ = directory_ + QStringLiteral("/config.yaml");
@@ -193,6 +197,7 @@ ServiceHost::ServiceHost(QObject* parent)
         if (stopReason_.isEmpty() || stopReason_ == QStringLiteral("CoreExited"))
             stopReason_ = QStringLiteral("CoreExited");
         ready_ = false;
+        traffic_.close("ServiceCoreNotReady");
     });
 }
 bool ServiceHost::listen() {
@@ -394,21 +399,26 @@ void ServiceHost::receive(QLocalSocket* socket) {
             requestCount_ = 0;
         }
         lastHeartbeat_.restart();
-        if (requestWindow_.elapsed() >= 1000) {
+        if (requestWindow_.elapsed() >= infra::kServiceRateWindowMs) {
             requestWindow_.restart();
             requestCount_ = 0;
         }
-        if (++requestCount_ > 24) {
-            socket->abort();
-            return;
-        }
+        // A legitimate delay batch can exhaust the rate budget without losing ownership.
+        // Keep the connection and replay semantics; reject only the excess command below.
+        const bool rateLimited = requestCount_ >= infra::kServiceRateLimit;
+        if (!rateLimited)
+            ++requestCount_;
         const auto decision = protocol_.accept(request);
         if (decision.disposition == infra::ServiceProtocol::Disposition::Disconnect) {
             socket->abort();
             return;
         }
         if (decision.disposition == infra::ServiceProtocol::Disposition::Cached) {
-            socket->write(QJsonDocument(decision.response).toJson(QJsonDocument::Compact) + '\n');
+            if (rateLimited)
+                answer(socket, id, failure("ServiceBusy"));
+            else
+                socket->write(QJsonDocument(decision.response).toJson(QJsonDocument::Compact) +
+                              '\n');
             continue;
         }
         if (decision.disposition == infra::ServiceProtocol::Disposition::Pending)
@@ -425,6 +435,10 @@ void ServiceHost::receive(QLocalSocket* socket) {
             action != QStringLiteral("resources") &&
             request.value(QStringLiteral("engineEpoch")).toString() != epoch_) {
             answer(socket, id, failure("ServiceStaleSession"));
+            continue;
+        }
+        if (rateLimited) {
+            answer(socket, id, failure("ServiceBusy"));
             continue;
         }
         dispatch(socket, id, request.value(QStringLiteral("action")).toString(),
@@ -454,11 +468,21 @@ void ServiceHost::api(QLocalSocket* socket, const QString& id, const QByteArray&
     const auto epoch = epoch_;
     infra::pipeHttp(this, pipe_, method, path, body,
                     [this, peer, id, epoch](domain::Result<QJsonObject> result) {
-                        if (epoch != epoch_)
+                        if (epoch != epoch_ || !ready_)
                             result = failure("ServiceStaleSession");
                         if (peer && peer == owner_)
                             answer(peer, id, std::move(result));
                     });
+}
+void ServiceHost::requestTraffic(QLocalSocket* socket, const QString& id) {
+    QPointer<QLocalSocket> peer(socket);
+    const auto epoch = epoch_;
+    traffic_.request([this, peer, id, epoch](domain::Result<QJsonObject> result) {
+        if (epoch != epoch_ || !ready_)
+            result = failure("ServiceStaleSession");
+        if (peer && peer == owner_)
+            answer(peer, id, std::move(result));
+    });
 }
 void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QString& action,
                            const QJsonObject& payload) {
@@ -478,6 +502,17 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
     }
     if (action == QStringLiteral("heartbeat") && payload.isEmpty()) {
         answer(socket, id, QJsonObject{});
+        return;
+    }
+    if (action == QStringLiteral("configs") && payload.isEmpty() && ready_) {
+        api(socket, id, "GET", "/configs");
+        return;
+    }
+    if (action == QStringLiteral("mode") && ready_ &&
+        fixedFields(payload, {QStringLiteral("mode")}) &&
+        QStringList{QStringLiteral("rule"), QStringLiteral("global"), QStringLiteral("direct")}
+            .contains(payload.value(QStringLiteral("mode")).toString())) {
+        api(socket, id, "PATCH", "/configs", payload);
         return;
     }
     if (action == QStringLiteral("start")) {
@@ -515,12 +550,13 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         if (!stopDetail_.isEmpty())
             result.insert(QStringLiteral("stopDetail"), stopDetail_.left(1024));
         if (coreExitKnown_) {
-            result.insert(QStringLiteral("coreExitCode"), coreExitCode_);
+            result.insert(QStringLiteral("coreExitCode"),
+                          static_cast<qint64>(static_cast<quint32>(coreExitCode_)));
             result.insert(QStringLiteral("coreExitedAt"), coreExitedAt_.toString(Qt::ISODate));
             const auto tail = QString::fromUtf8(core_.outputTail());
             if (!tail.isEmpty()) {
                 const auto safe = domain::redactedLogEntry(0, {}, QStringLiteral("Core"),
-                                                           QStringLiteral("error"), tail);
+                                                           QStringLiteral("error"), tail, true);
                 result.insert(QStringLiteral("coreStderr"), safe.value(QStringLiteral("message")));
             }
         }
@@ -577,6 +613,17 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         answer(socket, id, failure("ServiceCoreNotReady"));
         return;
     }
+    if (action == QStringLiteral("traffic")) {
+        if (payload.isEmpty())
+            requestTraffic(socket, id);
+        else if (payload.size() == 1 && payload.value(QStringLiteral("enabled")).isBool() &&
+                 !payload.value(QStringLiteral("enabled")).toBool()) {
+            traffic_.close();
+            answer(socket, id, QJsonObject{});
+        } else
+            answer(socket, id, failure("ServiceActionRejected"));
+        return;
+    }
     if (action == QStringLiteral("logs") && payload.isEmpty()) {
         if (!logStream_ && !logBuffer_.entries().isEmpty()) {
             logBuffer_.append(QJsonObject{
@@ -608,17 +655,12 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
     }
     if (action == QStringLiteral("delay") &&
         fixedFields(payload, {QStringLiteral("name"), QStringLiteral("url")})) {
-        const auto name = payload.value(QStringLiteral("name")).toString();
-        const QUrl url(payload.value(QStringLiteral("url")).toString());
-        if (!groups_.contains(name) || !url.isValid() || url.scheme() != QStringLiteral("https") ||
-            !url.userInfo().isEmpty() || url.hasFragment() || url.toString().size() > 8192) {
+        const auto path = infra::serviceDelayPath(payload, groups_);
+        if (!path) {
             answer(socket, id, failure("ServiceDelayRejected"));
             return;
         }
-        api(socket, id, "GET",
-            "/proxies/" + QUrl::toPercentEncoding(name) +
-                "/delay?timeout=" + QByteArray::number(infra::kNodeDelayTimeoutMs) +
-                "&url=" + QUrl::toPercentEncoding(url.toString()));
+        api(socket, id, "GET", *path);
         return;
     }
     if (action == QStringLiteral("close_connection") &&
@@ -643,7 +685,7 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         const auto epoch = epoch_;
         infra::pipeHttp(this, pipe_, "PUT", *path, {},
                         [this, peer, id, epoch](domain::Result<QJsonObject> result) {
-                            if (epoch != epoch_)
+                            if (epoch != epoch_ || !ready_)
                                 return;
                             providerRefreshPending_ = false;
                             if (peer && peer == owner_)
@@ -660,7 +702,7 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         const auto epoch = epoch_;
         infra::pipeHttp(this, pipe_, "GET", "/proxies", {},
                         [this, peer, id, epoch](domain::Result<QJsonObject> result) {
-                            if (epoch != epoch_)
+                            if (epoch != epoch_ || !ready_)
                                 return;
                             if (const auto* value = std::get_if<QJsonObject>(&result))
                                 groups_ = infra::proxySelectionCatalog(
@@ -675,7 +717,6 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         {QStringLiteral("connections"), "/connections"},
         {QStringLiteral("proxy_providers"), "/providers/proxies"},
         {QStringLiteral("rule_providers"), "/providers/rules"},
-        {QStringLiteral("traffic"), "/traffic"},
         {QStringLiteral("logs"), "/logs?level=info"}};
     if (reads.contains(action)) {
         api(socket, id, "GET", reads.value(action));
@@ -1133,15 +1174,22 @@ void ServiceHost::stop(const char* reason) {
     // A real core exit keeps its own reason even when the client asks for the follow-up stop.
     if (reason && !coreExitKnown_)
         stopReason_ = QString::fromLatin1(reason);
-    epoch_.clear();
+    traffic_.close("ServiceStaleSession");
     delete logStream_.data();
     logBuffer_.clear();
     disconnect(validationConnection_);
     busy_ = false;
     ready_ = false;
     tunDesired_ = false;
-    validator_.stop();
-    core_.stop();
+    const auto validationStopped = validator_.stop();
+    const auto coreStopped = core_.stop();
+    if (std::holds_alternative<domain::Error>(validationStopped) ||
+        std::holds_alternative<domain::Error>(coreStopped)) {
+        stopDetail_ = QStringLiteral("Owned process termination could not be confirmed");
+        configClean_ = false;
+        return;
+    }
+    epoch_.clear();
     groups_ = {};
     providers_.clear();
     providerRefreshPending_ = false;

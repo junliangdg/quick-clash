@@ -2,6 +2,7 @@
 #include "domain/log_buffer.h"
 #include "infra/core/pipe_http.h"
 #include "infra/core/service_protocol.h"
+#include "infra/core/service_traffic.h"
 #include "infra/storage/json_store.h"
 #include "platform/windows/owned_process.h"
 #include "platform/windows/trusted_client_root.h"
@@ -37,6 +38,7 @@ class ServiceHost final : public QObject {
     void probe(QLocalSocket* socket, const QString& id, int attempt);
     void api(QLocalSocket* socket, const QString& id, const QByteArray& method,
              const QByteArray& path, const QJsonObject& body = {});
+    void requestTraffic(QLocalSocket* socket, const QString& id);
     void stop(const char* reason = "Explicit");
     void confirmStopped(QLocalSocket* socket, const QString& id, int attempt);
     [[nodiscard]] TunObservation observeTun();
@@ -89,6 +91,7 @@ class ServiceHost final : public QObject {
     bool ready_ = false;
     bool tunDesired_ = false;
     bool configClean_ = false;
+    infra::ServiceTrafficRelay traffic_;
     QPointer<QObject> logStream_;
     domain::LogBuffer logBuffer_{200, 512 * 1024};
     quint64 logSequence_ = 0;

@@ -1,4 +1,5 @@
 #include "domain/proxy_latency.h"
+#include "domain/json_lookup.h"
 #include <QCryptographicHash>
 #include <QSet>
 #include <algorithm>
@@ -26,7 +27,7 @@ QString ProxyLatency::text(const QJsonObject& observation) {
     return observation.value("state").toString();
 }
 bool ProxyLatency::insert(const QString& name, QJsonObject observation) {
-    auto targets = records_.value(name).toObject();
+    auto targets = jsonValue(records_, name).toObject();
     const auto key = observation.value("targetHash").toString();
     const auto old = targets.value(key).toObject();
     if (!old.isEmpty() && timestamp(old) >= timestamp(observation))
@@ -37,8 +38,8 @@ bool ProxyLatency::insert(const QString& name, QJsonObject observation) {
     return true;
 }
 void ProxyLatency::trim(const QString& name) {
-    auto records = records_.value(name).toObject();
-    auto manual = manual_.value(name).toObject();
+    auto records = jsonValue(records_, name).toObject();
+    auto manual = jsonValue(manual_, name).toObject();
     auto targets = records;
     for (auto it = manual.begin(); it != manual.end(); ++it)
         targets.insert(it.key(), it.value());
@@ -58,6 +59,17 @@ void ProxyLatency::trim(const QString& name) {
         manual.remove(oldest.key());
         targets.erase(oldest);
     }
+    auto fences = jsonValue(coreHistoryFences_, name).toObject();
+    for (auto it = fences.begin(); it != fences.end();) {
+        if (!targets.contains(it.key()))
+            it = fences.erase(it);
+        else
+            ++it;
+    }
+    if (fences.isEmpty())
+        coreHistoryFences_.remove(name);
+    else
+        coreHistoryFences_.insert(name, fences);
     records_.insert(name, records);
     if (!manual.isEmpty())
         manual_.insert(name, manual);
@@ -82,7 +94,13 @@ bool ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
                 if (!time.isValid() || time > now.addSecs(5) || delay < 0 || delay > 65535 ||
                     std::floor(delay) != delay)
                     continue;
-                const auto cancelled = manual_.value(it.key()).toObject().value(hash).toObject();
+                const auto fence = QDateTime::fromString(
+                    jsonValue(coreHistoryFences_, it.key()).toObject().value(hash).toString(),
+                    Qt::ISODateWithMs);
+                if (fence.isValid() && time <= fence)
+                    continue; // An invalidated in-flight probe can finish after its retry.
+                const auto cancelled =
+                    jsonValue(manual_, it.key()).toObject().value(hash).toObject();
                 if (cancelled.value("state") == "Cancelled" &&
                     cancelled.value("targetHash") == hash &&
                     time <= timestamp(cancelled).addSecs(5))
@@ -116,7 +134,7 @@ bool ProxyLatency::ingest(const QJsonObject& proxies, const QDateTime& now) {
             }
         }
     }
-    for (auto* values : {&records_, &manual_}) {
+    for (auto* values : {&records_, &manual_, &coreHistoryFences_}) {
         for (auto it = values->begin(); it != values->end();) {
             // A concurrent group refresh can omit a node whose request is still
             // pending. Keep its state until the test finishes or is cancelled.
@@ -138,12 +156,34 @@ void ProxyLatency::manual(const QString& name, const QString& target, const QStr
                             {"state", state}};
     if (delay >= 0)
         observation.insert("delayMs", delay);
-    auto manual = manual_.value(name).toObject();
+    auto manual = jsonValue(manual_, name).toObject();
     manual.insert(targetHash(target), observation);
     manual_.insert(name, manual);
     if (state == "Success" || state == "Failed" || state == "Timeout")
         insert(name, observation);
     trim(name);
+}
+void ProxyLatency::invalidate(const QString& name, const QString& target) {
+    const auto hash = targetHash(target);
+    for (auto* values : {&records_, &manual_}) {
+        auto entries = jsonValue(*values, name).toObject();
+        auto record = entries.value(hash).toObject();
+        if (record.isEmpty())
+            continue;
+        record.insert("state", "Stale");
+        entries.insert(hash, record);
+        values->insert(name, entries);
+    }
+}
+void ProxyLatency::fenceCoreHistory(const QString& name, const QString& target,
+                                    const QDateTime& until) {
+    const auto hash = targetHash(target);
+    auto fences = jsonValue(coreHistoryFences_, name).toObject();
+    const auto previous = QDateTime::fromString(fences.value(hash).toString(), Qt::ISODateWithMs);
+    if (!previous.isValid() || until > previous) {
+        fences.insert(hash, until.toUTC().toString(Qt::ISODateWithMs));
+        coreHistoryFences_.insert(name, fences);
+    }
 }
 void ProxyLatency::invalidateManual(const QString& target) {
     const auto hash = target.isEmpty() ? QString{} : targetHash(target);
@@ -157,7 +197,7 @@ void ProxyLatency::invalidateManual(const QString& target) {
             value.value() = record;
         }
         it.value() = values;
-        auto targets = records_.value(it.key()).toObject();
+        auto targets = jsonValue(records_, it.key()).toObject();
         for (auto entry = targets.begin(); entry != targets.end(); ++entry) {
             auto record = entry.value().toObject();
             if (record.value("source") == "Manual" && (target.isEmpty() || entry.key() == hash)) {
@@ -171,6 +211,7 @@ void ProxyLatency::invalidateManual(const QString& target) {
 void ProxyLatency::clear() {
     records_ = {};
     manual_ = {};
+    coreHistoryFences_ = {};
 }
 QJsonObject ProxyLatency::details(const QDateTime& now) const {
     QJsonObject result;
@@ -180,8 +221,8 @@ QJsonObject ProxyLatency::details(const QDateTime& now) const {
     for (auto it = manual_.begin(); it != manual_.end(); ++it)
         names.insert(it.key());
     for (const auto& name : names) {
-        auto targets = records_.value(name).toObject();
-        const auto manual = manual_.value(name).toObject();
+        auto targets = jsonValue(records_, name).toObject();
+        const auto manual = jsonValue(manual_, name).toObject();
         for (auto it = manual.begin(); it != manual.end(); ++it) {
             const auto record = it.value().toObject();
             if (record.value("state") == "Queued" || record.value("state") == "Testing" ||

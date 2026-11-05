@@ -190,11 +190,14 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void launch();
     void confirmed();
     void failedApply(const QString& code);
+    void failModeChange(const QString& code);
+    void recordCoreExit();
     void cleanupSession();
     void collectGarbage();
     void maintenanceCommand(const QString& command, const QStringList& arguments);
     void clearMaintenancePreview();
     void restorePreferences();
+    domain::CommandResult stopValidation();
     void loadOfflineGroups();
     void pollFeatures();
     void releaseFeature(const QString& stream);
@@ -257,6 +260,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
                          const QString& scope = {});
     void pumpDelayTests();
     void cancelDelayTests();
+    void restartDelayTestsAfterReconcile();
+    void resumeDelayTestsAfterReconcile();
     struct WebsiteProbe {
         QElapsedTimer timer;
         QJsonObject context;
@@ -359,10 +364,13 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QJsonObject delayTimes_;
     bool delayRunning_ = false;
     QList<DelayProbe> delayQueue_;
+    QList<DelayProbe> delayProbes_;
     QHash<QString, DelayProbe> activeDelays_;
     QHash<QString, QString> groupDelayTargets_;
     QString delayTarget_ = QStringLiteral("https://www.gstatic.com/generate_204");
     quint64 delayGeneration_ = 0;
+    bool delayReconcilePending_ = false;
+    QTimer delayReconcileTimer_;
     bool closingConnections_ = false;
     quint64 logSequence_ = 0;
     QElapsedTimer resourceSampleClock_;
@@ -375,7 +383,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool backgroundManaged_ = false;
     bool backgroundSuppressed_ = false;
     int recoveryFailures_ = 0;
-    int shortFailures_ = 0;
+    infra::TunRecoveryBudget tunRecoveryBudget_;
     bool tunRecoveryBlocked_ = false;
     bool tunPending_ = false;
     bool tunDisabling_ = false;
@@ -452,6 +460,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool proxyDesired_ = false;
     bool previouslyProxied_ = false;
     bool restartAttempt_ = false;
+    bool modeOnlyApply_ = false;
     bool persistedProxyIntent_ = false;
     std::optional<bool> previousProxyIntent_;
     quint64 operationGeneration_ = 0;

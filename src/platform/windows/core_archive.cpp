@@ -27,10 +27,12 @@ CoreArchive::CoreArchive(QObject* parent) : QObject(parent), state_(std::make_un
                                  : domain::CommandResult{infra::storageError("CoreArchiveFailed")});
     });
     connect(&state_->deadline, &QTimer::timeout, this, [this] {
-        state_->process.stop();
+        const auto stopped = state_->process.stop();
         auto completion = std::move(state_->completion);
         if (completion)
-            completion(infra::storageError("CoreArchiveFailed"));
+            completion(std::holds_alternative<domain::Error>(stopped)
+                           ? stopped
+                           : domain::CommandResult{infra::storageError("CoreArchiveFailed")});
     });
 }
 CoreArchive::~CoreArchive() {
@@ -42,14 +44,18 @@ bool CoreArchive::running() const {
 QJsonObject CoreArchive::memory() const {
     return state_->process.memory();
 }
-void CoreArchive::cancel() {
+domain::CommandResult CoreArchive::cancel() {
     state_->completion = {};
     state_->deadline.stop();
-    state_->process.stop();
+    return state_->process.stop();
 }
 void CoreArchive::extract(const QString& archive, const QString& directory, const QString& id,
                           std::function<void(domain::CommandResult)> completion) {
-    cancel();
+    const auto stopped = cancel();
+    if (std::holds_alternative<domain::Error>(stopped)) {
+        completion(stopped);
+        return;
+    }
     const auto artifact = coreArtifact(id);
     QFile file(archive);
     QCryptographicHash hash(QCryptographicHash::Sha256);

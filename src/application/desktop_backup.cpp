@@ -187,10 +187,9 @@ void DesktopRuntime::cancelBackupRestore() {
         return;
     if (backupRestore_ && backupRestore_->active) {
         ++operationGeneration_;
-        validationCompletion_ = {};
-        validationDeadline_.stop();
-        validator_->stop();
-        staging_.reset();
+        const auto stopped = stopValidation();
+        if (const auto* failure = std::get_if<domain::Error>(&stopped))
+            error(failure->code);
         busy_ = false;
     }
     backupRestore_.reset();

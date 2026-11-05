@@ -3,7 +3,6 @@
 #include "platform/process_memory.h"
 #include <QDateTime>
 #include <QProcessEnvironment>
-#include <QTimer>
 #include <memory>
 
 namespace quickclash::platform {
@@ -20,7 +19,8 @@ class OwnedProcess final : public application::IDesktopProcess {
                                               const QStringList& arguments,
                                               const QString& directory, bool isolated,
                                               const QProcessEnvironment& environment);
-    void stop() override;
+    domain::CommandResult stop() override;
+    [[nodiscard]] QJsonObject exitDiagnostics() const override;
     [[nodiscard]] bool running() const override;
     [[nodiscard]] quint32 pid() const override;
     [[nodiscard]] QJsonObject memory() const override;
@@ -45,7 +45,6 @@ class OwnedProcess final : public application::IDesktopProcess {
     void drainOutput();
     struct State;
     std::unique_ptr<State> state_;
-    QTimer timer_;
     qsizetype outputBytes_ = 0;
     QByteArray outputTail_;
     int exitCode_ = 0;

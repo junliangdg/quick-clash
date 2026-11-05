@@ -14,7 +14,11 @@ class IDesktopProcess : public QObject {
                                                       const QStringList& arguments,
                                                       const QString& directory,
                                                       bool isolated = false) = 0;
-    virtual void stop() = 0;
+    // Failure preserves ownership; callers must not clean files or launch a replacement.
+    virtual domain::CommandResult stop() = 0;
+    [[nodiscard]] virtual QJsonObject exitDiagnostics() const {
+        return {};
+    }
     [[nodiscard]] virtual bool running() const = 0;
     [[nodiscard]] virtual quint32 pid() const = 0;
     [[nodiscard]] virtual QJsonObject memory() const = 0;

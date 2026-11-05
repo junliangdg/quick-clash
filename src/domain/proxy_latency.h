@@ -12,6 +12,8 @@ class ProxyLatency final {
     bool ingest(const QJsonObject& proxies, const QDateTime& now);
     void manual(const QString& name, const QString& target, const QString& state,
                 const QDateTime& time, int delay = -1);
+    void invalidate(const QString& name, const QString& target);
+    void fenceCoreHistory(const QString& name, const QString& target, const QDateTime& until);
     void invalidateManual(const QString& target = {});
     void clear();
     [[nodiscard]] QJsonObject details(const QDateTime& now) const;
@@ -23,5 +25,6 @@ class ProxyLatency final {
     void trim(const QString& name);
     QJsonObject records_;
     QJsonObject manual_;
+    QJsonObject coreHistoryFences_;
 };
 } // namespace quickclash::domain

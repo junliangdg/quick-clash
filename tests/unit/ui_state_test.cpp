@@ -114,6 +114,56 @@ int main(int argc, char* argv[]) {
         }
         {
             UiState proxies;
+            const auto unicodeNode = QStringLiteral("中文节点测速记录长名称");
+            const QJsonObject observed{{"state", "Success"}, {"delayMs", 42}};
+            proxies.applyData(
+                {1,
+                 "proxy",
+                 {{"delay_details", QJsonObject{{unicodeNode, QJsonObject{{"latest", observed}}}}},
+                  {"delays", QJsonObject{{unicodeNode, "42 ms"}}}}});
+            for (const auto& name :
+                 QStringList{QString{}, QStringLiteral("中文"),
+                             QStringLiteral("中文节点测速记录长名称更长"), unicodeNode}) {
+                const auto result = proxies.proxyState(name);
+                check(result.value("node") == name &&
+                          result.value("result").toString() ==
+                              (name == unicodeNode ? QStringLiteral("42 ms") : QString{}),
+                      "startup without a current node never borrows a Unicode node's latency");
+            }
+            const QJsonObject unresolved{{"name", "unresolved"},
+                                         {"type", "Selector"},
+                                         {"members", QJsonArray{unicodeNode}},
+                                         {"current", ""}};
+            proxies.applyData({1, "proxy", {{"groups", QJsonArray{unresolved}}}});
+            check(proxies.proxyState("unresolved").value("node").toString().isEmpty() &&
+                      proxies.proxyState("unresolved").value("result").toString().isEmpty(),
+                  "unconfirmed group selection has no latency during asynchronous startup");
+            int observations = 0;
+            const auto observe = [&] {
+                ++observations;
+                const auto state = proxies.proxyState("unresolved");
+                check(state.value("node") == unicodeNode && state.value("result") == "81 ms",
+                      "every synchronous observer sees matching groups and latency snapshot");
+            };
+            QObject::connect(&proxies, &UiState::groupsChanged, &proxies, observe);
+            QObject::connect(&proxies, &UiState::nodesChanged, &proxies, observe);
+            QObject::connect(&proxies, &UiState::delaysChanged, &proxies, observe);
+            QObject::connect(&proxies, &UiState::proxyStatesChanged, &proxies, observe);
+            auto confirmed = unresolved;
+            confirmed.insert("current", unicodeNode);
+            auto updated = observed;
+            updated.insert("delayMs", 81);
+            proxies.applyData({1,
+                               "proxy",
+                               {{"groups", QJsonArray{confirmed}},
+                                {"nodes", QJsonArray{QJsonObject{{"name", unicodeNode}}}},
+                                {"delays", QJsonObject{{unicodeNode, "81 ms"}}},
+                                {"delay_details",
+                                 QJsonObject{{unicodeNode, QJsonObject{{"latest", updated}}}}}}});
+            check(observations == 4, "one completed snapshot publishes each proxy notification");
+        }
+        {
+            UiState proxies;
             int stateNotifications = 0;
             quint64 signalledGroupRevision = 0;
             QVariantMap signalledGroup;
@@ -286,15 +336,28 @@ int main(int argc, char* argv[]) {
         }
         {
             UiState errors;
-            for (const auto* code :
-                 {"CoreListenersNotOwned", "CoreListenerPortUnavailable",
-                  "CoreConfigReadbackFailed", "ServiceInstallationRequired",
-                  "ServiceClientUntrusted", "ServiceNotRunning", "ServiceSetupDeclined",
-                  "ServiceSetupClientRootRejected", "ServiceSetupPackageMissing",
-                  "ServiceSetupLaunchFailed", "ServiceSetupTimeout", "ServiceSetupFailed",
-                  "CoreListenerAddressInUse", "CoreListenerAccessDenied", "ServiceTunRouteConflict",
-                  "ServiceTunNameExhausted", "ServiceNetworkInspectionFailed",
-                  "NoAvailableListenerPorts"}) {
+            for (const auto* code : {"CoreListenersNotOwned",
+                                     "CoreListenerPortUnavailable",
+                                     "CoreConfigReadbackFailed",
+                                     "ServiceInstallationRequired",
+                                     "ServiceClientUntrusted",
+                                     "ServiceNotRunning",
+                                     "ServiceSetupDeclined",
+                                     "ServiceSetupClientRootRejected",
+                                     "ServiceSetupPackageMissing",
+                                     "ServiceSetupLaunchFailed",
+                                     "ServiceSetupTimeout",
+                                     "ServiceSetupFailed",
+                                     "CoreListenerAddressInUse",
+                                     "CoreListenerAccessDenied",
+                                     "ServiceTunRouteConflict",
+                                     "ServiceTunNameExhausted",
+                                     "ServiceNetworkInspectionFailed",
+                                     "NoAvailableListenerPorts",
+                                     "CoreStopFailed",
+                                     "CoreStopTimeout",
+                                     "CoreModeReadbackFailed",
+                                     "CoreModeRecoveryRequired"}) {
                 errors.applyControl({{"publicationGeneration", "1"},
                                      {"epoch", "errors"},
                                      {"error", QString::fromLatin1(code)}});

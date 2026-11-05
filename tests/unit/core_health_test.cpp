@@ -11,6 +11,30 @@ using quickclash::infra::TunObservationTracker;
 
 int main(int argc, char** argv) {
     QCoreApplication application(argc, argv);
+    using quickclash::infra::classifyRecoveryFailure;
+    using quickclash::infra::RecoveryFailure;
+    quickclash::infra::TunRecoveryBudget budget;
+    if (budget.failed(true, true) || budget.failed(true, true) || !budget.failed(true, true))
+        return 12;
+    budget.reset();
+    if (budget.failed(true, true) || budget.failed(true, false) || budget.failed(true, true) ||
+        budget.failed(false, true) || budget.failed(true, true))
+        return 13;
+    for (const auto* code :
+         {"ServiceStartTimeout", "ServiceTunReadbackFailed", "CoreExitedDuringStart"})
+        if (classifyRecoveryFailure(QLatin1String(code)) != RecoveryFailure::Retry)
+            return 14;
+    for (const auto* code : {"ServiceClientUntrusted", "ServiceInstallationRequired",
+                             "ServiceConfigRejected", "CoreIntegrityFailed"})
+        if (classifyRecoveryFailure(QLatin1String(code)) != RecoveryFailure::Pause)
+            return 15;
+    if (classifyRecoveryFailure(QStringLiteral("CoreStopTimeout")) !=
+        RecoveryFailure::CleanupUncertain)
+        return 16;
+    const auto crashed = interpretServiceStatus(quickclash::domain::Result<QJsonObject>{QJsonObject{
+        {QStringLiteral("ready"), false}, {QStringLiteral("coreExitCode"), qint64{3221225477}}}});
+    if (crashed.exitDiagnostics.value(QStringLiteral("coreExitCode")).toInteger() != 3221225477LL)
+        return 17;
 
     // A healthy core whose TUN adapter cannot be observed must stay alive.
     const auto missing = interpretServiceStatus(quickclash::domain::Result<QJsonObject>{

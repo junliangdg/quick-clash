@@ -205,6 +205,8 @@ int main(int argc, char** argv) {
                  }),
                  "encoded selector readback", runtime))
         return 6;
+    const auto modePid = runtime.snapshot().value("corePid");
+    const auto modeEpoch = runtime.snapshot().value("epoch");
     runtime.featureCommand("network_settings",
                            {"global", QString::number(mixed), QString::number(controller),
                             "profile", runtime.snapshot().value("epoch").toString(), "0"});
@@ -228,13 +230,18 @@ int main(int argc, char** argv) {
                          QStringLiteral("global"),
                  "mode", runtime))
         return 7;
+    if (!require(runtime.snapshot().value("corePid") == modePid &&
+                     runtime.snapshot().value("epoch") == modeEpoch,
+                 "mode change retains the owned process and epoch", runtime))
+        return 185;
     const auto unchangedSettings = runtime.snapshot().value("preferences").toObject();
     runtime.featureCommand("suggest_listener_ports", {});
-    runtime.featureCommand("network_settings", {unchangedSettings.value("mode").toString(),
-                                                QString::number(mixed), QString::number(controller),
-                                                unchangedSettings.value("dnsMode").toString(),
-                                                runtime.snapshot().value("epoch").toString(),
-                                                QString::number(runtime.selectionGeneration())});
+    runtime.featureCommand("network_settings",
+                           {unchangedSettings.value("mode").toString(), QString::number(mixed),
+                            QString::number(controller),
+                            unchangedSettings.value("dnsMode").toString("profile"),
+                            runtime.snapshot().value("epoch").toString(),
+                            QString::number(runtime.selectionGeneration())});
     if (!require(
             !runtime.snapshot().value("features").toObject().contains("listenerPortCandidate") &&
                 runtime.snapshot().value("preferences") == unchangedSettings,

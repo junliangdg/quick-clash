@@ -23,6 +23,7 @@ void ServiceClient::command(const QString&, const QJsonObject&, Handler handler)
         handler(error);
     });
 }
+void ServiceClient::cancelQueuedDelays() {}
 void ServiceClient::close() {
     ++closeGeneration_;
 }

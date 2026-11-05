@@ -1,9 +1,12 @@
+#include "infra/core/delay_policy.h"
 #include "infra/core/proxy_catalog.h"
 #include "infra/core/service_protocol.h"
 #include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QTemporaryFile>
+#include <QUrl>
+#include <QUrlQuery>
 #include <iostream>
 
 using quickclash::infra::ServiceProtocol;
@@ -123,6 +126,30 @@ int main(int argc, char** argv) {
             catalog.value("choose").toObject() !=
                 QJsonObject{{"type", "Selector"}, {"all", QJsonArray{"DIRECT", "node"}}})
             return 27;
+    }
+    {
+        const QJsonObject catalog{{"node /?", QJsonObject{}}};
+        for (const auto& target : {QStringLiteral("http://fixture.invalid/health?x=1"),
+                                   QStringLiteral("https://fixture.invalid/health")}) {
+            const auto path = quickclash::infra::serviceDelayPath(
+                {{"name", "node /?"}, {"url", target}}, catalog);
+            if (!path || !path->startsWith("/proxies/node%20%2F%3F/delay?") ||
+                QUrlQuery(QUrl(QStringLiteral("http://localhost") + QString::fromLatin1(*path)))
+                        .queryItemValue("url", QUrl::FullyDecoded) != target)
+                return 28;
+        }
+        for (const auto& target :
+             {QStringLiteral("http:///missing-host"), QStringLiteral("ftp://fixture.invalid/"),
+              QStringLiteral("http://user@fixture.invalid/"),
+              QStringLiteral("http://fixture.invalid/#fragment"),
+              QStringLiteral("https://fixture.invalid/") + QString(8192, 'x')})
+            if (quickclash::infra::serviceDelayPath({{"name", "node /?"}, {"url", target}},
+                                                    catalog))
+                return 29;
+        if (quickclash::infra::serviceDelayPath(
+                {{"name", "unknown"}, {"url", "http://fixture.invalid/"}}, catalog) ||
+            quickclash::infra::serviceDelayPath({{"name", "node /?"}, {"url", 12}}, catalog))
+            return 30;
     }
     if (!ServiceProtocol::validResponse(response))
         return 13;

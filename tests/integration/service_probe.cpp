@@ -1,4 +1,5 @@
 #include "service_probe.h"
+#include "application/desktop_runtime.h"
 #include "infra/core/service_client.h"
 #include "infra/core/service_protocol.h"
 #include "platform/process_memory.h"
@@ -13,9 +14,13 @@
 #include <QLocalSocket>
 #include <QSaveFile>
 #include <QTcpServer>
+#include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QTimer>
+#include <QUrl>
 #include <array>
+#include <utility>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -206,6 +211,346 @@ bool controllerDenied() {
     return false;
 #endif
 }
+bool delayBatchProbe(infra::ServiceClient& client, QJsonObject& evidence) {
+    const auto initial = command(client, QStringLiteral("status"));
+    evidence.insert(QStringLiteral("initial"), initial);
+    if (!initial.value(QStringLiteral("clean")).toBool())
+        return false;
+    QTcpServer held;
+    if (!held.listen(QHostAddress::LocalHost))
+        return false;
+    QObject::connect(&held, &QTcpServer::newConnection, &held, [&held] {
+        while (auto* socket = held.nextPendingConnection()) {
+            QObject::connect(socket, &QTcpSocket::readyRead, socket,
+                             [socket] { (void)socket->readAll(); });
+            QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+        }
+    });
+    auto payload = startPayload();
+    QByteArray yaml = "proxies:\n";
+    for (int index = 0; index < 96; ++index)
+        yaml += "  - {name: fast" + QByteArray::number(index) +
+                ", type: http, server: 127.0.0.1, port: 1}\n";
+    for (int index = 0; index < 32; ++index)
+        yaml += "  - {name: slow" + QByteArray::number(index) +
+                ", type: http, server: 127.0.0.1, port: " + QByteArray::number(held.serverPort()) +
+                "}\n";
+    QTcpServer health;
+    if (!health.listen(QHostAddress::LocalHost))
+        return false;
+    int healthRequests = 0;
+    QObject::connect(&health, &QTcpServer::newConnection, &health, [&] {
+        while (auto* socket = health.nextPendingConnection()) {
+            QObject::connect(socket, &QTcpSocket::readyRead, socket, [&, socket] {
+                auto request = socket->property("request").toByteArray() + socket->readAll();
+                socket->setProperty("request", request);
+                if (request.startsWith("CONNECT ") && request.contains("\r\n\r\n")) {
+                    socket->setProperty("request", QByteArray{});
+                    socket->write("HTTP/1.1 200 Connection Established\r\n\r\n");
+                    return;
+                }
+                if (!request.contains("\r\n\r\n"))
+                    return;
+                ++healthRequests;
+                QTimer::singleShot(15, socket, [socket] {
+                    socket->write("HTTP/1.1 204 No Content\r\nContent-Length: 0\r\n"
+                                  "Connection: close\r\n\r\n");
+                    socket->disconnectFromHost();
+                });
+            });
+            QObject::connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
+        }
+    });
+    yaml += "  - {name: good, type: http, server: 127.0.0.1, port: " +
+            QByteArray::number(health.serverPort()) + "}\n";
+    yaml += "proxy-groups:\n  - {name: choose, type: select, proxies: [DIRECT, fast0]}\n"
+            "rules: ['MATCH,DIRECT']\n";
+    payload.insert(QStringLiteral("yaml"), QString::fromLatin1(yaml.toBase64()));
+    const auto started = command(client, QStringLiteral("start"), payload);
+    evidence.insert(QStringLiteral("started"), started);
+    if (started.value(QStringLiteral("pid")).toInt() <= 0)
+        return false;
+    const auto groups = command(client, QStringLiteral("groups"));
+    bool lost = false;
+    const auto lostConnection =
+        QObject::connect(&client, &infra::ServiceClient::lost, &client, [&] { lost = true; });
+    bool passed = groups.value(QStringLiteral("proxies")).toObject().contains("slow31");
+    const auto httpDelay = command(client, QStringLiteral("delay"),
+                                   {{"name", "good"}, {"url", "http://fixture.invalid/health"}});
+    const auto rejectedDelay =
+        command(client, QStringLiteral("delay"),
+                {{"name", "good"}, {"url", "http://user@fixture.invalid/health"}});
+    passed &= httpDelay.value("delay").toInt() > 0 && healthRequests == 1 &&
+              rejectedDelay.value("error") == QStringLiteral("ServiceDelayRejected");
+    evidence.insert(QStringLiteral("httpDelay"), httpDelay);
+    evidence.insert(QStringLiteral("rejectedDelay"), rejectedDelay);
+    evidence.insert(QStringLiteral("httpRequests"), healthRequests);
+    QList<qint64> trafficTimes;
+    QElapsedTimer trafficClock;
+    trafficClock.start();
+    for (int sample = 0; sample < 4; ++sample) {
+        const auto value = command(client, QStringLiteral("traffic"));
+        passed &= value.value("up").isDouble() && value.value("down").isDouble();
+        trafficTimes.append(trafficClock.elapsed());
+    }
+    QJsonArray observedTraffic;
+    for (const auto time : std::as_const(trafficTimes))
+        observedTraffic.append(time);
+    for (qsizetype sample = 1; sample < trafficTimes.size(); ++sample)
+        passed &= trafficTimes[sample] - trafficTimes[sample - 1] >= 750 &&
+                  trafficTimes[sample] - trafficTimes[sample - 1] <= 1350;
+    (void)command(client, QStringLiteral("traffic"), {{"enabled", false}});
+    evidence.insert(QStringLiteral("trafficSamples"), observedTraffic);
+    int cancelledCallbacks = 0;
+    for (int index = 0; index < 32; ++index)
+        client.command(QStringLiteral("delay"),
+                       {{"name", QStringLiteral("slow%1").arg(index)},
+                        {"url", QStringLiteral("https://fixture.invalid/cancel")}},
+                       [&](domain::Result<QJsonObject>) { ++cancelledCallbacks; });
+    client.cancelQueuedDelays();
+    const auto batch = [&](const QString& prefix, int count) {
+        int submitted = 0, completed = 0, active = 0, polls = 0;
+        bool healthy = true, pollPending = false;
+        QJsonObject errors;
+        QElapsedTimer elapsed;
+        elapsed.start();
+        std::function<void()> pump;
+        pump = [&] {
+            while (!lost && active < 32 && submitted < count) {
+                const auto name = prefix + QString::number(submitted++);
+                ++active;
+                client.command(
+                    QStringLiteral("delay"),
+                    {{QStringLiteral("name"), name},
+                     {QStringLiteral("url"), QStringLiteral("https://fixture.invalid/health")}},
+                    [&](domain::Result<QJsonObject> result) {
+                        --active;
+                        ++completed;
+                        if (const auto* error = std::get_if<domain::Error>(&result)) {
+                            errors.insert(error->code, errors.value(error->code).toInt() + 1);
+                            healthy &= error->code == QStringLiteral("CoreRequestFailed") ||
+                                       error->code == QStringLiteral("CoreRequestTimeout");
+                        }
+                    });
+            }
+        };
+        QTimer poll;
+        poll.setInterval(250);
+        QObject::connect(&poll, &QTimer::timeout, &poll, [&] {
+            if (pollPending || lost)
+                return;
+            pollPending = true;
+            client.command(QStringLiteral("status"), {}, [&](domain::Result<QJsonObject> state) {
+                pollPending = false;
+                ++polls;
+                const auto* value = std::get_if<QJsonObject>(&state);
+                healthy &= value && value->value(QStringLiteral("ready")).toBool() &&
+                           value->value(QStringLiteral("pid")) == started.value("pid") &&
+                           value->value(QStringLiteral("epoch")) == started.value("epoch");
+            });
+        });
+        poll.start();
+        const bool finished = waitFor([&] {
+            pump();
+            return lost || (completed == count && !pollPending);
+        });
+        poll.stop();
+        const bool ok = finished && !lost && healthy && completed == count && polls > 0;
+        evidence.insert(prefix, QJsonObject{{"submitted", submitted},
+                                            {"completed", completed},
+                                            {"polls", polls},
+                                            {"elapsedMs", elapsed.elapsed()},
+                                            {"errors", errors},
+                                            {"passed", ok}});
+        // Every callback above borrows this batch's stack. Close on failure before returning.
+        if (!finished || active || pollPending)
+            client.close();
+        return ok;
+    };
+    passed &= batch(QStringLiteral("fast"), 96);
+    if (passed)
+        passed &= batch(QStringLiteral("slow"), 32);
+    QObject::disconnect(lostConnection);
+    const auto after = command(client, QStringLiteral("status"));
+    passed &= !lost && after.value(QStringLiteral("ready")).toBool() &&
+              after.value(QStringLiteral("pid")) == started.value("pid") &&
+              after.value(QStringLiteral("epoch")) == started.value("epoch");
+    const auto stopped = command(client, QStringLiteral("stop"));
+    const auto clean = command(client, QStringLiteral("status"));
+    evidence.insert(QStringLiteral("after"), after);
+    evidence.insert(QStringLiteral("stopped"), stopped);
+    evidence.insert(QStringLiteral("clean"), clean);
+    evidence.insert(QStringLiteral("lost"), lost);
+    passed &= stopped.value(QStringLiteral("stopped")).toBool() &&
+              clean.value(QStringLiteral("clean")).toBool() && cancelledCallbacks <= 1;
+    evidence.insert(QStringLiteral("cancelledCallbacks"), cancelledCallbacks);
+    evidence.insert(QStringLiteral("passed"), passed);
+    return passed;
+}
+bool tunDelayProbe(infra::ServiceClient& client, QJsonObject& evidence) {
+    const auto initial = command(client, QStringLiteral("status"));
+    client.close();
+    evidence.insert(QStringLiteral("initial"), initial);
+    if (!initial.value(QStringLiteral("clean")).toBool())
+        return false;
+    QTemporaryDir directory;
+    infra::JsonStore store(directory.path());
+    if (!directory.isValid() || !std::holds_alternative<std::monostate>(store.open()))
+        return false;
+    auto runtime = std::make_unique<application::DesktopRuntime>(store);
+    runtime->initialize();
+    QTcpServer mixed, controller;
+    if (!mixed.listen(QHostAddress::LocalHost) || !controller.listen(QHostAddress::LocalHost))
+        return false;
+    runtime->setPorts(mixed.serverPort(), controller.serverPort());
+    mixed.close();
+    controller.close();
+    QByteArray yaml = "proxies:\n";
+    for (int index = 0; index < 96; ++index)
+        yaml += "  - {name: node" + QByteArray::number(index) +
+                ", type: http, server: 127.0.0.1, port: 1}\n";
+    yaml += "proxy-groups:\n  - name: batch\n    type: select\n    proxies: [";
+    for (int index = 0; index < 96; ++index)
+        yaml += (index ? ", node" : "node") + QByteArray::number(index);
+    yaml += "]\nrules: ['MATCH,DIRECT']\n";
+    const auto saved = store.writeBytes(QStringLiteral("data/nodes.yaml"), yaml);
+    if (!std::holds_alternative<std::monostate>(saved))
+        return false;
+    runtime->importFile(QUrl::fromLocalFile(directory.filePath("data/nodes.yaml")).toString(),
+                        QStringLiteral("TUN delay fixture"));
+    bool passed = waitFor([&] { return !runtime->snapshot().value("busy").toBool(); });
+    const auto profiles = runtime->snapshot().value("profiles").toArray();
+    if (!passed || profiles.size() != 1)
+        return false;
+    runtime->selectProfile(profiles.first().toObject().value("id").toString());
+    passed &= waitFor([&] { return !runtime->snapshot().value("busy").toBool(); });
+    runtime->setTun(true);
+    passed &= waitFor([&] {
+        const auto state = runtime->snapshot();
+        return state.value("ready").toBool() && !state.value("busy").toBool() &&
+               state.value("tunState") == QStringLiteral("On");
+    });
+    const auto started = runtime->snapshot();
+    evidence.insert(QStringLiteral("started"), QJsonObject{{"pid", started.value("corePid")},
+                                                           {"epoch", started.value("epoch")},
+                                                           {"tunState", started.value("tunState")},
+                                                           {"error", started.value("error")}});
+    const auto progress = [&] {
+        return runtime->snapshot().value("features").toObject().value("delayTest").toObject();
+    };
+    bool healthy = true;
+    const auto observation =
+        QObject::connect(runtime.get(), &application::DesktopRuntime::changed, runtime.get(),
+                         [&](const QJsonObject& state) {
+                             healthy &= state.value("ready").toBool() &&
+                                        state.value("corePid") == started.value("corePid") &&
+                                        state.value("epoch") == started.value("epoch");
+                         });
+    if (passed) {
+        runtime->setDemands({QStringLiteral("proxies"), QStringLiteral("traffic")});
+        runtime->featureCommand(QStringLiteral("delay_batch"), {QStringLiteral("batch")});
+        passed &= waitFor([&] { return progress().value("state") == QStringLiteral("Completed"); });
+        passed &= progress().value("total").toInt() == 96 &&
+                  progress().value("completed").toInt() == 96 && healthy;
+        evidence.insert(QStringLiteral("batch"), progress());
+        runtime->featureCommand(QStringLiteral("delay_batch"), {QStringLiteral("batch")});
+        runtime->featureCommand(QStringLiteral("cancel_delays"), {});
+        passed &= progress().value("state") == QStringLiteral("Cancelled");
+        evidence.insert(QStringLiteral("cancelled"), progress());
+        runtime->featureCommand(QStringLiteral("delay"),
+                                {QStringLiteral("node0"), QStringLiteral("batch")});
+        passed &= waitFor([&] { return progress().value("state") == QStringLiteral("Completed"); });
+        passed &= progress().value("total").toInt() == 1 &&
+                  progress().value("completed").toInt() == 1 && healthy;
+        evidence.insert(QStringLiteral("single"), progress());
+    }
+    QObject::disconnect(observation);
+    runtime->stop();
+    runtime.reset();
+    QJsonObject clean;
+    passed &= waitFor([&] {
+        clean = command(client, QStringLiteral("status"));
+        const bool stopped = clean.value(QStringLiteral("clean")).toBool();
+        if (!stopped)
+            client.close();
+        return stopped;
+    });
+    evidence.insert(QStringLiteral("clean"), clean);
+    evidence.insert(QStringLiteral("passed"), passed);
+    return passed;
+}
+bool rateLimitProbe(QJsonObject& evidence) {
+    QLocalSocket socket;
+    socket.connectToServer(QStringLiteral("QuickClash.Service.v1"));
+    if (!waitFor([&] { return socket.state() != QLocalSocket::ConnectingState; }) ||
+        socket.state() != QLocalSocket::ConnectedState)
+        return false;
+    QString session, epoch;
+    const auto request = [&](int id, const QString& action,
+                             const QJsonObject& payload = QJsonObject{}) {
+        return QJsonObject{{"protocolVersion", 1}, {"requestId", QString::number(id)},
+                           {"sessionId", session}, {"engineEpoch", epoch},
+                           {"action", action},     {"payload", payload}};
+    };
+    const auto hello = exchange(socket, request(1, QStringLiteral("hello")));
+    session = hello.value("result").toObject().value("sessionId").toString();
+    const auto initial = exchange(socket, request(2, QStringLiteral("status")));
+    if (session.isEmpty() || !initial.value("result").toObject().value("clean").toBool())
+        return false;
+    const auto started = exchange(socket, request(3, QStringLiteral("start"), startPayload()));
+    const auto core = started.value("result").toObject();
+    evidence.insert(QStringLiteral("started"), core);
+    if (core.value("pid").toInt() <= 0)
+        return false;
+    epoch = core.value("epoch").toString();
+    QByteArray burst;
+    for (int id = 4; id < 68; ++id)
+        burst +=
+            QJsonDocument(request(id, QStringLiteral("status"))).toJson(QJsonDocument::Compact) +
+            '\n';
+    socket.write(burst);
+    QByteArray replies;
+    const bool finished = waitFor([&] {
+        replies += socket.readAll();
+        return replies.count('\n') == 64 || socket.state() == QLocalSocket::UnconnectedState;
+    });
+    int rejected = 0, accepted = 0;
+    bool healthy = true;
+    for (const auto& line : replies.split('\n')) {
+        if (line.isEmpty())
+            continue;
+        const auto response = QJsonDocument::fromJson(line).object();
+        healthy &= infra::ServiceProtocol::validResponse(response);
+        if (response.value("error") == QStringLiteral("ServiceBusy")) {
+            ++rejected;
+        } else {
+            const auto state = response.value("result").toObject();
+            ++accepted;
+            healthy &= state.value("ready").toBool() && state.value("pid") == core.value("pid") &&
+                       state.value("epoch") == core.value("epoch");
+        }
+    }
+    QElapsedTimer recovery;
+    recovery.start();
+    waitFor([&] { return recovery.elapsed() >= infra::kServiceRateWindowMs + 100; });
+    const auto after = exchange(socket, request(68, QStringLiteral("status")));
+    const auto state = after.value("result").toObject();
+    const auto stopped = exchange(socket, request(69, QStringLiteral("stop")));
+    const auto clean = exchange(socket, request(70, QStringLiteral("status")));
+    const bool passed = finished && healthy && accepted > 0 && rejected > 0 &&
+                        accepted + rejected == 64 && state.value("ready").toBool() &&
+                        state.value("pid") == core.value("pid") &&
+                        state.value("epoch") == core.value("epoch") &&
+                        stopped.value("result").toObject().value("stopped").toBool() &&
+                        clean.value("result").toObject().value("clean").toBool() &&
+                        socket.state() == QLocalSocket::ConnectedState;
+    evidence.insert(QStringLiteral("accepted"), accepted);
+    evidence.insert(QStringLiteral("rateLimited"), rejected);
+    evidence.insert(QStringLiteral("after"), state);
+    evidence.insert(QStringLiteral("clean"), clean.value("result"));
+    evidence.insert(QStringLiteral("passed"), passed);
+    return passed;
+}
 } // namespace
 int serviceProbe() {
     QString output, mode;
@@ -219,6 +564,18 @@ int serviceProbe() {
         return 1;
     infra::ServiceClient client;
     QJsonObject evidence;
+    if (mode == QStringLiteral("delay_batch")) {
+        const bool passed = delayBatchProbe(client, evidence);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
+    if (mode == QStringLiteral("tun_delay")) {
+        const bool passed = tunDelayProbe(client, evidence);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
+    if (mode == QStringLiteral("rate_limit")) {
+        const bool passed = rateLimitProbe(evidence);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
     if (mode == QStringLiteral("connections")) {
         const bool passed = connectionProbe(evidence);
         return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;

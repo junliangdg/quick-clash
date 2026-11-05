@@ -1,5 +1,6 @@
 #pragma once
 #include "domain/contracts.h"
+#include <QElapsedTimer>
 #include <QJsonObject>
 #include <QLocalSocket>
 #include <QTimer>
@@ -14,6 +15,7 @@ class ServiceClient final : public QObject {
     explicit ServiceClient(QObject* parent = nullptr);
     ~ServiceClient() override;
     void command(const QString& action, const QJsonObject& payload, Handler handler);
+    void cancelQueuedDelays();
     void close();
     [[nodiscard]] bool connected() const;
     [[nodiscard]] bool hadSession() const;
@@ -25,9 +27,14 @@ class ServiceClient final : public QObject {
   private:
     void fail(const char* code);
     void connectService(int attempt = 0);
+    void sendPendingCommands();
     QLocalSocket socket_;
     QTimer deadline_;
     QTimer heartbeat_;
+    QTimer writeTimer_;
+    QElapsedTimer writeClock_;
+    QElapsedTimer activity_;
+    bool heartbeatPending_ = false;
     QByteArray input_;
     QList<QByteArray> pendingWrites_;
     QHash<QString, Handler> handlers_;

@@ -57,7 +57,7 @@ Validation is still pending for real TUN operation, the privileged service, and 
 
 ## Build from source
 
-The project minimum is Qt 6.9. Windows CI is configured with Qt `6.9.0 msvc2022_64` to exercise that minimum; the current local validation environment uses Qt 6.12.0. Linux and macOS retain candidate build configuration, but native build and functional validation have not been completed.
+The project minimum is Qt 6.9. Windows CI and the Windows startup regression use Qt `6.9.0 msvc2022_64`. Linux and macOS retain candidate build configuration, but native build and functional validation have not been completed.
 
 Run these commands from the repository root:
 
