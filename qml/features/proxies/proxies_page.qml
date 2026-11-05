@@ -55,10 +55,13 @@ Item {
     }
     readonly property var groupNames: {
         const names = Object.create(null);
-        for (let i = 0; i < groups.length; ++i)
-            names[groups[i].name] = true;
+        for (const group of ui.groups)
+            names[group.name] = true;
         return names;
     }
+    readonly property bool progressOwnerVisible: groups.some(group => group.name === progress.group &&
+        (query.length === 0 || (matchingMembers[group.name] || []).length > 0) &&
+        (query.length > 0 || expandedGroups.includes(group.name)))
     Component.onCompleted: {
         restoreExpandedGroups();
         ui.setDemand("proxies:page", "proxies", active);
@@ -245,6 +248,23 @@ Item {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
             }
+            RowLayout {
+                visible: root.testing && !root.progressOwnerVisible
+                Layout.fillWidth: true
+                Label {
+                    text: root.progress.group ? qsTr("Testing group %1").arg(root.progress.group) : qsTr("Testing current node")
+                    textFormat: Text.PlainText
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ActionButton {
+                    objectName: "proxy_active_test_cancel"
+                    theme: root.theme
+                    text: qsTr("Cancel")
+                    onClicked: root.ui.runtimeCommand("cancel_delays")
+                }
+            }
             FlatTile {
                 theme: root.theme
                 Layout.fillWidth: true
@@ -362,6 +382,7 @@ Item {
                     required property var modelData
                     readonly property var viewMembers: root.matchingMembers[modelData.name] || []
                     readonly property bool expanded: root.query.length > 0 || root.expandedGroups.includes(modelData.name)
+                    readonly property bool ownsProgress: root.progress.group === modelData.name
                     readonly property int nodeColumns: Math.max(1, Math.floor((width - 36) / 232))
                     readonly property real nodeCardWidth: (width - 28 - 8 * (nodeColumns - 1)) / nodeColumns
                     theme: root.theme
@@ -452,10 +473,11 @@ Item {
                                             cursorShape: Qt.PointingHandCursor
                                         }
                                         Accessible.name: qsTr("Test delay for group %1").arg(groupTile.modelData.name)
+                                        Accessible.description: qsTr("Includes subgroups")
                                         ThemedToolTip {
                                             theme: root.theme
                                             visible: testGroup.hovered || testGroup.activeFocus
-                                            text: qsTr("Test this group")
+                                            text: qsTr("Test group and subgroups")
                                         }
                                         enabled: !!root.runtime.ready && !root.runtime.busy && !root.testing
                                         onClicked: root.ui.runtimeCommand("delay_batch", [groupTile.modelData.name])
@@ -489,7 +511,8 @@ Item {
                             Layout.minimumHeight: root.theme.compactHeight
                             Label {
                                 id: progressLabel
-                                text: root.progress.state ? (root.progress.state === "Cancelled" ? qsTr("Cancelled") : root.progress.state === "Completed" ? qsTr("Completed") : qsTr("Testing…")) + " · " + qsTr("%1 / %2 tested · %3 unavailable").arg(root.progress.completed || 0).arg(root.progress.total || 0).arg(root.progress.failed || 0) : qsTr("Not tested")
+                                objectName: "proxy_group_progress_" + groupTile.modelData.name
+                                text: groupTile.ownsProgress && root.progress.state ? (root.progress.scope === "node" ? qsTr("Single node") : qsTr("Group test")) + " · " + (root.progress.state === "Cancelled" ? qsTr("Cancelled") : root.progress.state === "Completed" ? qsTr("Completed") : qsTr("Testing…")) + " · " + qsTr("%1 / %2 tested · %3 unavailable").arg(root.progress.completed || 0).arg(root.progress.total || 0).arg(root.progress.failed || 0) : qsTr("No group test")
                                 color: root.theme.muted
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
@@ -503,9 +526,10 @@ Item {
                                 onClicked: root.locateCurrent(groupTile.modelData.name)
                             }
                             ActionButton {
+                                objectName: "proxy_group_cancel_" + groupTile.modelData.name
                                 theme: root.theme
                                 text: qsTr("Cancel")
-                                visible: root.testing
+                                visible: root.testing && groupTile.ownsProgress
                                 // Match the row text height so showing or hiding the
                                 // button never changes the row height.
                                 implicitHeight: root.theme.compactHeight

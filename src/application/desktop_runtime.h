@@ -253,7 +253,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     };
     [[nodiscard]] std::optional<DelayProbe> delayProbe(const QString& name,
                                                        const QString& context) const;
-    void startDelayTests(const QList<DelayProbe>& probes);
+    void startDelayTests(const QList<DelayProbe>& probes, const QString& group = {},
+                         const QString& scope = {});
     void pumpDelayTests();
     void cancelDelayTests();
     struct WebsiteProbe {

@@ -86,7 +86,10 @@ void UiState::applyControl(const QJsonObject& control) {
     const auto value = control.toVariantMap();
     if (runtime_ == value)
         return;
+    const bool delayTargetChanged = runtime_.value("delayTarget") != value.value("delayTarget");
     runtime_ = value;
+    if (delayTargetChanged)
+        updateProxyStates(false);
     if (!connectionRule_.isEmpty() &&
         (connectionRule_.value("epoch") != runtime_.value("epoch") ||
          connectionRule_.value("profileId") != runtime_.value("selectedId") ||
@@ -188,6 +191,11 @@ QVariantMap UiState::proxyStates() const {
 QVariantMap UiState::proxyState(const QString& name, const QString& context) const {
     auto current = name;
     auto target = proxyGroups_.value(context).value("testTargetHash").toString();
+    if (target.isEmpty() && (!context.isEmpty() || proxyGroups_.contains(name))) {
+        const auto defaultTarget = runtime_.value("delayTarget").toString();
+        if (!defaultTarget.isEmpty())
+            target = domain::ProxyLatency::targetHash(defaultTarget);
+    }
     QSet<QString> visited;
     QStringList chain;
     bool balanced = false;

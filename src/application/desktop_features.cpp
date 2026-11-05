@@ -6,6 +6,7 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QHash>
 #include <QJsonDocument>
 #include <QRegularExpression>
 #include <QUrl>
@@ -737,57 +738,67 @@ void DesktopRuntime::featureCommand(const QString& command, const QStringList& a
         publish();
     } else if (command == QStringLiteral("delay")) {
         if (const auto probe = delayProbe(args.value(0), args.value(1)))
-            startDelayTests({*probe});
+            startDelayTests({*probe}, args.value(1), QStringLiteral("node"));
     } else if (command == QStringLiteral("delay_batch")) {
+        const auto groupName = args.value(0);
+        QHash<QString, QJsonObject> groupsByName;
+        for (const auto& value : groups_) {
+            const auto group = value.toObject();
+            groupsByName.insert(group.value(QStringLiteral("name")).toString(), group);
+        }
+        if (groupName.isEmpty() || !groupsByName.contains(groupName))
+            return;
+        QSet<QString> nodes;
+        for (const auto& value : featureState_.value(QStringLiteral("nodes")).toArray())
+            nodes.insert(value.toObject().value(QStringLiteral("name")).toString());
         QList<DelayProbe> probes;
         QSet<QString> visited;
         bool valid = true;
         std::function<void(const QString&, const QString&, int)> expand =
             [&](const QString& name, const QString& inheritedTarget, int depth) {
+                if (!valid)
+                    return;
                 if (depth > 32 || probes.size() > 500 || visited.size() > 16000) {
                     valid = false;
                     return;
                 }
                 auto target = inheritedTarget;
-                for (const auto& value : groups_) {
-                    const auto group = value.toObject();
-                    if (group.value(QStringLiteral("name")) == name) {
-                        if (!group.value("testTargetHash").toString().isEmpty()) {
-                            target = groupDelayTargets_.value(name);
-                            if (target.isEmpty()) {
-                                valid = false;
-                                return;
-                            }
-                        }
-                        const auto key = DelayProbe{name, target}.key();
-                        if (visited.contains(key))
+                const auto group = groupsByName.value(name);
+                if (!group.isEmpty()) {
+                    if (!group.value("testTargetHash").toString().isEmpty()) {
+                        target = groupDelayTargets_.value(name);
+                        if (target.isEmpty()) {
+                            valid = false;
                             return;
-                        visited.insert(key);
-                        for (const auto& member : group.value(QStringLiteral("members")).toArray())
-                            expand(member.toString(), target, depth + 1);
-                        return;
-                    }
-                }
-                if (name == "DIRECT" || name == "REJECT")
-                    return;
-                for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
-                    if (node.toObject().value(QStringLiteral("name")) == name) {
-                        const DelayProbe probe{name, target};
-                        if (!visited.contains(probe.key())) {
-                            visited.insert(probe.key());
-                            probes.append(probe);
                         }
-                        return;
                     }
+                    const auto key = DelayProbe{name, target}.key();
+                    if (visited.contains(key))
+                        return;
+                    visited.insert(key);
+                    const auto members = group.value(QStringLiteral("members")).toArray();
+                    // The selected group's own nodes are queued before its nested groups.
+                    for (const auto& member : members)
+                        if (!groupsByName.contains(member.toString()))
+                            expand(member.toString(), target, depth + 1);
+                    for (const auto& member : members)
+                        if (groupsByName.contains(member.toString()))
+                            expand(member.toString(), target, depth + 1);
+                    return;
+                }
+                if (name == "DIRECT" || name == "REJECT" || !nodes.contains(name))
+                    return;
+                const DelayProbe probe{name, target};
+                if (!visited.contains(probe.key())) {
+                    visited.insert(probe.key());
+                    probes.append(probe);
+                    if (probes.size() > 500)
+                        valid = false;
+                }
             };
-        if (args.value(0).isEmpty()) {
-            for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
-                expand(node.toObject().value(QStringLiteral("name")).toString(), delayTarget_, 0);
-        } else {
-            expand(args.value(0), delayTarget_, 0);
-        }
+        expand(groupName, delayTarget_, 0);
         if (valid)
-            startDelayTests(probes);
+            startDelayTests(probes, groupName, QStringLiteral("group"));
     } else if (command == QStringLiteral("update_provider")) {
         updateProvider(args.value(0), args.value(1));
     } else if (command == QStringLiteral("flush_dns")) {
@@ -851,8 +862,10 @@ std::optional<DesktopRuntime::DelayProbe> DesktopRuntime::delayProbe(const QStri
     }
     return DelayProbe{current, target};
 }
-void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes) {
-    if (delayRunning_ || busy_ || !engine_.ready() || probes.isEmpty() || probes.size() > 500)
+void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes, const QString& group,
+                                     const QString& scope) {
+    if (delayRunning_ || busy_ || !engine_.ready() || probes.size() > 500 ||
+        (probes.isEmpty() && group.isEmpty()))
         return;
     QSet<QString> testable;
     for (const auto& node : featureState_.value(QStringLiteral("nodes")).toArray())
@@ -887,6 +900,8 @@ void DesktopRuntime::startDelayTests(const QList<DelayProbe>& probes) {
         QStringLiteral("delayTest"),
         QJsonObject{
             {QStringLiteral("state"), QStringLiteral("Running")},
+            {QStringLiteral("group"), group},
+            {QStringLiteral("scope"), scope},
             {QStringLiteral("total"), delayQueue_.size()},
             {QStringLiteral("completed"), 0},
             {QStringLiteral("failed"), 0},

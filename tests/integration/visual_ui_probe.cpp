@@ -350,8 +350,10 @@ int runVisualProbe(ApplicationHost& host) {
     ui.applyControl(QJsonObject::fromVariantMap(changedControl));
     if (!profileVisible("备用订阅", 1, "alternate"))
         return 137;
-    ui.navigate("settings");
-    QTest::qWait(50);
+    if (!QCoreApplication::arguments().contains(QStringLiteral("--proxy-scope-test"))) {
+        ui.navigate("settings");
+        QTest::qWait(50);
+    }
     ui.navigate("home");
     QTest::qWait(50);
     if (!profileVisible("备用订阅", 1, "alternate"))
@@ -474,7 +476,71 @@ int runVisualProbe(ApplicationHost& host) {
                    << testingText << bool(originalGroup) << bool(originalNode);
         return 203;
     }
+    // Progress and cancellation belong to the group that started the task.
+    // Other expanded groups keep their own empty state.
+    const auto proxyPages = objects("proxies_page");
+    if (proxyPages.size() != 1)
+        return 205;
+    proxyPages.first()->setProperty("expandedGroups", QVariantList{"节点选择", "自动选择"});
+    progress.insert("group", QStringLiteral("节点选择"));
+    progress.insert("scope", QStringLiteral("group"));
+    features.insert("delayTest", progress);
+    runningControl.insert("features", features);
+    ui.applyControl(QJsonObject::fromVariantMap(runningControl));
+    QTest::qWait(30);
+    const auto ownerProgress = objects(QStringLiteral("proxy_group_progress_节点选择"));
+    const auto otherProgress = objects(QStringLiteral("proxy_group_progress_自动选择"));
+    const auto ownerCancel = objects(QStringLiteral("proxy_group_cancel_节点选择"));
+    const auto otherCancel = objects(QStringLiteral("proxy_group_cancel_自动选择"));
+    if (ownerProgress.size() != 1 || otherProgress.size() != 1 || ownerCancel.size() != 1 ||
+        otherCancel.size() != 1 || !ownerCancel.first()->isVisible() ||
+        otherCancel.first()->isVisible() ||
+        ownerProgress.first()->property("text") == otherProgress.first()->property("text"))
+        return 206;
+    proxyPages.first()->setProperty("expandedGroups", QVariantList{"自动选择"});
+    QTest::qWait(30);
+    const auto fallbackCancel = objects("proxy_active_test_cancel");
+    if (fallbackCancel.size() != 1 || !fallbackCancel.first()->isVisible())
+        return 207;
     ui.applyControl(QJsonObject::fromVariantMap(originalControl));
+    auto nestedGroups = proxyGroups;
+    auto nestedParent = nestedGroups.first().toObject();
+    auto nestedMembers = nestedParent.value("members").toArray();
+    nestedMembers.prepend("自动选择");
+    nestedParent.insert("members", nestedMembers);
+    nestedGroups[0] = nestedParent;
+    nestedGroups.append(QJsonObject{{"name", "仅子组"},
+                                    {"type", "Selector"},
+                                    {"members", QJsonArray{"自动选择"}},
+                                    {"canSelect", true}});
+    ui.applyData({1, "visual-fixture", {{"groups", nestedGroups}}, ui.dataDemands().generations});
+    proxyPages.first()->setProperty("expandedGroups", QVariantList{"节点选择", "仅子组"});
+    QTest::qWait(30);
+    const auto parentGroup = objects(QStringLiteral("proxy_group_节点选择"));
+    const auto onlyNested = objects(QStringLiteral("proxy_group_仅子组"));
+    auto* parentAction = parentGroup.size() == 1
+                             ? parentGroup.first()->findChild<QQuickItem*>("test_group")
+                             : nullptr;
+    auto* onlyNestedAction =
+        onlyNested.size() == 1 ? onlyNested.first()->findChild<QQuickItem*>("test_group") : nullptr;
+    if (!parentAction || !parentAction->isEnabled() || !onlyNestedAction ||
+        !onlyNestedAction->isEnabled() ||
+        parentGroup.first()->findChildren<QQuickItem*>("test_group").size() != 1 ||
+        onlyNested.first()->findChildren<QQuickItem*>("test_group").size() != 1 ||
+        !objects(QStringLiteral("test_group_nested_节点选择")).isEmpty() ||
+        !objects(QStringLiteral("test_group_nested_仅子组")).isEmpty())
+        return 208;
+    QSignalSpy onlyNestedClicked(onlyNestedAction, SIGNAL(clicked()));
+    QSignalSpy onlyNestedGroupClicked(onlyNested.first(), SIGNAL(clicked()));
+    if (!QMetaObject::invokeMethod(onlyNestedAction, "click") || onlyNestedClicked.size() != 1 ||
+        !onlyNestedGroupClicked.isEmpty())
+        return 209;
+    ui.applyData({1, "visual-fixture", {{"groups", proxyGroups}}, ui.dataDemands().generations});
+    proxyPages.first()->setProperty("expandedGroups", QVariantList{"节点选择"});
+    if (QCoreApplication::arguments().contains(QStringLiteral("--proxy-scope-test"))) {
+        qInfo() << "Proxy scope, progress ownership and cancellation passed";
+        return 0;
+    }
     populate();
     QTest::qWait(30);
     const auto generation = host.engineGeneration();

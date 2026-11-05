@@ -84,20 +84,27 @@ int proxyLatencyProbe() {
         controller = freePort();
     runtime.setPorts(mixed, controller);
     QFile file(directory.filePath("nodes.yaml"));
-    const auto yaml =
+    QByteArray yaml =
         QByteArray("proxies:\n  - {name: good, type: http, server: 127.0.0.1, port: ") +
         QByteArray::number(health.serverPort()) +
-        "}\n  - {name: bad, type: http, server: 127.0.0.1, port: 9}\n"
-        "proxy-groups:\n  - {name: parent, type: select, proxies: [auto, good, bad]}\n"
-        "  - {name: batch, type: select, proxies: [auto, twin, other]}\n"
-        "  - {name: auto, type: url-test, proxies: [bad, good], url: "
-        "'http://fixture.invalid/health', "
-        "interval: 86400, timeout: 500, lazy: false, tolerance: 0}\n"
-        "  - {name: twin, type: url-test, proxies: [bad, good], url: "
-        "'http://fixture.invalid/health', interval: 86400, timeout: 500, lazy: false}\n"
-        "  - {name: other, type: url-test, proxies: [bad, good], url: "
-        "'http://fixture.invalid/other', interval: 86400, timeout: 500, lazy: false}\n"
-        "rules: ['MATCH,parent']\n";
+        "}\n  - {name: bad, type: http, server: 127.0.0.1, port: 9}\n";
+    for (int i = 0; i < 6; ++i)
+        yaml +=
+            "  - {name: priority" + QByteArray::number(i) +
+            ", type: http, server: 127.0.0.1, port: " + QByteArray::number(health.serverPort()) +
+            "}\n";
+    yaml += "proxy-groups:\n  - {name: parent, type: select, proxies: [auto, good, bad]}\n"
+            "  - {name: priority, type: select, proxies: [auto, priority0, priority1, priority2, "
+            "priority3, priority4, priority5]}\n"
+            "  - {name: batch, type: select, proxies: [auto, twin, other]}\n"
+            "  - {name: auto, type: url-test, proxies: [bad, good], url: "
+            "'http://fixture.invalid/health', "
+            "interval: 86400, timeout: 500, lazy: false, tolerance: 0}\n"
+            "  - {name: twin, type: url-test, proxies: [bad, good], url: "
+            "'http://fixture.invalid/health', interval: 86400, timeout: 500, lazy: false}\n"
+            "  - {name: other, type: url-test, proxies: [bad, good], url: "
+            "'http://fixture.invalid/other', interval: 86400, timeout: 500, lazy: false}\n"
+            "rules: ['MATCH,parent']\n";
     if (!file.open(QIODevice::WriteOnly) || file.write(yaml) != yaml.size())
         return 3;
     file.close();
@@ -201,11 +208,35 @@ int proxyLatencyProbe() {
         requests != afterSingle + 1 ||
         progress().value("targetHash") != domain::ProxyLatency::targetHash(healthTarget))
         return 14;
+    // Six direct nodes fill the direct-mode slots before the earlier-listed
+    // nested group, whose nodes therefore remain queued.
+    const auto defaultTarget = runtime.snapshot().value("delayTarget").toString();
+    runtime.featureCommand("delay_batch", {"priority"});
+    if (progress().value("group") != "priority" || progress().value("scope") != "group" ||
+        progress().value("total") != 8 ||
+        record("priority0", defaultTarget).value("state") != "Testing" ||
+        record("priority5", defaultTarget).value("state") != "Testing" ||
+        record("good", healthTarget).value("state") != "Queued")
+        return 24;
+    runtime.featureCommand("cancel_delays", {});
+    // The ordinary button includes both direct members and the nested group.
+    const auto parentHealth = targets.value("/health");
+    runtime.featureCommand("delay_batch", {"parent"});
+    if (progress().value("group") != "parent" || progress().value("scope") != "group" ||
+        progress().value("total") != 4 ||
+        !wait([&] { return progress().value("state") == "Completed"; }) ||
+        targets.value("/health") != parentHealth + 1)
+        return 25;
+    const auto parentProgress = progress();
+    runtime.featureCommand("delay_batch", {});
+    if (progress() != parentProgress)
+        return 26;
     const auto batchHealth = targets.value("/health");
     const auto batchOther = targets.value("/other");
     hold = true;
     runtime.featureCommand("delay_batch", {"batch"});
-    if (progress().value("total") != 4 ||
+    if (progress().value("group") != "batch" || progress().value("scope") != "group" ||
+        progress().value("total") != 4 ||
         record("good", healthTarget).value("state") != "Testing" ||
         record("good", otherTarget).value("state") != "Testing" || !wait([&] {
             return targets.value("/health") == batchHealth + 1 &&
@@ -254,6 +285,13 @@ int proxyLatencyProbe() {
         record("good", healthTarget).value("state") != "Success" ||
         record("good", otherTarget).value("state") != "Success")
         return 17;
+    // Explicitly testing a group again refreshes the same-target result.
+    const auto beforeRetest = targets.value("/health");
+    runtime.featureCommand("delay_batch", {"auto"});
+    if (!wait([&] { return progress().value("state") == "Completed"; }) ||
+        progress().value("group") != "auto" || progress().value("total") != 2 ||
+        targets.value("/health") != beforeRetest + 1)
+        return 27;
     const auto previousProgress = progress();
     const auto previousRequests = requests;
     runtime.featureCommand("delay", {"good", "https://injected.invalid/"});

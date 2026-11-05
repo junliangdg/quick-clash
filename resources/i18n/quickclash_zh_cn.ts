@@ -746,6 +746,13 @@
     <message><source>Wait for the current operation to finish</source><translation>请等待当前操作完成</translation></message>
     <message><source>Loading strategy groups…</source><translation>正在加载策略组…</translation></message>
     <message><source>Test latency</source><translation>测延迟</translation></message>
+    <message><source>Test group and subgroups</source><translation>测试本组及子组节点</translation></message>
+    <message><source>Includes subgroups</source><translation>包含子组节点</translation></message>
+    <message><source>Single node</source><translation>单节点</translation></message>
+    <message><source>Group test</source><translation>组测速</translation></message>
+    <message><source>No group test</source><translation>尚无本组测速任务</translation></message>
+    <message><source>Testing group %1</source><translation>正在测试分组 %1</translation></message>
+    <message><source>Testing current node</source><translation>正在测试当前节点</translation></message>
     <message><source>Test delay for group %1</source><translation>测试分组 %1 的延迟</translation></message>
     <message><source>Test delay for %1</source><translation>测试 %1 的延迟</translation></message>
     <message>

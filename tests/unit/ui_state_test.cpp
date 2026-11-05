@@ -221,6 +221,45 @@ int main(int argc, char* argv[]) {
             check(proxies.proxyState("auto").value("result") == "Cancelled" &&
                       proxies.proxyState("node", "twin").value("result") == "Cancelled",
                   "cancelled target is shared by nested exits and repeated group members");
+            const auto defaultUrl = QStringLiteral("https://default.invalid/");
+            const auto defaultHash = quickclash::domain::ProxyLatency::targetHash(defaultUrl);
+            QJsonObject defaultRecord{{"state", "Testing"},
+                                      {"source", "Manual"},
+                                      {"targetHash", defaultHash},
+                                      {"time", "2026-11-01T00:02:00Z"}};
+            auto plain = groups[0].toObject();
+            plain.insert("name", "plain");
+            plain.insert("members", QJsonArray{"node"});
+            plain.insert("current", "node");
+            groups.append(plain);
+            proxies.applyControl(
+                {{"publicationGeneration", "1"}, {"epoch", "proxy"}, {"delayTarget", defaultUrl}});
+            const auto publishTargetRecords = [&] {
+                const QJsonObject entry{{"latest", defaultRecord},
+                                        {"records", QJsonArray{pending, defaultRecord}}};
+                const QJsonObject details{{"node", entry}};
+                proxies.applyData({1, "proxy", {{"groups", groups}, {"delay_details", details}}});
+            };
+            publishTargetRecords();
+            check(proxies.proxyState("node", "parent").value("result") == "Testing" &&
+                      proxies.proxyState("node", "plain").value("result") == "Testing" &&
+                      proxies.proxyState("node", "auto").value("result") == "Cancelled",
+                  "default-target groups share pending state without mixing group targets");
+            defaultRecord.insert("state", "Success");
+            defaultRecord.insert("delayMs", 56);
+            publishTargetRecords();
+            check(proxies.proxyState("node", "parent").value("result") == "56 ms" &&
+                      proxies.proxyState("node", "plain").value("result") == "56 ms" &&
+                      proxies.proxyState("node", "auto").value("result") == "Cancelled",
+                  "completed default-target results synchronize across groups");
+            const auto revisionBeforeTargetChange = proxies.proxyStateRevision();
+            proxies.applyControl({{"publicationGeneration", "1"},
+                                  {"epoch", "proxy"},
+                                  {"delayTarget", "https://new-default.invalid/"}});
+            check(proxies.proxyStateRevision() == revisionBeforeTargetChange + 1 &&
+                      proxies.proxyState("node", "plain").value("result").toString().isEmpty() &&
+                      proxies.proxyState("node", "auto").value("result") == "Cancelled",
+                  "changing the default target invalidates group views without mixing targets");
             auto changed = groups[1].toObject();
             changed.insert("current", "absent");
             groups[1] = changed;
