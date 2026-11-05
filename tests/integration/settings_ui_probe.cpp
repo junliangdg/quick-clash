@@ -14,6 +14,7 @@
 #include <QTest>
 #include <cstdio>
 #include <memory>
+#include <utility>
 
 namespace quickclash {
 namespace {
@@ -91,6 +92,25 @@ int runSettingsUiProbe(ApplicationHost& host) {
             output = arg.mid(18);
     if (!output.isEmpty() && !QDir().mkpath(output))
         return fail("capture directory can be created");
+    ui.setSettingsCategory(2);
+    if (!waitFor([&] { return object("settings_resources"); }))
+        return fail("resource settings load");
+    for (const auto& recovery : {
+             std::pair{"settings_core_advanced", "settings_core_bundled"},
+             std::pair{"settings_geo_advanced", "settings_geo_recovery_actions"}}) {
+        auto* toggle = object(recovery.first);
+        auto* actions = item(recovery.second);
+        auto* accessible = toggle ? QAccessible::queryAccessibleInterface(toggle) : nullptr;
+        if (!accessible || !actions || !accessible->state().checkable ||
+            accessible->state().checked || actions->isVisible())
+            return fail("advanced recovery starts collapsed with accessible state");
+        if (!activate(recovery.first) ||
+            !waitFor([&] { return actions->isVisible() && accessible->state().checked; }))
+            return fail("advanced recovery expands with accessible state");
+        if (!activate(recovery.first) ||
+            !waitFor([&] { return !actions->isVisible() && !accessible->state().checked; }))
+            return fail("advanced recovery collapses with accessible state");
+    }
     if (!output.isEmpty()) {
         host.window()->hide();
         host.window()->show();

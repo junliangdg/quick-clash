@@ -72,11 +72,12 @@ ColumnLayout {
                 }
             }
             SettingsAction {
+                objectName: "settings_core_advanced"
                 theme: root.theme
                 text: qsTranslate("settings_page", "Advanced recovery")
                 selected: root.coreAdvanced
-                Accessible.expandable: true
-                Accessible.expanded: root.coreAdvanced
+                Accessible.checkable: true
+                Accessible.checked: root.coreAdvanced
                 onClicked: root.coreAdvanced = !root.coreAdvanced
             }
             Flow {
@@ -111,6 +112,7 @@ ColumnLayout {
                         }
                     ]
                     delegate: SettingsAction {
+                        objectName: "settings_" + modelData.command
                         width: Math.min(implicitWidth, parent.width)
                         required property var modelData
                         theme: root.theme
@@ -219,15 +221,17 @@ ColumnLayout {
             }
         }
         SettingsAction {
+            objectName: "settings_geo_advanced"
             theme: root.theme
             text: qsTranslate("settings_page", "Advanced recovery")
             selected: root.geoAdvanced
-            Accessible.expandable: true
-            Accessible.expanded: root.geoAdvanced
+            Accessible.checkable: true
+            Accessible.checked: root.geoAdvanced
             Layout.topMargin: 8
             onClicked: root.geoAdvanced = !root.geoAdvanced
         }
         Flow {
+            objectName: "settings_geo_recovery_actions"
             visible: root.geoAdvanced
             Layout.fillWidth: true
             Layout.topMargin: 8
