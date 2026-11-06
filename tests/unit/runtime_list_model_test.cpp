@@ -83,9 +83,15 @@ class RuntimeListModelTest final : public QObject {
         RuntimeListModel view(&rows, true);
         auto a = connection("a", "alpha", 1);
         auto b = connection("b", "beta", 5, "2026-10-26T01:00:00Z");
+        QSignalSpy totalChanged(&view, &RuntimeListModel::totalCountChanged);
         rows.apply({a, b});
+        QCOMPARE(view.totalCount(), 2);
+        QCOMPARE(totalChanged.size(), 1);
         QCOMPARE(firstId(view), QString("b"));
         view.setQuery("ALPHA");
+        QCOMPARE(view.count(), 1);
+        QCOMPARE(view.totalCount(), 2);
+        QCOMPARE(totalChanged.size(), 1);
         QCOMPARE(view.captureIds(), QStringList{"a"});
         QCOMPARE(view.connection("a", "b").value("id").toString(), QString("b"));
         QVERIFY(view.connection("old", "b").isEmpty());
@@ -104,6 +110,8 @@ class RuntimeListModelTest final : public QObject {
         QTRY_COMPARE_WITH_TIMEOUT(firstId(view), QString("a"), 2000);
         const auto captured = view.captureIds();
         rows.apply({a, b, connection("c", "new", 20)});
+        QCOMPARE(view.totalCount(), 3);
+        QCOMPARE(totalChanged.size(), 2);
         QCOMPARE(captured.size(), 2);
         QVERIFY(!captured.contains("c"));
         QVERIFY(view.captureIds(2).isEmpty());

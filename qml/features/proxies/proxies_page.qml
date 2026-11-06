@@ -184,28 +184,40 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         visible: !root.ui.replay && root.groups.length > 0
-        columns: width >= root.theme.scaledSize(620) ? 3 : 1
+        columns: width >= root.theme.scaledSize(620) ? 2 : 1
         columnSpacing: 8
         rowSpacing: 8
-        ThemedField {
-            objectName: "proxy_node_search"
-            theme: root.theme
+        Item {
             Layout.fillWidth: true
             Layout.minimumWidth: 0
-            maximumLength: 128
-            placeholderText: qsTr("Search nodes or groups")
-            Accessible.name: qsTr("Search nodes or groups")
-            text: root.searchText
-            onTextEdited: root.searchText = text
-        }
-        ActionButton {
-            objectName: "proxy_clear_search"
-            theme: root.theme
-            Layout.fillWidth: searchTools.columns === 1
-            Layout.minimumWidth: 0
-            text: qsTr("Clear search")
-            enabled: root.searchText.length > 0
-            onClicked: root.searchText = ""
+            implicitHeight: searchField.implicitHeight
+            ThemedField {
+                id: searchField
+                objectName: "proxy_node_search"
+                anchors.fill: parent
+                theme: root.theme
+                maximumLength: 128
+                rightPadding: root.searchText.length > 0 ? clearSearch.width + 12 : 12
+                placeholderText: qsTr("Search nodes or groups")
+                Accessible.name: qsTr("Search nodes or groups")
+                text: root.searchText
+                onTextEdited: root.searchText = text
+            }
+            ActionButton {
+                id: clearSearch
+                objectName: "proxy_clear_search"
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                theme: root.theme
+                text: "×"
+                Accessible.name: qsTr("Clear search")
+                visible: root.searchText.length > 0
+                ghost: true
+                insetFocus: true
+                width: root.theme.controlHeight
+                height: root.theme.controlHeight
+                onClicked: { root.searchText = ""; searchField.forceActiveFocus(); }
+            }
         }
         ActionButton {
             objectName: "proxy_locate_current"
@@ -485,7 +497,7 @@ Item {
                                 }
                                 Label {
                                     objectName: "proxy_group_subtitle"
-                                    text: root.groupType(groupTile.modelData) + " · " + qsTr("%1 members").arg((groupTile.modelData.members || []).length) + (root.groupSourceText(groupTile.modelData) ? " · " + root.groupSourceText(groupTile.modelData) : "")
+                                    text: root.groupType(groupTile.modelData) + " · " + (root.query ? qsTr("%1 matches / %2 members").arg(groupTile.viewMembers.length).arg((groupTile.modelData.members || []).length) : qsTr("%1 members").arg((groupTile.modelData.members || []).length)) + (root.groupSourceText(groupTile.modelData) ? " · " + root.groupSourceText(groupTile.modelData) : "")
                                     color: root.theme.muted
                                     Layout.fillWidth: true
                                     Layout.leftMargin: groupNameLabel.x
@@ -598,7 +610,8 @@ Item {
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
                                     readonly property var proxyState: {
                                         const revision = root.stateRevision;
-                                        return root.ui.proxyState(modelData, groupTile.modelData.name);
+                                        // The outer delegate may already be gone during pool teardown.
+                                        return groupTile ? root.ui.proxyState(modelData, groupTile.modelData.name) : {text: "", result: "", description: ""};
                                     }
                                     readonly property bool current: groupTile.modelData.current === modelData
                                     readonly property bool testable: !(modelData in root.groupNames) && !["DIRECT", "REJECT"].includes(modelData)

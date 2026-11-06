@@ -241,7 +241,35 @@ Item {
                 onClicked: Qt.openUrlExternally(root.runtime.features.exportUrl)
             }
         }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: logList.horizontalOverflow || ((!!root.ui.liveLogs.query || !!root.ui.liveLogs.sourceFilter || !!root.ui.liveLogs.levelFilter) && root.ui.liveLogs.count === 0) || (follow.checked && !root.paused && !logList.userFollowing)
+            Label {
+                Layout.fillWidth: true
+                text: [follow.checked && !root.paused && !logList.userFollowing ? qsTr("Browsing history; new logs are still received") : "", logList.horizontalOverflow ? qsTr("Scroll horizontally to see all columns") : ""].filter(value => !!value).join(" · ")
+                color: root.theme.muted
+                font.pixelSize: root.theme.supportingSize
+                wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                theme: root.theme
+                Layout.maximumWidth: parent.width / 2
+                visible: (!!root.ui.liveLogs.query || !!root.ui.liveLogs.sourceFilter || !!root.ui.liveLogs.levelFilter) && root.ui.liveLogs.count === 0
+                objectName: "logs_clear_filter"
+                text: qsTr("Clear filter")
+                onClicked: { root.ui.liveLogs.query = ""; source.currentIndex = 0; level.currentIndex = 0; }
+            }
+            ActionButton {
+                theme: root.theme
+                Layout.maximumWidth: parent.width / 2
+                objectName: "logs_jump_latest"
+                visible: follow.checked && !root.paused && !logList.userFollowing
+                text: qsTr("Jump to latest")
+                onClicked: logList.jumpToLatest()
+            }
+        }
         RuntimeList {
+            id: logList
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
@@ -255,6 +283,7 @@ Item {
             expandable: true
             actionText: ""
             followTail: follow.checked && !root.paused
+            emptyText: root.ui.liveLogs.query || root.ui.liveLogs.sourceFilter || root.ui.liveLogs.levelFilter ? qsTr("No matching logs") : root.paused ? qsTr("Reception paused") : !root.runtime.ready ? qsTr("Start the core to view logs") : qsTr("No logs yet")
         }
         Label {
             Layout.fillWidth: true

@@ -87,7 +87,7 @@ ColumnLayout {
             width: Math.min(implicitWidth, parent.width)
             theme: root.theme
             objectName: "home_ip_toggle"
-            text: qsTr("IP comparison")
+            text: qsTr("Show IP comparison")
             checked: root.ui.dashboard.ip === true
             enabled: root.ui.settingsReady
             onClicked: {
@@ -100,7 +100,7 @@ ColumnLayout {
             width: Math.min(implicitWidth, parent.width)
             theme: root.theme
             objectName: "home_sites_toggle"
-            text: qsTr("Common websites")
+            text: qsTr("Show common websites")
             checked: root.ui.dashboard.sites === true
             enabled: root.ui.settingsReady
             onClicked: {

@@ -45,7 +45,7 @@ QQuickItem* findItem(QQuickWindow* window, const QString& name) {
     visit(visit, window->contentItem());
     return result;
 }
-bool auditNames(QQuickWindow* window, QJsonArray& checked) {
+bool auditLabels(QQuickWindow* window, QJsonArray& checked) {
     bool passed = true;
     const auto visit = [&](auto&& self, QQuickItem* item) -> void {
         const QByteArray type(item->metaObject()->className());
@@ -59,16 +59,29 @@ bool auditNames(QQuickWindow* window, QJsonArray& checked) {
         if (item->isVisible() && item->isEnabled() && !kind.isEmpty()) {
             auto* accessible = QAccessible::queryAccessibleInterface(item);
             const auto name = accessible ? accessible->text(QAccessible::Name) : QString{};
-            if (name.trimmed().isEmpty()) {
-                std::fprintf(stderr, "Missing accessible name: %s (%s), text=%s\n",
-                             type.constData(), item->objectName().toUtf8().constData(),
-                             item->property("text").toString().toUtf8().constData());
+            const auto description =
+                accessible ? accessible->text(QAccessible::Description) : QString{};
+            const auto protectedEdit = accessible && accessible->state().passwordEdit;
+            // Qt suppresses Name for password edits. Require a non-secret description
+            // instead; subscription probes also verify the expected label relation.
+            const auto secret = protectedEdit ? item->property("text").toString() : QString{};
+            const auto value = protectedEdit ? accessible->text(QAccessible::Value) : QString{};
+            const bool labelled =
+                protectedEdit ? !description.trimmed().isEmpty() : !name.trimmed().isEmpty();
+            const bool safe =
+                secret.isEmpty() || (!name.contains(secret) && !description.contains(secret) &&
+                                     !value.contains(secret));
+            if (!labelled || !safe) {
+                std::fprintf(stderr, "Missing or unsafe accessible label: %s (%s)\n",
+                             type.constData(), item->objectName().toUtf8().constData());
                 passed = false;
             }
             checked.append(QJsonObject{{"type", QString::fromUtf8(type)},
                                        {"kind", kind},
                                        {"object", item->objectName()},
                                        {"name", name},
+                                       {"description", description},
+                                       {"passwordEdit", protectedEdit},
                                        {"role", accessible ? int(accessible->role()) : -1}});
         }
         for (auto* child : item->childItems())
@@ -164,7 +177,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
                 }
                 if (!require(host.contentReady() && host.engineGeneration() == generation,
                              "font change preserves the engine and loads all routes") ||
-                    !auditNames(window, names))
+                    !auditLabels(window, names))
                     return 154;
                 if (!require(tokens->property("bodySize").toInt() == pixels &&
                                  tokens->property("controlHeight").toInt() >= pixels * 2,
@@ -186,7 +199,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
                     if (!popup || !QMetaObject::invokeMethod(popup, "open"))
                         return 195;
                     QTest::qWait(40);
-                    if (!popup->property("visible").toBool() || !auditNames(window, names) ||
+                    if (!popup->property("visible").toBool() || !auditLabels(window, names) ||
                         !test::checkVisibleFocusFrames(window) ||
                         !test::focusInScroll(findItem(window, "subscription_url")) ||
                         !test::focusInScroll(findItem(window, "import_local_file")))
@@ -209,7 +222,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
                                               DialogCase{3, "settings_loader_restoreDialog"}}) {
                         ui.setSettingsCategory(entry.category);
                         QTest::qWait(25);
-                        if (!auditNames(window, names))
+                        if (!auditLabels(window, names))
                             return 187;
                         auto* loader = window->findChild<QObject*>(QLatin1String(entry.loader));
                         if (!loader || !loader->setProperty("active", true))
@@ -241,7 +254,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
     }
     if (!require(focusSafe, "all route focus frames fit their clipping ancestors and window"))
         return 185;
-    if (!require(names.size() >= 100, "name audit visits controls from all routes"))
+    if (!require(names.size() >= 100, "label audit visits controls from all routes"))
         return 174;
     for (const auto* expected :
          {"appearance_dark", "website_route", "website_targets", "mixed_port", "controller_port"}) {
@@ -353,7 +366,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
     if (!QMetaObject::invokeMethod(exportDialog, "open"))
         return 178;
     QTest::qWait(50);
-    if (!auditNames(window, names))
+    if (!auditLabels(window, names))
         return 179;
     std::printf("Standard dialog initial focus: %s\n",
                 window->activeFocusItem()
@@ -442,7 +455,7 @@ int runAccessibilityProbe(ApplicationHost& host) {
         if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size())
             return 168;
     }
-    std::printf("Accessibility: %lld named controls, 3 font sizes, 8 routes, wide/narrow, "
+    std::printf("Accessibility: %lld labelled controls, 3 font sizes, 8 routes, wide/narrow, "
                 "combo, modal cancel and focus restoration passed\n",
                 static_cast<long long>(names.size()));
     return host.qmlErrorCount() == 0 ? 0 : 169;

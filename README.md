@@ -2,62 +2,94 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**A cross-platform Mihomo client built with C++20 and Qt Quick.**
+**A Mihomo desktop client built with C++20 and Qt Quick, currently developed and validated on Windows.**
 
-QuickClash is designed for the three desktop platforms Windows, Linux, and macOS; Android and iOS remain future host targets. It uses the official precompiled Mihomo core to provide local proxy capabilities and brings subscriptions, configurations, the core, proxy groups, connection status, and available system network controls into one interface. The Qt Quick shell adapts its navigation to the window width, from a full sidebar to bottom navigation. The project focuses on clear status feedback, responsive layouts, and predictable, reclaimable resource lifecycles.
+QuickClash brings subscriptions, proxy groups, routing rules, connections, and network controls into one interface. It uses the official precompiled Mihomo core without modifying it. The interface adapts from a full sidebar to an icon rail and bottom navigation as the window narrows. Clear status feedback, bounded caches, and reclaimable UI resources guide development.
 
-> **Development status**: The current build is version `0.1.0`. All 16 Windows local MVP conditions have passed, while P3/G3 day-to-day use validation is still in progress. No stable release is available yet, and Linux and macOS have not been natively built or functionally validated.
+> **Development status — November 7, 2026**: Version `0.1.0` is a development build with local Windows x64 usage evidence. Validation of a current release candidate, a clean standard-user environment, and remaining system-event and authorization scenarios is still pending. Linux and macOS are planned desktop targets; Android and iOS have architecture boundaries only.
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/reference/quickclash_minimal_dark.png">
-    <img src="docs/reference/quickclash_minimal_light.png" alt="QuickClash UI design preview" width="1100">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/reference/quickclash_minimal_dark_en.png">
+    <img src="docs/reference/quickclash_minimal_light_en.png" alt="QuickClash Qt Quick dashboard in English with synthetic demonstration data" width="1000">
   </picture>
 </p>
 
-<p align="center"><sub>UI design preview. Open the <a href="docs/reference/quickclash_minimal_preview.html">offline interactive concept page</a> to explore the eight pages and key control states.</sub></p>
+<p align="center"><sub>Dashboard from the 0.1.0 development build, captured with Qt 6.12 in an isolated offscreen/software environment using synthetic data. The <a href="docs/reference/quickclash_minimal_preview.html">offline interaction preview</a> illustrates the current eight-page structure and supports English / 简体中文, with English selected initially. See <a href="docs/reference/README.md">sources, rendering conditions, and preview scope</a>.</sub></p>
+
+<p align="center">
+  <img src="docs/reference/quickclash_minimal_narrow_en.png" alt="QuickClash English dashboard in a narrow desktop window, with stacked cards and bottom navigation" width="360">
+</p>
+
+<p align="center"><sub>A 360 × 640 desktop window in dark theme, showing stacked cards and bottom navigation. This demonstrates the desktop layout at a narrow width; mobile platforms are still planned.</sub></p>
 
 ## Main capabilities
 
-- **Subscriptions and configuration**: Supports standard HTTPS subscriptions and local Mihomo YAML import. Source, name, update schedule, and automatic-apply policy are editable. Configuration overrides, version rollback, conditional caching, bad-update retention, and provider snapshot/runtime modes each have dedicated entry points.
-- **Core and proxies**: Bundles the official precompiled Mihomo core, with version and digest verification before launch, readiness checks, controlled restarts, failure compensation, and crash backoff. The Proxies page shows groups and nodes, runs manual or batch latency tests, and switches between Rule, Global, and Direct modes.
-- **System integration (Windows)**: On Windows, current-user system proxy settings are tracked with a lease and restored on exit, restart, and conflict. TUN is installed and run through a dedicated privileged service. Port conflicts, proxy conflicts, adapter naming, and external TUN scenarios all have explicit errors and fallback paths.
-- **Runtime visibility**: The dashboard shows live traffic, the current egress, network tools, and runtime status. Connections, Rules, and Logs provide filtering, inline details, and bounded retention; client and core memory are reported separately.
-- **Interface and responsive layout**: Eight pages: Dashboard, Proxies, Subscriptions, Connections, Rules, Logs, Tests, and Settings. The app supports light, dark, and system themes; Simplified Chinese, English, and system language; keyboard navigation; and DPI scaling. The same Qt Quick shell switches from a labeled sidebar to an icon rail and then to bottom navigation as width decreases; the minimum window size is `360×480`. This compact layout is window adaptation, not mobile support.
-- **Security and recovery**: On Windows, sensitive subscription data is encrypted with the current user's DPAPI; secure storage and system integration for Linux and macOS remain to be implemented. Downloads and file reads are size-limited, and configurations are activated only after validation by the official core. System proxy, settings storage, configuration transactions, and diagnostic export all preserve previous values on failure.
+- **Subscriptions and configuration**: Import standard HTTPS subscriptions or local Mihomo YAML; edit the source, name, schedule, and automatic-apply policy. Original YAML editing, separate overrides, drafts, history rollback, conditional caching, and provider snapshot/runtime modes are available. Failed downloads or validation retain the previous configuration.
+- **Proxies and strategies**: Search nodes and groups, locate the current node, select manual-group members, and use automatic latency, failover, or load-balancing groups. Single-node tests and recursive group tests share results for the same node and target, support cancellation, and do not select nodes.
+- **Custom routing**: Manage global and profile-specific rules, their order, enabled state, and proxy-group bindings. Connection details can propose a domain or IP rule for confirmation. The Rules page shows effective rules and offers resource updates when the selected profile has managed providers.
+- **Dashboard and diagnostics**: Five cards cover the current subscription, live traffic, proxy/network controls, network tools, and runtime overview. IP comparison and website checks run on request. Connections and logs support filtering and expandable details; client memory totals include required helpers, with the core reported separately.
+- **Windows integration**: Current-user system proxy leases, a privileged TUN service, login startup, single-instance activation, tray controls, and deduplicated problem notifications. Normal exit restores proxy values still owned by QuickClash and preserves changes made by other software; forced-exit recovery has a limitation described below.
+- **Core, resources, and data**: Core identity and digest checks, readiness checks, bounded crash retries, compatible-core repair/switching, Geo download/apply/rollback, local configuration/rule backup, and diagnostic export. Configurations are validated with the official core before activation; failed application attempts try to restore the last confirmed session.
+- **Interface and resource lifecycle**: Eight pages: Dashboard, Proxies, Subscriptions, Connections, Rules, Logs, Tests, and Settings. Light/dark/system themes, English/Simplified Chinese/system language, keyboard controls, and DPI-aware layouts are available. An optional experimental setting unloads the UI after closing to the tray; it is off by default, and minimizing retains the UI and taskbar entry.
+- **Local data protection**: Subscription URLs, request headers, and test targets use current-user Windows DPAPI. Node credentials and editing drafts can exist in files with restricted access; backups can contain plain text credentials. Downloads, file reads, and runtime lists have bounds; diagnostics are exported locally without automatic upload.
 
-## Subscriptions and nodes
+## Getting started on Windows
 
-Use **Add subscription** to open the HTTPS or local YAML import dialog; the name is optional. Failed imports keep the input and show an error. On the Proxies page, click a node’s delay status to test it, or use the group’s **Test latency** button. Testing does not select a node.
+The [Releases page](https://github.com/junliangdg/quick-clash/releases) is the download entry point. The repository's CI is configured to publish an unsigned `continuous` Windows development snapshot after its fast checks pass. Snapshot binaries may lag the working tree, and a CI pass does not establish stable-release readiness. For a source build, see the commands below.
 
-## Custom automatic strategy groups
+1. Extract the **entire** Windows x64 portable ZIP and launch `bin/quickclash.exe`. Keep `bin/`, `core/`, `geo/`, `metadata/`, and `licenses/` together; user data is stored separately in the directory shown in Settings.
+2. Open **Subscriptions → Add subscription** and enter a standard HTTPS subscription URL or import a local YAML file. The name is optional. The first valid profile is selected and its core starts automatically; system proxy and TUN stay off on first use. An import error retains the input for correction.
+3. On **Proxies**, select a member of a manual group, or let an automatic group choose. Use node delay controls for individual tests and the group's **Test latency** button for the group and its subgroups. Testing does not change a manual selection. Select Rule, Global, or Direct mode from the dashboard or tray.
+4. Use the ready local HTTP/SOCKS5 proxy address directly, enable **System proxy** for applications that follow Windows proxy settings, or enable **TUN** for supported network interception. First-time TUN setup requests UAC authorization for the dedicated service; ordinary proxy use does not require installing it.
+5. Closing to the tray keeps forwarding active; **Exit** cleans up the owned session and proxy lease. Minimizing keeps a taskbar entry. If QuickClash is forcibly terminated and connectivity is affected, reopen it to recover its proxy lease, or inspect **Windows Settings → Network & internet → Proxy**, preserving any later changes made by other software.
 
-Open **Proxies → New strategy group**. Start with All nodes, Hong Kong, Japan, Singapore, or Failover, or configure a group yourself:
+“Core ready” confirms a local runtime, not public internet reachability. The dashboard's IP queries and site checks, and the Tests page's HTTPS checks, help inspect the selected path; they do not measure bandwidth or guarantee that every remote node works. Detailed operation and recovery steps are in the [Windows user guide](docs/baseline/windows_user_guide.md).
 
-1. Choose automatic latency selection, ordered failover, or load balancing, then select inline nodes and/or runtime providers from the current profile.
-2. Include/exclude case-insensitive keywords (comma/newline separated, any match) or use a restricted regular expression. Empty include matches all; exclusions win. Region templates match names, not IP geolocation. Regex supports anchors, character classes and alternation, but not lookarounds, backreferences, quantified groups, repetition ranges or multiple repetition operators.
-3. Set the probe URL, interval, timeout, tolerance and lazy mode. Preview candidates, wait for official-core validation, then confirm Save and apply. An empty candidate preview cannot be applied.
-4. Optionally attach the group to an original manual selector and explicitly select it after applying. **Creating a group alone does not change routing** or switch Rule/Global modes; it can be selected in its parent later.
+### Custom automatic strategy groups
 
-Local definitions do not modify subscription source bytes and survive updates, reopening, history and backups. Runtime providers remain dynamically filtered by the core; previews use the last core observation or the imported snapshot when stopped. Provider health-check settings are shared with other groups, which may still probe excluded nodes. Conflicting settings across custom groups sharing a provider are rejected. A saved group that becomes empty rejects traffic instead of silently going DIRECT. Applying may restart the session; failures preserve the last working session. Restored offline/source backups freeze source names to the archived snapshot, while strategies and filters remain editable.
+Open **Proxies → New strategy group**. Use an All nodes, Hong Kong, Japan, Singapore, or Failover template, or configure a group yourself:
+
+1. Choose automatic latency selection, ordered failover, or load balancing, and select inline nodes and/or runtime providers from the current profile.
+2. Filter with case-insensitive include/exclude keywords or a restricted regular expression. Empty include matches all; exclusions win. Region templates match names rather than IP geolocation.
+3. Set the probe URL and timing options, preview candidates, and confirm **Save and apply** after official-core validation. A new or edited group with no candidates cannot be applied.
+4. Optionally attach it to an existing manual group and explicitly select it after applying. **Creating a group alone does not change routing** or switch Rule/Global modes.
+
+Custom groups belong to a subscription/profile entry and are stored separately from its source YAML. Updating that entry or changing its URL retains them; deleting the entry removes its groups, and history rollback restores that version's definitions. Missing dependencies or name conflicts reject the update and keep the previous data. A user-reported disappearance remains unexplained despite targeted tests; its status is retained in the [task ledger](docs/progress/TASKS.md#未关闭风险).
+
+Runtime providers remain dynamically filtered by the core. Their health-check settings are shared, so conflicting settings across custom groups sharing a provider are rejected. If a saved group's candidates later become empty, it rejects traffic rather than silently using DIRECT. Applying changes may restart the session.
+
+### Custom rules and resource updates
+
+Open **Rules → Manage custom rules…** to edit global and current-profile rules in one workspace. **Confirm** saves and applies the changes together. In Rule mode, profile-specific rules run first, then global rules, then the profile's original rules. A rule suggested from a connection enters this draft workflow and requires confirmation.
+
+When a profile contains managed resources, **Resource updates…** shows proxy providers and rule sets. **Refresh list** reads their status; each row's **Update** downloads that resource. Snapshot updates rebuild and validate a configuration candidate, while runtime-provider updates are performed by the core. Settings groups controls into **General, Network, Core and resources, Data and diagnostics, and About**; backup, recovery, and diagnostic actions are in Data and diagnostics.
 
 ## Current status
 
 | Scope | Status |
 | --- | --- |
-| Windows x64 | Native implementation and current validation platform; P3/G3 day-to-day delivery is in progress |
-| Windows local MVP | All 16 G2 conditions had recorded passes for the historical tested scope; applicability to the current version must be checked. See [validation evidence](docs/progress/CHECKLISTS.md) |
-| Linux / macOS | Planned desktop targets; shared boundaries and candidate build configuration are retained; native builds, system integration, and functional validation are all `NotRun` |
-| Mobile | Future Android and iOS host targets; architecture boundaries only; no mobile project, runtime, or validation |
-| Distribution | No stable release yet; `continuous` in [GitHub Releases](https://github.com/junliangdg/quick-clash/releases) is a CI snapshot of the default branch, not a formal release |
+| Windows x64 | Native implementation with local evidence for real-subscription proxy/TUN forwarding, service cleanup, and controlled failure degradation; current-candidate release validation is still pending |
+| Historical MVP evidence | The 16 local MVP items have historical passes for their recorded versions and scope; these do not certify the entire current working tree or release package |
+| Linux / macOS | Planned desktop targets with shared boundaries and candidate build configuration; native builds and functional validation remain `NotRun`, and system integration remains to be implemented |
+| Android / iOS | Future host targets; no mobile project, runtime, or validation |
+| Distribution | Development portable-package workflow exists; a stable Windows release still needs candidate validation and distribution materials. Formal installer, signing, and application update integration remain future work |
 
-Compact bottom navigation is a responsive desktop window layout. It does not indicate Android or iOS support.
+The [task ledger](docs/progress/TASKS.md) and [release checklist](docs/progress/CHECKLISTS.md) track evidence and remaining work. Current local UI checks use Qt 6.12; the configured CI minimum is Qt 6.9. Historical results from either toolchain apply only to their recorded versions and scope.
 
-Validation is still pending for real TUN operation, the privileged service, and a clean standard-user environment. We are also investigating font and memory residency issues after subscription updates. Screen-reader support, full accessibility, and some host-environment scenarios do not yet have final conclusions. See the [task ledger](docs/progress/TASKS.md) and [validation checklist](docs/progress/CHECKLISTS.md) for current status and evidence.
+## Support scope and known limitations
+
+- **Configuration input**: Standard Mihomo YAML is required. Base64 subscription payloads and share links are not converted. Supported fields follow the bundled `metadata/config_policy.json`; successful validation does not establish reachability of every node.
+- **System proxy recovery**: The switch controls current-user WinINet settings; it does not cover WinHTTP or software that ignores those settings. In both ordinary and service modes, the GUI holds the proxy lease. After a GUI crash or forced termination, the proxy may point to a stopped port until the app is reopened or settings are recovered manually. A running service does not guarantee immediate proxy restoration.
+- **TUN and host scenarios**: Local forwarding and controlled recovery have evidence. Cross-user operation, the full first-authorization/cancellation and failure-cleanup matrix, a clean standard-user machine, reboot, and real network/power changes still need validation. Installing the service registers it for automatic startup; it can remain idle after GUI exit.
+- **Backups**: Local configuration/rule backups can contain plain text credentials and are not password-encrypted; application settings and subscription-source credentials are excluded. Both backup scopes reject the whole export if an enabled profile-specific `RULE-SET` rule refers to a runtime provider absent from the expanded offline snapshot. This limitation does not affect every subscription containing `RULE-SET`.
+- **Updates**: Core management only accepts the client's bundled compatibility list, currently official Mihomo `v1.19.33`; it is not an arbitrary upstream-version updater. Geo and core changes have explicit apply/recovery actions. Full application automatic updating is not delivered.
+- **Resources and accessibility**: Subscription-related memory residency and long-term resource behavior remain under investigation. Default Qt Quick RHI/GPU rendering is retained, helpers count toward client statistics, and core memory is separate; no fixed cross-machine memory limit is promised. Qt 6.12 bilingual label checks have passed, while actual Windows UI Automation/screen-reader use, physical touch, OS text scaling, and some multi-display/host scenarios remain unverified.
+- **Other platforms**: The `360×480` minimum window and compact bottom navigation describe desktop adaptation. They do not establish Linux/macOS or mobile support.
 
 ## Build from source
 
-The project minimum is Qt 6.9. Windows CI and the Windows startup regression use Qt `6.9.0 msvc2022_64`. Linux and macOS retain candidate build configuration, but native build and functional validation have not been completed.
+Use Windows x64, PowerShell 7.2+, CMake 3.24+, Ninja, a compatible MSVC x64 toolchain/Windows SDK, and a Qt MSVC kit with the modules listed in the [build guide](docs/baseline/build_and_package.md). The project minimum and Windows CI configuration are Qt `6.9` / `6.9.0 msvc2022_64`; current local UI validation uses `6.12.0 msvc2022_64`. The latest working-tree changes have not had a complete application retest on Qt 6.9.
 
 Run these commands from the repository root:
 
@@ -65,16 +97,29 @@ Run these commands from the repository root:
 # Fetch version- and SHA-256-pinned yaml-cpp, Mihomo, and Geo assets
 pwsh -NoProfile -File scripts/fetch_dependencies.ps1
 
-# Configure, build, run QML lint, and run affected tests
-pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64
+# Configure/build the client, service, and minimum smoke targets; run contracts and qml_smoke
+# Adjust QtRoot to your installed kit
+pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.12.0/msvc2022_64
 
 # Launch the development build
-build/dev/quickclash.exe
+.\build\dev\quickclash.exe
 ```
 
-Network access is required for the initial dependency fetch; cached assets are still verified against their digests. After changing Qt kits or compilers, or moving the repository, use a fresh build directory or pass `-Fresh` to the build script. See [Build and offline packaging](docs/baseline/build_and_package.md) for dependencies, deployment, packaging, and CI.
+The default build runs **minimum smoke tests only**. Select verification for the change; add `-Lint` for QML changes. In a PowerShell session, for example:
 
-Documentation or repository-structure changes can run these checks independently:
+```powershell
+# Build and run only the named affected tests, plus QML lint
+./scripts/build_windows.ps1 -Test ui_state,ui_subscriptions -Lint
+
+# Build and lint before a targeted manual UI check; no tests run
+./scripts/build_windows.ps1 -BuildOnly -Lint
+```
+
+`-Test`, `-BuildOnly`, `-Fast`, and `-Full` select mutually exclusive scopes. `-Fast` runs the CI/cross-module fast scope; `-Full` explicitly runs the current configuration's full CTest suite. `-Headless` selects the non-UI configuration. See [verification scope and stopping rules](docs/progress/README.md#日常范围与停止规则) before broadening checks.
+
+Initial dependency fetching needs network access; cached files are still digest-checked. CMake configuration does not download dependencies. After changing Qt kits or compilers, or moving the repository, use a new `-BuildDirectory`. Development output is not a portable distribution; see [Build and offline packaging](docs/baseline/build_and_package.md) for Release packaging, deployment, and CI.
+
+Documentation-only changes do not require a product rebuild. Relevant repository checks are:
 
 ```powershell
 pwsh -NoProfile -File scripts/build_design_docs.ps1 -Check
@@ -84,7 +129,7 @@ pwsh -NoProfile -File scripts/check_platform_boundaries.ps1
 git diff --check
 ```
 
-These scripts validate design documents, task tracking, source naming, and platform boundaries. They do not replace real builds, functional tests, or performance validation.
+After editing design sources, run `scripts/build_design_docs.ps1` before its `-Check` mode. For HTML reference changes, generate and check the preview as described in the [reference guide](docs/reference/README.md). These checks validate repository consistency; they do not certify product behavior or release readiness.
 
 ## Project layout
 
@@ -94,6 +139,7 @@ src/        Domain, application, infrastructure, platform adapters, and presenta
 qml/        Pages, shared components, and window shell
 resources/  Icons, translations, metadata, and third-party licenses
 tests/      Unit, integration, contract, visual, and script tests
+bench/      Windows resource sampling and comparison tools
 docs/       Design, progress, baseline, and reference material
 scripts/    Dependency fetching, builds, checks, packaging, and releases
 ```
@@ -103,19 +149,13 @@ scripts/    Dependency fetching, builds, checks, packaging, and releases
 | Document | Contents |
 | --- | --- |
 | [Design documents](docs/design/README.md) | Product scope, architecture, data and interface contracts, platform strategy, and acceptance criteria |
-| [Development progress](docs/progress/README.md) | Status rules, task ledger, stage checklists, development log, and report index |
+| [Current tasks and risks](docs/progress/TASKS.md) | Current implementation/validation scope, open issues, and next work |
+| [Development and validation](docs/progress/README.md) | Status rules, targeted verification, release checklist, development log, and evidence index |
 | [Windows user guide](docs/baseline/windows_user_guide.md) | Operation, recovery, and known limitations of the current development build |
 | [Build and offline packaging](docs/baseline/build_and_package.md) | Toolchain, dependencies, builds, tests, deployment, packaging, and CI |
-| [UI design preview](docs/reference/quickclash_minimal_preview.html) | Offline interactive concept page |
+| [UI reference](docs/reference/README.md) | Current Qt dashboard captures, offline interaction preview, and synchronization instructions |
 | [C++ and source conventions](docs/development/cpp_style.md) | C++20, Qt lifetime management, naming, testing, and documentation synchronization |
 | [License baseline](docs/baseline/licenses.md) | Sources and obligations for Qt, Mihomo, Geo, icons, and other dependencies |
-
-## Support scope and limitations
-
-- Input must be standard Mihomo YAML; Base64 subscription payloads and share links are not converted automatically. Supported fields are defined by the bundled `metadata/config_policy.json` and runtime capability diagnostics. The core accepting a configuration does not guarantee that every remote node is reachable.
-- The system proxy applies to WinINet settings for the current Windows user. WinHTTP, software that manages its own proxy, and programs that ignore the system proxy are not covered by this switch. Real network takeover and failure recovery for TUN remain subject to the validation ledger.
-- Resource use varies with Qt, graphics drivers, fonts, DPI, OS version, and actual workload. The project does not impose a fixed cross-machine memory threshold, and a single short test cannot prove long-term CPU, power, or memory stability.
-- Platforms other than Windows currently have only static boundaries and candidate configurations. They should not be considered supported. This includes Linux and macOS; Android and iOS are future host targets, not current mobile support.
 
 ## License and feedback
 

@@ -19,6 +19,7 @@ ColumnLayout {
     property string portEpoch: ""
     property string portGeneration: ""
     property string confirmationError: ""
+    property bool tunHelpExpanded: false
     readonly property bool editable: ui.settingsReady && !ui.runtime.readOnly && !ui.runtime.busy && !session.networkPending
     function networkSummary(value): string {
         return qsTranslate("settings_page", "Mode %1 · proxy port %2 · controller port %3 · DNS %4").arg(value.mode || "—").arg(value.mixedPort || "—").arg(value.controllerPort || "—").arg(value.dnsMode || "profile");
@@ -107,12 +108,27 @@ ColumnLayout {
             }
         }
         Label {
-            text: qsTranslate("settings_page", "TUN needs the Windows service. Enabling TUN can ask for one administrator confirmation to install it or authorize this folder; moving or renaming the folder requires authorization again. QuickClash itself keeps running as an ordinary user.")
+            text: qsTranslate("settings_page", "TUN requires the Windows service and may request administrator authorization.")
             color: root.theme.muted
             font.pixelSize: root.theme.supportingSize
             wrapMode: Text.WordWrap
             Layout.fillWidth: true
             Layout.topMargin: 8
+        }
+        SettingsAction {
+            objectName: "settings_tun_help_toggle"
+            theme: root.theme
+            text: root.tunHelpExpanded ? qsTranslate("settings_page", "Hide TUN authorization details") : qsTranslate("settings_page", "TUN authorization details")
+            onClicked: root.tunHelpExpanded = !root.tunHelpExpanded
+        }
+        Label {
+            objectName: "settings_tun_help_details"
+            visible: root.tunHelpExpanded
+            text: qsTranslate("settings_page", "TUN needs the Windows service. Enabling TUN can ask for one administrator confirmation to install it or authorize this folder; moving or renaming the folder requires authorization again. QuickClash itself keeps running as an ordinary user.")
+            color: root.theme.muted
+            font.pixelSize: root.theme.supportingSize
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
         }
         Label {
             visible: !!(root.ui.runtime.features || {}).serviceSetupPending || !!root.ui.runtime.tunPending

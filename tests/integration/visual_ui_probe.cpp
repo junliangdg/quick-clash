@@ -3,6 +3,7 @@
 #include "host_probe.h"
 #include <QApplication>
 #include <QColor>
+#include <QCursor>
 #include <QDateTime>
 #include <QDebug>
 #include <QDir>
@@ -118,9 +119,18 @@ int runVisualProbe(ApplicationHost& host) {
             {"frameWidth", frame.width()},
             {"frameHeight", frame.height()},
             {"graphicsApi", static_cast<int>(host.window()->rendererInterface()->graphicsApi())}});
-        return host.contentReady() && foregroundCorrect && !frame.isNull() &&
-               host.window()->contentItem()->size() == QSizeF(host.window()->size()) &&
-               (output.isEmpty() || frame.save(QDir(output).filePath(name + ".png")));
+        const bool sizeMatches =
+            host.window()->contentItem()->size() == QSizeF(host.window()->size());
+        const bool saved = output.isEmpty() ||
+                           (!frame.isNull() && frame.save(QDir(output).filePath(name + ".png")));
+        if (!host.contentReady() || !foregroundCorrect || frame.isNull() || !sizeMatches || !saved)
+            qWarning() << "Visual capture mismatch" << name << "ready" << host.contentReady()
+                       << "foreground" << foregroundCorrect << "null frame" << frame.isNull()
+                       << "size matches" << sizeMatches << "saved" << saved << "window"
+                       << host.window()->geometry() << "content"
+                       << host.window()->contentItem()->size() << "frame" << frame.size()
+                       << "graphics API" << int(host.window()->rendererInterface()->graphicsApi());
+        return host.contentReady() && foregroundCorrect && !frame.isNull() && sizeMatches && saved;
     };
     QJsonArray members, nodes, groups;
     for (int i = 1; i <= 6; ++i) {
@@ -313,15 +323,57 @@ int runVisualProbe(ApplicationHost& host) {
                  ui.dataDemands().generations});
         }
     };
+    if (QCoreApplication::arguments().contains(QStringLiteral("--page-review-only"))) {
+        ui.setThemeMode("light");
+        for (const int width : {360, 1000}) {
+            host.resizeWindow({width, 720});
+            for (const auto& page :
+                 {QStringLiteral("home"), QStringLiteral("proxies"), QStringLiteral("connections"),
+                  QStringLiteral("rules"), QStringLiteral("logs"), QStringLiteral("tests"),
+                  QStringLiteral("subscriptions"), QStringLiteral("settings")}) {
+                if (!ui.navigate(page))
+                    return 210;
+                populate();
+                if (page == "settings")
+                    ui.setSettingsCategory(1);
+                if (!capture(QStringLiteral("review_%1_%2").arg(page).arg(width)) ||
+                    !test::checkScrollLayouts(host.window()) ||
+                    !test::checkPageAlignment(host.window()))
+                    return 211;
+                if (page == "subscriptions") {
+                    auto* popup = host.window()->findChild<QObject*>("subscription_import_dialog");
+                    if (!popup || !QMetaObject::invokeMethod(popup, "open") ||
+                        !capture(QStringLiteral("review_import_%1").arg(width)))
+                        return 212;
+                    QMetaObject::invokeMethod(popup, "close");
+                }
+            }
+        }
+        if (!output.isEmpty()) {
+            QFile file(QDir(output).filePath("review_captures.json"));
+            if (!file.open(QIODevice::WriteOnly) ||
+                file.write(QJsonDocument(captures).toJson()) < 0)
+                return 213;
+        }
+        return 0;
+    }
     const auto checkDashboardDrag = [&](QQuickItem* viewport, const QString& theme, int width,
                                         qreal origin, bool testWheel, bool testTouch) -> int {
         auto* card = objects("current_subscription_card").value(0);
         auto* update = objects("home_update_subscription").value(0);
-        if (!card || !update || !update->isVisible() || !update->isEnabled())
+        auto* traffic = objects("traffic_card").value(0);
+        auto* proxy = objects("home_proxy_card").value(0);
+        if (!card || !traffic || !proxy || !update || !update->isVisible() || !update->isEnabled())
             return 204;
         // Native Flow layout may still be awaiting a frame after a resize.
         if (!output.isEmpty() && host.window()->grabWindow().isNull())
             return 224;
+        const auto cardTop = card->mapToScene(QPointF()).y();
+        const auto trafficTop = traffic->mapToScene(QPointF()).y();
+        const auto proxyTop = proxy->mapToScene(QPointF()).y();
+        if ((width == 360 && !(cardTop < proxyTop && proxyTop < trafficTop)) ||
+            (width == 1000 && !(std::abs(cardTop - trafficTop) < 1 && trafficTop < proxyTop)))
+            return 227;
         const auto dragContent = [&](const QPoint& startContent) {
             const auto endContent = startContent - QPoint(0, 140);
             QTest::mouseMove(host.window(), startContent, 5);
@@ -510,6 +562,16 @@ int runVisualProbe(ApplicationHost& host) {
         return 0;
     };
     host.resizeWindow({1000, 640});
+    if (!QTest::qWaitFor(
+            [&] {
+                return host.window()->size() == QSize(1000, 640) &&
+                       host.window()->contentItem()->size() == QSizeF(1000, 640);
+            },
+            3000)) {
+        qWarning() << "Visual window resize did not settle" << host.window()->geometry()
+                   << host.window()->contentItem()->size();
+        return 226;
+    }
     ui.navigate("home");
     if (QCoreApplication::arguments().contains(QStringLiteral("--dashboard-drag-only"))) {
         const bool testWheel =
@@ -820,28 +882,48 @@ int runVisualProbe(ApplicationHost& host) {
             auto* outer =
                 container ? container->property("background").value<QQuickItem*>() : nullptr;
             auto* label = action ? action->property("contentItem").value<QQuickItem*>() : nullptr;
-            if (!background || !outer || !label || !action->isEnabled())
+            if (!background || !outer || !label || !action->isEnabled()) {
+                qWarning() << "Delay hover controls unavailable" << actionName << action
+                           << background << outer << label;
                 return false;
+            }
             QSignalSpy clicked(action, SIGNAL(clicked()));
             QTest::mouseMove(host.window(), QPoint(1, 1));
             QTest::qWait(20);
             const auto idleColor = background->property("color").value<QColor>();
             const auto textColor = label->property("color").value<QColor>();
-            QTest::mouseMove(host.window(),
-                             action->mapToScene(action->boundingRect().center()).toPoint());
-            QTest::qWait(20);
+            const auto target = action->mapToScene(action->boundingRect().center()).toPoint();
+            QTest::mouseMove(host.window(), target);
+            const auto entered =
+                QTest::qWaitFor([&] { return action->property("hovered").toBool(); }, 500);
             const auto hoverColor = background->property("color").value<QColor>();
-            if (!action->property("hovered").toBool() || hoverColor == idleColor ||
+            if (!entered || hoverColor == idleColor ||
                 hoverColor == outer->property("color").value<QColor>() ||
-                label->property("color").value<QColor>() != textColor || !clicked.isEmpty() ||
-                !capture(captureName))
+                label->property("color").value<QColor>() != textColor || !clicked.isEmpty()) {
+                qWarning() << "Delay hover mismatch" << actionName << "hovered"
+                           << action->property("hovered") << "idle" << idleColor << "hover"
+                           << hoverColor << "outer" << outer->property("color") << "text"
+                           << textColor << label->property("color") << "clicks" << clicked.size()
+                           << "bounds" << action->mapRectToScene(action->boundingRect()) << "target"
+                           << target << "cursor" << host.window()->mapFromGlobal(QCursor::pos())
+                           << "window" << host.window()->geometry() << "content"
+                           << host.window()->contentItem()->size() << "dpr"
+                           << host.window()->devicePixelRatio() << "active"
+                           << host.window()->isActive();
                 return false;
+            }
+            if (!capture(captureName)) {
+                qWarning() << "Delay hover capture failed" << captureName;
+                return false;
+            }
             QTest::mouseMove(host.window(), QPoint(1, 1));
-            QTest::qWait(20);
-            return !action->property("hovered").toBool() &&
-                   background->property("color").value<QColor>() == idleColor;
+            const auto left =
+                QTest::qWaitFor([&] { return !action->property("hovered").toBool(); }, 500);
+            return left && background->property("color").value<QColor>() == idleColor;
         };
         const auto hoverHeaders = objects(QStringLiteral("proxy_group_节点选择"));
+        if (hoverHeaders.size() != 1)
+            qWarning() << "Unexpected proxy group header count" << hoverHeaders.size();
         if (hoverHeaders.size() != 1 ||
             !checkDelayHover(hoverHeaders.first(), "test_group", theme + "_group_delay_hover"))
             return 204;

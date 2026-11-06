@@ -160,6 +160,18 @@ ListView {
     readonly property real pageRightOutset: theme.scrollBarWidth
     readonly property real availableWidth: Math.max(0, width - theme.scrollBarWidth)
     readonly property int cardColumns: availableWidth >= 900 ? 3 : availableWidth >= 580 ? 2 : 1
+    function linkAccessibleLabel(field, label) {
+        // Dynamic lookup keeps Qt 6.9 compatible; the property appeared in Qt 6.10.
+        const linker = Qt.createQmlObject('import QtQuick; Item { function link(field, label) { if (field.Accessible.labelledBy !== undefined) field.Accessible.labelledBy = label; } }', root, "accessibleLabelLink");
+        try {
+            // The checker cannot see methods defined in the dynamic component.
+            // qmllint disable missing-property
+            linker.link(field, label);
+            // qmllint enable missing-property
+        } finally {
+            linker.destroy();
+        }
+    }
     function scrollToRow(row) {
         positionViewAtIndex(row, ListView.Beginning);
     }
@@ -330,25 +342,46 @@ ListView {
             ColumnLayout {
                 id: importForm
                 spacing: 10
+                Label {
+                    id: importUrlLabel
+                    text: qsTr("HTTPS subscription URL")
+                    color: root.theme.text
+                    Layout.fillWidth: true
+                }
                 ThemedField {
                     id: subscriptionUrl
                     theme: root.theme
                     objectName: "subscription_url"
                     placeholderText: qsTr("HTTPS subscription URL")
                     Accessible.name: qsTr("HTTPS subscription URL")
+                    // Qt suppresses the accessible name for password edits. Keep
+                    // a non-secret description on all supported Qt versions.
+                    Accessible.description: importUrlLabel.text
+                    Component.onCompleted: root.linkAccessibleLabel(subscriptionUrl, importUrlLabel)
                     Layout.fillWidth: true
                     echoMode: TextInput.PasswordEchoOnEdit
                     maximumLength: 8192
                     enabled: !root.ui.runtime.busy
+                }
+                Label {
+                    text: qsTr("Name (optional)")
+                    color: root.theme.text
+                    Layout.fillWidth: true
                 }
                 ThemedField {
                     id: profileName
                     theme: root.theme
                     objectName: "import_profile_name"
                     placeholderText: qsTr("Name (optional)")
+                    Accessible.name: qsTr("Name (optional)")
                     Layout.fillWidth: true
                     maximumLength: 80
                     enabled: !root.ui.runtime.busy
+                }
+                Label {
+                    text: qsTr("Download path")
+                    color: root.theme.text
+                    Layout.fillWidth: true
                 }
                 ThemedComboBox {
                     id: importRoute
@@ -576,6 +609,7 @@ ListView {
                     onClicked: root.ui.runtimeCommand("rename", [root.managedId, itemName.text])
                 }
                 Label {
+                    id: savedUrlLabel
                     text: qsTr("Subscription URL")
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
@@ -592,6 +626,8 @@ ListView {
                     selectByMouse: true
                     placeholderText: root.managedProfile.secretRef ? qsTr("Hidden") : qsTr("No subscription URL")
                     Accessible.name: qsTr("Subscription URL")
+                    Accessible.description: savedUrlLabel.text
+                    Component.onCompleted: root.linkAccessibleLabel(savedUrl, savedUrlLabel)
                     echoMode: root.sourceRevealed ? TextInput.Normal : TextInput.Password
                     maximumLength: 8192
                     onTextChanged: {
@@ -676,6 +712,8 @@ ListView {
                     enabled: !root.sourceSaving
                     Layout.fillWidth: true
                     placeholderText: qsTr("Headers as JSON: Authorization, User-Agent, Accept")
+                    Accessible.name: qsTr("Request headers (optional)")
+                    Accessible.description: qsTr("Request headers (optional)")
                     echoMode: TextInput.Password
                     maximumLength: 8192
                     onTextChanged: {
@@ -879,7 +917,7 @@ ListView {
         }
         Label {
             visible: !root.ui.profileModel.count
-            text: qsTr("No subscriptions yet")
+            text: qsTr("No subscriptions yet. Add an HTTPS subscription or import a local file.")
             color: root.theme.muted
             Layout.fillWidth: true
         }

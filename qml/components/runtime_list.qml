@@ -17,11 +17,14 @@ Item {
     property string actionText: qsTr("Details")
     property bool actionsEnabled: true
     property bool activateRow: true
+    property bool showRowDescription: false
     property string selectedKey: ""
     property bool expandable: false
     property string expandedKey: ""
     property bool followTail: false
     property bool userFollowing: true
+    property string emptyText: qsTr("No entries")
+    readonly property bool horizontalOverflow: viewport.contentWidth > viewport.width + 0.5
     readonly property real totalWeight: columns.reduce(function(sum, column) { return sum + column.weight; }, 0) || 1
     readonly property string query: listModel.query
     signal invoked(var entry)
@@ -31,6 +34,10 @@ Item {
             expandedKey = expandedKey === key ? "" : key;
         else
             invoked(entry);
+    }
+    function jumpToLatest(): void {
+        userFollowing = true;
+        list.positionViewAtEnd();
     }
     onFollowTailChanged: { if (followTail) { userFollowing = true; tail.restart(); } }
     onListModelChanged: expandedKey = ""
@@ -109,6 +116,12 @@ Item {
                     HoverHandler { cursorShape: root.activateRow ? Qt.PointingHandCursor : Qt.ArrowCursor }
                     onClicked: { if (root.activateRow) root.activate(entry, stableKey); }
                     Keys.onReturnPressed: { if (root.activateRow) root.activate(entry, stableKey); }
+                    ThemedToolTip {
+                        theme: root.theme
+                        width: Math.max(0, Math.min(root.theme.scaledSize(520), viewport.width - 24))
+                        visible: root.showRowDescription && (tile.hovered || tile.activeFocus)
+                        text: visible ? root.describe(tile.entry) : ""
+                    }
                     background: StateSurface {
                         theme: root.theme
                         focused: tile.activeFocus
@@ -177,8 +190,11 @@ Item {
     Label {
         anchors.centerIn: parent
         visible: root.listModel.count === 0
-        text: qsTr("No entries")
+        text: root.emptyText
         color: root.theme.muted
         font.pixelSize: root.theme.bodySize
+        width: Math.max(0, parent.width - 32)
+        horizontalAlignment: Text.AlignHCenter
+        wrapMode: Text.WordWrap
     }
 }

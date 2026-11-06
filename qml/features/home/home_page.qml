@@ -100,17 +100,20 @@ ThemedScrollView {
             id: rootForm
             spacing: root.theme.gap
             GridLayout {
+                id: overviewGrid
                 columns: root.availableWidth >= 600 ? 2 : 1
                 uniformCellWidths: true
                 columnSpacing: root.theme.gap
                 rowSpacing: root.theme.gap
                 Layout.fillWidth: true
                 FlatTile {
+                    id: subscriptionCard
                     objectName: "current_subscription_card"
                     theme: root.theme
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
+                    Layout.row: 0
                     implicitHeight: Math.max(224, statusContent.implicitHeight + 32)
                     ColumnLayout {
                         id: statusContent
@@ -195,11 +198,14 @@ ThemedScrollView {
                     }
                 }
                 FlatTile {
+                    id: trafficCard
                     objectName: "traffic_card"
                     theme: root.theme
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     Layout.minimumWidth: 0
+                    Layout.row: overviewGrid.columns === 2 ? 0 : 2
+                    Layout.column: overviewGrid.columns === 2 ? 1 : 0
                     implicitHeight: Math.max(224, trafficContent.implicitHeight + 32)
                     ColumnLayout {
                         id: trafficContent
@@ -339,18 +345,22 @@ ThemedScrollView {
                         }
                     }
                 }
-            }
-            FlatTile {
-                objectName: "home_proxy_card"
-                theme: root.theme
-                Layout.fillWidth: true
-                implicitHeight: proxyContent.implicitHeight + 2 * root.theme.panelPadding
-                HomeProxyControls {
-                    id: proxyContent
-                    anchors.fill: parent
-                    anchors.margins: root.theme.panelPadding
-                    ui: root.ui
+                FlatTile {
+                    id: proxyCard
+                    objectName: "home_proxy_card"
                     theme: root.theme
+                    Layout.fillWidth: true
+                    Layout.column: 0
+                    Layout.columnSpan: overviewGrid.columns
+                    Layout.row: overviewGrid.columns === 2 ? 2 : 1
+                    implicitHeight: proxyContent.implicitHeight + 2 * root.theme.panelPadding
+                    HomeProxyControls {
+                        id: proxyContent
+                        anchors.fill: parent
+                        anchors.margins: root.theme.panelPadding
+                        ui: root.ui
+                        theme: root.theme
+                    }
                 }
             }
             FlatTile {

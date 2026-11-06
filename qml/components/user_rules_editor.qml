@@ -311,7 +311,7 @@ Item {
                     objectName: "user_rules_toolbar"
                     Layout.fillWidth: true
                     Layout.maximumWidth: Number.POSITIVE_INFINITY
-                    columns: width >= root.theme.scaledSize(64) + reload.implicitWidth + add.implicitWidth + 16 ? 3 : width >= reload.implicitWidth + add.implicitWidth + 8 ? 2 : 1
+                    columns: width >= root.theme.scaledSize(220) + reload.implicitWidth + add.implicitWidth + 16 ? 3 : width >= reload.implicitWidth + add.implicitWidth + 8 ? 2 : 1
                     readonly property real columnItemWidth: columns === 3 ? (width - 2 * columnSpacing) / 3 : columns === 2 ? (width - columnSpacing) / 2 : width
                     columnSpacing: 8
                     rowSpacing: 8

@@ -72,7 +72,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
     const auto activate = [&object](const char* name) {
         auto* control = object(name);
         return control && control->property("enabled").toBool() &&
-               QMetaObject::invokeMethod(control, "clicked");
+               QMetaObject::invokeMethod(
+                   control, control->property("checkable").toBool() ? "click" : "clicked");
     };
     if (!waitFor([&] { return ui.settingsReady(); }) || !ui.navigate("settings") ||
         !waitFor([&] { return object("settings_general"); })) {
@@ -102,8 +103,16 @@ int runSettingsUiProbe(ApplicationHost& host) {
         auto* actions = item(recovery.second);
         auto* accessible = toggle ? QAccessible::queryAccessibleInterface(toggle) : nullptr;
         if (!accessible || !actions || !accessible->state().checkable ||
-            accessible->state().checked || actions->isVisible())
+            accessible->state().checked || actions->isVisible()) {
+            std::fprintf(
+                stderr,
+                "Recovery %s: toggle=%p actions=%p accessible=%p "
+                "checkable=%d checked=%d visible=%d\n",
+                recovery.first, static_cast<void*>(toggle), static_cast<void*>(actions),
+                static_cast<void*>(accessible), accessible && accessible->state().checkable,
+                accessible && accessible->state().checked, actions && actions->isVisible());
             return fail("advanced recovery starts collapsed with accessible state");
+        }
         if (!activate(recovery.first) ||
             !waitFor([&] { return actions->isVisible() && accessible->state().checked; }))
             return fail("advanced recovery expands with accessible state");
@@ -111,6 +120,16 @@ int runSettingsUiProbe(ApplicationHost& host) {
             !waitFor([&] { return !actions->isVisible() && !accessible->state().checked; }))
             return fail("advanced recovery collapses with accessible state");
     }
+    ui.setSettingsCategory(1);
+    if (!waitFor([&] { return object("settings_network"); }))
+        return fail("network settings load");
+    auto* tunHelp = item("settings_tun_help_details");
+    if (!tunHelp || tunHelp->isVisible() || !activate("settings_tun_help_toggle") ||
+        !tunHelp->isVisible() || !activate("settings_tun_help_toggle") || tunHelp->isVisible())
+        return fail("TUN authorization help expands and collapses");
+    ui.setSettingsCategory(2);
+    if (!waitFor([&] { return object("settings_resources"); }))
+        return fail("resource settings reload");
     if (!output.isEmpty()) {
         host.window()->hide();
         host.window()->show();

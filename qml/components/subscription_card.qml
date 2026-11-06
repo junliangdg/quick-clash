@@ -82,7 +82,7 @@ FlatTile {
                     }
                 }
                 Label {
-                    text: root.selected ? qsTr("Selected") : qsTr("Click to select")
+                    text: root.selected ? qsTr("Selected") : qsTr("Use this subscription")
                     color: root.selected ? root.theme.accent : root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
@@ -164,7 +164,7 @@ FlatTile {
                 width: Math.min(implicitWidth, parent.width)
                 objectName: "apply_subscription"
                 theme: root.theme
-                visible: !!root.profile.pendingApply
+                visible: !root.selected || !!root.profile.pendingApply
                 text: root.selected ? (root.applyFailed ? qsTr("Retry applying") : qsTr("Apply now")) : qsTr("Use this subscription")
                 enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
                 onClicked: root.actionRequested("select", root.profileId)

@@ -10,6 +10,8 @@ Item {
     required property UiState ui
     required property ThemeTokens theme
     readonly property string demandKey: ui.createDemandKey("rules")
+    readonly property string selectedId: ui.runtime.selectedId || ""
+    property bool hasManagedResources: false
     property bool active: visible && ui.uiVisible && !ui.replay
     readonly property var pageState: section.currentIndex === 0 ? (ui.telemetry.rulePage || {}) : (ui.telemetry.providerPage || {})
     readonly property bool canRefresh: !!ui.runtime.ready && !ui.runtime.busy && !pageState.loading
@@ -22,11 +24,19 @@ Item {
         { "title": qsTr("Source"), "weight": 1.1 }
     ]
     readonly property var providerColumns: [
-        { "title": qsTr("Provider"), "weight": 2.2 },
-        { "title": qsTr("Type"), "weight": 1.4 },
-        { "title": qsTr("Items"), "weight": 0.6, "numeric": true },
-        { "title": qsTr("Updated"), "weight": 1.6 }
+        { "title": qsTr("Resource"), "weight": 1.4 },
+        { "title": qsTr("Type"), "weight": 1 },
+        { "title": qsTr("Mode"), "weight": 1.2 },
+        { "title": qsTr("Items"), "weight": 0.5, "numeric": true },
+        { "title": qsTr("Updated"), "weight": 1.5 },
+        { "title": qsTr("Result"), "weight": 1.8 }
     ]
+    function refreshResourceAvailability(): void {
+        const profile = ui.profileModel.profile(selectedId);
+        hasManagedResources = (profile.managedProviders || []).length > 0;
+        if (!hasManagedResources)
+            section.currentIndex = 0;
+    }
     function syncDemand(): void {
         const stream = customRulesDialog.visible ? "user_rules" : section.currentIndex === 0 ? "rules" : "providers";
         ui.setDemand(demandKey, stream, active);
@@ -54,13 +64,16 @@ Item {
             return qsTr("Rule provider: %1").arg(entry.providerName);
         return qsTr("Effective configuration");
     }
+    function resourceType(entry): string {
+        return entry.kind === "proxies" || entry.kind === "proxy-providers" ? qsTr("Proxy collection") : qsTr("Rule set");
+    }
     function describeEntry(entry): string {
         const count = typeof entry.count === "number" ? String(entry.count) : qsTr("Unknown");
         const updated = entry.updatedAt || qsTr("Unknown");
         if (section.currentIndex === 0) {
             return "#" + (entry.position || "?") + " · " + (entry.type || "") + " · " + (entry.payload || "") + " → " + (entry.proxy || "") + "\n" + sourceDescription(entry) + (entry.providerName ? " · " + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + " · " + qsTr("Limited information") : "");
         }
-        return entry.name + " · " + (entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Selected profile snapshot")) + " · " + entry.kind + (entry.type ? " · " + entry.type : "") + (entry.behavior ? " · " + entry.behavior : "") + "\n" + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + "\n" + resultText(entry.lastResult) + (entry.lastError ? " · " + entry.lastError : "") + (entry.stale ? " · " + qsTr("Stale data") : "");
+        return entry.name + " · " + resourceType(entry) + " · " + (entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Selected profile snapshot")) + (entry.type ? " · " + entry.type : "") + (entry.behavior ? " · " + entry.behavior : "") + "\n" + qsTr("Items: %1 · Updated: %2").arg(count).arg(updated) + "\n" + resultText(entry.lastResult) + (entry.lastError ? " · " + entry.lastError : "") + (entry.stale ? " · " + qsTr("Stale data") : "");
     }
     function cellText(entry, index): string {
         if (section.currentIndex === 0) {
@@ -82,11 +95,15 @@ Item {
         case 0:
             return entry.name || "—";
         case 1:
-            return [entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Profile snapshot"), entry.kind, entry.type, entry.behavior].filter(part => !!part).join(" · ");
+            return resourceType(entry);
         case 2:
-            return typeof entry.count === "number" ? String(entry.count) : qsTr("Unknown");
+            return entry.mode === "runtime" ? qsTr("Core runtime") : qsTr("Profile snapshot");
         case 3:
+            return typeof entry.count === "number" ? String(entry.count) : "—";
+        case 4:
             return entry.updatedAt || qsTr("Unknown");
+        case 5:
+            return resultText(entry.lastResult) + (entry.lastError ? " · " + entry.lastError : "") + (entry.stale ? " · " + qsTr("Stale data") : "");
         }
         return "";
     }
@@ -98,9 +115,22 @@ Item {
                 return theme.warning;
             return theme.muted;
         }
-        if (section.currentIndex === 1 && index === 3)
+        if (section.currentIndex === 1 && index === 4)
             return entry.stale ? theme.warning : theme.muted;
+        if (section.currentIndex === 1 && index === 5)
+            return entry.lastResult === "Failed" ? theme.error : entry.stale || entry.lastResult === "Uncertain" || entry.lastResult === "PendingApply" ? theme.warning : theme.muted;
         return theme.text;
+    }
+    onSelectedIdChanged: {
+        section.currentIndex = 0;
+        refreshResourceAvailability();
+    }
+    Connections {
+        target: root.ui.profileModel
+        function onProfileChanged(profileId: string): void {
+            if (profileId === root.selectedId)
+                root.refreshResourceAvailability();
+        }
     }
     onActiveChanged: {
         if (!active && customRulesDialog.visible) {
@@ -110,6 +140,7 @@ Item {
         syncDemand();
     }
     Component.onCompleted: {
+        refreshResourceAvailability();
         syncDemand();
         if (ui.connectionRule.profileId)
             customRulesDialog.open();
@@ -123,7 +154,7 @@ Item {
             Layout.fillWidth: true
             spacing: 10
             Label {
-                text: section.currentIndex === 0 ? qsTr("Rules · %1").arg(root.ui.liveRules.count) : qsTr("Providers · %1").arg(root.ui.liveProviders.count)
+                text: section.currentIndex === 0 ? qsTr("Rules · %1").arg(root.ui.liveRules.count) : qsTr("Resources · %1").arg(root.ui.liveProviders.count)
                 color: root.theme.text
                 font.pixelSize: root.theme.bodySize
                 font.weight: Font.DemiBold
@@ -159,23 +190,37 @@ Item {
             id: section
             objectName: "rules_section"
             property int currentIndex: 0
+            visible: root.hasManagedResources || currentIndex === 1
             Layout.fillWidth: true
             spacing: 6
             ActionButton {
+                objectName: "back_to_rules"
+                visible: section.currentIndex === 1
                 theme: root.theme
-                Layout.fillWidth: true
-                text: qsTr("Rules")
-                selected: section.currentIndex === 0
+                ghost: true
+                text: qsTr("Back to rules")
                 onClicked: section.currentIndex = 0
             }
+            Item { Layout.fillWidth: true }
             ActionButton {
+                objectName: "open_resource_updates"
+                visible: root.hasManagedResources && section.currentIndex === 0
                 theme: root.theme
-                Layout.fillWidth: true
-                text: qsTr("Providers")
-                selected: section.currentIndex === 1
+                ghost: true
+                text: qsTr("Resource updates…")
                 onClicked: section.currentIndex = 1
             }
             onCurrentIndexChanged: root.syncDemand()
+        }
+        Label {
+            objectName: "resource_updates_hint"
+            visible: section.currentIndex === 1
+            Layout.fillWidth: true
+            text: qsTr("Refresh list reads status only. Update downloads the selected proxy collection or rule set.") + "\n" + qsTr("Snapshot updates follow auto-apply and may restart the core. Runtime updates take effect without restarting. Item counts may be unavailable.")
+            color: root.theme.muted
+            font.pixelSize: root.theme.supportingSize
+            wrapMode: Text.WordWrap
+            textFormat: Text.PlainText
         }
         GridLayout {
             Layout.fillWidth: true
@@ -187,7 +232,7 @@ Item {
                 objectName: "refresh_rules"
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                text: root.pageState.loading ? qsTr("Loading…") : qsTr("Refresh")
+                text: root.pageState.loading ? qsTr("Loading…") : section.currentIndex === 0 ? qsTr("Refresh") : qsTr("Refresh list")
                 enabled: root.canRefresh
                 onClicked: root.ui.runtimeCommand(section.currentIndex === 0 ? "rules" : "providers")
             }
@@ -195,7 +240,7 @@ Item {
                 id: ruleFilter
                 theme: root.theme
                 listModel: root.pageModel
-                placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Provider or type")
+                placeholderText: section.currentIndex === 0 ? qsTr("Type, payload or proxy") : qsTr("Resource name or type")
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
             }
@@ -210,21 +255,42 @@ Item {
             wrapMode: Text.WordWrap
             textFormat: Text.PlainText
         }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: ruleList.horizontalOverflow || (!!root.pageModel.query && root.pageModel.count === 0)
+            Label {
+                Layout.fillWidth: true
+                text: ruleList.horizontalOverflow ? qsTr("Scroll horizontally to see all columns") : ""
+                color: root.theme.muted
+                font.pixelSize: root.theme.supportingSize
+                wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                theme: root.theme
+                visible: !!root.pageModel.query && root.pageModel.count === 0
+                objectName: "rules_clear_filter"
+                text: qsTr("Clear filter")
+                onClicked: root.pageModel.query = ""
+            }
+        }
         RuntimeList {
+            id: ruleList
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
             listModel: root.pageModel
             columns: section.currentIndex === 0 ? root.ruleColumns : root.providerColumns
             rowHeight: root.theme.rowHeight
-            minimumWidth: root.theme.scaledSize(720)
+            minimumWidth: root.theme.scaledSize(section.currentIndex === 0 ? 720 : 900)
             cellText: root.cellText
             cellColor: root.rowColor
             describe: root.describeEntry
             expandable: section.currentIndex === 0
             activateRow: section.currentIndex === 0
+            showRowDescription: section.currentIndex === 1
             actionText: section.currentIndex === 0 ? "" : qsTr("Update")
             actionsEnabled: root.canRefresh
+            emptyText: root.pageState.loading ? qsTr("Loading…") : root.pageState.stale || root.pageState.error ? qsTr("Data could not be loaded") : !root.ui.runtime.ready ? (section.currentIndex === 0 ? qsTr("Start the core to view rules") : qsTr("Start the core to view resource status")) : root.pageModel.query ? qsTr("No matching entries") : section.currentIndex === 0 ? qsTr("No entries") : qsTr("No updatable resources")
             onInvoked: function (entry) {
                 if (section.currentIndex === 1)
                     root.ui.runtimeCommand("update_provider", [entry.kind, entry.name]);

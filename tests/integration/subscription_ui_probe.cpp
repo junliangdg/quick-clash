@@ -2,6 +2,7 @@
 #include "application_host.h"
 #include "domain/subscription_usage.h"
 #include "focus_layout_checks.h"
+#include <QAccessible>
 #include <QApplication>
 #include <QClipboard>
 #include <QColor>
@@ -13,6 +14,7 @@
 #include <QSGRendererInterface>
 #include <QSignalSpy>
 #include <QTest>
+#include <QVersionNumber>
 #include <cstdio>
 
 namespace quickclash {
@@ -36,11 +38,47 @@ bool click(ApplicationHost& host, QQuickItem* item) {
     QTest::qWait(20);
     return true;
 }
+bool checkUrlAccessibility(QObject* field, const QString& expectedLabel, bool protectedEdit) {
+    auto* accessible = QAccessible::queryAccessibleInterface(field);
+    if (!accessible || accessible->state().passwordEdit != protectedEdit ||
+        accessible->text(QAccessible::Description) != expectedLabel) {
+        std::fprintf(stderr,
+                     "Subscription URL accessibility: description or protection mismatch\n");
+        return false;
+    }
+    if (!protectedEdit)
+        return accessible->text(QAccessible::Name) == expectedLabel;
+    const auto secret = field->property("text").toString();
+    const auto name = accessible->text(QAccessible::Name);
+    const auto value = accessible->text(QAccessible::Value);
+    const auto description = accessible->text(QAccessible::Description);
+    if ((!secret.isEmpty() &&
+         (name.contains(secret) || description.contains(secret) || value.contains(secret))) ||
+        (!name.isEmpty() && name != expectedLabel)) {
+        std::fprintf(stderr, "Subscription URL accessibility: unsafe name or value\n");
+        return false;
+    }
+    // Qt 6.10 added a public label relation. Older supported versions retain
+    // the description above, but do not expose this relationship.
+    if (QVersionNumber::fromString(QString::fromLatin1(qVersion())) >= QVersionNumber(6, 10)) {
+        // Query the direction Qt Quick exposes for this field's label.
+        const auto relations = accessible->relations(QAccessible::Label);
+        bool found = false;
+        for (const auto& relation : relations)
+            found |= relation.first && relation.first->text(QAccessible::Name) == expectedLabel;
+        if (!found) {
+            std::fprintf(stderr, "Subscription URL accessibility: label relation missing\n");
+            return false;
+        }
+    }
+    return true;
+}
 } // namespace
 int runSubscriptionUiProbe(ApplicationHost& host) {
     // Synthetic delivery only: no SettingsService, subscription, core or platform command
     // execution.
     auto& ui = host.state();
+    QAccessible::setActive(true);
     QString visualOutput;
     for (const auto& argument : QCoreApplication::arguments())
         if (argument.startsWith("--subscription-visual-output="))
@@ -114,6 +152,9 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         url->isVisible() || !click(host, openImport) ||
         !importDialog->property("visible").toBool() || !url->isVisible() || !url->hasActiveFocus())
         return 118;
+    const auto importLabel = url->property("placeholderText").toString();
+    if (!checkUrlAccessibility(url, importLabel, true))
+        return 164;
     // Flow positions its buttons during polish; wait for a rendered layout before clicking.
     if (!visualOutput.isEmpty() && host.window()->grabWindow().isNull())
         return 119;
@@ -129,10 +170,14 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         return 119;
     }
     url->setProperty("text", "https://fixture.invalid/private-token");
+    if (!checkUrlAccessibility(url, importLabel, true))
+        return 164;
     importNameField->setProperty("text", "Import fixture");
     const auto submitImport = [&] { return test::focusInScroll(add) && click(host, add); };
     if (!submitImport())
         return 119;
+    if (!checkUrlAccessibility(url, importLabel, true))
+        return 164;
     ui.applyControl({{"publicationGeneration", "1"},
                      {"epoch", "fixture"},
                      {"selectedId", "p0"},
@@ -268,8 +313,12 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     QSignalSpy action(first, SIGNAL(actionRequested(QString, QString)));
     QSignalSpy manage(first, SIGNAL(manageRequested(QString)));
     auto* title = first->findChild<QQuickItem*>(QStringLiteral("select_subscription"));
-    if (!title)
+    auto* useSubscription = first->findChild<QQuickItem*>(QStringLiteral("apply_subscription"));
+    if (!title || !useSubscription || !useSubscription->isVisible() ||
+        !QMetaObject::invokeMethod(useSubscription, "click") || action.size() != 1 ||
+        action[0][0].toString() != "select" || action[0][1] != managedId)
         return 83;
+    action.clear();
     title->forceActiveFocus(Qt::TabFocusReason);
     QTest::keyClick(host.window(), Qt::Key_Space);
     if (action.size() != 1 || action[0][0].toString() != "select" || action[0][1] != managedId)
@@ -312,6 +361,9 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!savedUrl || !showUrl || !copyUrl || !editUrl || !saveUrl || !closeManagement ||
         !closeConfirmation || !savedUrl->property("text").toString().isEmpty())
         return 105;
+    const auto savedLabel = QCoreApplication::translate("subscriptions_page", "Subscription URL");
+    if (!checkUrlAccessibility(savedUrl, savedLabel, true))
+        return 165;
     auto localProfile = profiles[firstIndex].toObject();
     localProfile.remove("secretRef");
     profiles[firstIndex] = localProfile;
@@ -332,6 +384,8 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (savedUrl->property("text") != fixtureUrl ||
         savedUrl->property("cursorPosition").toInt() != 0)
         return 107;
+    if (!checkUrlAccessibility(savedUrl, savedLabel, false))
+        return 165;
     token = request(copyUrl);
     if (savedUrl->property("text") != fixtureUrl)
         return 137;
@@ -367,6 +421,11 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!page->property("editingSource").toBool() || savedUrl->property("readOnly").toBool() ||
         savedUrl->property("text") != fixtureUrl)
         return 145;
+    if (!checkUrlAccessibility(savedUrl, savedLabel, false))
+        return 165;
+    QMetaObject::invokeMethod(showUrl, "clicked");
+    if (!checkUrlAccessibility(savedUrl, savedLabel, true))
+        return 165;
     savedUrl->setProperty("text", "https://fixture.invalid/new-token");
     if (ui.navigate("home") || !closeConfirmation->property("visible").toBool() ||
         savedUrl->property("text") != "https://fixture.invalid/new-token")

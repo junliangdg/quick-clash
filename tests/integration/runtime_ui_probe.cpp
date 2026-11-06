@@ -229,10 +229,54 @@ int runRuntimeListProbe(ApplicationHost& host) {
     }
     auto& ui = host.state();
     ui.setReplay(false);
-    ui.applyControl({{"publicationGeneration", "1"},
-                     {"epoch", "fixture"},
-                     {"ready", true},
-                     {"status", "Ready"}});
+    ui.applyControl(
+        {{"publicationGeneration", "1"},
+         {"epoch", "fixture"},
+         {"ready", true},
+         {"status", "Ready"},
+         {"features",
+          QJsonObject{{"testHistory",
+                       QJsonArray{QJsonObject{{"target", "https://fixture.example"},
+                                              {"state", "Reachable"},
+                                              {"status", 204},
+                                              {"elapsedMs", 125},
+                                              {"path", "Direct"},
+                                              {"mode", "rule"},
+                                              {"finalOrigin", "https://fixture.example"}}}}}}});
+    if (!ui.navigate("tests"))
+        return 230;
+    QTest::qWait(60);
+    auto* targets = host.window()->findChild<QObject*>("website_targets");
+    auto* run = host.window()->findChild<QQuickItem*>("run_website_test");
+    auto* count = host.window()->findChild<QObject*>("website_target_count");
+    auto* card = findVisualItem(host.window()->contentItem(), "website_result_card");
+    auto* summary = findVisualItem(card, "website_result_summary");
+    auto* toggle = findVisualItem(card, "website_result_details_toggle");
+    auto* detailsText = findVisualItem(card, "website_result_details");
+    if (!targets || !run || !count || !summary || !toggle || !detailsText ||
+        !summary->property("text").toString().contains("204") ||
+        !summary->property("text").toString().contains("125 ms") || detailsText->isVisible()) {
+        qWarning() << "Website result fixture:" << targets << run << count << card << summary
+                   << toggle << detailsText << (summary ? summary->property("text") : QVariant());
+        return 231;
+    }
+    if (!QMetaObject::invokeMethod(toggle, "click") || !detailsText->isVisible() ||
+        !detailsText->property("text").toString().contains("fixture.example") ||
+        !QMetaObject::invokeMethod(toggle, "click") || detailsText->isVisible())
+        return 232;
+    const auto checkTargets = [&](const QString& text, int expectedCount, bool enabled) {
+        return targets->setProperty("text", text) && run->isEnabled() == enabled &&
+               count->property("text").toString().contains(QString::number(expectedCount));
+    };
+    QStringList eightTargets;
+    for (int index = 0; index < 8; ++index)
+        eightTargets.append(QStringLiteral("https://fixture%1.example").arg(index));
+    if (!targets->setProperty("text", "  \n") || run->isEnabled() ||
+        !count->property("text").toString().contains(QStringLiteral("1–8")) ||
+        !checkTargets("https://fixture.example", 1, true) ||
+        !checkTargets(eightTargets.join('\n'), 8, true) ||
+        !checkTargets(eightTargets.join('\n') + "\nhttps://extra.example", 9, false))
+        return 233;
     if (host.window()->findChild<QObject*>("user_rule_binding_dialog") ||
         host.window()->findChild<QObject*>("close_confirmation"))
         return 218;
@@ -254,6 +298,15 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(140);
     if (ui.liveConnections()->captureIds() != QStringList{"one"})
         return 43;
+    if (!filter->setProperty("text", "no-such-connection"))
+        return 234;
+    QTest::qWait(180);
+    if (ui.liveConnections()->count() != 0 || !click(host, "connections_clear_filter") ||
+        !ui.liveConnections()->query().isEmpty() ||
+        !filter->property("text").toString().isEmpty() || ui.liveConnections()->count() != 2)
+        return 235;
+    filter->setProperty("text", "alpha");
+    QTest::qWait(180);
     if (!click(host, QStringLiteral("close_filtered_connections")))
         return 44;
     auto* page = host.window()->findChild<QObject*>(QStringLiteral("connections_page"));
@@ -325,8 +378,19 @@ int runRuntimeListProbe(ApplicationHost& host) {
     ui.applyData(oldRules);
     auto* section = host.window()->findChild<QObject*>(QStringLiteral("rules_section"));
     auto* view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
+    auto* resourceEntry = host.window()->findChild<QQuickItem*>("open_resource_updates");
     if (!section || !view || view->property("count").toInt() != 2)
         return 48;
+    if (!resourceEntry || resourceEntry->isVisible() || section->property("currentIndex") != 0 ||
+        ui.dataDemands().active.contains("providers"))
+        return 284;
+    auto* ruleFilter = host.window()->findChild<QObject*>("runtime_filter");
+    if (!ruleFilter || !ruleFilter->setProperty("text", "no-such-rule"))
+        return 237;
+    QTest::qWait(180);
+    if (ui.liveRules()->count() != 0 || !click(host, "rules_clear_filter") ||
+        !ruleFilter->property("text").toString().isEmpty() || ui.liveRules()->count() != 2)
+        return 238;
     const auto checkHorizontalFocus = [&] {
         const auto baselineSize = host.window()->size();
         host.resizeWindow({360, 640});
@@ -371,6 +435,18 @@ int runRuntimeListProbe(ApplicationHost& host) {
                      {"ready", true},
                      {"selectedId", "selected-fixture"},
                      {"status", "Ready"}});
+    const QJsonArray managedResources{
+        QJsonObject{{"name", "fixture"}, {"kind", "rule-providers"}, {"mode", "snapshot"}}};
+    ui.applyData({1,
+                  "fixture",
+                  {{"profiles", QJsonArray{QJsonObject{{"id", "selected-fixture"},
+                                                       {"name", "Fixture"},
+                                                       {"managedProviders", managedResources}}}}},
+                  ui.dataDemands().generations});
+    QTest::qWait(30);
+    if (!resourceEntry->isVisible() || section->property("currentIndex") != 0 ||
+        ui.dataDemands().active.contains("providers"))
+        return 285;
     ui.applyData({1,
                   "fixture",
                   {{"rule_status", QJsonObject{{"rulePage", QJsonObject{{"loading", true}}}}}},
@@ -490,8 +566,10 @@ int runRuntimeListProbe(ApplicationHost& host) {
     host.resizeWindow({420, 640});
     QTest::qWait(40);
     if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
-        std::abs(rect(scopeControl).top() - rect(reloadControl).top()) > 1 ||
-        std::abs(rect(scopeControl).top() - rect(addControl).top()) > 1 ||
+        rect(scopeControl).bottom() > rect(reloadControl).top() + 1 ||
+        rect(scopeControl).bottom() > rect(addControl).top() + 1 ||
+        std::abs(rect(reloadControl).top() - rect(addControl).top()) > 1 ||
+        rect(scopeControl).width() < rect(reloadControl).width() + rect(addControl).width() ||
         rect(confirmHint).bottom() <= rect(confirmControl).top() ||
         rect(confirmHint).top() >= rect(confirmControl).bottom()) {
         qWarning("Custom rules toolbar or footer failed to fit in the narrow window");
@@ -895,7 +973,10 @@ int runRuntimeListProbe(ApplicationHost& host) {
     view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
     if (!section || !view)
         return 244;
-    section->setProperty("currentIndex", 1);
+    if (!captureRules("resource_entry"))
+        return 296;
+    if (!click(host, "open_resource_updates"))
+        return 286;
     QTest::qWait(30);
     if (ui.liveRules()->count() != 0 || ui.dataDemands().active.contains("rules") ||
         !ui.dataDemands().active.contains("providers") || ui.telemetry().contains("rulePage"))
@@ -904,12 +985,57 @@ int runRuntimeListProbe(ApplicationHost& host) {
     const application::RuntimeUpdate oldProviders{
         1,
         "fixture",
-        {{"providers",
-          QJsonArray{QJsonObject{{"name", "fixture"}, {"kind", "rules"}, {"count", 2}}}}},
+        {{"providers", QJsonArray{QJsonObject{{"name", "fixture"},
+                                              {"kind", "rules"},
+                                              {"mode", "runtime"},
+                                              {"count", 2},
+                                              {"updatedAt", "2026-11-07T00:00:00Z"},
+                                              {"lastResult", "Failed"},
+                                              {"lastError", "ProviderDownloadFailed"}}}}},
         ui.dataDemands().generations};
     ui.applyData(oldProviders);
     if (view->property("count").toInt() != 1)
         return 49;
+    rulesPage = host.window()->findChild<QObject*>("rules_page");
+    auto* resourceHint = host.window()->findChild<QQuickItem*>("resource_updates_hint");
+    refreshRules = host.window()->findChild<QObject*>("refresh_rules");
+    if (!rulesPage || !resourceHint || !resourceHint->isVisible() || !refreshRules ||
+        refreshRules->property("text") != QCoreApplication::translate("rules_page", "Refresh list"))
+        return 287;
+    QString resourceText;
+    const QVariant resourceDescription =
+        QVariantMap{{"name", "fixture"}, {"kind", "proxy-providers"}, {"mode", "snapshot"}};
+    if (!QMetaObject::invokeMethod(rulesPage, "cellText", Q_RETURN_ARG(QString, resourceText),
+                                   Q_ARG(QVariant, resourceDescription), Q_ARG(QVariant, 1)) ||
+        resourceText != QCoreApplication::translate("rules_page", "Proxy collection") ||
+        !QMetaObject::invokeMethod(rulesPage, "cellText", Q_RETURN_ARG(QString, resourceText),
+                                   Q_ARG(QVariant, resourceDescription), Q_ARG(QVariant, 3)) ||
+        resourceText != QString::fromUtf8("—"))
+        return 288;
+    const QVariant failedResource =
+        oldProviders.values.value("providers").toArray().first().toObject().toVariantMap();
+    if (!QMetaObject::invokeMethod(rulesPage, "cellText", Q_RETURN_ARG(QString, resourceText),
+                                   Q_ARG(QVariant, failedResource), Q_ARG(QVariant, 5)) ||
+        !resourceText.contains("ProviderDownloadFailed"))
+        return 297;
+    const auto resourceSize = host.window()->size();
+    for (const auto& size : {QSize{1200, 800}, QSize{360, 640}}) {
+        host.resizeWindow(size);
+        QTest::qWait(40);
+        if (resourceHint->height() + 0.5 < resourceHint->implicitHeight() ||
+            view->property("height").toReal() < 80)
+            return 289;
+        if (size.width() == 1200) {
+            auto* viewport = qobject_cast<QQuickItem*>(view)->parentItem();
+            while (viewport && !viewport->property("contentX").isValid())
+                viewport = viewport->parentItem();
+            if (!viewport || viewport->property("contentWidth").toReal() > viewport->width() + 0.5)
+                return 298;
+        }
+        if (!captureRules(QStringLiteral("resources_%1").arg(size.width())))
+            return 290;
+    }
+    host.resizeWindow(resourceSize);
     if (!checkHorizontalFocus())
         return 88;
     ui.applyData(
@@ -937,7 +1063,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     ui.applyData(currentProviders);
     if (ui.liveProviders()->count() != 1)
         return 63;
-    section->setProperty("currentIndex", 0);
+    if (!click(host, "back_to_rules"))
+        return 291;
     QTest::qWait(30);
     ui.applyData(oldRules);
     ui.applyData(oldProviders);
@@ -949,6 +1076,39 @@ int runRuntimeListProbe(ApplicationHost& host) {
     ui.applyData(currentRules);
     if (ui.liveRules()->count() != 2)
         return 71;
+    if (!click(host, "open_resource_updates"))
+        return 292;
+    ui.applyData(
+        {1,
+         "fixture",
+         {{"profiles", QJsonArray{QJsonObject{{"id", "selected-fixture"}, {"name", "Fixture"}}}}},
+         ui.dataDemands().generations});
+    QTest::qWait(30);
+    resourceEntry = host.window()->findChild<QQuickItem*>("open_resource_updates");
+    ui.applyData(currentProviders);
+    if (!resourceEntry || resourceEntry->isVisible() || section->property("currentIndex") != 0 ||
+        ui.liveProviders()->count() != 0 || ui.dataDemands().active.contains("providers") ||
+        !ui.dataDemands().active.contains("rules"))
+        return 293;
+    ui.applyData(
+        {1,
+         "fixture",
+         {{"profiles", QJsonArray{QJsonObject{{"id", "selected-fixture"},
+                                              {"name", "Fixture"},
+                                              {"managedProviders", managedResources}},
+                                  QJsonObject{{"id", "plain-fixture"}, {"name", "Plain"}}}}},
+         ui.dataDemands().generations});
+    QTest::qWait(30);
+    if (!click(host, "open_resource_updates"))
+        return 294;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"ready", true},
+                     {"selectedId", "plain-fixture"}});
+    QTest::qWait(30);
+    if (resourceEntry->isVisible() || section->property("currentIndex") != 0 ||
+        ui.dataDemands().active.contains("providers"))
+        return 295;
     QJsonArray logs;
     for (int i = 1; i <= 100; ++i)
         logs.append(QJsonObject{{"localSeq", QString::number(i)},
@@ -967,6 +1127,18 @@ int runRuntimeListProbe(ApplicationHost& host) {
     view = host.window()->findChild<QObject*>(QStringLiteral("runtime_view"));
     if (!view || !view->property("atYEnd").toBool())
         return 51;
+    auto* logFilter = host.window()->findChild<QObject*>("runtime_filter");
+    if (!logFilter || !logFilter->setProperty("text", "no-such-log"))
+        return 239;
+    QTest::qWait(180);
+    auto* clearLogs = findVisualItem(host.window()->contentItem(), "logs_clear_filter");
+    if (ui.liveLogs()->count() != 0 || !clearLogs || !clearLogs->isVisible() ||
+        !QMetaObject::invokeMethod(clearLogs, "click") ||
+        !logFilter->property("text").toString().isEmpty() || ui.liveLogs()->count() != 100) {
+        qWarning() << "Log filter clear:" << ui.liveLogs()->count() << clearLogs
+                   << (clearLogs ? clearLogs->isVisible() : false) << logFilter->property("text");
+        return 240;
+    }
     if (!click(host, QStringLiteral("pause_logs")))
         return 52;
     if (!ui.dataDemands().active.contains("logs") || ui.dataDemands().active.contains("log_feed"))
@@ -1021,6 +1193,15 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!QMetaObject::invokeMethod(view, "movementStarted") ||
         !ui.dataDemands().active.contains("log_feed"))
         return 86;
+    view->setProperty("contentY", 0);
+    QTest::qWait(30);
+    if (!click(host, "logs_jump_latest") ||
+        !QTest::qWaitFor([&] { return view->property("atYEnd").toBool(); }, 1000) ||
+        !ui.dataDemands().active.contains("log_feed")) {
+        qWarning() << "Log follow recovery:" << view->property("atYEnd")
+                   << view->property("contentY") << view->property("contentHeight");
+        return 236;
+    }
     if (!click(host, QStringLiteral("pause_logs")))
         return 66;
     const application::RuntimeUpdate oldLogs{
@@ -1126,6 +1307,13 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (proxies->property("matchingCount").toInt() != 11 ||
         controls(controls, host.window()->contentItem()) > 11)
         return 224;
+    auto* subtitle = findVisualItem(host.window()->contentItem(), "proxy_group_subtitle");
+    if (!subtitle || !subtitle->property("text").toString().contains("11") ||
+        !subtitle->property("text").toString().contains("500") ||
+        !click(host, "proxy_clear_search") || !proxies->property("searchText").toString().isEmpty())
+        return 241;
+    proxies->setProperty("searchText", "NODE_49");
+    QTest::qWait(30);
     if (!capturePath.isEmpty() &&
         !host.window()->grabWindow().save(QDir(capturePath).filePath("node_search_500.png")))
         return 280;

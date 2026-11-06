@@ -142,7 +142,7 @@ Item {
             Layout.fillWidth: true
             spacing: 12
             Label {
-                text: qsTr("Connections") + " · " + root.ui.liveConnections.count
+                text: root.ui.liveConnections.query ? qsTr("Connections · %1 shown / %2 total").arg(root.ui.liveConnections.count).arg(root.ui.liveConnections.totalCount) : qsTr("Connections") + " · " + root.ui.liveConnections.count
                 color: root.theme.text
                 font.pixelSize: root.theme.bodySize
                 font.weight: Font.DemiBold
@@ -236,10 +236,31 @@ Item {
                     return qsTr("Close all completed");
                 if (root.closeState.closeAllResult === "Failed")
                     return qsTr("Close all failed");
+                if (root.ui.liveConnections.count > 500)
+                    return qsTr("Filter to 500 connections or fewer to close the results.");
                 return "";
             }
         }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: connectionList.horizontalOverflow || (!!root.ui.liveConnections.query && root.ui.liveConnections.count === 0)
+            Label {
+                Layout.fillWidth: true
+                text: connectionList.horizontalOverflow ? qsTr("Scroll horizontally to see all columns") : ""
+                color: root.theme.muted
+                font.pixelSize: root.theme.supportingSize
+                wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                objectName: "connections_clear_filter"
+                theme: root.theme
+                visible: !!root.ui.liveConnections.query && root.ui.liveConnections.count === 0
+                text: qsTr("Clear filter")
+                onClicked: root.ui.liveConnections.query = ""
+            }
+        }
         RuntimeList {
+            id: connectionList
             Layout.fillWidth: true
             Layout.fillHeight: true
             theme: root.theme
@@ -253,6 +274,7 @@ Item {
             describe: root.describe
             actionText: ""
             selectedKey: root.selectedKey
+            emptyText: !root.runtime.ready ? qsTr("Start the core to view connections") : root.telemetry.connectionsPaused || root.telemetry.connectionsStale ? qsTr("Connection data is unavailable or stale") : !root.telemetry.connectionSample ? qsTr("Loading connections…") : root.ui.liveConnections.query ? qsTr("No matching connections") : qsTr("No active connections")
             onInvoked: function (entry) { root.showDetails(entry); }
         }
     }

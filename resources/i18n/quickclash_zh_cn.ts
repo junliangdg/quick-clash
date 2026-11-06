@@ -1068,6 +1068,20 @@
   </context>
   <context>
     <name>rules_page</name>
+    <message><source>Resource updates…</source><translation>资源更新…</translation></message>
+    <message><source>Resources · %1</source><translation>资源 · %1</translation></message>
+    <message><source>Back to rules</source><translation>返回规则</translation></message>
+    <message><source>Resource</source><translation>资源</translation></message>
+    <message><source>Proxy collection</source><translation>代理集合</translation></message>
+    <message><source>Rule set</source><translation>规则集</translation></message>
+    <message><source>Mode</source><translation>模式</translation></message>
+    <message><source>Result</source><translation>更新结果</translation></message>
+    <message><source>Refresh list</source><translation>刷新列表</translation></message>
+    <message><source>Resource name or type</source><translation>资源名称或类型</translation></message>
+    <message><source>Refresh list reads status only. Update downloads the selected proxy collection or rule set.</source><translation>“刷新列表”只读取状态；行尾“更新”下载所选代理集合或规则集。</translation></message>
+    <message><source>Snapshot updates follow auto-apply and may restart the core. Runtime updates take effect without restarting. Item counts may be unavailable.</source><translation>快照更新遵循自动应用设置，可能重启内核；运行时更新无需重启即可生效。部分资源不提供条目数。</translation></message>
+    <message><source>Start the core to view resource status</source><translation>启动内核后查看资源状态</translation></message>
+    <message><source>No updatable resources</source><translation>暂无可更新的资源</translation></message>
     <message><source>Updating</source><translation>正在更新</translation></message>
     <message><source>Update completed; content may be unchanged</source><translation>更新完成；内容可能未变化</translation></message>
     <message><source>Snapshot saved; pending apply</source><translation>快照已保存，待应用</translation></message>
@@ -3291,5 +3305,62 @@
     <message><source>Finish or discard the existing custom rule draft first.</source><translation>请先完成或放弃已有的自定义规则草稿。</translation></message>
     <message><source>This connection is no longer current. Select a live connection.</source><translation>此连接已失效，请选择当前活动连接。</translation></message>
     <message><source>This connection has no valid domain or destination IP for a rule.</source><translation>此连接没有可用于规则的有效域名或目标 IP。</translation></message>
+  </context>
+  <context>
+    <name>tests_page</name>
+    <message><source>Direct</source><translation>直连</translation></message>
+    <message><source>Enter 1–8 HTTPS URLs, one per line.</source><translation>请输入 1–8 个 HTTPS 地址，每行一个。</translation></message>
+    <message><source>Too many addresses: %1 / 8</source><translation>地址数量超出上限：%1 / 8</translation></message>
+    <message><source>Addresses: %1 / 8</source><translation>地址数量：%1 / 8</translation></message>
+    <message><source>Requests run one at a time without cookies (up to 3 HTTPS redirects, 64 KiB and 12 seconds each). Direct requests still follow TUN and system routes. A reachable entry does not prove node forwarding.</source><translation>逐一测试且不携带 Cookie；每项最多跟随 3 次 HTTPS 跳转，限制 64 KiB 和 12 秒。直连仍受 TUN 和系统路由影响；入口可达不代表已验证节点转发。</translation></message>
+    <message><source>No test results yet</source><translation>暂无测试结果</translation></message>
+    <message><source>Show details</source><translation>显示详情</translation></message>
+    <message><source>Hide details</source><translation>收起详情</translation></message>
+  </context>
+  <context>
+    <name>connections_page</name>
+    <message><source>Connections · %1 shown / %2 total</source><translation>连接 · 显示 %1 / 共 %2</translation></message>
+    <message><source>Filter to 500 connections or fewer to close the results.</source><translation>请筛选至 500 条或更少后再关闭筛选结果。</translation></message>
+    <message><source>Scroll horizontally to see all columns</source><translation>横向滚动可查看所有列</translation></message>
+    <message><source>Clear filter</source><translation>清除筛选</translation></message>
+    <message><source>Connection data is unavailable or stale</source><translation>连接数据不可用或已过期</translation></message>
+    <message><source>No matching connections</source><translation>没有匹配的连接</translation></message>
+    <message><source>No active connections</source><translation>暂无活动连接</translation></message>
+  </context>
+  <context>
+    <name>rules_page</name>
+    <message><source>Scroll horizontally to see all columns</source><translation>横向滚动可查看所有列</translation></message>
+    <message><source>Clear filter</source><translation>清除筛选</translation></message>
+    <message><source>Data could not be loaded</source><translation>无法加载数据</translation></message>
+    <message><source>No matching entries</source><translation>没有匹配的条目</translation></message>
+    <message><source>No entries</source><translation>暂无条目</translation></message>
+  </context>
+  <context>
+    <name>logs_page</name>
+    <message><source>Jump to latest</source><translation>跳到最新</translation></message>
+    <message><source>Browsing history; new logs are still received</source><translation>正在浏览历史；仍在接收新日志</translation></message>
+    <message><source>Scroll horizontally to see all columns</source><translation>横向滚动可查看所有列</translation></message>
+    <message><source>Clear filter</source><translation>清除筛选</translation></message>
+    <message><source>No matching logs</source><translation>没有匹配的日志</translation></message>
+    <message><source>No logs yet</source><translation>暂无日志</translation></message>
+  </context>
+  <context>
+    <name>proxies_page</name>
+    <message><source>%1 matches / %2 members</source><translation>匹配 %1 / 共 %2 个成员</translation></message>
+  </context>
+  <context>
+    <name>network_tools</name>
+    <message><source>Show IP comparison</source><translation>显示 IP 对照</translation></message>
+    <message><source>Show common websites</source><translation>显示常用网站</translation></message>
+  </context>
+  <context>
+    <name>subscriptions_page</name>
+    <message><source>No subscriptions yet. Add an HTTPS subscription or import a local file.</source><translation>暂无订阅。添加 HTTPS 订阅或导入本地文件。</translation></message>
+  </context>
+  <context>
+    <name>settings_page</name>
+    <message><source>TUN requires the Windows service and may request administrator authorization.</source><translation>TUN 需要 Windows 服务，可能请求管理员授权。</translation></message>
+    <message><source>TUN authorization details</source><translation>TUN 授权详情</translation></message>
+    <message><source>Hide TUN authorization details</source><translation>收起 TUN 授权详情</translation></message>
   </context>
 </TS>

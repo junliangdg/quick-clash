@@ -1,386 +1,446 @@
-<div id="qc-style-review" data-design="minimal" data-appearance="light">
-  <div class="review-controls" aria-label="概念预览设置">
-    <span>极简桌面工具风</span>
-    <label>外观<select id="qc-appearance"><option value="light">Light · 浅色</option><option value="dark">Dark · 深色</option><option value="system">跟随系统</option></select></label>
-    <button type="button" id="qc-show-components">控件与状态</button><span class="review-note">概念预览 · 全部为演示数据</span>
+<div id="qc-style-review" data-appearance="light" data-page="home" data-nav-wide="true">
+  <div class="review-controls" aria-label="界面预览设置">
+    <strong>QuickClash · 界面交互示意</strong>
+    <label>语言 <select id="qc-language"><option value="en-US">English</option><option value="zh-CN">简体中文</option></select></label>
+    <label>外观 <select id="qc-appearance"><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></label>
+    <button type="button" id="qc-show-components">控件与状态</button>
+    <span class="supporting">按当前 Qt 页面结构编排 · 全部为演示数据 · 离线操作</span>
   </div>
-  <section class="qc-window" aria-label="QuickClash 界面预览">
-    <header class="window-bar"><span class="app-mark"><!-- brand_icon --></span><span>QuickClash</span><span class="window-label">CONCEPT PREVIEW</span><span class="window-chrome" aria-hidden="true"><span class="qc-symbol" aria-hidden="true">−</span><span class="qc-symbol" aria-hidden="true">□</span><span class="qc-symbol" aria-hidden="true">×</span></span></header>
+  <section class="qc-window" aria-label="QuickClash 界面交互示意">
     <div class="app-body">
-      <nav class="app-nav" aria-label="预览页面">
-        <div class="nav-brand"><span class="brand-image"><!-- brand_icon --></span><strong>QuickClash</strong><button type="button" id="qc-nav-toggle" aria-label="收起导航" title="收起导航" aria-expanded="true"><span class="nav-close qc-symbol"><!-- navigation_icon:panel_left_close --></span><span class="nav-open qc-symbol"><!-- navigation_icon:panel_left_open --></span></button></div>
-        <button type="button" data-page="home" aria-label="仪表盘" title="仪表盘" aria-current="page"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:home --></span><span>仪表盘</span></button>
-        <button type="button" data-page="proxies" aria-label="代理" title="代理"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:proxies --></span><span>代理</span></button>
-        <button type="button" data-page="subscriptions" aria-label="订阅" title="订阅"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:subscriptions --></span><span>订阅</span></button>
-        <button type="button" data-page="connections" aria-label="连接" title="连接"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:connections --></span><span>连接</span></button>
-        <button type="button" data-page="rules" aria-label="规则" title="规则"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:rules --></span><span>规则</span></button>
-        <button type="button" data-page="logs" aria-label="日志" title="日志"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:logs --></span><span>日志</span></button>
-        <button type="button" data-page="tests" aria-label="测试" title="测试"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:tests --></span><span>测试</span></button>
-        <button type="button" data-page="settings" aria-label="设置" title="设置" class="settings-nav"><span class="qc-symbol" aria-hidden="true"><!-- navigation_icon:settings --></span><span>设置</span></button>
-        <div class="nav-footer"><span class="status-dot"></span><span>内核运行中</span></div>
+      <nav class="app-nav" aria-label="应用导航">
+        <div class="nav-brand"><span class="brand-image"><!-- brand_mono --></span><strong>QuickClash</strong><button type="button" id="qc-nav-toggle" aria-label="收起导航" aria-expanded="true" title="收起导航"><span class="nav-close"><!-- navigation_icon:panel_left_close --></span><span class="nav-open"><!-- navigation_icon:panel_left_open --></span></button></div>
+        <button type="button" data-page="home" title="仪表盘" aria-label="仪表盘" aria-current="page"><!-- navigation_icon:home --><span>仪表盘</span></button>
+        <button type="button" data-page="proxies" title="代理" aria-label="代理"><!-- navigation_icon:proxies --><span>代理</span></button>
+        <button type="button" data-page="subscriptions" title="订阅" aria-label="订阅"><!-- navigation_icon:subscriptions --><span>订阅</span></button>
+        <button type="button" data-page="connections" title="连接" aria-label="连接"><!-- navigation_icon:connections --><span>连接</span></button>
+        <button type="button" data-page="rules" title="规则" aria-label="规则"><!-- navigation_icon:rules --><span>规则</span></button>
+        <button type="button" data-page="logs" title="日志" aria-label="日志"><!-- navigation_icon:logs --><span>日志</span></button>
+        <button type="button" data-page="tests" title="测试" aria-label="测试"><!-- navigation_icon:tests --><span>测试</span></button>
+        <button type="button" data-page="settings" class="settings-nav" title="设置" aria-label="设置"><!-- navigation_icon:settings --><span>设置</span></button>
       </nav>
       <main class="app-main">
-        <div class="page-heading"><div><div class="breadcrumb" id="qc-breadcrumb">网络与代理概览</div><button type="button" class="ghost-action mobile-back" data-go="home" aria-label="返回仪表盘">←</button><h2 id="qc-page-title">仪表盘</h2></div><span class="status-badge"><span class="status-dot"></span>运行正常</span></div>
-        <div id="qc-home" class="page-content">
-          <div class="overview-grid">
-            <section class="panel subscription-panel"><div class="section-label"><span class="qc-symbol" aria-hidden="true">▤</span>当前订阅<span class="subtle-badge">已激活</span></div><h3>日常网络</h3><div class="supporting">3 个代理组 · 58 个节点</div><div class="quota-line"><span>本期用量</span><span>42.8 / 200 GB</span></div><div class="quota-track"><span></span></div><div class="panel-bottom"><span class="supporting">最近更新 · 12 分钟前</span></div></section>
-            <section class="panel traffic-panel"><div class="section-label"><span class="qc-symbol" aria-hidden="true">⌁</span>实时流量<span class="supporting push">最近 60 秒 · 演示</span></div><div class="traffic-values"><div class="traffic-labels"><span class="metric-label"><span class="legend-dot download"></span>下载</span><span class="metric-label"><span class="legend-dot upload"></span>上传</span></div><strong>8.42 <small>MB/s</small></strong><strong>256 <small>KB/s</small></strong></div><svg class="traffic-chart" viewBox="0 0 420 74" preserveAspectRatio="none" role="img" aria-label="演示流量：下载高于上传，最近一分钟小幅波动"><path class="chart-grid" d="M0 20H420M0 50H420"/><path class="chart-fill" d="M0 61L15 58L30 61L45 48L60 52L75 34L90 42L105 44L120 49L135 31L150 37L165 20L180 29L195 32L210 24L225 38L240 27L255 34L270 13L285 23L300 19L315 30L330 28L345 13L360 21L375 9L390 19L405 14L420 18V74H0Z"/><path class="chart-download" d="M0 61L15 58L30 61L45 48L60 52L75 34L90 42L105 44L120 49L135 31L150 37L165 20L180 29L195 32L210 24L225 38L240 27L255 34L270 13L285 23L300 19L315 30L330 28L345 13L360 21L375 9L390 19L405 14L420 18"/><path class="chart-upload" d="M0 69L20 65L40 67L60 60L80 64L100 57L120 62L140 60L160 57L180 61L200 55L220 59L240 56L260 60L280 55L300 59L320 52L340 57L360 54L380 58L400 53L420 56"/></svg></section>
-          </div>
-          <section class="panel controls-panel"><div class="mode-control"><span class="control-label">出站模式</span><div class="segmented" aria-label="出站模式示例"><button type="button" aria-pressed="true">规则</button><button type="button" aria-pressed="false">全局</button><button type="button" aria-pressed="false">直连</button></div></div><label class="toggle-control"><span><span class="control-label">系统代理</span><span class="supporting">跟随系统网络设置</span></span><input type="checkbox" class="switch" checked aria-label="系统代理示例"></label><label class="toggle-control"><span><span class="control-label">TUN 模式</span><span class="supporting">接管应用网络流量</span></span><input type="checkbox" class="switch" aria-label="TUN 模式示例"></label></section>
-          <section class="panel"><div class="section-heading"><div><h3>当前代理</h3><div class="supporting">节点选择 · 手动策略组</div></div><button type="button" class="secondary-action" data-go="proxies">查看全部<span class="qc-symbol" aria-hidden="true">→</span></button></div><div class="proxy-preview"><div class="node-symbol"><span class="qc-symbol" aria-hidden="true">▣</span></div><div class="node-title"><span>香港 · 01</span><span class="supporting">Trojan · 已选择</span></div><span class="delay good">38 ms</span><span class="selected-check"><span class="qc-symbol" aria-hidden="true">✓</span></span></div></section>
-          <section class="panel"><div class="section-heading"><h3>连接与系统</h3><button type="button" class="text-action" data-go="connections">查看连接 →</button></div><div class="component-row"><span class="supporting">Clash Meta (mihomo) · 演示版本</span><span class="supporting">客户端专用工作集：未测量</span></div></section><div class="info-banner"><span class="qc-symbol" aria-hidden="true">ⓘ</span><span>订阅将在 6 小时后自动更新</span><button type="button" class="text-action" data-go="settings">更新设置</button></div>
+        <header class="page-heading"><div class="row"><button type="button" class="mobile-back" data-go="home" aria-label="返回仪表盘">返回</button><h1 id="qc-page-title">仪表盘</h1><div class="mobile-more"><button type="button" id="qc-more-trigger" aria-expanded="false" aria-controls="qc-more-menu">其他</button><div id="qc-more-menu" class="menu" hidden><button type="button" data-go="connections">连接</button><button type="button" data-go="rules">规则</button><button type="button" data-go="logs">日志</button><button type="button" data-go="tests">测试</button></div></div></div><span class="status-badge">● 内核就绪</span></header>
+        <div class="page-scroll" id="qc-page-scroll">
+          <section id="qc-home" class="page-content" aria-label="仪表盘内容">
+            <div class="overview-grid">
+              <section class="panel subscription-panel">
+                <h2><span class="heading-icon"><!-- navigation_icon:subscriptions --></span>当前订阅</h2>
+                <select id="qc-home-profile" class="full-width" aria-label="当前订阅"><option>日常订阅 · Everyday</option><option>备用订阅</option></select>
+                <p class="supporting">2 个代理组 · 6 个节点</p>
+                <div class="quota-line"><span class="supporting">剩余流量</span><strong>80.00 GiB</strong></div>
+                <div class="quota-track"><span></span></div>
+                <p class="supporting">已用 20.00 GiB / 总量 100.00 GiB<br>到期时间：2026/12/31 14:00<br>用量采集时间：未知<br>更新时间：2026/11/07 12:00</p>
+                <div class="row"><button type="button" data-demo="演示：更新完成，当前有效配置已保留。"><!-- asset_icon:dashboard/refresh_cw -->更新订阅</button><button type="button" class="text-action" data-go="subscriptions">管理订阅</button></div>
+              </section>
+              <section class="panel traffic-panel">
+                <h2><span class="heading-icon"><!-- navigation_icon:tests --></span>实时流量</h2>
+                <div class="traffic-values"><span class="supporting">↓ 下载<br>↑ 上传</span><strong class="download">44.5 <small>KiB/s</small></strong><strong class="upload">9.1 <small>KiB/s</small></strong></div>
+                <span class="supporting">136.0 KiB/s</span>
+                <svg class="traffic-chart" viewBox="0 0 600 100" preserveAspectRatio="none" role="img" aria-label="静态演示流量曲线，最近60秒，无网络请求"><path class="chart-grid" d="M0 30H600M0 98H600"/><path class="chart-fill" d="M0 72Q25 -28 50 50T100 70T150 48T200 70T250 48T300 70T350 48T400 70T450 48T500 70T550 48T600 70V100H0Z"/><path class="chart-download" d="M0 72Q25 -28 50 50T100 70T150 48T200 70T250 48T300 70T350 48T400 70T450 48T500 70T550 48T600 70"/><path class="chart-upload" d="M0 85Q25 67 50 85T100 85T150 85T200 85T250 85T300 85T350 85T400 85T450 85T500 85T550 85T600 85"/></svg>
+                <div class="row supporting spread"><span>60 秒前</span><span>现在</span></div><p class="supporting">本次内核运行累计<br>↓ 100.0 MiB · ↑ 1.0 MiB</p>
+              </section>
+            </div>
+            <section class="panel proxy-panel">
+              <h2><span class="heading-icon"><!-- navigation_icon:proxies --></span>代理与网络</h2>
+              <div class="proxy-columns"><div><span class="supporting">代理模式</span><div class="row controls"><div class="segmented" aria-label="代理模式示例"><button type="button" aria-pressed="true">规则模式</button><button type="button" aria-pressed="false">全局</button><button type="button" aria-pressed="false">直连</button></div><label class="row"><input type="checkbox" class="switch">系统代理</label><label class="row"><input type="checkbox" class="switch">TUN</label></div><p class="supporting">演示开关仅改变本页显示。本地代理地址与网络接管分别表达。</p></div>
+                <div class="egress"><strong class="egress-title">默认规则出口：节点选择 → <span id="qc-current-node">日本高速 · 01 / Tokyo</span></strong><select id="qc-egress" class="full-width" aria-label="主策略组节点"><option>日本高速 · 01 / Tokyo</option><option>日本高速 · 02 / Tokyo</option><option>香港 · 01</option></select><div class="row"><span class="good">38 ms</span><span class="supporting">内核探测 · 演示</span><button type="button" data-demo="演示：当前节点延迟为 38 ms。">测试当前节点</button></div><p class="supporting">其他规则和已有连接可能使用不同的出口节点。</p></div>
+              </div>
+            </section>
+            <section class="panel tools-panel">
+              <h2><span class="heading-icon"><!-- asset_icon:dashboard/wrench --></span>网络工具</h2>
+              <div class="row"><label class="row"><input id="qc-ip-toggle" class="switch" type="checkbox" checked>显示 IP 对照</label><label class="row"><input id="qc-sites-toggle" class="switch" type="checkbox" checked>显示常用网站</label></div>
+              <div id="qc-ip-section" class="tool-section"><div class="row spread"><strong>IP 对照</strong><div class="row"><select aria-label="IP 地址类型"><option>IPv4</option><option>IPv6</option></select><button type="button" data-demo="演示结果：本地 192.0.2.10，当前代理入口 198.51.100.20。未发起查询。">查询 / 刷新 IP</button></div></div><div class="two-columns"><div><span class="supporting">本地公网 IP · 演示</span><strong class="ip-value">192.0.2.10</strong><span class="supporting">Example ISP · 文档保留地址</span></div><div><span class="supporting">当前代理入口出口 · 演示</span><strong class="ip-value">198.51.100.20</strong><span class="supporting">Example Transit · 文档保留地址</span></div></div><p class="supporting">实际程序由用户手动查询；系统路由、TUN 与其他 VPN 仍会影响路径。</p></div>
+              <div id="qc-sites-section" class="tool-section"><div class="row spread"><strong>常用网站</strong><button type="button" data-demo="演示：常用网站结果已显示，未访问网站。">测试全部</button></div><div class="site-grid"><div><button type="button" data-demo="演示：Google 入口可达，182 ms。"><!-- asset_icon:sites/google -->Google</button><p class="good">入口可达 · 182 ms</p><span class="supporting">HTTP 204 · 演示</span></div><div><button type="button" data-demo="演示：YouTube 超时。"><!-- asset_icon:sites/youtube -->YouTube</button><p class="failure">超时 · 5000 ms</p><span class="supporting">演示失败状态</span></div><div><button type="button" data-demo="演示：GitHub 尚未测试。"><!-- asset_icon:sites/github -->GitHub</button><p class="supporting">未测试</p></div></div></div>
+            </section>
+            <section class="panel runtime-panel">
+              <h2><span class="heading-icon"><!-- asset_icon:dashboard/cpu --></span>运行概况</h2>
+              <div class="runtime-grid"><div><span class="supporting">内核</span><strong class="info">mihomo · v1.19.33</strong></div><div><span class="supporting">客户端内存</span><strong>未测量</strong></div><div><span class="supporting">内核内存</span><strong>未测量</strong></div><div><span class="supporting">本次内核运行</span><strong>12 分钟 · 演示</strong></div></div>
+              <p class="supporting">专用工作集 · 客户端包含必要服务，内核单列。示意页不采集资源数据。</p><div class="row"><span>本地代理 · 127.0.0.1:7890</span><button type="button" data-demo="演示：复制地址反馈；系统剪贴板未改变。">复制地址</button></div><details><summary>详情</summary><p class="supporting">客户端合计、权限服务、内核与配置校验器分别列出专用工作集 / 总工作集 / 私有提交；此示意页均未测量。</p></details>
+            </section>
+          </section>
+          <section id="qc-proxies" class="page-content" aria-label="代理内容" hidden>
+            <div class="toolbar"><label class="search-field">搜索<input id="qc-node-search" type="search" placeholder="搜索节点或代理组" aria-label="搜索节点或代理组"></label><button type="button" id="qc-locate">定位当前节点</button></div>
+            <div class="row"><button type="button" class="primary" data-dialog="strategy">新建策略组</button><span class="supporting">本地策略组在订阅更新后保留</span></div>
+            <section class="panel node-panel"><div class="row spread"><button type="button" class="group-toggle" id="qc-group-toggle" aria-expanded="true" aria-controls="qc-group-body"><strong>节点选择</strong><span class="supporting" id="qc-group-current">日本高速 · 01 / Tokyo</span></button><button type="button" id="qc-measure">测延迟</button></div><p class="supporting" id="qc-node-count">手动选择 · select · 6 个成员</p><div id="qc-group-body"><div class="row supporting spread"><span id="qc-measure-status" role="status">暂无组测速</span><button type="button" id="qc-cancel-measure" hidden>取消</button></div><div class="nodes-grid" id="qc-nodes"></div></div></section>
+            <p id="qc-search-empty" class="empty-state" hidden>没有匹配的节点或代理组</p><section class="panel"><h2>自动选择</h2><p class="supporting">自动低延迟 · url-test · 6 个成员</p><p>当前成员：日本高速 · 02 / Tokyo</p><span class="supporting">由内核自动选择，不提供手动节点切换。</span></section>
+          </section>
+          <section id="qc-subscriptions" class="page-content" aria-label="订阅内容" hidden>
+            <div class="toolbar"><button type="button" class="primary" data-dialog="subscription">添加订阅</button><span class="supporting">HTTPS / 本地 Mihomo YAML</span></div>
+            <section class="panel"><div class="row spread"><h2>日常订阅 · Everyday</h2><span class="selection-label">当前配置</span></div><p class="supporting">HTTPS 订阅 · 更新时间 2026/11/07 12:00 · 演示</p><div class="row"><span>剩余 80.00 GiB / 总量 100.00 GiB</span><span class="supporting">到期 2026/12/31</span></div><div class="row"><button type="button" disabled>正在使用</button><button type="button" data-demo="演示：订阅更新完成。">更新</button><button type="button" data-dialog="subscription-manage">管理</button><button type="button" class="danger" data-dialog="delete">删除…</button></div></section>
+            <section class="panel"><h2>备用订阅</h2><p class="supporting">本地文件 · 未应用 · 无用量来源</p><div class="row"><button type="button" data-demo="演示：应用备用配置；实际客户端在校验完成后切换。">使用</button><button type="button" data-dialog="subscription-manage">管理</button></div></section><p class="supporting">管理入口包含来源与更新计划、配置覆盖、YAML 编辑、历史回退；失败保留输入和原有效数据。</p>
+          </section>
+          <section id="qc-connections" class="page-content" aria-label="连接内容" hidden>
+            <div class="row spread"><span id="qc-connection-count">3 个连接</span><span class="supporting">固定演示快照</span></div><div class="toolbar"><label class="search-field">筛选<input type="search" id="qc-connection-filter" placeholder="筛选目标、进程或链路"></label><select id="qc-connection-sort" aria-label="连接排序"><option value="default">默认排序</option><option value="download">下载速率</option></select><button type="button" data-demo="演示：关闭筛选结果需要针对当前快照确认。">关闭筛选结果</button><button type="button" class="danger" data-dialog="close-connections">全部关闭…</button></div>
+            <div class="table-wrap"><table><thead><tr><th>目标与进程</th><th>链路</th><th>下载速率</th><th>上传速率</th></tr></thead><tbody id="qc-connection-rows"></tbody></table></div><p id="qc-connections-empty" class="empty-state" hidden>没有匹配的连接</p><p class="supporting">点击行或按回车查看详情；窄窗可横向滚动表格。</p>
+          </section>
+          <section id="qc-rules" class="page-content" aria-label="规则内容" hidden>
+            <div class="toolbar"><button type="button" class="primary" data-dialog="rules">管理自定义规则</button><button type="button" class="text-action" id="qc-resource-toggle">资源更新…</button></div><div id="qc-rules-view"><label class="search-field">筛选<input type="search" id="qc-rule-filter" placeholder="筛选规则或出口"></label><div class="table-wrap"><table><thead><tr><th>序号</th><th>类型</th><th>匹配内容</th><th>出口</th><th>来源</th></tr></thead><tbody id="qc-rule-rows"></tbody></table></div><p id="qc-rules-empty" class="empty-state" hidden>没有匹配的规则</p></div>
+            <div id="qc-resources-view" hidden><div class="row"><button type="button" id="qc-resource-back">返回规则</button><button type="button" data-demo="演示：仅刷新资源状态，不下载资源。">刷新列表</button></div><div class="table-wrap"><table><thead><tr><th>资源</th><th>分类</th><th>模式</th><th>条目</th><th>更新时间</th><th>更新结果</th><th>操作</th></tr></thead><tbody><tr><td>示例代理集合</td><td>代理集合</td><td>运行时</td><td>6</td><td>12:00 · 演示</td><td class="good">更新成功</td><td><button type="button" data-demo="演示：下载更新这一项资源。">更新</button></td></tr><tr><td>示例规则集</td><td>规则集</td><td>快照</td><td>—</td><td>—</td><td>未更新</td><td><button type="button" data-demo="演示：快照更新需校验并重新应用配置。">更新</button></td></tr></tbody></table></div><p class="supporting">刷新列表只读取状态；单项更新执行下载。快照校验后应用，运行时资源由内核加载。</p></div>
+          </section>
+          <section id="qc-logs" class="page-content" aria-label="日志内容" hidden>
+            <div class="toolbar"><label class="search-field">搜索<input type="search" id="qc-log-filter" placeholder="搜索日志消息"></label><button type="button" id="qc-log-pause" aria-pressed="false">暂停接收</button></div><div class="toolbar"><label>来源 <select id="qc-log-source"><option value="all">全部来源</option><option value="client">客户端</option><option value="core">内核</option></select></label><label>级别 <select id="qc-log-level"><option value="all">全部级别</option><option>INFO</option><option>WARN</option><option>ERROR</option></select></label><label class="row"><input type="checkbox" checked>跟随最新</label><button type="button" id="qc-log-clear">清空视图</button><button type="button" data-demo="演示：脱敏导出入口，未写入文件。">脱敏导出</button></div><div class="table-wrap"><table><thead><tr><th>时间</th><th>级别</th><th>来源</th><th>消息</th></tr></thead><tbody id="qc-log-rows"></tbody></table></div><p class="supporting" id="qc-log-counter">有界缓冲 · 固定演示数据 · 丢弃 0 / 截断 0 / 缺口 0</p>
+          </section>
+          <section id="qc-tests" class="page-content" aria-label="测试内容" hidden>
+            <section class="panel"><h2>网站测试</h2><label class="field">请求路径<select><option>当前代理</option><option>直连（仍受系统路由影响）</option><option>系统代理设置</option></select></label><label class="field">HTTPS 网站地址<textarea id="qc-test-targets" rows="3">https://example.com
+https://example.org</textarea></label><p class="supporting" id="qc-test-count">地址：2 / 8</p><p class="supporting">实际程序逐个请求，每项最多 3 次 HTTPS 重定向、64 KiB、12 秒。入口可达不代表节点转发成功。</p><div class="row"><button type="button" id="qc-run-test">开始测试</button><button type="button" id="qc-cancel-test" hidden>取消测试</button><span id="qc-test-status" class="supporting" role="status">此预览不访问网络。</span></div></section><span class="supporting">最近结果：2 / 32 · 演示</span><section class="panel"><strong>https://example.com</strong><p class="good">入口可达 · HTTP 200 · 182 ms · 演示</p><details><summary>显示详情</summary><p class="supporting">路径：当前代理 · 结果时间：2026/11/07 12:00 · 固定假数据</p></details></section><section class="panel"><strong>https://example.org</strong><p class="failure">TLS 错误 · 演示</p><details><summary>显示详情</summary><p class="supporting">失败示例，未实际发送请求。</p></details></section>
+          </section>
+          <section id="qc-settings" class="page-content" aria-label="设置内容" hidden>
+            <div class="settings-tabs" role="tablist" aria-label="设置分类"><button type="button" role="tab" id="qc-tab-general" data-category="general" aria-controls="qc-settings-general" aria-selected="true">通用</button><button type="button" role="tab" id="qc-tab-network" data-category="network" aria-controls="qc-settings-network" aria-selected="false" tabindex="-1">网络</button><button type="button" role="tab" id="qc-tab-resources" data-category="resources" aria-controls="qc-settings-resources" aria-selected="false" tabindex="-1">内核与资源</button><button type="button" role="tab" id="qc-tab-data" data-category="data" aria-controls="qc-settings-data" aria-selected="false" tabindex="-1">数据与诊断</button><button type="button" role="tab" id="qc-tab-about" data-category="about" aria-controls="qc-settings-about" aria-selected="false" tabindex="-1">关于</button></div>
+            <div id="qc-settings-general" class="settings-content" role="tabpanel" aria-labelledby="qc-tab-general"><section class="panel"><h2>外观与语言</h2><div class="settings-row"><label for="qc-settings-theme">主题<span class="supporting">更改立即生效</span></label><select id="qc-settings-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div><div class="settings-row"><label for="qc-settings-language">语言<span class="supporting">切换本示意页语言，不影响程序设置</span></label><select id="qc-settings-language"><option value="en-US">English</option><option value="zh-CN">简体中文</option></select></div></section><section class="panel"><h2>启动</h2><label class="settings-row"><span>登录时启动 QuickClash<span class="supporting">演示开关，不注册启动项</span></span><input class="switch" type="checkbox"></label><label class="row"><input type="checkbox">登录启动时隐藏到托盘</label></section><section class="panel"><h2>窗口与托盘</h2><label class="settings-row"><span>关闭到托盘时卸载界面（实验性）<span class="supporting">默认关闭。最小化保留界面；关闭到可用托盘后卸载，重开时重建。</span></span><input class="switch" type="checkbox"></label></section></div>
+            <div id="qc-settings-network" class="settings-content" role="tabpanel" aria-labelledby="qc-tab-network" hidden><section class="panel"><h2>代理集成</h2><label class="settings-row"><span>系统代理</span><input class="switch" type="checkbox"></label><label class="settings-row"><span>虚拟网卡（TUN）<span class="supporting">实际程序使用 Windows 权限服务，可能请求管理员授权</span></span><input class="switch" type="checkbox"></label></section><section class="panel"><h2>运行配置</h2><label class="settings-row"><span>路由模式</span><select><option>规则模式</option><option>全局</option><option>直连</option></select></label><label class="settings-row"><span>代理端口</span><input id="qc-port" inputmode="numeric" value="7890" aria-describedby="qc-port-error"></label><p id="qc-port-error" class="failure" role="alert" hidden>请输入 1–65535 的整数</p><label class="settings-row"><span>控制器端口</span><input id="qc-controller-port" inputmode="numeric" value="9090" aria-describedby="qc-port-error"></label><label class="settings-row"><span>DNS 模式</span><select><option>fake-ip</option><option>redir-host</option></select></label><div class="row end"><button type="button" id="qc-reset-ports">放弃更改</button><button type="button" id="qc-save-ports">应用网络设置…</button></div></section><section class="panel"><h2>节点延迟测试</h2><label class="field">HTTPS 测速目标<input value="https://www.gstatic.com/generate_204"></label><button type="button" data-demo="演示：测速目标已保存。">保存测速目标</button></section></div>
+            <div id="qc-settings-resources" class="settings-content" role="tabpanel" aria-labelledby="qc-tab-resources" hidden><section class="panel"><h2>内核更新</h2><p>运行：mihomo v1.19.33 · 选用：随包内核</p><p class="supporting">仅使用客户端兼容目录中审核过的官方预编译资产；下载不切换当前内核。</p><details><summary>高级恢复</summary><div class="row"><button type="button" data-demo="演示：检查兼容内核目录。">检查兼容内核</button><button type="button" data-demo="演示：下载或修复内核，未访问网络。">下载或修复</button><button type="button" data-dialog="core">应用已下载内核…</button><button type="button" data-dialog="core">回退内核…</button></div></details></section><section class="panel"><h2>Geo 数据库</h2><p class="supporting">快照：随包 · 最近成功下载：暂无</p><div class="row"><button type="button" data-dialog="geo">更新 Geo 数据库…</button><button type="button" data-dialog="geo">应用已下载 Geo…</button></div><details><summary>高级恢复</summary><div class="row"><button type="button" data-dialog="geo">回退 Geo 数据库…</button><button type="button" data-dialog="geo">使用随包 Geo…</button></div></details></section></div>
+            <div id="qc-settings-data" class="settings-content" role="tabpanel" aria-labelledby="qc-tab-data" hidden><section class="panel"><h2>备份与恢复</h2><p class="supporting">包含配置、自定义规则及绑定；备份可能含节点凭据，应妥善保存。</p><div class="row"><button type="button" data-dialog="backup">导出备份…</button><button type="button" data-dialog="backup">恢复离线配置…</button></div></section><section class="panel"><h2>诊断与日志</h2><div class="row"><button type="button" data-demo="演示：导出脱敏诊断，未写入文件。">导出脱敏诊断</button><button type="button" data-demo="演示：日志目录入口，未打开目录。">打开日志目录</button></div></section><section class="panel"><h2>设置恢复</h2><p class="supporting">存储失败时保留旧值，恢复操作需要明确确认。</p><button type="button" data-dialog="settings-recovery">恢复设置…</button></section></div>
+            <div id="qc-settings-about" class="settings-content" role="tabpanel" aria-labelledby="qc-tab-about" hidden><section class="panel"><h2>QuickClash</h2><p>客户端版本 · 0.1.0</p><p class="supporting">C++20 · Qt Quick · 官方 Mihomo 预编译内核</p><p>GPL-3.0-only</p><p class="supporting">Windows 为当前本地验收平台。Linux/macOS 原生支持仍待开发与验证。</p><button type="button" data-demo="演示：第三方许可入口。">第三方许可</button></section></div>
+          </section>
+          <section id="qc-components" class="page-content" aria-label="控件与状态" hidden>
+            <section class="panel"><h2>按钮与操作状态</h2><div class="row"><button type="button" class="primary" data-demo="演示：主操作。">主要操作</button><button type="button" data-demo="演示：次要操作。">次要操作</button><button type="button" class="text-action" data-demo="演示：辅助操作。">辅助操作</button><button type="button" class="danger" data-dialog="delete">删除示例…</button><button type="button" disabled>不可用</button><button type="button" disabled>处理中…</button></div></section><section class="panel"><h2>字段与反馈</h2><label class="field">名称<input placeholder="请输入名称"></label><label class="field">端口校验示例<input value="70000" aria-invalid="true" aria-describedby="qc-sample-error"><span class="failure" id="qc-sample-error">端口范围为 1–65535</span></label><div class="row"><span class="good">● 成功</span><span class="warning">△ 处理中 / 待测</span><span class="failure">! 失败</span><span class="supporting">— 未测试</span></div><div class="error-banner">更新失败 · 当前有效配置已保留 <button type="button" data-demo="演示：重试成功。">重试</button></div></section><section class="panel"><h2>选择、悬停与焦点</h2><div class="row"><button type="button" class="sample-selected">已选择</button><button type="button" class="sample-hover">悬停示例</button><button type="button" class="sample-focus">焦点示例</button></div><p class="supporting">Tab 移动焦点；代理卡片的节点选择与延迟测试是独立操作。</p><div class="empty-state">暂无数据 · 添加订阅后查看实际结果</div></section>
+          </section>
         </div>
-        <div id="qc-proxies" class="page-content" hidden>
-          <div class="page-toolbar"><label class="search-field"><span class="qc-symbol" aria-hidden="true">⌕</span><input id="qc-node-search" placeholder="筛选节点名称" aria-label="筛选节点名称"></label><button type="button" class="primary-action" id="qc-measure"><span class="qc-symbol" aria-hidden="true">ϟ</span>测试延迟</button></div>
-          <section class="panel node-panel"><div class="section-heading"><div><h3>节点选择<span class="inline-count">6</span></h3><div class="supporting">手动选择 · 当前香港 01</div></div><span class="subtle-badge">Selector</span></div><div class="nodes-grid" id="qc-nodes">
-            <button type="button" class="node-item" data-name="香港 01" aria-pressed="true"><span class="node-line"><span>香港 · 01</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>Trojan</span><span class="delay good">38 ms</span></span></button>
-            <button type="button" class="node-item" data-name="香港 02" aria-pressed="false"><span class="node-line"><span>香港 · 02</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>VLESS</span><span class="delay good">42 ms</span></span></button>
-            <button type="button" class="node-item" data-name="日本 01" aria-pressed="false"><span class="node-line"><span>日本 · 01</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>Hysteria2</span><span class="delay good">65 ms</span></span></button>
-            <button type="button" class="node-item" data-name="新加坡 01" aria-pressed="false"><span class="node-line"><span>新加坡 · 01</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>Trojan</span><span class="delay good">82 ms</span></span></button>
-            <button type="button" class="node-item" data-name="美国 01" aria-pressed="false"><span class="node-line"><span>美国 · 01</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>VMess</span><span class="delay warning">186 ms</span></span></button>
-            <button type="button" class="node-item" data-name="德国 01" aria-pressed="false"><span class="node-line"><span>德国 · 01</span><span class="node-tick">✓</span></span><span class="node-line supporting"><span>VLESS</span><span class="delay failure">超时</span></span></button>
-          </div><div id="qc-search-empty" class="empty-state" hidden>没有匹配的节点</div></section>
-          <div class="info-banner"><span class="qc-symbol" aria-hidden="true">ⓘ</span><span>延迟与选择均为交互演示</span></div>
-        </div>
-        <div id="qc-settings" class="page-content" hidden>
-          <section class="panel settings-panel"><h3>外观与交互</h3><div class="component-row"><button type="button" class="text-action" data-go="connections">连接</button><button type="button" class="text-action" data-go="rules">规则</button><button type="button" class="text-action" data-go="logs">日志</button><button type="button" class="text-action" data-go="tests">测试</button></div><div class="settings-row"><div><span class="control-label">主题模式</span><span class="supporting">两套主题保持相同布局与控件语义</span></div><select id="qc-settings-theme" aria-label="主题模式"><option value="light">浅色</option><option value="dark">深色</option><option value="system">跟随系统</option></select></div><div class="settings-row"><div><span class="control-label">减少动态效果</span><span class="supporting">保留必要的操作状态反馈</span></div><input class="switch" type="checkbox" aria-label="减少动态效果示例"></div><div class="settings-row"><div><span class="control-label">导航密度</span><span class="supporting">桌面常规尺寸，兼顾键鼠操作</span></div><select aria-label="导航密度" disabled><option>标准</option></select></div></section>
-          <section class="panel settings-panel"><h3>连接与更新</h3><div class="settings-row"><div><span class="control-label">订阅自动更新</span><span class="supporting">每 6 小时检查一次更新</span></div><input class="switch" type="checkbox" checked aria-label="自动更新示例"></div><div class="settings-row port-row"><div><span class="control-label">混合端口</span><span class="supporting">HTTP / SOCKS5 共用监听端口</span></div><div class="port-control"><input id="qc-port" value="7890" aria-label="混合端口示例" inputmode="numeric"><span class="field-error" id="qc-port-error" hidden role="alert">请输入 1–65535 的整数</span></div></div></section>
-          <div class="form-actions"><button type="button" class="secondary-action" id="qc-reset">恢复示例</button><button type="button" class="primary-action" id="qc-save">应用端口</button></div>
-        </div>
-        <div id="qc-data" class="page-content" hidden><div class="page-toolbar"><span class="supporting">统一列表与表头风格</span><button class="secondary-action" type="button" data-go="settings">查看设置控件</button></div><section class="panel data-panel"><table><thead><tr id="qc-table-head"></tr></thead><tbody id="qc-table-body"></tbody></table></section></div>
-
-        <div id="qc-components" class="page-content" hidden>
-          <section class="panel"><h3>按钮与操作状态</h3><div class="component-row"><button type="button" class="primary-action">主要操作</button><button type="button" class="secondary-action">次要操作</button><button type="button" class="ghost-action">轻量操作</button><button type="button" class="danger-action" id="qc-open-dialog">删除示例</button><button type="button" class="secondary-action" disabled>不可用</button><button type="button" class="pending-action" disabled aria-disabled="true">◌ 更新中…</button></div><p class="supporting">处理中保留已确认状态；禁用项提供原因说明。</p></section>
-          <section class="panel"><h3>表单控件</h3><div class="component-fields"><label>输入框<input class="sample-input" placeholder="请输入名称"></label><label>校验错误<input class="sample-input" value="70000" aria-invalid="true" aria-describedby="qc-sample-error"><span class="field-error" id="qc-sample-error">端口范围为 1–65535</span></label><label>下拉选择<select class="sample-input"><option>标准密度</option><option>紧凑密度</option></select></label><label>数字输入<input class="sample-input" type="number" min="1" max="65535" value="7890"></label></div><div class="component-row"><label><input type="checkbox" checked> 自动更新</label><label><input type="checkbox"> 自动应用</label><label><input type="radio" name="sample-mode" checked> 规则</label><label><input type="radio" name="sample-mode"> 全局</label></div></section>
-          <section class="panel"><h3>选择、悬停与焦点</h3><div class="component-row"><button type="button" class="state-sample sample-selected">✓ 已选择</button><button type="button" class="state-sample sample-hover">悬停示例</button><button type="button" class="state-sample sample-pressed">按下示例</button><button type="button" class="state-sample sample-focus">焦点示例</button></div><div class="component-row"><span class="sample-badge good">● 连接成功</span><span class="sample-badge warning">△ 延迟较高</span><span class="sample-badge failure">! 请求失败</span><span class="supporting">— 未测试</span></div><div class="sample-error-banner" role="alert">更新失败 · 当前有效配置已保留 <button type="button" class="text-action" id="qc-retry">重试示例</button></div></section>
-          <section class="panel"><div class="section-heading"><h3>菜单与反馈</h3><div class="menu-anchor"><button type="button" class="secondary-action" id="qc-menu-trigger" aria-expanded="false" aria-haspopup="menu">更多操作 ▾</button><div id="qc-menu" role="menu" hidden><button type="button" role="menuitem" id="qc-copy-demo">复制示例名称</button><button type="button" role="menuitem" class="failure" id="qc-menu-delete">删除示例</button></div></div></div><div class="empty-state">暂无数据 · 添加订阅后查看真实结果</div></section>
-        </div>
-        <dialog id="qc-confirm-dialog" aria-labelledby="qc-dialog-title"><h3 id="qc-dialog-title">删除示例订阅？</h3><p>此处仅演示危险操作确认，不会删除文件或用户数据。</p><div class="form-actions"><button type="button" class="secondary-action" id="qc-dialog-cancel" autofocus>取消</button><button type="button" class="danger-action" id="qc-dialog-confirm">删除示例订阅</button></div></dialog>
         <div id="qc-feedback" class="feedback" role="status" aria-live="polite" hidden></div>
       </main>
     </div>
-    <footer class="app-status"><span id="qc-style-label">极简桌面工具风</span><span>Light / Dark · 统一页面与控件</span></footer>
+    <footer class="preview-footer">当前页面结构示意 · 演示数据与浏览器控件不作为产品默认值或验收证据</footer>
+    <dialog id="qc-dialog" aria-labelledby="qc-dialog-title"><h2 id="qc-dialog-title"></h2><div id="qc-dialog-body"></div><div class="row end dialog-actions"><button type="button" id="qc-dialog-confirm">确定</button><button type="button" id="qc-dialog-cancel">取消</button></div></dialog>
   </section>
 </div>
 <style>
-#qc-style-review {font:14px/1.5 'Microsoft YaHei','Segoe UI',sans-serif;color:var(--qc-text);width:100%;background:transparent;}
-#qc-style-review[data-design="minimal"] {--qc-bg:#FAFAFB;--qc-nav:#F4F4F6;--qc-surface:#FFFFFF;--qc-inset:#F2F2F5;--qc-text:#202024;--qc-muted:#62626E;--qc-line:#E5E5EA;--qc-input-line:#858591;--qc-accent:#5B4BC4;--qc-on-accent:#FFFFFF;--qc-selected:#EEEBFD;--qc-on-selected:#5340AB;--qc-good:#246944;--qc-good-bg:#EAF5EE;--qc-warning:#855510;--qc-error:#B33043;--qc-upload:#936025;--qc-radius:10px;--qc-hover:#EAEAF0;--qc-pressed:#E0DFE8;--qc-primary-hover:#5141B2;--qc-primary-pressed:#46369F;--qc-error-bg:#FFF0F2;--qc-control-radius:7px;--qc-node-radius:7px;--qc-gap:16px;}
-#qc-style-review[data-design="minimal"][data-appearance="dark"] {--qc-hover:#2A2C36;--qc-pressed:#343743;--qc-primary-hover:#BDB3FF;--qc-primary-pressed:#A195F0;--qc-error-bg:#3B222C;--qc-bg:#101114;--qc-nav:#15161A;--qc-surface:#191A20;--qc-inset:#22242C;--qc-text:#EDEDF2;--qc-muted:#A8A9B8;--qc-line:#323440;--qc-input-line:#818496;--qc-accent:#B0A5FF;--qc-on-accent:#251A58;--qc-selected:#312A4F;--qc-on-selected:#C9BFFF;--qc-good:#93D4AC;--qc-good-bg:#1D3228;--qc-warning:#EBC47E;--qc-error:#FFA0B0;--qc-upload:#D5AE72;}
+#qc-style-review {--bg:#FAFAFB;--nav:#F4F4F6;--surface:#FFFFFF;--inset:#F2F2F5;--text:#202024;--muted:#62626E;--line:#E5E5EA;--outline:#858591;--accent:#5B4BC4;--on-accent:#FFFFFF;--selected:#EEEBFD;--on-selected:#5340AB;--good:#246944;--good-bg:#EAF5EE;--warning:#855510;--error:#B33043;--error-bg:#FFF0F2;--upload:#936025;--info:#28618E;--hover:#EAEAF0;--pressed:#E0DFE8;--selected-hover:#E5DFFB;font:14px/1.5 'Segoe UI','Microsoft YaHei',sans-serif;color:var(--text);background:var(--bg);color-scheme:light;}
+#qc-style-review[data-appearance="dark"] {--bg:#101114;--nav:#15161A;--surface:#191A20;--inset:#22242C;--text:#EDEDF2;--muted:#A8A9B8;--line:#323440;--outline:#818496;--accent:#B0A5FF;--on-accent:#251A58;--selected:#312A4F;--on-selected:#C9BFFF;--good:#93D4AC;--good-bg:#1D3228;--warning:#EBC47E;--error:#FFA0B0;--error-bg:#3B222C;--upload:#D5AE72;--info:#8CC8F5;--hover:#2A2C36;--pressed:#343743;--selected-hover:#3B335F;color-scheme:dark;}
 #qc-style-review *,#qc-style-review *::before,#qc-style-review *::after {box-sizing:border-box;}
 #qc-style-review [hidden] {display:none!important;}
-#qc-style-review button,#qc-style-review select,#qc-style-review input {font:inherit;}
-#qc-style-review button {cursor:var(--cursor-interaction,pointer);}
-#qc-style-review .review-controls {display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:14px;color:light-dark(#31323C,#E0E0EA);}
-#qc-style-review .review-controls label {display:flex;align-items:center;gap:8px;font-size:13px;}
-#qc-style-review .review-controls select {padding:7px 28px 7px 10px;border:1px solid light-dark(#D7D7DE,#555560);border-radius:7px;background:light-dark(#FFFFFF,#292A32);color:inherit;min-height:36px;}
-#qc-style-review .review-note {font-size:12px;margin-left:auto;color:light-dark(#656573,#BABAC6);}
-#qc-style-review .qc-window {background:var(--qc-bg);border:1px solid var(--qc-line);border-radius:12px;overflow:hidden;isolation:isolate;}
-#qc-style-review .window-bar {display:flex;gap:9px;align-items:center;padding:10px 14px;background:var(--qc-nav);font-size:12px;min-height:42px;}
-#qc-style-review .app-mark {width:24px;height:24px;display:grid;place-items:center;}
-#qc-style-review .window-label {font-size:12px;letter-spacing:1.8px;margin-left:7px;color:var(--qc-muted);}
-#qc-style-review .window-chrome {display:flex;gap:24px;margin-left:auto;color:var(--qc-muted);}
-#qc-style-review svg:not(.traffic-chart) {width:17px;height:17px;flex-shrink:0;stroke-width:1.7;}
-#qc-style-review .window-chrome svg {width:13px;height:13px;}
-#qc-style-review .app-body {display:grid;grid-template-columns:192px minmax(0,1fr);min-height:590px;}
-#qc-style-review .app-nav {background:var(--qc-nav);padding:18px 10px 14px;display:flex;flex-direction:column;gap:4px;min-width:0;}
-#qc-style-review .nav-caption {font-size:12px;letter-spacing:.7px;color:var(--qc-muted);margin:0 12px 12px;}
-#qc-style-review .app-nav button {position:relative;display:flex;align-items:center;gap:12px;width:100%;min-height:39px;border:0;padding:8px 12px;border-radius:var(--qc-control-radius);background:transparent;color:var(--qc-muted);text-align:left;}
-#qc-style-review .app-nav button:hover {background:var(--qc-inset);color:var(--qc-text);}
-#qc-style-review .app-nav button[aria-current="page"] {background:var(--qc-selected);color:var(--qc-on-selected);font-weight:600;}
-#qc-style-review .settings-nav {margin-top:auto;}
-#qc-style-review .nav-footer {display:flex;gap:7px;align-items:center;margin:20px 10px 0;color:var(--qc-muted);font-size:12px;}
-#qc-style-review .app-main {padding:24px;min-width:0;position:relative;}
-#qc-style-review .page-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px;}
-#qc-style-review .breadcrumb {font-size:12px;color:var(--qc-muted);margin-bottom:5px;}
-#qc-style-review h2 {font-size:24px;line-height:1.25;font-weight:600;letter-spacing:-.6px;margin:0;}
-#qc-style-review h3 {font-size:15px;font-weight:600;margin:0;}
-#qc-style-review .status-badge {display:flex;gap:6px;align-items:center;color:var(--qc-good);background:var(--qc-good-bg);border-radius:20px;padding:5px 9px;white-space:nowrap;font-size:12px;}
-#qc-style-review .status-dot {height:6px;width:6px;flex-shrink:0;border-radius:50%;background:var(--qc-good);display:inline-block;}
-#qc-style-review .page-content {display:flex;flex-direction:column;gap:var(--qc-gap);}
-#qc-style-review .panel {background:var(--qc-surface);border-radius:var(--qc-radius);padding:18px;min-width:0;}
-#qc-style-review .overview-grid {display:grid;grid-template-columns:1fr 1.16fr;gap:var(--qc-gap);min-width:0;}
-#qc-style-review .section-label {display:flex;gap:7px;align-items:center;color:var(--qc-muted);font-size:12px;margin-bottom:14px;flex-wrap:wrap;}
-#qc-style-review .subtle-badge {font-size:12px;padding:2px 6px;border-radius:5px;color:var(--qc-on-selected);background:var(--qc-selected);margin-left:auto;font-weight:400;white-space:nowrap;}
-#qc-style-review .subscription-panel h3 {font-size:20px;margin-bottom:4px;}
-#qc-style-review .supporting {font-size:12px;color:var(--qc-muted);font-weight:400;}
-#qc-style-review .quota-line {display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-top:18px;margin-bottom:7px;font-size:12px;color:var(--qc-muted);font-variant-numeric:tabular-nums;}
-#qc-style-review .quota-track {height:5px;border-radius:5px;background:var(--qc-inset);overflow:hidden;}
-#qc-style-review .quota-track span {display:block;width:21.4%;height:100%;background:var(--qc-accent);}
-#qc-style-review .panel-bottom {margin-top:17px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:space-between;}
-#qc-style-review .text-action {border:0;background:transparent;padding:0;color:var(--qc-accent);font-size:12px;display:inline-flex;align-items:center;gap:3px;white-space:nowrap;}
-#qc-style-review .text-action svg {width:13px;height:13px;}
-#qc-style-review .push {margin-left:auto;}
-#qc-style-review .traffic-values {display:flex;justify-content:space-between;gap:16px;margin-top:2px;}
-#qc-style-review .traffic-values>div {display:flex;flex-direction:column;gap:3px;}
-#qc-style-review .metric-label {font-size:12px;color:var(--qc-muted);display:flex;align-items:center;gap:6px;}
-#qc-style-review .legend-dot {width:6px;height:6px;border-radius:2px;display:inline-block;}
-#qc-style-review .download {background:var(--qc-accent);}
-#qc-style-review .upload {background:var(--qc-upload);}
-#qc-style-review strong {font-size:24px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.5px;white-space:nowrap;}
-#qc-style-review strong small {font-size:12px;font-weight:400;color:var(--qc-muted);letter-spacing:0;}
-#qc-style-review .traffic-chart {display:block;width:100%;height:65px;margin-top:10px;overflow:visible;}
-#qc-style-review .chart-grid {stroke:var(--qc-line);stroke-width:1;fill:none;}
-#qc-style-review .chart-fill {fill:var(--qc-accent);opacity:.1;}
-#qc-style-review .chart-download {fill:none;stroke:var(--qc-accent);stroke-width:2;}
-#qc-style-review .chart-upload {fill:none;stroke:var(--qc-upload);stroke-width:1.6;}
-#qc-style-review .controls-panel {display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
-#qc-style-review .mode-control {display:flex;flex-direction:column;gap:8px;flex:1;min-width:170px;}
-#qc-style-review .control-label {display:block;font-size:12px;font-weight:500;}
-#qc-style-review .segmented {display:flex;padding:3px;background:var(--qc-inset);border-radius:var(--qc-control-radius);width:max-content;max-width:100%;}
-#qc-style-review .segmented button {padding:5px 14px;min-height:30px;border:0;border-radius:var(--qc-control-radius);background:transparent;color:var(--qc-muted);font-size:12px;}
-#qc-style-review .segmented button[aria-pressed="true"] {background:var(--qc-selected);color:var(--qc-on-selected);font-weight:500;}
-#qc-style-review .toggle-control {display:flex;align-items:center;gap:14px;flex:1;min-width:150px;}
-#qc-style-review .toggle-control .supporting {display:block;margin-top:3px;}
-#qc-style-review .switch {appearance:none;-webkit-appearance:none;position:relative;width:36px;height:21px;border-radius:12px;border:1px solid var(--qc-input-line);background:var(--qc-inset);margin:0;flex-shrink:0;cursor:var(--cursor-interaction,pointer);}
-#qc-style-review .switch::before {content:'';display:block;position:absolute;left:3px;top:3px;width:13px;height:13px;border-radius:50%;background:var(--qc-muted);}
-#qc-style-review .switch:checked {background:var(--qc-accent);border-color:var(--qc-accent);}
-#qc-style-review .switch:checked::before {transform:translateX(15px);background:var(--qc-on-accent);}
-#qc-style-review .section-heading {display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;}
-#qc-style-review .section-heading .supporting {margin-top:4px;}
-#qc-style-review .secondary-action,#qc-style-review .primary-action {display:inline-flex;justify-content:center;align-items:center;gap:6px;border:1px solid var(--qc-input-line);border-radius:var(--qc-control-radius);font-size:14px;padding:7px 13px;min-height:36px;background:var(--qc-surface);color:var(--qc-text);white-space:nowrap;}
-#qc-style-review .primary-action {background:var(--qc-accent);border-color:var(--qc-accent);color:var(--qc-on-accent);}
-#qc-style-review .secondary-action:hover {background:var(--qc-inset);}
-#qc-style-review .primary-action:hover {background:var(--qc-primary-hover);}
-#qc-style-review .proxy-preview {display:flex;gap:12px;align-items:center;padding:12px;border-radius:var(--qc-node-radius);background:var(--qc-selected);color:var(--qc-on-selected);}
-#qc-style-review .node-symbol {height:36px;width:36px;display:grid;place-items:center;background:var(--qc-surface);border-radius:var(--qc-node-radius);color:var(--qc-accent);}
-#qc-style-review .node-title {display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;}
-#qc-style-review .delay {font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;}
-#qc-style-review .good {color:var(--qc-good);}
-#qc-style-review .warning {color:var(--qc-warning);}
-#qc-style-review .failure {color:var(--qc-error);}
-#qc-style-review .selected-check {color:var(--qc-accent);display:flex;}
-#qc-style-review .info-banner {display:flex;gap:8px;align-items:center;color:var(--qc-muted);font-size:12px;padding:3px 2px;flex-wrap:wrap;}
-#qc-style-review .info-banner .text-action {margin-left:auto;}
-#qc-style-review .info-banner>svg {width:14px;height:14px;}
-#qc-style-review .app-status {padding:9px 16px;border-top:1px solid var(--qc-line);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;color:var(--qc-muted);font-size:12px;}
-#qc-style-review .page-toolbar {display:flex;align-items:center;gap:12px;justify-content:space-between;flex-wrap:wrap;}
-#qc-style-review .search-field {display:flex;align-items:center;gap:8px;background:var(--qc-surface);border:1px solid var(--qc-input-line);border-radius:var(--qc-control-radius);padding:7px 10px;flex:1;min-width:150px;color:var(--qc-muted);}
-#qc-style-review .search-field input {border:0;outline-offset:3px;min-width:0;width:100%;color:var(--qc-text);background:transparent;font-size:12px;}
-#qc-style-review input::placeholder {color:var(--qc-muted);opacity:1;}
-#qc-style-review .nodes-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-#qc-style-review .node-item {display:flex;flex-direction:column;gap:13px;padding:12px;border:1px solid var(--qc-line);border-radius:var(--qc-node-radius);background:var(--qc-surface);color:var(--qc-text);text-align:left;font-size:12px;min-width:0;}
-#qc-style-review .node-item:hover {background:var(--qc-inset);}
-#qc-style-review .node-item[aria-pressed="true"] {background:var(--qc-selected);border-color:var(--qc-accent);color:var(--qc-on-selected);}
-#qc-style-review .node-line {display:flex;justify-content:space-between;gap:6px;flex-wrap:wrap;}
-#qc-style-review .node-tick {color:var(--qc-accent);visibility:hidden;}
-#qc-style-review .node-item[aria-pressed="true"] .node-tick {visibility:visible;}
-#qc-style-review .inline-count {font-size:12px;font-weight:400;color:var(--qc-muted);margin-left:8px;}
-#qc-style-review .empty-state {padding:32px;text-align:center;color:var(--qc-muted);}
-#qc-style-review .settings-panel {padding-top:17px;padding-bottom:3px;}
-#qc-style-review .settings-panel h3 {margin-bottom:8px;}
-#qc-style-review .settings-row {display:flex;gap:16px;align-items:center;justify-content:space-between;padding:15px 0;min-height:65px;}
-#qc-style-review .settings-row+.settings-row {border-top:1px solid var(--qc-line);}
-#qc-style-review .settings-row .supporting {display:block;margin-top:4px;}
-#qc-style-review .settings-row select,#qc-style-review .port-control>input {border:1px solid var(--qc-input-line);border-radius:var(--qc-control-radius);background:var(--qc-surface);color:var(--qc-text);font-size:12px;padding:7px 10px;min-width:100px;max-width:150px;}
-#qc-style-review .settings-row select:disabled {background:var(--qc-inset);color:var(--qc-muted);border-color:var(--qc-line);cursor:not-allowed;}
-#qc-style-review .port-control {display:flex;flex-direction:column;align-items:flex-end;gap:5px;max-width:180px;}
-#qc-style-review .port-control>input {width:100px;}
-#qc-style-review .port-control>input[aria-invalid="true"] {border-color:var(--qc-error);}
-#qc-style-review .field-error {font-size:12px;color:var(--qc-error);}
-#qc-style-review .form-actions {display:flex;gap:10px;justify-content:flex-end;}
-#qc-style-review .feedback {margin-top:16px;background:var(--qc-selected);color:var(--qc-on-selected);padding:10px 12px;border-radius:var(--qc-control-radius);font-size:12px;}
-#qc-style-review .data-panel {padding:0;overflow:auto;}
-#qc-style-review table {width:100%;border-collapse:collapse;text-align:left;font-size:12px;}
-#qc-style-review th {background:var(--qc-inset);font-weight:500;color:var(--qc-muted);padding:12px 16px;}
-#qc-style-review td {padding:16px;border-top:1px solid var(--qc-line);font-variant-numeric:tabular-nums;}
-#qc-style-review td:last-child {color:var(--qc-muted);}
-#qc-style-review[data-design="minimal"] .app-nav button {min-height:42px;}
-#qc-style-review[data-design="minimal"] .panel {border:1px solid var(--qc-line);}
-#qc-style-review[data-design="minimal"] .app-nav {border-right:1px solid var(--qc-line);}
-#qc-style-review[data-design="minimal"] .app-nav button {font-size:14px;min-height:40px;gap:10px;}
-#qc-style-review[data-design="minimal"] .node-item {gap:10px;}
-@media(max-width:800px) {#qc-style-review .app-body {grid-template-columns:62px minmax(0,1fr);}#qc-style-review .app-nav {align-items:center;padding:18px 7px;}#qc-style-review .app-nav button {justify-content:center;padding:10px!important;}#qc-style-review .app-nav button span:not(.qc-symbol),#qc-style-review .nav-caption,#qc-style-review .nav-footer {display:none;}#qc-style-review .app-main {padding:20px 16px;}#qc-style-review .nodes-grid {grid-template-columns:repeat(2,minmax(0,1fr));}}
-@media(max-width:610px) {#qc-style-review .overview-grid {grid-template-columns:1fr;}#qc-style-review .app-main {padding:17px 12px;}#qc-style-review .page-heading {margin-bottom:16px;}#qc-style-review .controls-panel {gap:16px;}#qc-style-review .mode-control {flex-basis:100%;}#qc-style-review .panel {padding:15px;}#qc-style-review .data-panel {padding:0;}#qc-style-review .app-status {font-size:12px;}#qc-style-review .review-note {margin-left:0;}#qc-style-review .settings-row .supporting {max-width:190px;}#qc-style-review .settings-row {gap:10px;}#qc-style-review .review-controls {gap:10px;}#qc-style-review .window-label {display:none;}}
-@media(max-width:400px) {#qc-style-review .app-body {grid-template-columns:44px minmax(0,1fr);}#qc-style-review .app-nav {padding:16px 3px;}#qc-style-review .app-nav button {min-height:40px;padding:8px!important;}#qc-style-review .app-main {padding:14px 10px;}#qc-style-review h2 {font-size:22px;}#qc-style-review .status-badge {font-size:12px;padding:4px 6px;}#qc-style-review .nodes-grid {grid-template-columns:1fr;}#qc-style-review .settings-row {align-items:flex-start;flex-wrap:wrap;}#qc-style-review .settings-row>div:first-child {flex:1;min-width:120px;}#qc-style-review .settings-row select {min-width:76px;}#qc-style-review .port-control {align-items:flex-start;}#qc-style-review .window-chrome {gap:13px;}#qc-style-review .review-controls label {flex-wrap:wrap;}#qc-style-review .info-banner .text-action {margin-left:22px;}}
-@media(pointer:coarse) {#qc-style-review .app-nav button,#qc-style-review .segmented button,#qc-style-review .secondary-action,#qc-style-review .primary-action {min-height:44px;}#qc-style-review input:not(.switch),#qc-style-review select {font-size:16px;}#qc-style-review .toggle-control {min-height:44px;}}
-
-#qc-style-review .review-controls button {border:1px solid light-dark(#858591,#818496);border-radius:7px;padding:7px 12px;background:light-dark(#FFFFFF,#191A20);color:light-dark(#202024,#EDEDF2);min-height:36px;}
-#qc-style-review .qc-symbol {font:inherit;display:inline-flex;align-items:center;justify-content:center;width:18px;flex-shrink:0;}
-#qc-style-review .nav-caption,#qc-style-review .breadcrumb,#qc-style-review .window-label {display:none;}
-#qc-style-review .control-label,#qc-style-review .node-item,#qc-style-review table,#qc-style-review .app-nav button,#qc-style-review .segmented button,#qc-style-review .settings-row select,#qc-style-review .port-control>input,#qc-style-review .search-field input {font-size:14px;}
-#qc-style-review .section-label {font-size:12px;}
-#qc-style-review .primary-action:active {background:var(--qc-primary-pressed);}
-#qc-style-review .secondary-action:hover,#qc-style-review .ghost-action:hover {background:var(--qc-hover);}
-#qc-style-review button:disabled {background:var(--qc-inset);color:var(--qc-muted);border-color:var(--qc-line);cursor:not-allowed;}
-#qc-style-review .node-item:active {background:var(--qc-pressed);}
-#qc-style-review .switch {width:36px;height:20px;}
-#qc-style-review .switch::before {width:14px;height:14px;top:2px;left:2px;}
-#qc-style-review .switch:checked::before {transform:translateX(16px);}
-#qc-style-review .component-row {display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px;}
-#qc-style-review .component-fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-top:16px;}
-#qc-style-review .component-fields label {display:flex;flex-direction:column;gap:8px;}
-#qc-style-review .sample-input {height:36px;width:100%;min-width:0;border:1px solid var(--qc-input-line);border-radius:7px;padding:7px 10px;color:var(--qc-text);background:var(--qc-surface);font:inherit;}
-#qc-style-review .sample-input[aria-invalid="true"] {border-color:var(--qc-error);}
-#qc-style-review input[type="checkbox"],#qc-style-review input[type="radio"] {accent-color:var(--qc-accent);}
-#qc-style-review button:focus-visible,#qc-style-review input:focus-visible,#qc-style-review select:focus-visible {outline:2px solid var(--qc-accent);outline-offset:2px;}
-#qc-style-review .ghost-action,#qc-style-review .danger-action,#qc-style-review .pending-action,#qc-style-review .state-sample {border:1px solid var(--qc-line);border-radius:7px;min-height:36px;padding:7px 12px;color:var(--qc-text);background:var(--qc-surface);font:inherit;}
-#qc-style-review .ghost-action {border-color:transparent;background:transparent;}
-#qc-style-review .danger-action {background:var(--qc-error-bg);color:var(--qc-error);border-color:var(--qc-error);}
-#qc-style-review .pending-action,#qc-style-review .sample-selected {background:var(--qc-selected);color:var(--qc-on-selected);border-color:var(--qc-accent);}
-#qc-style-review .sample-hover {background:var(--qc-hover);}
-#qc-style-review .sample-pressed {background:var(--qc-pressed);}
-#qc-style-review .sample-focus {outline:2px solid var(--qc-accent);outline-offset:2px;}
-#qc-style-review .sample-badge {font-size:12px;padding:4px 8px;background:var(--qc-inset);border-radius:999px;}
-#qc-style-review .sample-error-banner {display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--qc-error-bg);color:var(--qc-error);border-radius:7px;padding:12px;margin-top:16px;}
-#qc-style-review .menu-anchor {position:relative;}
-#qc-style-review #qc-menu {position:absolute;right:0;top:calc(100% + 8px);z-index:2;width:180px;padding:4px;background:var(--qc-surface);border:1px solid var(--qc-input-line);border-radius:7px;}
-#qc-style-review #qc-menu button {display:block;text-align:left;width:100%;border:0;background:transparent;color:var(--qc-text);padding:7px 10px;min-height:32px;border-radius:5px;}
-#qc-style-review #qc-menu button.failure {color:var(--qc-error);}
-#qc-style-review #qc-menu button:hover {background:var(--qc-hover);}
-#qc-style-review dialog {width:min(400px,calc(100% - 32px));padding:24px;border:1px solid var(--qc-input-line);border-radius:10px;background:var(--qc-surface);color:var(--qc-text);}
+#qc-style-review :is(button,input,select,textarea) {font:inherit;color:var(--text);}
+#qc-style-review button {display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:7px 12px;border:1px solid transparent;border-radius:7px;background:var(--inset);cursor:pointer;}
+#qc-style-review button:hover {background:var(--hover);}
+#qc-style-review button:active {background:var(--pressed);}
+#qc-style-review button:disabled {color:var(--muted);background:var(--inset);cursor:default;}
+#qc-style-review button.primary {background:var(--accent);color:var(--on-accent);}
+#qc-style-review button.primary:hover {filter:brightness(.94);}
+#qc-style-review button.danger {color:var(--error);background:var(--error-bg);}
+#qc-style-review button.text-action {color:var(--accent);background:transparent;}
+#qc-style-review :is(button,input,select,textarea,summary,[tabindex]):focus-visible {outline:2px solid var(--accent);outline-offset:2px;}
+#qc-style-review input:not([type="checkbox"]),#qc-style-review select,#qc-style-review textarea {min-width:0;min-height:36px;padding:7px 10px;border:1px solid var(--outline);border-radius:7px;background:var(--surface);}
+#qc-style-review textarea {resize:vertical;width:100%;}
+#qc-style-review input[type="checkbox"] {accent-color:var(--accent);flex-shrink:0;}
+#qc-style-review input.switch {appearance:none;position:relative;width:36px;height:20px;margin:0;border:1px solid var(--outline);border-radius:20px;background:var(--inset);cursor:pointer;}
+#qc-style-review .switch::before {content:'';position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:var(--muted);}
+#qc-style-review .switch:checked {background:var(--accent);border-color:var(--accent);}
+#qc-style-review .switch:checked::before {left:18px;background:var(--on-accent);}
+#qc-style-review svg:not(.traffic-chart) {display:block;width:18px;height:18px;flex-shrink:0;}
+#qc-style-review button svg:not([stroke]) {fill:currentColor;}
+#qc-style-review h1 {font-size:24px;line-height:32px;margin:0;font-weight:600;}
+#qc-style-review h2 {display:flex;align-items:center;gap:10px;font-size:14px;font-weight:600;line-height:22px;margin:0 0 12px;}
+#qc-style-review p {margin:8px 0;}
+#qc-style-review .supporting {font-size:12px;color:var(--muted);}
+#qc-style-review .good {color:var(--good);}
+#qc-style-review .warning {color:var(--warning);}
+#qc-style-review .failure {color:var(--error);}
+#qc-style-review .info {color:var(--info);}
+#qc-style-review .row {display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;}
+#qc-style-review .spread {justify-content:space-between;}
+#qc-style-review .end {justify-content:flex-end;}
+#qc-style-review .full-width {width:100%;}
+#qc-style-review .review-controls {display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:0 0 14px;}
+#qc-style-review .qc-window {border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+#qc-style-review .app-body {display:grid;grid-template-columns:192px minmax(0,1fr);height:720px;min-height:480px;}
+#qc-style-review .app-nav {display:flex;flex-direction:column;gap:4px;padding:16px 10px;min-width:0;background:var(--nav);overflow:auto;}
+#qc-style-review .nav-brand {display:flex;align-items:center;gap:8px;min-height:36px;margin-bottom:16px;}
+#qc-style-review .nav-brand strong {font-size:17px;flex:1;}
+#qc-style-review .nav-brand svg {width:24px;height:24px;}
+#qc-style-review #qc-nav-toggle {background:transparent;width:32px;padding:6px;}
+#qc-style-review .nav-open {display:none;}
+#qc-style-review[data-nav-wide="false"] .nav-open {display:inline-flex;}
+#qc-style-review[data-nav-wide="false"] .nav-close {display:none;}
+#qc-style-review .app-nav>button {justify-content:flex-start;gap:16px;padding:8px 12px;min-height:40px;color:var(--muted);background:transparent;text-align:left;}
+#qc-style-review .app-nav>button svg {width:20px;height:20px;}
+#qc-style-review .app-nav>button:hover {background:var(--hover);}
+#qc-style-review .app-nav>button[aria-current="page"] {color:var(--on-selected);background:var(--selected);}
+#qc-style-review .app-nav .settings-nav {margin-top:auto;}
+#qc-style-review .app-main {display:flex;flex-direction:column;min-width:0;min-height:0;padding:16px 24px 12px;}
+#qc-style-review .page-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;}
+#qc-style-review .status-badge {color:var(--good);background:var(--good-bg);font-size:12px;border-radius:20px;padding:5px 10px;margin-left:auto;}
+#qc-style-review .page-scroll {overflow:auto;min-height:0;flex:1;padding:8px 8px 12px;margin:0 -8px;scrollbar-gutter:stable;}
+#qc-style-review .page-content {display:flex;flex-direction:column;gap:16px;min-width:0;container-type:inline-size;}
+#qc-style-review .panel {padding:16px;border:1px solid var(--line);border-radius:10px;background:var(--surface);min-width:0;}
+#qc-style-review .heading-icon {width:30px;height:30px;display:grid;place-items:center;flex-shrink:0;background:var(--selected);color:var(--accent);border-radius:7px;}
+#qc-style-review .overview-grid {display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+#qc-style-review .quota-line {display:flex;align-items:center;gap:12px;}
+#qc-style-review .quota-line strong {font-size:20px;margin-left:auto;}
+#qc-style-review .quota-track {height:6px;background:var(--inset);border-radius:6px;margin:4px 0;overflow:hidden;}
+#qc-style-review .quota-track span {display:block;width:20%;height:100%;background:var(--accent);border-radius:6px;}
+#qc-style-review .traffic-values {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0;flex-wrap:wrap;}
+#qc-style-review .traffic-values strong {font-size:24px;}
+#qc-style-review small {font-size:12px;font-weight:400;color:var(--muted);}
+#qc-style-review .download {color:var(--accent);}
+#qc-style-review .upload {color:var(--upload);}
+#qc-style-review .traffic-chart {display:block;width:100%;height:100px;overflow:hidden;margin-top:6px;}
+#qc-style-review .chart-grid {fill:none;stroke:var(--line);}
+#qc-style-review .chart-fill {fill:var(--accent);opacity:.1;}
+#qc-style-review .chart-download {fill:none;stroke:var(--accent);stroke-width:1.6;}
+#qc-style-review .chart-upload {fill:none;stroke:var(--upload);stroke-width:1.6;}
+#qc-style-review .proxy-columns {display:grid;grid-template-columns:1fr;gap:16px;}
+#qc-style-review .controls {margin-top:4px;}
+#qc-style-review .segmented {display:flex;gap:4px;}
+#qc-style-review .segmented button[aria-pressed="true"] {background:var(--selected);color:var(--on-selected);}
+#qc-style-review .egress {border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:8px;}
+#qc-style-review .egress-title {font-size:14px;overflow-wrap:anywhere;}
+#qc-style-review .tool-section {border-top:1px solid var(--line);padding-top:12px;margin-top:16px;}
+#qc-style-review .two-columns {display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:12px 0;}
+#qc-style-review .ip-value {display:block;font-size:20px;color:var(--info);margin:8px 0;overflow-wrap:anywhere;}
+#qc-style-review .site-grid {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:12px;}
+#qc-style-review .runtime-grid {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;}
+#qc-style-review .runtime-grid>div {display:flex;flex-direction:column;gap:8px;}
+#qc-style-review details {margin-top:12px;}
+#qc-style-review summary {cursor:pointer;color:var(--muted);width:fit-content;}
+#qc-style-review .toolbar {display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+#qc-style-review .search-field {display:flex;align-items:center;gap:8px;flex:1;min-width:180px;}
+#qc-style-review .search-field input {width:100%;}
+#qc-style-review .group-toggle {display:flex;flex-direction:column;align-items:flex-start;padding:4px;background:transparent;flex:1;min-width:0;}
+#qc-style-review .group-toggle strong::before {content:'⌄';display:inline-block;margin-right:8px;}
+#qc-style-review .group-toggle[aria-expanded="false"] strong::before {content:'›';}
+#qc-style-review .nodes-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px;}
+#qc-style-review .node-item {display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:7px;padding:7px 8px;min-height:40px;}
+#qc-style-review .node-name {border:0;background:transparent;justify-content:flex-start;padding:0;flex:1;text-align:left;min-width:0;overflow:hidden;}
+#qc-style-review .node-name>span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#qc-style-review .node-name small {flex-shrink:0;}
+#qc-style-review .node-delay {background:transparent;min-height:28px;padding:4px 6px;flex-shrink:0;font-size:12px;}
+#qc-style-review .node-delay.good {color:var(--good);}
+#qc-style-review .node-delay.failure {color:var(--error);}
+#qc-style-review .node-delay.supporting {color:var(--muted);}
+#qc-style-review .node-delay:hover {background:var(--selected);}
+#qc-style-review .node-item[data-selected="true"] {border-color:var(--accent);background:var(--selected);}
+#qc-style-review .node-item[data-selected="true"] .node-name {color:var(--on-selected);}
+#qc-style-review .node-item[data-selected="true"] .node-delay:hover {background:var(--selected-hover);}
+#qc-style-review .node-item:focus-within {outline:1px solid var(--accent);}
+#qc-style-review .selection-label {color:var(--on-selected);background:var(--selected);padding:4px 8px;border-radius:7px;font-size:12px;}
+#qc-style-review .table-wrap {overflow:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);}
+#qc-style-review table {width:100%;min-width:640px;border-collapse:collapse;text-align:left;}
+#qc-style-review th {font-size:12px;color:var(--muted);background:var(--inset);font-weight:400;white-space:nowrap;}
+#qc-style-review td,#qc-style-review th {height:40px;padding:8px 12px;border-bottom:1px solid var(--line);}
+#qc-style-review tbody tr:last-child td {border-bottom:0;}
+#qc-style-review tr[data-detail] {cursor:pointer;}
+#qc-style-review tr[data-detail]:hover {background:var(--hover);}
+#qc-style-review td small {display:block;}
+#qc-style-review .empty-state {padding:32px 12px;text-align:center;color:var(--muted);}
+#qc-style-review .field {display:flex;flex-direction:column;gap:6px;margin:12px 0;}
+#qc-style-review .settings-tabs {display:flex;gap:4px;overflow:auto;flex-shrink:0;scrollbar-width:thin;padding:2px;position:sticky;top:-8px;z-index:1;background:var(--bg);}
+#qc-style-review .settings-tabs button {min-height:32px;flex:none;white-space:nowrap;background:transparent;}
+#qc-style-review .settings-tabs [aria-selected="true"] {color:var(--on-selected);background:var(--selected);}
+#qc-style-review .settings-content {display:flex;flex-direction:column;gap:16px;}
+#qc-style-review .settings-row {display:flex;justify-content:space-between;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);}
+#qc-style-review .settings-row:last-child {border-bottom:0;}
+#qc-style-review .settings-row>span,#qc-style-review .settings-row>label {flex:1;min-width:0;}
+#qc-style-review .settings-row .supporting {display:block;margin-top:4px;max-width:620px;}
+#qc-style-review .settings-row input:not([type="checkbox"]) {width:110px;}
+#qc-style-review .settings-row .switch {flex:none;}
+#qc-style-review [aria-invalid="true"] {border-color:var(--error)!important;}
+#qc-style-review .error-banner {color:var(--error);background:var(--error-bg);border-radius:7px;padding:12px;margin-top:16px;}
+#qc-style-review .sample-selected {color:var(--on-selected);background:var(--selected);border-color:var(--accent);}
+#qc-style-review .sample-hover {background:var(--hover);}
+#qc-style-review .sample-focus {outline:2px solid var(--accent);outline-offset:2px;}
+#qc-style-review .feedback {padding:10px 12px;margin-top:8px;font-size:12px;color:var(--on-selected);background:var(--selected);border-radius:7px;}
+#qc-style-review .preview-footer {font-size:12px;color:var(--muted);padding:8px 16px;border-top:1px solid var(--line);}
+#qc-style-review .mobile-back,#qc-style-review .mobile-more {display:none;}
+#qc-style-review .mobile-more {position:relative;}
+#qc-style-review .menu {position:absolute;top:calc(100% + 6px);left:0;z-index:5;min-width:150px;background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px;}
+#qc-style-review .menu button {display:flex;justify-content:flex-start;width:100%;background:transparent;}
+#qc-style-review .menu button:hover {background:var(--hover);}
+#qc-style-review dialog {width:min(620px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;background:var(--surface);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:24px;}
+#qc-style-review dialog.wide {width:min(860px,calc(100% - 32px));}
 #qc-style-review dialog::backdrop {background:rgb(0 0 0 / 36%);}
 #qc-style-review[data-appearance="dark"] dialog::backdrop {background:rgb(0 0 0 / 56%);}
-#qc-style-review dialog p {margin:16px 0 24px;}
-#qc-style-review .mobile-back {display:none;}
-@media(width < 1000px) {#qc-style-review .app-body {grid-template-columns:64px minmax(0,1fr);}#qc-style-review .app-nav {padding:16px 7px;align-items:center;}#qc-style-review .app-nav button {justify-content:center;padding:10px;}#qc-style-review .app-nav button span:not(.qc-symbol),#qc-style-review .nav-footer {display:none;}}
-@media(width < 600px) {#qc-style-review .app-body {display:flex;flex-direction:column;}#qc-style-review .app-main {order:0;max-width:100%;}#qc-style-review .app-nav {order:1;display:flex;flex-direction:row;justify-content:space-around;border-top:1px solid var(--qc-line);border-right:0;padding:5px;min-height:56px;}#qc-style-review .app-nav button {display:none;margin:0;width:48px;min-height:44px;}#qc-style-review .app-nav button[data-page="home"],#qc-style-review .app-nav button[data-page="proxies"],#qc-style-review .app-nav button[data-page="subscriptions"],#qc-style-review .app-nav button[data-page="settings"] {display:flex;}#qc-style-review .mobile-back {display:inline-flex;}#qc-style-review .component-fields {grid-template-columns:1fr;}#qc-style-review .nodes-grid {grid-template-columns:1fr;}#qc-style-review .page-heading {flex-wrap:wrap;}#qc-style-review table {font-size:12px;}#qc-style-review td,#qc-style-review th {padding:10px 8px;overflow-wrap:anywhere;}}
-
-#qc-style-review .panel {padding:16px;}
-#qc-style-review h2 {line-height:32px;}
-#qc-style-review h3 {font-size:14px;line-height:20px;}
-#qc-style-review .subscription-panel h3 {font-size:20px;line-height:28px;}
-#qc-style-review .app-nav button {gap:16px;}
-#qc-style-review .app-nav .qc-symbol {width:20px;height:20px;}
-#qc-style-review .app-nav .qc-symbol svg {width:20px;height:20px;}
-#qc-style-review .traffic-values {align-items:center;gap:12px;flex-wrap:wrap;}
-#qc-style-review .traffic-values .traffic-labels {gap:6px;}
-#qc-style-review .switch {height:20px;width:36px;}
-#qc-style-review .switch::before {width:14px;height:14px;left:2px;top:2px;}
-#qc-style-review .switch:checked::before {transform:translateX(16px);}
-#qc-style-review .node-item {flex-direction:row;align-items:center;min-height:40px;padding:8px;gap:8px;}
-#qc-style-review .node-line {align-items:center;flex-wrap:nowrap;}
-#qc-style-review .node-line:first-child {flex:1;min-width:0;}
-#qc-style-review .node-line:first-child>span:first-child {white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#qc-style-review .node-line.supporting {gap:8px;}
-#qc-style-review .settings-row select,#qc-style-review .port-control>input {height:36px;}
-#qc-style-review .segmented button {min-height:32px;}
-#qc-style-review td {height:40px;padding:8px 16px;}
-#qc-style-review .primary-action:disabled,#qc-style-review .secondary-action:disabled {background:var(--qc-inset);color:var(--qc-muted);border-color:var(--qc-line);}
-#qc-style-review {--qc-error-hover:#FBE3E8;--qc-error-pressed:#F8D8DF;--qc-selection-hover:#E5DFFB;--qc-selection-pressed:#DAD2F6;}
-#qc-style-review[data-appearance="dark"] {--qc-error-hover:#4A2A35;--qc-error-pressed:#59323F;--qc-selection-hover:#3B335F;--qc-selection-pressed:#453B6D;}
-#qc-style-review .danger-action:hover {background:var(--qc-error-hover);}
-#qc-style-review .danger-action:active {background:var(--qc-error-pressed);}
-#qc-style-review .node-item[aria-pressed="true"]:hover,#qc-style-review .app-nav button[aria-current="page"]:hover {background:var(--qc-selection-hover);}
-#qc-style-review .node-item[aria-pressed="true"]:active,#qc-style-review .app-nav button[aria-current="page"]:active {background:var(--qc-selection-pressed);}
-#qc-style-review .node-item[aria-pressed="true"] .supporting,#qc-style-review .proxy-preview .supporting {color:var(--qc-on-selected);}
-#qc-style-review .node-item[aria-pressed="true"] .delay,#qc-style-review .proxy-preview .delay {color:var(--qc-on-selected);}
-#qc-style-review .ghost-action:hover {background:var(--qc-hover);}
-#qc-style-review .secondary-action:active,#qc-style-review .ghost-action:active {background:var(--qc-pressed);}
-#qc-style-review button:disabled {cursor:default;}
-@media(min-width:1200px) {#qc-style-review .app-body {grid-template-columns:208px minmax(0,1fr);}#qc-style-review .app-main {width:100%;max-width:1488px;margin-inline:auto;}}
-@media(600px <= width < 1000px) {#qc-style-review .app-main {padding:16px;}}
-@media(width < 600px) {#qc-style-review .app-main {padding:12px;}#qc-style-review .app-body {min-height:0;}#qc-style-review .app-nav {position:sticky;bottom:0;z-index:3;}#qc-style-review .app-status {display:none;}#qc-style-review .settings-nav {margin-top:0;}#qc-style-review .qc-window {overflow:clip;}#qc-style-review h2 {font-size:22px;line-height:30px;}#qc-style-review .panel {padding:16px;}#qc-style-review .data-panel {padding:0;}}
-@media(pointer:coarse) {#qc-style-review .ghost-action,#qc-style-review .danger-action,#qc-style-review .state-sample,#qc-style-review .sample-input {min-height:44px;}}
-#qc-style-review[data-page="home"] .mobile-back,#qc-style-review[data-page="proxies"] .mobile-back,#qc-style-review[data-page="subscriptions"] .mobile-back,#qc-style-review[data-page="settings"] .mobile-back {display:none;}
-#qc-style-review .nav-brand {display:flex;align-items:center;gap:8px;min-height:36px;margin:6px 0 16px;}
-#qc-style-review .nav-brand .brand-image {display:flex;flex:none;}
-#qc-style-review .nav-brand strong {font-size:17px;min-width:0;overflow:hidden;text-overflow:ellipsis;flex:1;}
-#qc-style-review .nav-brand #qc-nav-toggle {display:flex;width:32px;min-height:36px;padding:6px!important;flex:none;justify-content:center;}
-#qc-style-review .nav-brand #qc-nav-toggle .qc-symbol {display:inline-flex;}
-#qc-style-review .nav-brand #qc-nav-toggle .nav-open {display:none;}
-@media(width >= 600px) {
-  #qc-style-review[data-nav-wide="false"] .app-body {display:grid;grid-template-columns:64px minmax(0,1fr);}
-  #qc-style-review[data-nav-wide="false"] .app-nav {padding:16px 7px;align-items:center;}
-  #qc-style-review[data-nav-wide="false"] .app-nav button[data-page] {justify-content:center;padding:10px!important;}
-  #qc-style-review[data-nav-wide="false"] .app-nav button[data-page]>span:not(.qc-symbol),#qc-style-review[data-nav-wide="false"] .nav-footer,#qc-style-review[data-nav-wide="false"] .nav-brand .brand-image,#qc-style-review[data-nav-wide="false"] .nav-brand strong {display:none;}
-  #qc-style-review[data-nav-wide="false"] .nav-brand #qc-nav-toggle .nav-close {display:none;}
-  #qc-style-review[data-nav-wide="false"] .nav-brand #qc-nav-toggle .nav-open {display:inline-flex;}
-  #qc-style-review[data-nav-wide="true"] .app-body {display:grid;grid-template-columns:192px minmax(0,1fr);}
-  #qc-style-review[data-nav-wide="true"] .app-nav {align-items:stretch;padding:18px 10px 14px;}
-  #qc-style-review[data-nav-wide="true"] .app-nav button[data-page] {justify-content:flex-start;padding:8px 12px!important;}
-  #qc-style-review[data-nav-wide="true"] .app-nav button[data-page]>span:not(.qc-symbol) {display:inline;}
-  #qc-style-review[data-nav-wide="true"] .nav-footer {display:flex;}
-}
-@media(width >= 1200px) {#qc-style-review[data-nav-wide="true"] .app-body {grid-template-columns:208px minmax(0,1fr);}}
-@media(width < 600px) {#qc-style-review .nav-brand {display:none;}}
+#qc-style-review .dialog-actions {margin-top:20px;}
+#qc-style-review .rule-tile {padding:12px 0;border-bottom:1px solid var(--line);}
+@container (width < 800px) {#qc-style-review .runtime-grid {grid-template-columns:repeat(2,minmax(0,1fr));}}
+@container (width < 600px) {#qc-style-review .overview-grid {display:contents;}#qc-style-review .subscription-panel {order:0;}#qc-style-review .proxy-panel {order:1;}#qc-style-review .traffic-panel {order:2;}#qc-style-review .tools-panel {order:3;}#qc-style-review .runtime-panel {order:4;}}
+@container (width < 480px) {#qc-style-review .runtime-grid,#qc-style-review .two-columns,#qc-style-review .site-grid,#qc-style-review .nodes-grid {grid-template-columns:1fr;}}
+@container (width >= 960px) {#qc-style-review .proxy-columns {grid-template-columns:2fr 3fr;}#qc-style-review .egress {border-top:0;border-left:1px solid var(--line);padding-top:0;padding-left:16px;}}
+@media (width >= 1200px) {#qc-style-review .app-body {grid-template-columns:208px minmax(0,1fr);}#qc-style-review .app-main {width:100%;max-width:1488px;margin-inline:auto;}}
+@media (width >= 600px) {#qc-style-review[data-nav-wide="false"] .app-body {grid-template-columns:64px minmax(0,1fr);}#qc-style-review[data-nav-wide="false"] .app-nav {padding:16px 7px;}#qc-style-review[data-nav-wide="false"] .app-nav>button {justify-content:center;padding:8px;}#qc-style-review[data-nav-wide="false"] .app-nav>button span,#qc-style-review[data-nav-wide="false"] .nav-brand strong,#qc-style-review[data-nav-wide="false"] .brand-image {display:none;}#qc-style-review[data-nav-wide="false"] .nav-brand {justify-content:center;}}
+@media (600px <= width < 1000px) {#qc-style-review .app-main {padding:16px;}}
+@media (width < 600px) {#qc-style-review .review-controls {padding:12px;}#qc-style-review .qc-window {border-radius:0;border-left:0;border-right:0;}#qc-style-review .app-body {display:flex;flex-direction:column;height:calc(100dvh - 150px);min-height:480px;}#qc-style-review .app-main {order:0;flex:1;padding:12px;min-height:0;}#qc-style-review .app-nav {order:1;flex-direction:row;justify-content:space-around;padding:4px;flex-shrink:0;min-height:56px;border-top:1px solid var(--line);}#qc-style-review .nav-brand,#qc-style-review .app-nav>button {display:none;}#qc-style-review .app-nav>button:is([data-page="home"],[data-page="proxies"],[data-page="subscriptions"],[data-page="settings"]) {display:flex;justify-content:center;width:48px;padding:8px;margin:0;}#qc-style-review .app-nav>button span {display:none;}#qc-style-review .mobile-more {display:block;}#qc-style-review .mobile-back {display:flex;}#qc-style-review[data-page="home"] .mobile-back,#qc-style-review[data-page="proxies"] .mobile-back,#qc-style-review[data-page="subscriptions"] .mobile-back,#qc-style-review[data-page="settings"] .mobile-back {display:none;}#qc-style-review h1 {font-size:22px;}#qc-style-review .settings-row {flex-wrap:wrap;}#qc-style-review .settings-row>input:not([type="checkbox"]),#qc-style-review .settings-row>select {max-width:100%;}#qc-style-review .preview-footer {padding:8px 12px;}}
 </style>
 <script>
 (() => {
+  'use strict';
   const root = document.getElementById('qc-style-review');
-  const state = { design:'minimal', appearance:'light', page:'home' };
-  const navigationState = {collapsedSidebar:false, expandedRail:false};
-  const compactWidth = window.matchMedia('(width < 1000px)');
-  function renderNavigation() {
-    const wide = compactWidth.matches ? navigationState.expandedRail : !navigationState.collapsedSidebar;
-    root.dataset.navWide = String(wide);
-    const toggle = root.querySelector('#qc-nav-toggle');
-    const label = wide ? '收起导航' : '展开导航';
-    toggle.setAttribute('aria-expanded', String(wide));
-    toggle.setAttribute('aria-label', label); toggle.title = label;
+  const one = selector => root.querySelector(selector);
+  const all = selector => [...root.querySelectorAll(selector)];
+  const catalog = /* preview_translations */;
+  const sourceKeys = new Map(Object.entries(catalog).map(([key, value]) => [value, key]));
+  const copyBindings = new Map();
+  let language = 'en-US';
+  function t(key, ...values) {
+    const source = sourceKeys.get(key) || key;
+    const pattern = language === 'zh-CN' ? source : (catalog[source] || source);
+    return pattern.replace(/\{(\d+)\}/g, (_, index) => {
+      const value = String(values[Number(index)] ?? '');
+      const sourceValue = sourceKeys.get(value) || value;
+      return language === 'zh-CN' ? sourceValue : (catalog[sourceValue] || value);
+    });
   }
-  root.querySelector('#qc-nav-toggle').addEventListener('click',()=>{
-    if(compactWidth.matches) navigationState.expandedRail = !navigationState.expandedRail;
-    else navigationState.collapsedSidebar = !navigationState.collapsedSidebar;
-    renderNavigation();
-  });
-  compactWidth.addEventListener('change',renderNavigation);
-  renderNavigation();
-  const systemAppearance = window.matchMedia('(prefers-color-scheme: dark)');
-  const titles = {home:'仪表盘',proxies:'代理',subscriptions:'订阅',connections:'连接',rules:'规则',logs:'日志',tests:'测试',settings:'设置',components:'控件与状态'};
-  const appearance = root.querySelector('#qc-appearance');
-  const themeSelect = root.querySelector('#qc-settings-theme');
-  const feedback = root.querySelector('#qc-feedback');
-  const tables = {
-    subscriptions:[['名称','更新状态','更新时间'],['日常网络','已激活','12 分钟前'],['备用网络','待应用','昨天 18:40']],
-    connections:[['目标 / 应用','代理链','流量'],['example.com:443','节点选择 → 香港 01','2.4 MB'],['cdn.example.org:443','节点选择 → 香港 01','824 KB'],['docs.example.net:443','DIRECT','128 KB']],
-    rules:[['规则类型','匹配内容','策略'],['DOMAIN-SUFFIX','example.com','节点选择'],['IP-CIDR','192.168.0.0/16','DIRECT'],['MATCH','全部剩余连接','节点选择']],
-    logs:[['时间','级别','内容'],['14:32:08','INFO','配置已加载'],['14:32:12','INFO','连接已建立'],['14:33:01','WARN','示例节点延迟测试超时']],
-    tests:[['测试目标','结果','耗时'],['example.com','HTTPS 200','128 ms'],['example.org','HTTPS 200','156 ms'],['example.net','等待手动测试','—']]
-  };
-  function save() {
-    if (window.openai && window.openai.setWidgetState) window.openai.setWidgetState({modelContent:{quickclashDesign:state.design,appearance:state.appearance,previewPage:state.page},privateContent:{}}).catch(()=>{});
+  function setText(element, key, ...values) {
+    element.textContent = t(key, ...values);
+    copyBindings.set(element, {key, values});
+    return element;
   }
-  function render() {
-    root.dataset.page = state.page;
-    root.dataset.design = state.design; root.dataset.appearance = state.appearance === 'system' ? (systemAppearance.matches ? 'dark' : 'light') : state.appearance; root.querySelector('.qc-window').style.colorScheme = root.dataset.appearance;
-    appearance.value = state.appearance; themeSelect.value = state.appearance;
-    root.querySelector('#qc-style-label').textContent = '极简桌面工具风';
-    root.querySelector('#qc-page-title').textContent = titles[state.page];
-    root.querySelector('#qc-breadcrumb').textContent = '工作空间 / ' + (state.page === 'home' ? '概览' : titles[state.page]);
-    root.querySelectorAll('.app-nav button[data-page]').forEach(b=> {if(b.dataset.page===state.page)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
-    ['home','proxies','settings','components','data'].forEach(p=>root.querySelector('#qc-'+p).hidden = p !== (['home','proxies','settings','components'].includes(state.page) ? state.page : 'data'));
-    if (tables[state.page]) {
-      const rows = tables[state.page];
-      root.querySelector('#qc-table-head').replaceChildren(...rows[0].map(v=>{const cell=document.createElement('th');cell.scope='col';cell.textContent=v;return cell;}));
-      root.querySelector('#qc-table-body').replaceChildren(...rows.slice(1).map(row=>{const tr=document.createElement('tr');tr.replaceChildren(...row.map(v=>{const td=document.createElement('td');td.textContent=v;return td;}));return tr;}));
+  function textNode(key, ...values) {
+    const node = document.createTextNode(t(key, ...values));
+    copyBindings.set(node, {key, values});
+    return node;
+  }
+  const staticCopy = [];
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  while (walker.nextNode()) {
+    const node = walker.currentNode;
+    if (node.parentElement.closest('script,style')) continue;
+    const value = node.textContent.trim(), key = sourceKeys.get(value);
+    if (key) staticCopy.push({node, key, original:node.textContent, value});
+  }
+  const staticAttributes = [];
+  all('*').forEach(element => ['aria-label','title','placeholder','data-demo'].forEach(attribute => {
+    const key = sourceKeys.get(element.getAttribute(attribute));
+    if (key) staticAttributes.push({element, attribute, key});
+  }));
+  function renderLanguage() {
+    document.documentElement.lang = language;
+    document.title = t('QuickClash · 界面交互示意');
+    root.lang = language;
+    staticCopy.forEach(({node,key,original,value}) => {
+      if (node.isConnected) node.textContent = original.replace(value,t(key));
+    });
+    staticAttributes.forEach(({element,attribute,key}) => element.setAttribute(attribute,t(key)));
+    for (const [node,copy] of copyBindings) {
+      if (!node.isConnected) copyBindings.delete(node);
+      else node.textContent = t(copy.key,...copy.values);
     }
-    feedback.hidden = true;
+    ['#qc-language','#qc-settings-language'].forEach(selector => { one(selector).value = language; });
+    renderNav();renderNodes();renderConnections();renderRules();renderLogs();validateTargets();
+    setText(one('#qc-page-title'),titles[state.page]);
+    setText(one('#qc-current-node'),nodes[one('#qc-egress').selectedIndex]);
   }
-  function restore(saved) {
-    const content=saved && saved.modelContent; if(!content)return;
-    state.design='minimal';
-    if(['light','dark','system'].includes(content.appearance))state.appearance=content.appearance;
-    if(titles[content.previewPage])state.page=content.previewPage;
+  const state = {page:'home', appearance:'light', category:'general', selected:0, logPaused:false, logsCleared:false};
+  const titles = {home:'仪表盘',proxies:'代理',subscriptions:'订阅',connections:'连接',rules:'规则',logs:'日志',tests:'测试',settings:'设置',components:'控件与状态'};
+  const systemTheme = matchMedia('(prefers-color-scheme: dark)');
+  const rail = matchMedia('(width < 1000px)');
+  const navState = {collapsed:false, expanded:false};
+  const nodes = ['日本高速 · 01 / Tokyo','日本高速 · 02 / Tokyo','香港 · 01','新加坡 · 01','美国 · 01','德国 · 01'];
+  const delays = ['38 ms','42 ms','65 ms','82 ms','未测试','超时'];
+  const connections = [
+    {target:'example.com:443',process:'Browser · TCP',chain:'节点选择 → 日本高速 · 01 / Tokyo',down:'24.0 KiB/s',up:'2.0 KiB/s',rate:24},
+    {target:'cdn.example.org:443',process:'Updater · TCP',chain:'节点选择 → 日本高速 · 01 / Tokyo',down:'8.0 KiB/s',up:'1.0 KiB/s',rate:8},
+    {target:'docs.example.net:443',process:'Browser · TCP',chain:'DIRECT',down:'—',up:'—',rate:0}
+  ];
+  const rules = [['1','DOMAIN','docs.example.net','DIRECT','配置自定义'],['2','DOMAIN-SUFFIX','example.com','节点选择','全局自定义'],['3','IP-CIDR','192.168.0.0/16','DIRECT','配置规则'],['4','MATCH','全部剩余连接','节点选择','配置规则']];
+  const logs = [{time:'12:00:01',level:'INFO',source:'client',label:'客户端',message:'配置已加载 · 演示'},{time:'12:00:02',level:'INFO',source:'core',label:'内核',message:'连接 example.com:443 → 节点选择 · 演示'},{time:'12:00:03',level:'WARN',source:'core',label:'内核',message:'示例节点延迟测试超时 · 演示'}];
+  let measureTimer = null, testTimer = null, activeDialog = '', dialogOpener = null;
+  function feedback(key,...values) { setText(one('#qc-feedback'),key,...values); one('#qc-feedback').hidden = false; }
+  function renderNav() {
+    const wide = rail.matches ? navState.expanded : !navState.collapsed;
+    root.dataset.navWide = String(wide);
+    one('#qc-nav-toggle').setAttribute('aria-expanded', String(wide));
+    one('#qc-nav-toggle').setAttribute('aria-label', t(wide ? '收起导航' : '展开导航'));
+    one('#qc-nav-toggle').title = t(wide ? '收起导航' : '展开导航');
   }
-  restore(window.openai && window.openai.widgetState);
-  render();
-  systemAppearance.addEventListener('change',()=>{if(state.appearance==='system')render();});
-  root.querySelector('#qc-show-components').addEventListener('click',()=>{state.page='components';render();save();});
-  [appearance,themeSelect].forEach(el=>el.addEventListener('change',()=>{state.appearance=el.value;render();save();}));
-  root.querySelectorAll('[data-page],[data-go]').forEach(el=>el.addEventListener('click',()=>{state.page=el.dataset.page||el.dataset.go;render();save();}));
-  root.querySelectorAll('.segmented button').forEach(el=>el.addEventListener('click',()=>{root.querySelectorAll('.segmented button').forEach(b=>b.setAttribute('aria-pressed',String(b===el)));}));
-  root.querySelectorAll('.node-item').forEach(el=>el.addEventListener('click',()=>{root.querySelectorAll('.node-item').forEach(b=>b.setAttribute('aria-pressed',String(b===el)));root.querySelector('.node-panel .section-heading .supporting').textContent='手动选择 · 当前'+el.dataset.name;feedback.textContent='演示：已选择'+el.dataset.name;feedback.hidden=false;}));
-  root.querySelector('#qc-node-search').addEventListener('input',event=>{const query=event.target.value.trim().toLowerCase();let shown=0;root.querySelectorAll('.node-item').forEach(el=>{el.hidden=!el.dataset.name.toLowerCase().includes(query);if(!el.hidden)shown++;});root.querySelector('#qc-search-empty').hidden=shown>0;});
-  root.querySelector('#qc-measure').addEventListener('click',()=>{feedback.textContent='演示：延迟测试完成 · 5 个可用，1 个超时';feedback.hidden=false;});
-  root.querySelector('#qc-save').addEventListener('click',()=>{const port=root.querySelector('#qc-port');const valid=/^[0-9]+$/.test(port.value)&&Number(port.value)>0&&Number(port.value)<=65535;port.setAttribute('aria-invalid',String(!valid));root.querySelector('#qc-port-error').hidden=valid;if(valid){feedback.textContent='演示：端口已应用';feedback.hidden=false;}else {feedback.hidden=true;port.focus();}});
-  root.querySelector('#qc-reset').addEventListener('click',()=>{root.querySelector('#qc-port').value='7890';root.querySelector('#qc-port').removeAttribute('aria-invalid');root.querySelector('#qc-port-error').hidden=true;feedback.hidden=true;});
-  window.addEventListener('openai:set_globals',event=>{if(event.detail && event.detail.globals && event.detail.globals.widgetState){restore(event.detail.globals.widgetState);render();}});
-
-  const dialog = root.querySelector('#qc-confirm-dialog');
-  const menu = root.querySelector('#qc-menu');
-  const menuTrigger = root.querySelector('#qc-menu-trigger');
-  let dialogTrigger;
-  function closeMenu() {menu.hidden=true;menuTrigger.setAttribute('aria-expanded','false');}
-  function openDialog(trigger) {closeMenu();dialogTrigger=trigger;dialog.showModal();root.querySelector('#qc-dialog-cancel').focus();}
-  root.querySelector('#qc-open-dialog').addEventListener('click',event=>openDialog(event.currentTarget));
-  root.querySelector('#qc-menu-delete').addEventListener('click',()=>openDialog(menuTrigger));
-  root.querySelector('#qc-dialog-cancel').addEventListener('click',()=>dialog.close());
-  root.querySelector('#qc-dialog-confirm').addEventListener('click',()=>{dialog.close();feedback.textContent='演示：删除确认完成，未操作任何文件或配置';feedback.hidden=false;});
-  dialog.addEventListener('close',()=>{if(dialogTrigger)dialogTrigger.focus();});
-  menuTrigger.addEventListener('click',()=>{menu.hidden=!menu.hidden;menuTrigger.setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)menu.querySelector('button').focus();});
-  menu.addEventListener('keydown',event=>{const items=Array.from(menu.querySelectorAll('button'));const index=items.indexOf(document.activeElement);if(event.key==='ArrowDown'||event.key==='ArrowUp'){event.preventDefault();items[(index+(event.key==='ArrowDown'?1:items.length-1))%items.length].focus();}if(event.key==='Escape'){closeMenu();menuTrigger.focus();}});
-  document.addEventListener('click',event=>{if(!event.target.closest('.menu-anchor'))closeMenu();});
-  root.querySelector('#qc-copy-demo').addEventListener('click',()=>{closeMenu();menuTrigger.focus();feedback.textContent='演示名称：日常网络（未改写系统剪贴板）';feedback.hidden=false;});
-  root.querySelector('#qc-retry').addEventListener('click',()=>{feedback.textContent='演示：重试已完成，当前配置已保留';feedback.hidden=false;});
+  function renderTheme() {
+    root.dataset.appearance = state.appearance === 'system' ? (systemTheme.matches ? 'dark' : 'light') : state.appearance;
+    one('#qc-appearance').value = state.appearance; one('#qc-settings-theme').value = state.appearance;
+  }
+  function closeMore() { one('#qc-more-menu').hidden = true; one('#qc-more-trigger').setAttribute('aria-expanded','false'); }
+  function navigate(page) {
+    if (!Object.hasOwn(titles,page)) return;
+    const changed = page !== state.page; state.page = page; root.dataset.page = page;
+    all('.page-content').forEach(el => { el.hidden = el.id !== 'qc-' + page; });
+    all('.app-nav>button').forEach(el => { if (el.dataset.page === page) el.setAttribute('aria-current','page'); else el.removeAttribute('aria-current'); });
+    setText(one('#qc-page-title'),titles[page]); if (changed) one('#qc-page-scroll').scrollTop = 0;
+    closeMore(); one('#qc-feedback').hidden = true;
+  }
+  function selectCategory(category) {
+    if (!one('#qc-settings-' + category)) return;
+    state.category = category;
+    all('[data-category]').forEach(tab => { const selected = tab.dataset.category === category; tab.setAttribute('aria-selected',String(selected)); tab.tabIndex = selected ? 0 : -1; });
+    all('.settings-content').forEach(el => { el.hidden = el.id !== 'qc-settings-' + category; });
+    one('#qc-tab-' + category).scrollIntoView({block:'nearest',inline:'nearest'});
+  }
+  function renderNodes() {
+    const query = one('#qc-node-search').value.trim().toLowerCase(); let count = 0;
+    const items = nodes.map((key,index) => {
+      const name = t(key);
+      const item = document.createElement('div'); item.className = 'node-item'; item.dataset.selected = String(index === state.selected);
+      item.hidden = !!query && !name.toLowerCase().includes(query) && !t('节点选择').toLowerCase().includes(query); if (!item.hidden) count++;
+      const select = document.createElement('button'); select.type = 'button'; select.className = 'node-name'; select.setAttribute('aria-pressed',String(index === state.selected)); select.title = name;
+      const label = document.createElement('span'); setText(label,key); const protocol = document.createElement('small'); protocol.textContent = 'Trojan'; select.append(label,protocol);
+      select.addEventListener('click',()=>{state.selected=index;renderNodes();one('#qc-nodes').children[index].querySelector('.node-name').focus();feedback('演示：节点已确认选择，测速不会改变选择。');});
+      const delay = document.createElement('button'); delay.type = 'button'; delay.className = 'node-delay ' + (index === 5 ? 'failure' : index === 4 ? 'supporting' : 'good'); setText(delay,delays[index]); delay.setAttribute('aria-label',t('测试 {0} 的延迟',name));
+      delay.addEventListener('click',()=>feedback('演示：{0} · {1}；节点选择保持不变。',t(key),t(delays[index]))); item.append(select,delay); return item;
+    });
+    one('#qc-nodes').replaceChildren(...items); one('#qc-search-empty').hidden = count !== 0;
+    setText(one('#qc-node-count'),query?'手动选择 · select · {0} 个匹配 / 6 个成员':'手动选择 · select · 6 个成员',count); setText(one('#qc-group-current'),nodes[state.selected]);
+  }
+  function row(cells,detail) {
+    const tr = document.createElement('tr'); cells.forEach(value=>{const td=document.createElement('td');setText(td,value);tr.append(td);});
+    if (detail) {tr.tabIndex=0;tr.dataset.detail='true';tr.setAttribute('aria-label',t('{0}，查看详情',cells.map(value=>t(value)).join(' · ')));const open=()=>openDialog('detail',detail);tr.addEventListener('click',open);tr.addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();open();}});} return tr;
+  }
+  function renderConnections() {
+    const query=one('#qc-connection-filter').value.trim().toLowerCase(); const filtered=connections.filter(c=>[c.target,c.process,t(c.chain)].join(' ').toLowerCase().includes(query));
+    if(one('#qc-connection-sort').value==='download') filtered.sort((a,b)=>b.rate-a.rate);
+    one('#qc-connection-rows').replaceChildren(...filtered.map(c=>row([c.target+' · '+c.process,c.chain,c.down,c.up],[['目标：{0}',c.target],['进程：{0}',c.process],['链路：{0}',t(c.chain)],['规则：DOMAIN-SUFFIX,example.com'],['速率：↓ {0} / ↑ {1}',c.down,c.up],['累计：2.4 MiB · 时长：2 分钟 · 演示']])));
+    setText(one('#qc-connection-count'),'{0} / {1} 个连接',filtered.length,connections.length);one('#qc-connections-empty').hidden=filtered.length!==0;
+  }
+  function renderRules() {
+    const query=one('#qc-rule-filter').value.trim().toLowerCase(), filtered=rules.filter(r=>r.map(value=>t(value)).join(' ').toLowerCase().includes(query));
+    one('#qc-rule-rows').replaceChildren(...filtered.map(r=>row(r,[['内核序号：{0}',r[0]],['类型：{0}',r[1]],['匹配：{0}',t(r[2])],['出口：{0}',t(r[3])],['来源：{0}',t(r[4])],['此处为只读演示详情。']])));one('#qc-rules-empty').hidden=filtered.length!==0;
+  }
+  function renderLogs() {
+    const query=one('#qc-log-filter').value.trim().toLowerCase(), source=one('#qc-log-source').value, level=one('#qc-log-level').value;
+    const filtered=state.logsCleared?[]:logs.filter(l=>(source==='all'||l.source===source)&&(level==='all'||l.level===level)&&t(l.message).toLowerCase().includes(query));
+    one('#qc-log-rows').replaceChildren(...filtered.map(l=>row([l.time,l.level,l.label,l.message],[['{0} · {1} · {2}',l.time,l.level,l.label],[l.message],['固定演示消息；实际日志展开后可选择复制。']])));
+    setText(one('#qc-log-counter'),'{0} · 显示 {1} 条 · 有界缓冲 · 丢弃 0 / 截断 0 / 缺口 0',t(state.logPaused?'接收已暂停':'固定演示数据'),filtered.length);
+  }
+  const dialogInfo = {subscription:['添加订阅','HTTPS 订阅地址','https://example.com/profile.yaml','名称（可选）','演示订阅'],'subscription-manage':['管理订阅','订阅来源（演示）','https://example.com/profile.yaml','名称','日常订阅 · Everyday'],strategy:['新建策略组','名称','自动选择 · 日本','包含关键词','日本, Tokyo']};
+  const messages = {delete:['删除示例订阅？','实际程序删除当前订阅会结束会话并恢复所持网络设置。此预览只演示确认反馈。'],'close-connections':['关闭全部连接？','实际程序对当前快照执行关闭；此预览不会接触任何连接。'],core:['切换受管内核？','实际程序先校验配置与资源，再切换内核；失败恢复已确认版本。此预览不下载或启动程序。'],geo:['更新或应用 Geo 数据库？','实际程序下载并校验 GeoIP 与 GeoSite，应用时会重启内核。失败保留原快照；此预览不执行下载。'],backup:['备份与恢复','实际备份可能包含明文节点凭据。恢复先预览、校验再确认；此预览不读取或写入文件。'],'settings-recovery':['恢复设置？','实际程序在恢复前保留旧数据，并明确说明影响范围。此预览不改动设置文件。'],ports:['应用网络设置？','演示：确认端口草稿，不改变实际监听或系统设置。']};
+  function paragraph(text) { const p=document.createElement('p');return setText(p,...(Array.isArray(text)?text:[text])); }
+  function field(labelText,value) {const label=document.createElement('label');label.className='field';label.append(textNode(labelText));const input=document.createElement('input');input.type='text';input.value=t(value);label.append(input);return label;}
+  function openDialog(kind,detail) {
+    if(one('#qc-dialog').open) return; activeDialog=kind;dialogOpener=document.activeElement;
+    const body=one('#qc-dialog-body');body.replaceChildren();one('#qc-dialog').classList.toggle('wide',kind==='rules');
+    setText(one('#qc-dialog-confirm'),kind==='detail'?'关闭':kind==='delete'?'删除示例订阅':'确定');one('#qc-dialog-cancel').hidden=kind==='detail';one('#qc-dialog-confirm').className=kind==='delete'?'danger':'';
+    if(dialogInfo[kind]) {
+      const info=dialogInfo[kind];setText(one('#qc-dialog-title'),info[0]);body.append(field(info[1],info[2]),field(info[3],info[4]));
+      if(kind==='strategy') {const label=document.createElement('label');label.className='field';label.append(textNode('策略'));const select=document.createElement('select');['自动低延迟','顺序故障切换','负载均衡'].forEach(text=>{const option=document.createElement('option');setText(option,text);select.append(option);});label.append(select);body.append(label,paragraph('实际流程：选择来源 → 预览候选 → 内核校验 → 保存并应用。创建策略组本身不改变路由。'));}
+      if(kind==='subscription') {const button=document.createElement('button');button.type='button';setText(button,'导入本地 YAML（示意）');button.addEventListener('click',()=>{body.append(paragraph('本地导入入口示意；未打开文件。'));button.disabled=true;});body.append(button);}
+      if(kind==='subscription-manage') body.append(paragraph('更新计划、下载路径、自动应用、配置覆盖、YAML 编辑与历史回退在实际管理器中提供。'));body.append(paragraph('此处仅演示表单，不请求网络、不保存输入。'));
+    } else if(kind==='rules') {
+      setText(one('#qc-dialog-title'),'管理自定义规则');const scopes=document.createElement('select');scopes.setAttribute('aria-label',t('规则范围'));['全局规则','当前配置专属 · 日常订阅'].forEach(text=>{const option=document.createElement('option');setText(option,text);scopes.append(option);});body.append(scopes,paragraph('优先顺序：当前配置 → 全局 → 订阅原规则。确定统一保存并应用，取消放弃本次草稿。'));
+      const draft=document.createElement('div'),tile=document.createElement('div');tile.className='rule-tile';tile.append(field('匹配内容','example.com'),field('出口代理组','节点选择'));const enabled=document.createElement('label');enabled.className='row';const check=document.createElement('input');check.type='checkbox';check.checked=true;enabled.append(check,textNode('启用此规则'));tile.append(enabled);draft.append(tile);body.append(draft);const add=document.createElement('button');add.type='button';setText(add,'添加规则');add.addEventListener('click',()=>draft.append(field('新增规则匹配内容','')));body.append(add);
+    } else if(kind==='detail') {setText(one('#qc-dialog-title'),'只读详情');detail.forEach(text=>body.append(paragraph(text)));}
+    else {const message=messages[kind];if(!message)return;setText(one('#qc-dialog-title'),message[0]);body.append(paragraph(message[1]));}one('#qc-dialog').showModal();
+  }
+  function closeDialog(confirmed) {const kind=activeDialog;one('#qc-dialog').close();one('#qc-dialog-body').replaceChildren();activeDialog='';if(dialogOpener?.isConnected)dialogOpener.focus();if(confirmed&&kind!=='detail')feedback(kind==='rules'?'演示：已确认保存并应用规则，实际程序与用户数据未改变。':'演示：已确认操作，实际程序与用户数据未改变。');}
+  function validatePorts() {let valid=true;['#qc-port','#qc-controller-port'].forEach(selector=>{const input=one(selector),ok=/^\d+$/.test(input.value)&&Number(input.value)>=1&&Number(input.value)<=65535;input.setAttribute('aria-invalid',String(!ok));valid=valid&&ok;});one('#qc-port-error').hidden=valid;return valid;}
+  function validateTargets() {const urls=one('#qc-test-targets').value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean),valid=urls.length>=1&&urls.length<=8&&urls.every(value=>{try{const url=new URL(value);return url.protocol==='https:'&&!url.username&&!url.password;}catch{return false;}});setText(one('#qc-test-count'),'地址：{0} / 8{1}',urls.length,valid?'':t(' · 请输入 1–8 条 HTTPS 地址'));one('#qc-run-test').disabled=!valid||testTimer!==null;return valid;}
+  all('[data-page],[data-go]').forEach(button=>button.addEventListener('click',()=>navigate(button.dataset.page||button.dataset.go)));
+  all('[data-demo]').forEach(button=>button.addEventListener('click',()=>feedback(sourceKeys.get(button.dataset.demo)||button.dataset.demo)));
+  all('[data-dialog]').forEach(button=>button.addEventListener('click',()=>openDialog(button.dataset.dialog)));
+  one('#qc-show-components').addEventListener('click',()=>navigate('components'));
+  one('#qc-nav-toggle').addEventListener('click',()=>{if(rail.matches)navState.expanded=!navState.expanded;else navState.collapsed=!navState.collapsed;renderNav();});rail.addEventListener('change',renderNav);
+  ['#qc-appearance','#qc-settings-theme'].forEach(selector=>one(selector).addEventListener('change',event=>{state.appearance=event.target.value;renderTheme();}));systemTheme.addEventListener('change',renderTheme);
+  one('#qc-more-trigger').addEventListener('click',()=>{const menu=one('#qc-more-menu');menu.hidden=!menu.hidden;one('#qc-more-trigger').setAttribute('aria-expanded',String(!menu.hidden));if(!menu.hidden)menu.querySelector('button').focus();});document.addEventListener('click',event=>{if(!event.target.closest('.mobile-more'))closeMore();});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!one('#qc-more-menu').hidden){closeMore();one('#qc-more-trigger').focus();}});
+  all('[data-category]').forEach(tab=>{tab.addEventListener('click',()=>selectCategory(tab.dataset.category));tab.addEventListener('keydown',event=>{const tabs=all('[data-category]'),index=tabs.indexOf(tab);let next=index;if(event.key==='ArrowRight')next=Math.min(index+1,tabs.length-1);else if(event.key==='ArrowLeft')next=Math.max(0,index-1);else if(event.key==='Home')next=0;else if(event.key==='End')next=tabs.length-1;else return;event.preventDefault();tabs.forEach((item,i)=>{item.tabIndex=i===next?0:-1;});tabs[next].focus();tabs[next].scrollIntoView({block:'nearest',inline:'nearest'});});});
+  all('.segmented button').forEach(button=>button.addEventListener('click',()=>{all('.segmented button').forEach(item=>item.setAttribute('aria-pressed',String(item===button)));feedback('演示：模式切换为{0}。',button.textContent);}));one('#qc-home-profile').addEventListener('change',event=>feedback('演示：选择 {0}；统计仍为固定样例。',event.target.value));one('#qc-egress').addEventListener('change',event=>{setText(one('#qc-current-node'),nodes[event.target.selectedIndex]);feedback('演示：主策略组选择已更新。');});
+  ['ip','sites'].forEach(key=>one('#qc-'+key+'-toggle').addEventListener('change',event=>{one('#qc-'+key+'-section').hidden=!event.target.checked;}));
+  one('#qc-node-search').addEventListener('input',renderNodes);one('#qc-locate').addEventListener('click',()=>{one('#qc-node-search').value='';one('#qc-group-body').hidden=false;one('#qc-group-toggle').setAttribute('aria-expanded','true');renderNodes();one('#qc-nodes').children[state.selected].querySelector('.node-name').focus();});one('#qc-group-toggle').addEventListener('click',()=>{const body=one('#qc-group-body');body.hidden=!body.hidden;one('#qc-group-toggle').setAttribute('aria-expanded',String(!body.hidden));});
+  one('#qc-measure').addEventListener('click',()=>{one('#qc-measure').disabled=true;one('#qc-cancel-measure').hidden=false;setText(one('#qc-measure-status'),'组测速 · 0 / 6 已测 · 演示');measureTimer=setTimeout(()=>{measureTimer=null;one('#qc-measure').disabled=false;one('#qc-cancel-measure').hidden=true;setText(one('#qc-measure-status'),'已完成 · 6 / 6 已测 · 1 项不可用 · 演示');},900);});one('#qc-cancel-measure').addEventListener('click',()=>{clearTimeout(measureTimer);measureTimer=null;one('#qc-measure').disabled=false;one('#qc-cancel-measure').hidden=true;setText(one('#qc-measure-status'),'已取消 · 演示');});
+  ['#qc-connection-filter','#qc-connection-sort'].forEach(selector=>one(selector).addEventListener(selector.endsWith('sort')?'change':'input',renderConnections));one('#qc-rule-filter').addEventListener('input',renderRules);
+  function resources(visible){one('#qc-rules-view').hidden=visible;one('#qc-resources-view').hidden=!visible;one('#qc-resource-toggle').hidden=visible;}one('#qc-resource-toggle').addEventListener('click',()=>resources(true));one('#qc-resource-back').addEventListener('click',()=>resources(false));
+  ['#qc-log-filter','#qc-log-source','#qc-log-level'].forEach(selector=>one(selector).addEventListener(selector.endsWith('filter')?'input':'change',renderLogs));one('#qc-log-pause').addEventListener('click',()=>{state.logPaused=!state.logPaused;setText(one('#qc-log-pause'),state.logPaused?'继续接收':'暂停接收');one('#qc-log-pause').setAttribute('aria-pressed',String(state.logPaused));renderLogs();});one('#qc-log-clear').addEventListener('click',()=>{state.logsCleared=true;renderLogs();});
+  one('#qc-test-targets').addEventListener('input',validateTargets);one('#qc-run-test').addEventListener('click',()=>{if(!validateTargets())return;one('#qc-cancel-test').hidden=false;setText(one('#qc-test-status'),'测试中…（离线模拟）');testTimer=setTimeout(()=>{testTimer=null;one('#qc-cancel-test').hidden=true;setText(one('#qc-test-status'),'演示已完成，未访问网络；下方为固定历史样例。');validateTargets();},900);validateTargets();});one('#qc-cancel-test').addEventListener('click',()=>{clearTimeout(testTimer);testTimer=null;one('#qc-cancel-test').hidden=true;setText(one('#qc-test-status'),'已取消 · 演示');validateTargets();});
+  ['#qc-port','#qc-controller-port'].forEach(selector=>one(selector).addEventListener('input',validatePorts));one('#qc-save-ports').addEventListener('click',()=>{if(validatePorts())openDialog('ports');});one('#qc-reset-ports').addEventListener('click',()=>{one('#qc-port').value='7890';one('#qc-controller-port').value='9090';validatePorts();});
+  one('#qc-dialog-confirm').addEventListener('click',()=>closeDialog(true));one('#qc-dialog-cancel').addEventListener('click',()=>closeDialog(false));one('#qc-dialog').addEventListener('cancel',event=>{event.preventDefault();closeDialog(false);});
+  ['#qc-language','#qc-settings-language'].forEach(selector => one(selector).addEventListener('change',event => {
+    language = event.target.value === 'zh-CN' ? 'zh-CN' : 'en-US';
+    renderLanguage();
+  }));
+  renderLanguage();renderTheme();navigate('home');
 })();
 </script>

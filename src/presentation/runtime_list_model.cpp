@@ -238,6 +238,9 @@ RuntimeListModel::RuntimeListModel(RuntimeRows* rows, bool connections, QObject*
     connect(this, &QAbstractItemModel::rowsInserted, this, &RuntimeListModel::countChanged);
     connect(this, &QAbstractItemModel::rowsRemoved, this, &RuntimeListModel::countChanged);
     connect(this, &QAbstractItemModel::modelReset, this, &RuntimeListModel::countChanged);
+    connect(rows, &QAbstractItemModel::rowsInserted, this, &RuntimeListModel::totalCountChanged);
+    connect(rows, &QAbstractItemModel::rowsRemoved, this, &RuntimeListModel::totalCountChanged);
+    connect(rows, &QAbstractItemModel::modelReset, this, &RuntimeListModel::totalCountChanged);
     sort(0);
 }
 void RuntimeListModel::setQuery(const QString& query) {

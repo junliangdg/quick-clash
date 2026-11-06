@@ -8,6 +8,8 @@ ThemedScrollView {
     id: root
     form: testBody
     required property UiState ui
+    readonly property var urls: target.text.split(/\r?\n/).map(text => text.trim()).filter(text => text.length > 0)
+    readonly property bool running: ((ui.runtime.features || {}).websiteTest || {}).state === "Running"
     function outcomeText(result): string {
         const states = {Running: qsTr("Testing"), Reachable: qsTr("Entry reachable"),
             HttpError: qsTr("HTTP error"), DnsError: qsTr("DNS error"),
@@ -19,13 +21,34 @@ ThemedScrollView {
         return (result.stale ? qsTr("Stale") + " · " : "") + (states[result.state] || result.state || "");
     }
     function resultDetails(result): string {
-        return outcomeText(result) + " · HTTP " + (result.status || "—")
-            + " · " + (result.elapsedMs === undefined ? "—" : result.elapsedMs) + " ms · "
-            + (result.resolved || result.path || "") + " · " + (result.mode || "")
-            + "\n" + (result.finalOrigin || "") + " · " + (result.time || "")
-            + "\n" + Object.keys(result.selections || {}).map(function (name) {
+        const selections = Object.keys(result.selections || {}).map(function (name) {
                 return name + ": " + result.selections[name];
             }).join(" · ");
+        return [outcomeText(result), result.status ? "HTTP " + result.status : "",
+            result.elapsedMs === undefined ? "" : result.elapsedMs + " ms",
+            pathText(result.resolved || result.path), result.mode || "",
+            result.finalOrigin || "", timeText(result.time), selections].filter(value => !!value).join(" · ");
+    }
+    function resultSummary(result): string {
+        return [outcomeText(result), result.status ? "HTTP " + result.status : "",
+            result.elapsedMs === undefined ? "" : result.elapsedMs + " ms",
+            pathText(result.resolved || result.path), timeText(result.time)].filter(value => !!value).join(" · ");
+    }
+    function extraDetails(result): string {
+        const selections = Object.keys(result.selections || {}).map(function (name) {
+            return name + ": " + result.selections[name];
+        }).join(" · ");
+        return [result.mode || "", result.finalOrigin || "", selections].filter(value => !!value).join(" · ");
+    }
+    function pathText(path): string {
+        const labels = {CurrentProxy: qsTr("Current proxy"), Direct: qsTr("Direct"), SystemDefault: qsTr("System proxy settings")};
+        return labels[path] || path || "";
+    }
+    function timeText(value): string {
+        if (!value)
+            return "";
+        const date = new Date(value);
+        return isNaN(date.getTime()) ? value : date.toLocaleString(Qt.locale(), Locale.ShortFormat);
     }
     Connections {
         target: root.ui
@@ -72,7 +95,14 @@ ThemedScrollView {
                 text: root.ui.runtime.testTarget || ""
             }
             Label {
-                text: qsTr("Enter up to 8 HTTPS URLs, one per line. Each request follows up to 3 HTTPS redirects within one 64 KiB and 12 second limit. Requests run one at a time without cookies. Direct requests still follow TUN and system routes. A reachable entry does not prove node forwarding.")
+                objectName: "website_target_count"
+                text: root.urls.length === 0 ? qsTr("Enter 1–8 HTTPS URLs, one per line.") : root.urls.length > 8 ? qsTr("Too many addresses: %1 / 8").arg(root.urls.length) : qsTr("Addresses: %1 / 8").arg(root.urls.length)
+                color: root.urls.length > 8 ? root.theme.error : root.theme.muted
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+            }
+            Label {
+                text: qsTr("Requests run one at a time without cookies (up to 3 HTTPS redirects, 64 KiB and 12 seconds each). Direct requests still follow TUN and system routes. A reachable entry does not prove node forwarding.")
                 color: root.theme.muted
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -80,15 +110,14 @@ ThemedScrollView {
             ActionButton {
                 theme: root.theme
                 text: qsTr("Run test")
+                objectName: "run_website_test"
                 prominent: true
-                enabled: (route.currentIndex !== 0 || !!root.ui.runtime.ready) && ((root.ui.runtime.features || {}).websiteTest || {}).state !== "Running"
-                onClicked: {
-                    const urls = target.text.split(/\r?\n/).map(text => text.trim()).filter(text => text.length > 0);
-                    if (urls.length > 0 && urls.length <= 8) root.ui.runtimeCommand("test_batch", [route.model[route.currentIndex].key].concat(urls));
-                }
+                enabled: root.urls.length > 0 && root.urls.length <= 8 && !root.ui.runtime.busy && (route.currentIndex !== 0 || !!root.ui.runtime.ready) && !root.running
+                onClicked: root.ui.runtimeCommand("test_batch", [route.model[route.currentIndex].key].concat(root.urls))
             }
             Label {
                 text: root.ui.runtime.testResult || ""
+                visible: text.length > 0
                 color: root.theme.text
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
@@ -96,7 +125,7 @@ ThemedScrollView {
             ActionButton {
                 theme: root.theme
                 text: qsTr("Cancel test")
-                visible: ((root.ui.runtime.features || {}).websiteTest || {}).state === "Running"
+                visible: root.running
                 onClicked: root.ui.runtimeCommand("cancel_test")
             }
             Label {
@@ -107,6 +136,7 @@ ThemedScrollView {
                 color: root.theme.muted
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
+                visible: text.length > 0
             }
             Label {
                 Layout.fillWidth: true
@@ -117,13 +147,60 @@ ThemedScrollView {
             }
             Repeater {
                 model: ((root.ui.runtime.features || {}).testHistory || []).slice().reverse()
-                delegate: Label {
+                delegate: FlatTile {
+                    id: resultCard
                     required property var modelData
-                    text: (modelData.target || "") + "\n" + root.resultDetails(modelData)
-                    color: root.theme.text
+                    objectName: "website_result_card"
+                    property bool detailsOpen: false
+                    theme: root.theme
                     Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
+                    implicitHeight: resultContent.implicitHeight + 24
+                    ColumnLayout {
+                        id: resultContent
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 4
+                        Label {
+                            text: resultCard.modelData.target || ""
+                            color: root.theme.text
+                            font.weight: Font.DemiBold
+                            Layout.fillWidth: true
+                            wrapMode: Text.WrapAnywhere
+                            textFormat: Text.PlainText
+                        }
+                        Label {
+                            objectName: "website_result_summary"
+                            text: root.resultSummary(resultCard.modelData)
+                            color: resultCard.modelData.stale ? root.theme.warning : resultCard.modelData.state === "Reachable" ? root.theme.success : root.theme.muted
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            textFormat: Text.PlainText
+                        }
+                        ActionButton {
+                            objectName: "website_result_details_toggle"
+                            theme: root.theme
+                            visible: root.extraDetails(resultCard.modelData).length > 0
+                            text: resultCard.detailsOpen ? qsTr("Hide details") : qsTr("Show details")
+                            ghost: true
+                            onClicked: resultCard.detailsOpen = !resultCard.detailsOpen
+                        }
+                        Label {
+                            objectName: "website_result_details"
+                            visible: resultCard.detailsOpen
+                            text: root.extraDetails(resultCard.modelData)
+                            color: root.theme.muted
+                            Layout.fillWidth: true
+                            wrapMode: Text.WrapAnywhere
+                            textFormat: Text.PlainText
+                        }
+                    }
                 }
+            }
+            Label {
+                visible: ((root.ui.runtime.features || {}).testHistory || []).length === 0
+                text: qsTr("No test results yet")
+                color: root.theme.muted
+                Layout.fillWidth: true
             }
         }
     }

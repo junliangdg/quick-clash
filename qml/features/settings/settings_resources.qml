@@ -76,9 +76,11 @@ ColumnLayout {
                 theme: root.theme
                 text: qsTranslate("settings_page", "Advanced recovery")
                 selected: root.coreAdvanced
+                checkable: true
+                checked: root.coreAdvanced
                 Accessible.checkable: true
                 Accessible.checked: root.coreAdvanced
-                onClicked: root.coreAdvanced = !root.coreAdvanced
+                onClicked: root.coreAdvanced = checked
             }
             Flow {
                 Layout.fillWidth: true
@@ -225,10 +227,12 @@ ColumnLayout {
             theme: root.theme
             text: qsTranslate("settings_page", "Advanced recovery")
             selected: root.geoAdvanced
+            checkable: true
+            checked: root.geoAdvanced
             Accessible.checkable: true
             Accessible.checked: root.geoAdvanced
             Layout.topMargin: 8
-            onClicked: root.geoAdvanced = !root.geoAdvanced
+            onClicked: root.geoAdvanced = checked
         }
         Flow {
             objectName: "settings_geo_recovery_actions"

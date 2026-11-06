@@ -68,6 +68,7 @@ class RuntimeListModel : public QSortFilterProxyModel {
     QML_ELEMENT
     QML_UNCREATABLE("Owned by UiState")
     Q_PROPERTY(int count READ count NOTIFY countChanged)
+    Q_PROPERTY(int totalCount READ totalCount NOTIFY totalCountChanged)
     Q_PROPERTY(QString query READ query WRITE setQuery NOTIFY queryChanged)
     Q_PROPERTY(int sortMode READ sortMode WRITE setSortMode NOTIFY sortModeChanged)
     Q_PROPERTY(QString sourceFilter READ sourceFilter WRITE setSourceFilter NOTIFY filtersChanged)
@@ -76,6 +77,9 @@ class RuntimeListModel : public QSortFilterProxyModel {
     explicit RuntimeListModel(RuntimeRows* rows, bool connections, QObject* parent = nullptr);
     [[nodiscard]] int count() const {
         return rowCount();
+    }
+    [[nodiscard]] int totalCount() const {
+        return sourceModel() ? sourceModel()->rowCount() : 0;
     }
     [[nodiscard]] QString query() const {
         return query_;
@@ -101,6 +105,7 @@ class RuntimeListModel : public QSortFilterProxyModel {
     Q_INVOKABLE QVariantMap connection(const QString& epoch, const QString& id) const;
   signals:
     void countChanged();
+    void totalCountChanged();
     void queryChanged();
     void sortModeChanged();
     void filtersChanged();
