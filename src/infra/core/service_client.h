@@ -43,7 +43,7 @@ class ServiceClient final : public QObject {
     QString sessionId_;
     QString epoch_;
     QString handshakeId_;
-    QJsonObject expectedCapabilities_;
+    QString expectedServiceBuild_;
     bool verified_ = false;
     bool everVerified_ = false;
     bool failing_ = false;

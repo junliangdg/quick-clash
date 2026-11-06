@@ -2,6 +2,14 @@
 
 状态以 [TASKS](TASKS.md) 和 [CHECKLISTS](CHECKLISTS.md) 为准。本文件按日期/会话追加，说明变化和下一步，不重复整张台账。时间/版本未知时如实写明。
 
+## 2026-11-07 / TUN 服务版本不匹配重复更新修复
+
+- 用户报告反复开启 TUN 仍提示服务属于其他版本。最新多份 setup 日志均为普通权限 update 成功，仅重启当前 dev 注册。只读 hello 对照确认服务摘要与同目录旧 EXE 一致（`781ca920…`），却缺少客户端所需 `modePatch`/`trafficStream`；服务文件时间仍为 11-05，前一轮客户端更新曾因运行服务锁定 EXE 而未重链服务。原始对照 `build/tun_service_version_20261107/before_handshake.json`，保留 passed=false。
+- 修复 Windows `quickclash` 对服务目标的构建依赖，服务链接失败必须阻止客户端交付。客户端每次握手重读载荷摘要；摘要差异仍按原受控 update 修复，同摘要但能力不兼容报 `ServicePackageMismatch`，提示整体替换完整程序包，不继续建议无效重启。保持严格能力/PID/注册/身份核对。协议单测覆盖正确包、不同摘要、空摘要、同摘要缺能力和旧服务无摘要，新增中文提示检查；测试版增加只读握手及 update→重连→预检探针。
+- 沙箱内首轮 Ninja 无编译子进程，停止本轮构建父/子进程并在获准沙箱外继续；诊断首次 Invoke-NativeStep 的模糊 cmake 名解析成两条路径，随后使用绝对路径。确认无用户 GUI/本项目核心后，正常停止原服务释放映像，未改注册、授权和用户配置；成套 Qt6.12/MSVC Windows 增量构建 Pass，日志 `build/dev/logs/20261106T182852246Z_abdbbba9c1c84bed89e39e1f2a208357/`。定向 CTest 8/8 Pass（contracts、runtime、service_core_pipe、engine_startup、localization、ui_state、service_protocol、qml_smoke），另 tun_network 1/1 Pass。runtime 包含失败开启服务保留普通代理的路径。后续只增补测试探针，再次客户端增量构建 Pass，未扩展全部测试矩阵。
+- 新服务摘要 `90adf44102953b7bb6b0682bfec93de311623eae143e6be771000a6b384ff3e3`；实际 hello 能力及摘要一致，普通权限固定 update 助手退出0、同一 ServiceClient 实例重连成功。网络基线显示已有第三方 Meta TUN 默认路由，因此不叠加开启 QuickClash TUN；预检正确返回 `ServiceTunRouteConflict`，前后 clean=true、coreRunning=false。默认 IPv6 路由不存在，首次数组查询报无对象，改为筛选实际现有默认路由；最终网卡、默认路由、DNS 和 WinINet 四类快照一致。原服务最终 Running、原路径/自动启动/LocalSystem；未停第三方 TUN，当前构建真实 TUN 开启/转发及 GUI 手工开关 NotRun，下一步须先关闭其他 VPN/TUN 再核对。
+- 原始日志、握手、服务预检及网络快照仅存忽略的 `build/tun_service_version_20261107/`。设计生成与 -Check、check_progress、源码布局、平台边界、clang-format21.1.2 和 diff 检查通过；不提交或推送，旧真实 TUN 证据保留原版本范围。
+
 ## 2026-11-07 / 内核称谓与首次使用须知
 
 - 按用户授权落实首次Mihomo（原Clash.Meta）/后文Mihomo命名及中英文使用须知；保留实际技术标识、上游资产、`clash.meta/1.19.33`兼容请求头和历史证据。弹层与关于入口复用同一QML正文，须知版本独立于应用版本；旧设置缺字段按0兼容，确认通过现有worker/原子写入保存，失败只在当前运行关闭提示，不覆盖原设置，下次重开仍提示。登录隐藏有待确认须知时打开主窗口，不更改网络自动恢复/会话策略。

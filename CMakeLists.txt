@@ -195,6 +195,11 @@ if(QUICKCLASH_BUILD_UI)
         app/deferred_ui_unload.cpp app/deferred_ui_unload.h
         app/system_events.cpp app/system_events.h
         app/single_instance.cpp app/single_instance.h src/presentation/feature_registry.cpp)
+    if(WIN32)
+        # A client-only rebuild must not leave an incompatible service beside the GUI.
+        # In particular, a locked service image must fail before publishing a new client.
+        add_dependencies(quickclash quickclash_service)
+    endif()
     target_sources(quickclash PRIVATE src/presentation/critical_alerts.cpp src/presentation/critical_alerts.h)
     target_compile_definitions(quickclash PRIVATE QUICKCLASH_VERSION="${PROJECT_VERSION}")
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network Qt6::Svg quickclash_application quickclash_runtime quickclash_localization)

@@ -152,4 +152,13 @@ QJsonObject ServiceProtocol::capabilities(const QString& serviceBuild) {
             {QStringLiteral("proxyRecovery"), QStringLiteral("NotAvailable")},
             {QStringLiteral("reconnectPolicy"), QStringLiteral("StopOwnedSession")}};
 }
+QString ServiceProtocol::capabilityError(const QJsonObject& actual, const QString& expectedBuild) {
+    if (expectedBuild.isEmpty() || actual.value(QStringLiteral("serviceBuild")) != expectedBuild)
+        return QStringLiteral("ServiceProtocolMismatch");
+    if (actual != capabilities(expectedBuild))
+        // The running service already matches the bundled file. Restarting that same file
+        // cannot add missing capabilities; the client and service must be replaced together.
+        return QStringLiteral("ServicePackageMismatch");
+    return {};
+}
 } // namespace quickclash::infra

@@ -27,11 +27,6 @@ constexpr int kDelayRequestTimeoutMs = 5000;
 
 ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
     socket_.setReadBufferSize(kReadChunkSize);
-    // The installed service must come from this package. Comparing the exact service binary
-    // build lets a rebuilt package request one update instead of silently exercising old code.
-    expectedCapabilities_ = ServiceProtocol::capabilities(
-        ServiceProtocol::executableBuild(QDir(QCoreApplication::applicationDirPath())
-                                             .filePath(QStringLiteral("quickclash_service.exe"))));
     deadline_.setSingleShot(true);
     deadline_.setInterval(kRequestTimeoutMs);
     heartbeat_.setInterval(10000);
@@ -55,6 +50,11 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
         });
     });
     connect(&socket_, &QLocalSocket::connected, this, [this] {
+        // Refresh on every handshake: the bundled service can be replaced while this GUI
+        // remains open. Reusing its constructor-time digest would reject the updated service.
+        expectedServiceBuild_ = ServiceProtocol::executableBuild(
+            QDir(QCoreApplication::applicationDirPath())
+                .filePath(QStringLiteral("quickclash_service.exe")));
 #ifdef Q_OS_WIN
         ULONG pid = 0;
         if (!GetNamedPipeServerProcessId(reinterpret_cast<HANDLE>(socket_.socketDescriptor()),
@@ -138,8 +138,14 @@ ServiceClient::ServiceClient(QObject* parent) : QObject(parent) {
                 auto capabilities = result.value(QStringLiteral("result")).toObject();
                 const auto session = capabilities.take(QStringLiteral("sessionId")).toString();
                 if (result.value(QStringLiteral("requestId")) != handshakeId_ ||
-                    QUuid(session).isNull() || capabilities != expectedCapabilities_) {
+                    QUuid(session).isNull()) {
                     fail("ServiceProtocolMismatch");
+                    return;
+                }
+                const auto error =
+                    ServiceProtocol::capabilityError(capabilities, expectedServiceBuild_);
+                if (!error.isEmpty()) {
+                    fail(error.toLatin1().constData());
                     return;
                 }
                 verified_ = true;

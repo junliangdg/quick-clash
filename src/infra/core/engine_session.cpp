@@ -125,6 +125,7 @@ EngineSession::EngineSession(std::unique_ptr<application::IDesktopProcess> proce
                                 reason == QStringLiteral("ServiceNotRunning") ||
                                 reason == QStringLiteral("ServiceClientUntrusted") ||
                                 reason == QStringLiteral("ServiceProtocolMismatch") ||
+                                reason == QStringLiteral("ServicePackageMismatch") ||
                                 reason == QStringLiteral("ServiceSessionBusy");
         emit failed(actionable ? reason : QStringLiteral("ServiceUnavailable"));
     });

@@ -43,6 +43,8 @@ class ServiceProtocol final {
     [[nodiscard]] static bool validResponse(const QJsonObject& message);
     [[nodiscard]] static QString executableBuild(const QString& path);
     [[nodiscard]] static QJsonObject capabilities(const QString& serviceBuild);
+    [[nodiscard]] static QString capabilityError(const QJsonObject& actual,
+                                                 const QString& expectedBuild);
 
   private:
     quint64 lastId_ = 0;

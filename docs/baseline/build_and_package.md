@@ -75,6 +75,8 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 
 `-Test`、`-BuildOnly`、`-Fast`、`-Full`互斥。CMake配置生成`quickclash_tests.json`，记录当前配置的CTest名称及对应构建目标；定向入口先验证名称，再构建产品和被选测试的目标，只运行确切匹配的测试，共用测试程序不会扩大运行范围。拼错、当前配置不支持的测试或空测试范围直接失败；显式选择的慢测试不受`ci_slow`排除。`-Headless`默认只跑`contracts`，不引入UI。直接`ctest --preset dev`仍表示完整套件；已用IDE构建对应目标时也可用`ctest --test-dir build/dev -R '^(ui_state|qml_smoke)$' --output-on-failure --no-tests=error`定向运行。
 
+Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当前构建目录的服务正在运行并锁定 EXE，先关闭 TUN、正常退出客户端，再停止已注册的 QuickClashService 后重新构建并恢复服务；不要忽略服务链接失败而交付单独重建的客户端，否则本地载荷仍缺少新协议能力，重启服务也无法修复。
+
 选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
 
 ### GitHub持续交付与干净发行包

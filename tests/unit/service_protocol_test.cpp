@@ -157,6 +157,22 @@ int main(int argc, char** argv) {
     if (ServiceProtocol::validResponse(response))
         return 14;
     const auto capabilities = ServiceProtocol::capabilities(QStringLiteral("test-build"));
+    if (!ServiceProtocol::capabilityError(capabilities, QStringLiteral("test-build")).isEmpty() ||
+        ServiceProtocol::capabilityError(capabilities, QStringLiteral("new-build")) !=
+            QStringLiteral("ServiceProtocolMismatch") ||
+        ServiceProtocol::capabilityError(capabilities, {}) !=
+            QStringLiteral("ServiceProtocolMismatch"))
+        return 27;
+    auto incompatible = capabilities;
+    incompatible.remove(QStringLiteral("modePatch"));
+    incompatible.remove(QStringLiteral("trafficStream"));
+    if (ServiceProtocol::capabilityError(incompatible, QStringLiteral("test-build")) !=
+        QStringLiteral("ServicePackageMismatch"))
+        return 28;
+    incompatible.remove(QStringLiteral("serviceBuild"));
+    if (ServiceProtocol::capabilityError(incompatible, QStringLiteral("test-build")) !=
+        QStringLiteral("ServiceProtocolMismatch"))
+        return 29;
     if (capabilities.value(QStringLiteral("proxyRecovery")) != QStringLiteral("NotAvailable") ||
         capabilities.value(QStringLiteral("serviceBuild")) != QStringLiteral("test-build"))
         return 15;

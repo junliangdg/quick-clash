@@ -2,6 +2,7 @@
 #include "application/desktop_runtime.h"
 #include "infra/core/service_client.h"
 #include "infra/core/service_protocol.h"
+#include "platform/desktop_services.h"
 #include "platform/process_memory.h"
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -1650,6 +1651,36 @@ int serviceProbe() {
         return 1;
     infra::ServiceClient client;
     QJsonObject evidence;
+    if (mode == QStringLiteral("handshake")) {
+        QLocalSocket socket;
+        socket.connectToServer(QStringLiteral("QuickClash.Service.v1"));
+        const bool connected =
+            waitFor([&] { return socket.state() != QLocalSocket::ConnectingState; }) &&
+            socket.state() == QLocalSocket::ConnectedState;
+        if (connected) {
+            const auto hello = exchange(socket, {{"protocolVersion", 1},
+                                                 {"requestId", "1"},
+                                                 {"sessionId", ""},
+                                                 {"engineEpoch", ""},
+                                                 {"action", "hello"},
+                                                 {"payload", QJsonObject{}}});
+            auto actual = hello.value(QStringLiteral("result")).toObject();
+            actual.remove(QStringLiteral("sessionId"));
+            const auto expected =
+                infra::ServiceProtocol::capabilities(infra::ServiceProtocol::executableBuild(
+                    QDir(QCoreApplication::applicationDirPath())
+                        .filePath(QStringLiteral("quickclash_service.exe"))));
+            const auto error = infra::ServiceProtocol::capabilityError(
+                actual, expected.value(QStringLiteral("serviceBuild")).toString());
+            evidence = {{"response", hello},
+                        {"expected", expected},
+                        {"capabilityError", error},
+                        {"passed", actual == expected}};
+        }
+        return saveEvidence(output, evidence)
+                   ? (evidence.value(QStringLiteral("passed")).toBool() ? 0 : 3)
+                   : 2;
+    }
     if (mode == QStringLiteral("subscription_ordinary") ||
         mode == QStringLiteral("subscription_tun")) {
         const bool passed = realSubscriptionProbe(client, evidence, source,
@@ -1726,6 +1757,45 @@ int serviceProbe() {
         const bool clean = evidence.value(QStringLiteral("clean")).toBool();
         evidence.insert(QStringLiteral("passed"), clean);
         return saveEvidence(output, evidence) ? (clean ? 0 : 3) : 2;
+    }
+    if (mode == QStringLiteral("preflight")) {
+        const auto initial = command(client, QStringLiteral("status"));
+        if (!initial.value(QStringLiteral("clean")).toBool())
+            return 3;
+        client.close();
+        auto setup = platform::makeServiceSetup();
+        bool finished = false;
+        int exitCode = -1;
+        QString setupError;
+        setup->start(
+            application::ServiceSetupMode::Update, QCoreApplication::applicationDirPath(),
+            [&](int code) {
+                exitCode = code;
+                finished = true;
+            },
+            [&](const QString& error) {
+                setupError = error;
+                finished = true;
+            });
+        const bool completed = waitFor([&] { return finished; }, 30000);
+        evidence = {{"initial", initial},
+                    {"setupCompleted", completed},
+                    {"setupExitCode", exitCode},
+                    {"setupError", setupError},
+                    {"setupLog", setup->logPath()}};
+        if (!completed || exitCode != 0) {
+            evidence.insert(QStringLiteral("passed"), false);
+            return saveEvidence(output, evidence) ? 3 : 2;
+        }
+        const auto preflight = command(client, QStringLiteral("tun_preflight"));
+        const auto after = command(client, QStringLiteral("status"));
+        const bool passed = after.value(QStringLiteral("clean")).toBool() &&
+                            (preflight.isEmpty() || preflight.value(QStringLiteral("error")) ==
+                                                        QStringLiteral("ServiceTunRouteConflict"));
+        evidence.insert(QStringLiteral("preflight"), preflight);
+        evidence.insert(QStringLiteral("after"), after);
+        evidence.insert(QStringLiteral("passed"), passed);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
     }
     if (mode == QStringLiteral("geo")) {
         QTemporaryDir resources;

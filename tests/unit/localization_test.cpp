@@ -31,6 +31,12 @@ int main(int argc, char* argv[]) {
         QCoreApplication::translate("quickclash::presentation::UiState", "Group probe target") !=
             "组探测目标")
         return 10;
+    if (QCoreApplication::translate(
+            "quickclash::presentation::UiState",
+            "This copy contains incompatible client and service files. Replace it with a "
+            "complete QuickClash package.") !=
+        "当前副本的客户端与服务文件不兼容。请使用同一版本的完整 QuickClash 程序包。")
+        return 17;
     if (QCoreApplication::translate("subscriptions_page", "Apply updates when selected") ==
             "Apply updates when selected" ||
         QCoreApplication::translate("proxies_page", "%1 members") == "%1 members")

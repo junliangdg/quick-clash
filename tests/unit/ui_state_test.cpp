@@ -350,6 +350,7 @@ int main(int argc, char* argv[]) {
                                      "ServiceSetupLaunchFailed",
                                      "ServiceSetupTimeout",
                                      "ServiceSetupFailed",
+                                     "ServicePackageMismatch",
                                      "CoreListenerAddressInUse",
                                      "CoreListenerAccessDenied",
                                      "ServiceTunRouteConflict",

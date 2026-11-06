@@ -2044,6 +2044,7 @@
     <name>quickclash::presentation::UiState</name>
     <message><source>The Windows service is in use by another client. Close that session first.</source><translation>Windows 服务正由另一客户端使用，请先关闭该会话。</translation></message>
     <message><source>The Windows service belongs to a different version. Enable TUN again to update it from this copy.</source><translation>Windows 服务属于其他版本。再次开启 TUN 即可从当前副本更新服务。</translation></message>
+    <message><source>This copy contains incompatible client and service files. Replace it with a complete QuickClash package.</source><translation>当前副本的客户端与服务文件不兼容。请使用同一版本的完整 QuickClash 程序包。</translation></message>
     <message><source>The Windows service could not be reached. Enable TUN again to retry; if it persists, check the service in Windows Services.</source><translation>无法连接 Windows 服务。再次开启 TUN 重试；若持续失败，请在 Windows 服务中检查服务状态。</translation></message>
     <message><source>The proxy core exited unexpectedly. TUN is no longer active. Retry; if it repeats, review the app log for the core exit code.</source><translation>代理内核意外退出，TUN 已不再生效。请重试；若反复发生，请在应用日志中查看核心退出码。</translation></message>
     <message><source>The proxy core exited while starting. Review the configuration and app log.</source><translation>代理内核在启动过程中退出。请检查配置和应用日志。</translation></message>

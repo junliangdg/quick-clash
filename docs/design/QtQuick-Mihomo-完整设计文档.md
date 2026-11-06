@@ -1679,7 +1679,7 @@ Windows固定动作仍为 --service-setup install|update|authorize|uninstall|val
 
 首次显式开启TUN时GUI保持普通权限，通过固定动作请求一次UAC并自动重试预检；取消保持普通模式。以后应用重开沿用持久化tunDesired，系统启动自动运行服务但不自行开启TUN，由活动用户GUI重新申请会话；服务停止时GUI按已验证注册直接启动，不再请求UAC。旧注册或路径变更时才重新授权；同路径版本不匹配可普通权限重启服务后重试。每次开启最多执行一次修复动作，失败显示日志，不反复弹框。
 
-服务在握手能力中返回自身服务程序的构建标识（`quickclash_service.exe` 的 SHA-256）。GUI 计算随包同目录服务载荷的同一摘要并比对；不一致时不静默复用旧服务，返回 ServiceProtocolMismatch 并按一次受控 update 处理，避免旧服务与新客户端的协议或行为错配。
+服务在握手能力中返回自身服务程序的构建标识（`quickclash_service.exe` 的 SHA-256）。GUI 每次握手重新计算随包同目录服务载荷的同一摘要并比对；摘要不一致时返回 ServiceProtocolMismatch 并按一次受控 update 处理，避免静默复用旧服务。摘要一致但能力不兼容时返回 ServicePackageMismatch，说明当前副本的客户端与服务须整体替换，不再重复重启相同文件。Windows 客户端构建依赖服务目标成功，防止服务链接失败后单独发布新客户端。
 
 每次用户显式开启 TUN 都执行完整服务预检，包括服务注册与状态、受信根、构建标识及协议能力；即使持久化 tunDesired 已为 true、配置中仍记录 TUN 意图，也不得跳过预检直接启动。预检通过后才进入 TUN 启动，预检期间普通代理保持可用。
 

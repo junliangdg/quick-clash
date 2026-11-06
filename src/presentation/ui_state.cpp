@@ -582,6 +582,9 @@ QString UiState::errorText(const QString& customError) const {
         code == QStringLiteral("ServiceHandshakeRequired"))
         return tr("The Windows service belongs to a different version. Enable TUN again to update "
                   "it from this copy.");
+    if (code == QStringLiteral("ServicePackageMismatch"))
+        return tr("This copy contains incompatible client and service files. Replace it with a "
+                  "complete QuickClash package.");
     if (code == QStringLiteral("ServiceUnavailable"))
         return tr("The Windows service could not be reached. Enable TUN again to retry; if it "
                   "persists, check the service in Windows Services.");
