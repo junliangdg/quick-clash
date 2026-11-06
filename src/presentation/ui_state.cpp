@@ -11,11 +11,11 @@
 #include <QUuid>
 #include <algorithm>
 #include <cmath>
+#include <utility>
 
 namespace quickclash::presentation {
 namespace {
-// 60 samples at ~1 Hz cover 60 seconds of traffic history. The ring keeps a
-// fixed footprint; page switches retain it, epoch changes and hide reset it.
+// The fixed-size history belongs to the application, not an individual core session.
 constexpr int kTrafficHistoryLimit = 60;
 double replayRate(int sample, bool upload) {
     const double phase = static_cast<double>(sample);
@@ -23,7 +23,10 @@ double replayRate(int sample, bool upload) {
                   : 2.1 + 0.35 * std::sin(phase * 0.29) + 0.15 * std::sin(phase * 0.11);
 }
 } // namespace
-UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
+UiState::UiState(QString settingsFile, QObject* parent, std::function<qint64()> trafficClock)
+    : QObject(parent), trafficClock_(std::move(trafficClock)) {
+    if (!trafficClock_)
+        trafficClock_ = [] { return QDateTime::currentMSecsSinceEpoch(); };
     liveUpload_.fill(QVariant{}, kTrafficHistoryLimit);
     liveDownload_.fill(QVariant{}, kTrafficHistoryLimit);
     if (!settingsFile.isEmpty()) {
@@ -55,6 +58,11 @@ UiState::UiState(QString settingsFile, QObject* parent) : QObject(parent) {
         }
         emit sampleChanged();
     });
+    trafficTimer_.setInterval(1000);
+    connect(&trafficTimer_, &QTimer::timeout, this, [this] {
+        if (advanceTrafficHistory(trafficClock_()))
+            emit sampleChanged();
+    });
 }
 bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
     Q_ASSERT(QThread::currentThread() == thread());
@@ -62,6 +70,10 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
         return false;
     if (generation == publicationGeneration_)
         return epoch == liveEpoch_;
+    if (publicationGeneration_ != 0) {
+        setTrafficMode(TrafficMode::Unknown, trafficClock_());
+        trafficGapRequired_ = true;
+    }
     publicationGeneration_ = generation;
     liveEpoch_ = epoch;
     delays_ = {};
@@ -72,9 +84,7 @@ bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
     updateProxyStates(false);
     for (const auto& channel : application::scopedChannels())
         clearChannel(channel);
-    // A new session epoch invalidates the accumulated traffic curve; demand
-    // generation changes alone must not clear it (page switches keep it).
-    clearTrafficHistory();
+    trafficSample_.clear();
     appliedData_.remove(QStringLiteral("samples"));
     refreshTelemetry();
     return true;
@@ -88,7 +98,16 @@ void UiState::applyControl(const QJsonObject& control) {
     if (runtime_ == value)
         return;
     const bool delayTargetChanged = runtime_.value("delayTarget") != value.value("delayTarget");
+    const bool readyChanged = runtime_.value("ready") != value.value("ready");
     runtime_ = value;
+    setTrafficMode(trafficMode(value), trafficClock_());
+    if (readyChanged) {
+        if (!runtime_.value("ready").toBool()) {
+            clearChannel(QStringLiteral("traffic"));
+        }
+        updateTimer();
+        emit demandsChanged();
+    }
     if (delayTargetChanged)
         updateProxyStates(false);
     if (!connectionRule_.isEmpty() &&
@@ -325,22 +344,68 @@ void UiState::clearChannel(const QString& channel) {
     else if (channel == QStringLiteral("logs")) {
         pendingLogs_ = {};
         liveLogs_.release();
-    } else if (channel == QStringLiteral("traffic")) {
-        // Demand generation changes only drop the lease; the bounded history
-        // and the last-sample dedup marker survive so a page switch resumes
-        // the curve and a re-sent identical sample is not appended twice.
-        // Epoch changes and hide reset both via clearTrafficHistory().
     }
     refreshTelemetry();
     emit channelInvalidated(channel);
 }
-void UiState::clearTrafficHistory() {
-    const bool hadHistory = !trafficSample_.isEmpty();
-    liveUpload_.fill(QVariant{}, kTrafficHistoryLimit);
-    liveDownload_.fill(QVariant{}, kTrafficHistoryLimit);
-    trafficSample_.clear();
-    if (hadHistory)
+UiState::TrafficMode UiState::trafficMode(const QVariantMap& control) const {
+    if (control.value(QStringLiteral("ready")).toBool())
+        return TrafficMode::Sampling;
+    if (control.contains(QStringLiteral("ready")) &&
+        control.value(QStringLiteral("status")) == QStringLiteral("Stopped") &&
+        !control.value(QStringLiteral("busy")).toBool() &&
+        !control.value(QStringLiteral("recovering")).toBool())
+        return TrafficMode::Stopped;
+    return TrafficMode::Unknown;
+}
+void UiState::appendTrafficPoint(const QVariant& upload, const QVariant& download) {
+    liveUpload_.append(upload);
+    liveDownload_.append(download);
+    liveUpload_.removeFirst();
+    liveDownload_.removeFirst();
+}
+bool UiState::advanceTrafficHistory(qint64 time) {
+    if (trafficHistoryTimeMs_ <= 0) {
+        if (trafficMode_ == TrafficMode::Stopped)
+            trafficHistoryTimeMs_ = time;
+        return false;
+    }
+    // Leave half a second for an ordinary ~1 Hz sample before treating it as missing.
+    const qint64 grace = trafficMode_ == TrafficMode::Sampling ? 500 : 0;
+    const auto elapsed = time - trafficHistoryTimeMs_ - grace;
+    if (elapsed < 1000)
+        return false;
+    const auto seconds = elapsed / 1000;
+    const auto count = std::min<qint64>(seconds, kTrafficHistoryLimit);
+    const QVariant point = trafficMode_ == TrafficMode::Stopped ? QVariant(0.0) : QVariant{};
+    for (qint64 i = 0; i < count; ++i)
+        appendTrafficPoint(point, point);
+    trafficHistoryTimeMs_ += seconds * 1000;
+    return true;
+}
+void UiState::setTrafficMode(TrafficMode mode, qint64 time) {
+    if (mode == trafficMode_)
+        return;
+    const bool advanced = advanceTrafficHistory(time);
+    const auto previous = trafficMode_;
+    if (mode == TrafficMode::Unknown ||
+        (trafficMode_ == TrafficMode::Stopped && mode == TrafficMode::Sampling))
+        trafficGapRequired_ = true;
+    trafficMode_ = mode;
+    // A partial second before a state transition cannot be attributed to the new state.
+    if (trafficHistoryTimeMs_ > 0 || mode == TrafficMode::Stopped)
+        trafficHistoryTimeMs_ = time;
+    if (advanced ||
+        (!replay_ && (previous == TrafficMode::Stopped || mode == TrafficMode::Stopped)))
         emit sampleChanged();
+}
+void UiState::updateTrafficTimer() {
+    if (!replay_ && uiVisible_ && currentPage_ == QStringLiteral("home")) {
+        if (!trafficTimer_.isActive())
+            trafficTimer_.start();
+    } else {
+        trafficTimer_.stop();
+    }
 }
 void UiState::refreshTelemetry() {
     QJsonObject combined = appliedData_.value(QStringLiteral("samples")).toObject();
@@ -358,25 +423,27 @@ void UiState::refreshTelemetry() {
     const auto sample = telemetry_.value(QStringLiteral("traffic")).toMap();
     const auto timestamp = sample.value(QStringLiteral("time")).toString();
     if (!timestamp.isEmpty() && timestamp != trafficSample_) {
-        const auto previousTime = trafficSample_.toLongLong();
         const auto nextTime = timestamp.toLongLong();
-        const auto gap = previousTime > 0 && nextTime > previousTime
-                             ? std::clamp<qint64>(qRound64((nextTime - previousTime) / 1000.0) - 1,
-                                                  0, kTrafficHistoryLimit)
-                             : 0;
-        for (qint64 i = 0; i < gap; ++i) {
-            liveUpload_.append(QVariant{});
-            liveDownload_.append(QVariant{});
+        (void)advanceTrafficHistory(nextTime);
+        const auto elapsed = trafficHistoryTimeMs_ > 0 ? nextTime - trafficHistoryTimeMs_ : 1000;
+        const auto gap =
+            std::clamp<qint64>(qRound64(elapsed / 1000.0) - 1, 0, kTrafficHistoryLimit);
+        for (qint64 i = 0; i < gap; ++i)
+            appendTrafficPoint({}, {});
+        const auto upload = sample.value(QStringLiteral("up")).toDouble() / 1024.0;
+        const auto download = sample.value(QStringLiteral("down")).toDouble() / 1024.0;
+        if (!trafficGapRequired_ && trafficHistoryTimeMs_ > 0 && elapsed <= 500 &&
+            !liveUpload_.constLast().isValid()) {
+            liveUpload_.last() = upload;
+            liveDownload_.last() = download;
+        } else {
+            if (trafficGapRequired_ && liveUpload_.constLast().isValid())
+                appendTrafficPoint({}, {});
+            appendTrafficPoint(upload, download);
         }
+        trafficGapRequired_ = false;
         trafficSample_ = timestamp;
-        // Bounded ring: 60 samples at ~1 Hz cover 60 seconds; the list stays
-        // at a fixed size so the history never grows with uptime.
-        liveUpload_.append(sample.value(QStringLiteral("up")).toDouble() / 1024.0);
-        liveDownload_.append(sample.value(QStringLiteral("down")).toDouble() / 1024.0);
-        while (liveUpload_.size() > kTrafficHistoryLimit)
-            liveUpload_.removeFirst();
-        while (liveDownload_.size() > kTrafficHistoryLimit)
-            liveDownload_.removeFirst();
+        trafficHistoryTimeMs_ = nextTime;
     }
     emit telemetryChanged();
     if (previous != telemetry_.value(QStringLiteral("traffic")))
@@ -763,6 +830,7 @@ bool UiState::navigate(const QString& pageId, const QVariantMap& context) {
     }
     if (currentPage_ != pageId) {
         currentPage_ = pageId;
+        updateTrafficTimer();
         emit routeChanged();
     }
     return true;
@@ -882,13 +950,13 @@ void UiState::setUiVisible(bool visible, bool minimized) {
         emit uiAboutToHide();
     uiVisible_ = visible;
     uiMinimized_ = minimized;
-    if (!visible) {
+    if (!visible)
         demands_.clear();
-        if (!minimized)
-            clearTrafficHistory();
-    }
     emit uiVisibleChanged();
     updateTimer();
+    updateTrafficTimer();
+    if (visible && advanceTrafficHistory(trafficClock_()))
+        emit sampleChanged();
     emit demandsChanged();
 }
 void UiState::setReplay(bool replay) {
@@ -899,6 +967,7 @@ void UiState::setReplay(bool replay) {
     proxyModel_.setRows(replay ? 500 : 0);
     connectionModel_.setRows(replay ? replayConnections_ : 0);
     updateTimer();
+    updateTrafficTimer();
     emit replayChanged();
     emit sampleChanged();
     emit demandsChanged();
@@ -940,10 +1009,16 @@ void UiState::setDemand(const QString& instanceKey, const QString& stream, bool 
 }
 void UiState::updateTimer() {
     auto streams = demands_.values();
-    // Keep one shared ~1 Hz stream across routes and taskbar minimization.
-    // Page consumers still release their heavier data when not visible.
-    if (!replay_ && (uiVisible_ || uiMinimized_))
-        streams.append(QStringLiteral("traffic"));
+    // A ready core keeps one shared stream even without a window. Before the first
+    // control snapshot, visible hosts can pre-register their demand as before.
+    const bool trafficAvailable = runtime_.contains("ready") ? runtime_.value("ready").toBool()
+                                                             : (uiVisible_ || uiMinimized_);
+    if (!replay_) {
+        if (trafficAvailable)
+            streams.append(QStringLiteral("traffic"));
+        else
+            streams.removeAll(QStringLiteral("traffic"));
+    }
     const auto previous = dataDemands_;
     dataDemands_.setActive(replay_ ? QStringList{} : streams);
     if (settings_)
@@ -964,6 +1039,8 @@ void UiState::updateTimer() {
     }
 }
 QString UiState::upload() const {
+    if (!replay_ && trafficMode_ == TrafficMode::Stopped)
+        return QStringLiteral("0.0 KiB/s");
     const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
     if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
@@ -973,6 +1050,8 @@ QString UiState::upload() const {
                             : QStringLiteral("%1 KiB/s").arg(bytes / 1024.0, 0, 'f', 1);
 }
 QString UiState::download() const {
+    if (!replay_ && trafficMode_ == TrafficMode::Stopped)
+        return QStringLiteral("0.0 KiB/s");
     const auto traffic = telemetry_.value(QStringLiteral("traffic")).toMap();
     if (!replay_ && traffic.isEmpty())
         return QStringLiteral("—");
@@ -987,9 +1066,30 @@ QVariantList UiState::uploadHistory() const {
 QVariantList UiState::downloadHistory() const {
     return history(false);
 }
+bool UiState::trafficHasHistory() const {
+    const auto points = history(true);
+    return std::any_of(points.cbegin(), points.cend(),
+                       [](const auto& point) { return point.isValid(); });
+}
+bool UiState::trafficStopped() const {
+    return !replay_ && trafficMode_ == TrafficMode::Stopped;
+}
 QVariantList UiState::history(bool upload) const {
-    if (!replay_)
-        return upload ? liveUpload_ : liveDownload_;
+    if (!replay_) {
+        auto result = upload ? liveUpload_ : liveDownload_;
+        if (trafficHistoryTimeMs_ > 0) {
+            const qint64 grace = trafficMode_ == TrafficMode::Sampling ? 500 : 0;
+            const auto elapsed = trafficClock_() - trafficHistoryTimeMs_ - grace;
+            const auto count = std::clamp<qint64>(elapsed / 1000, 0, kTrafficHistoryLimit);
+            const QVariant point =
+                trafficMode_ == TrafficMode::Stopped ? QVariant(0.0) : QVariant{};
+            for (qint64 i = 0; i < count; ++i) {
+                result.append(point);
+                result.removeFirst();
+            }
+        }
+        return result;
+    }
     QVariantList result;
     if (replay_) {
         result.reserve(kTrafficHistoryLimit);

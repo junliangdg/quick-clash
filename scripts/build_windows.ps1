@@ -7,6 +7,10 @@ param(
     [string]$Ninja = '',
     [switch]$Headless,
     [switch]$Fast,
+    [switch]$Full,
+    [string[]]$Test = @(),
+    [switch]$BuildOnly,
+    [switch]$Lint,
     [switch]$Fresh,
     [string]$BuildDirectory = '',
     [ValidateRange(1, 7200)][int]$ConfigureTimeoutSeconds = 120,
@@ -17,6 +21,10 @@ $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'native_process.ps1')
 if (-not $IsWindows) { throw 'This entry point requires Windows; use CMake presets on other platforms' }
+if (([int]$Fast.IsPresent + [int]$Full.IsPresent + [int]$BuildOnly.IsPresent) -gt 1 -or
+    ($Test.Count -gt 0 -and ($Fast -or $Full -or $BuildOnly))) {
+    throw 'Choose one scope: default smoke, -Test, -BuildOnly, -Fast or -Full.'
+}
 
 if ($VsInstallPath -or -not (Get-Command cl.exe -ErrorAction SilentlyContinue)) {
     if ($VsInstallPath) {
@@ -59,13 +67,23 @@ try {
     if ($BuildDirectory) { $configureArguments += @('-B', $BuildDirectory) }
     if ($Fresh) { $configureArguments += '--fresh' }
     Invoke-NativeStep -Executable $resolvedCMake -Arguments $configureArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'configure.log') -TimeoutSeconds $ConfigureTimeoutSeconds
+    $plan = & (Join-Path $PSScriptRoot 'select_windows_tests.ps1') `
+        -ManifestPath (Join-Path $resolvedBuild 'quickclash_tests.json') `
+        -Test $Test -Fast:$Fast -Full:$Full -BuildOnly:$BuildOnly -Lint:$Lint
+    $plan | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $logRoot 'scope.json') -Encoding utf8
+    Write-Output "Validation scope: $($plan.scope); tests: $($plan.tests -join ', ')"
     $buildArguments = @('--build', $resolvedBuild, '--parallel', '4')
-    if ($Fast) { $buildArguments += @('--target', 'quickclash_ci_fast') }
+    if ($plan.targets.Count -gt 0) { $buildArguments += @('--target') + $plan.targets }
     Invoke-NativeStep -Executable $resolvedCMake -Arguments $buildArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'build.log') -TimeoutSeconds $BuildTimeoutSeconds
-    if (-not $Headless) {
+    if (-not $Headless -and $plan.lint) {
         Invoke-NativeStep -Executable $resolvedCMake -Arguments @('--build', $resolvedBuild, '--target', 'quickclash_qmllint') -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'qmllint.log') -TimeoutSeconds $BuildTimeoutSeconds
     }
-    $testArguments = @('--test-dir', $resolvedBuild, '--output-on-failure', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml'))
-    if ($Fast) { $testArguments += @('--label-exclude', 'ci_slow') }
-    Invoke-NativeStep -Executable $ctest -Arguments $testArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds $TestTimeoutSeconds
+    if ($plan.run_tests) {
+        $testArguments = @('--test-dir', $resolvedBuild, '--output-on-failure', '--no-tests=error', '--timeout', '30', '--output-junit', (Join-Path $logRoot 'tests.xml'))
+        if ($plan.test_regex) { $testArguments += @('--tests-regex', $plan.test_regex) }
+        if ($plan.exclude_label) { $testArguments += @('--label-exclude', $plan.exclude_label) }
+        Invoke-NativeStep -Executable $ctest -Arguments $testArguments -WorkingDirectory $repoRoot -LogPath (Join-Path $logRoot 'ctest.log') -TimeoutSeconds $TestTimeoutSeconds
+    } else {
+        Write-Output 'Build only; tests NotRun. Complete the targeted manual check before claiming behavior verified.'
+    }
 } finally { Pop-Location }

@@ -39,7 +39,9 @@ ListView {
         savedUrl.clear();
     }
     function requestSavedUrl(action) {
-        clearSavedUrl();
+        urlRequestToken = "";
+        urlRequestAction = "";
+        urlResult = "";
         urlRequestAction = action;
         urlRequestToken = Date.now().toString() + ":" + Math.random().toString();
         ui.runtimeCommand("subscription_url", [managedId, urlRequestToken]);
@@ -123,6 +125,7 @@ ListView {
                 root.urlResult = "Copied";
             } else {
                 savedUrl.text = url;
+                savedUrl.cursorPosition = 0;
             }
         }
     }
@@ -304,7 +307,7 @@ ListView {
         title: qsTr("Subscription settings")
         modal: true
         anchors.centerIn: parent
-        width: Math.min(520, root.availableWidth - 16)
+        width: Math.min(640, Math.max(0, root.availableWidth - 16))
         height: Math.min(650, root.height - 24)
         standardButtons: Dialog.Close
         onAboutToHide: root.clearSavedUrl()
@@ -361,7 +364,8 @@ ListView {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     wrapMode: Text.Wrap
-                    color: root.theme.muted
+                    color: root.theme.text
+                    font.weight: Font.DemiBold
                 }
                 ThemedField {
                     id: savedUrl
@@ -431,13 +435,6 @@ ListView {
                     palette.windowText: root.theme.text
                     onClicked: root.ui.runtimeCommand("subscription_policy", [root.managedId, (root.managedProfile.updateIntervalMinutes || 0).toString(), checked ? "true" : "false"])
                 }
-                Label {
-                    text: qsTr("Download path")
-                    Layout.fillWidth: true
-                    Layout.minimumWidth: 0
-                    wrapMode: Text.Wrap
-                    color: root.theme.muted
-                }
                 ThemedComboBox {
                     theme: root.theme
                     objectName: "subscription_provider_mode"
@@ -455,6 +452,15 @@ ListView {
                     color: root.theme.muted
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                }
+                Label {
+                    visible: !!root.managedProfile.secretRef
+                    text: qsTr("Download path")
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    wrapMode: Text.Wrap
+                    color: root.theme.text
+                    font.weight: Font.DemiBold
                 }
                 ThemedComboBox {
                     theme: root.theme
@@ -493,33 +499,39 @@ ListView {
                     echoMode: TextInput.Password
                     maximumLength: 8192
                 }
-                ActionButton {
+                Flow {
+                    objectName: "subscription_editor_actions"
+                    Layout.fillWidth: true
                     Layout.minimumWidth: 0
-                    Layout.maximumWidth: managementScroll.formWidth
-                    theme: root.theme
-                    text: qsTr("Validate and replace source")
-                    enabled: !root.ui.runtime.busy && sourceUrl.text.length > 0
-                    onClicked: {
-                        root.ui.runtimeCommand("source", [root.managedId, sourceUrl.text, sourceHeaders.text]);
-                        sourceUrl.clear();
-                        sourceHeaders.clear();
+                    spacing: 8
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_validate_source"
+                        theme: root.theme
+                        text: qsTr("Validate and replace source")
+                        enabled: !root.ui.runtime.busy && sourceUrl.text.length > 0
+                        onClicked: {
+                            root.ui.runtimeCommand("source", [root.managedId, sourceUrl.text, sourceHeaders.text]);
+                            sourceUrl.clear();
+                            sourceHeaders.clear();
+                        }
                     }
-                }
-                ActionButton {
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: managementScroll.formWidth
-                    theme: root.theme
-                    text: qsTr("Edit original YAML…")
-                    enabled: !root.ui.runtime.busy
-                    onClicked: root.editProfile(root.managedId, "source")
-                }
-                ActionButton {
-                    Layout.minimumWidth: 0
-                    Layout.maximumWidth: managementScroll.formWidth
-                    theme: root.theme
-                    text: qsTr("Edit profile overrides…")
-                    enabled: !root.ui.runtime.busy
-                    onClicked: root.editProfile(root.managedId, "overlay")
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_edit_source"
+                        theme: root.theme
+                        text: qsTr("Edit original YAML…")
+                        enabled: !root.ui.runtime.busy
+                        onClicked: root.editProfile(root.managedId, "source")
+                    }
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_edit_overrides"
+                        theme: root.theme
+                        text: qsTr("Edit profile overrides…")
+                        enabled: !root.ui.runtime.busy
+                        onClicked: root.editProfile(root.managedId, "overlay")
+                    }
                 }
                 ThemedComboBox {
                     id: versions

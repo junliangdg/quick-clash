@@ -15,8 +15,10 @@
 #include <QSGRendererInterface>
 #include <QSignalSpy>
 #include <QTest>
+#include <QWheelEvent>
 #include <cmath>
 #include <cstdio>
+#include <memory>
 
 namespace quickclash {
 int runVisualProbe(ApplicationHost& host) {
@@ -311,8 +313,246 @@ int runVisualProbe(ApplicationHost& host) {
                  ui.dataDemands().generations});
         }
     };
+    const auto checkDashboardDrag = [&](QQuickItem* viewport, const QString& theme, int width,
+                                        qreal origin, bool testWheel, bool testTouch) -> int {
+        auto* card = objects("current_subscription_card").value(0);
+        auto* update = objects("home_update_subscription").value(0);
+        if (!card || !update || !update->isVisible() || !update->isEnabled())
+            return 204;
+        // Native Flow layout may still be awaiting a frame after a resize.
+        if (!output.isEmpty() && host.window()->grabWindow().isNull())
+            return 224;
+        const auto dragContent = [&](const QPoint& startContent) {
+            const auto endContent = startContent - QPoint(0, 140);
+            QTest::mouseMove(host.window(), startContent, 5);
+            QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, startContent);
+            for (int step = 1; step <= 4; ++step)
+                QTest::mouseMove(host.window(), startContent - QPoint(0, step * 35), 20);
+            const auto result = viewport->property("contentY").toReal();
+            QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier, endContent);
+            return result;
+        };
+        const auto bounds = viewport->mapRectToScene(viewport->boundingRect());
+        const auto startContent =
+            viewport->mapToScene(QPointF(viewport->width() - 2, viewport->height() * 0.7))
+                .toPoint();
+        if (!bounds.contains(startContent) || !bounds.contains(startContent - QPoint(0, 140)))
+            return 214;
+        const auto draggedContent = dragContent(startContent);
+        if (draggedContent <= origin + 30) {
+            std::fprintf(stderr,
+                         "Dashboard content drag failed: theme=%s width=%d "
+                         "start=(%d,%d) contentY=%.2f\n",
+                         qPrintable(theme), width, startContent.x(), startContent.y(),
+                         draggedContent);
+            return 214;
+        }
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        const auto cardStart =
+            card->mapToScene(QPointF(card->width() - 8, card->height() * 0.7)).toPoint();
+        if (!bounds.contains(cardStart) || !bounds.contains(cardStart - QPoint(0, 140)) ||
+            dragContent(cardStart) <= origin + 30)
+            return 215;
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        auto* selector = objects("home_profile_selector").value(0);
+        auto* popup = selector ? selector->property("popup").value<QObject*>() : nullptr;
+        if (!selector || !popup || !selector->isVisible() || !selector->isEnabled())
+            return 223;
+        const auto selectorStart =
+            selector->mapToScene(selector->boundingRect().center()).toPoint();
+        const auto selectorEnd = selectorStart + QPoint(0, 140);
+        if (!bounds.contains(selectorStart) || !bounds.contains(selectorEnd))
+            return 226;
+        QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, selectorStart);
+        for (int step = 1; step <= 4; ++step)
+            QTest::mouseMove(host.window(), selectorStart + QPoint(0, step * 35), 20);
+        const auto selectorDrag = viewport->property("contentY").toReal();
+        QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier, selectorEnd);
+        if (std::abs(selectorDrag - origin) > 0.5 || popup->property("visible").toBool())
+            return 226;
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        QSignalSpy clicked(update, SIGNAL(clicked()));
+        const auto buttonStart = update->mapToScene(update->boundingRect().center()).toPoint();
+        if (!bounds.contains(buttonStart) || !bounds.contains(buttonStart - QPoint(0, 140)))
+            return 216;
+        const auto buttonDrag = dragContent(buttonStart);
+        if (buttonDrag <= origin + 30 || !clicked.isEmpty() || !card->isVisible() ||
+            !update->isVisible()) {
+            std::fprintf(stderr,
+                         "Dashboard button drag: theme=%s width=%d contentY=%.2f clicks=%lld "
+                         "start=(%d,%d) card=%d update=%d page=%s\n",
+                         qPrintable(theme), width, buttonDrag,
+                         static_cast<long long>(clicked.size()), buttonStart.x(), buttonStart.y(),
+                         card->isVisible(), update->isVisible(), qPrintable(ui.currentPage()));
+            return 216;
+        }
+        const auto dragBackStart = startContent - QPoint(0, 140);
+        QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, dragBackStart);
+        for (int step = 1; step <= 4; ++step)
+            QTest::mouseMove(host.window(), dragBackStart + QPoint(0, step * 35), 20);
+        const auto back = viewport->property("contentY").toReal();
+        QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier, startContent);
+        if (back >= buttonDrag - 30 || back < origin - 0.5)
+            return 220;
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        if (!update->isVisible()) {
+            std::fprintf(stderr, "Dashboard changed before button click: page=%s\n",
+                         qPrintable(ui.currentPage()));
+            return 217;
+        }
+        // Sample the button after the frame has completed Flow/layout polish.
+        if (!output.isEmpty())
+            host.window()->grabWindow();
+        const auto clickStart = update->mapToScene(update->boundingRect().center()).toPoint();
+        QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, clickStart);
+        if (clicked.size() != 1) {
+            std::fprintf(stderr,
+                         "Dashboard button click: theme=%s width=%d clicks=%lld button=(%d,%d) "
+                         "visible=%d enabled=%d contentY=%.2f page=%s\n",
+                         qPrintable(theme), width, static_cast<long long>(clicked.size()),
+                         clickStart.x(), clickStart.y(), update->isVisible(), update->isEnabled(),
+                         viewport->property("contentY").toReal(), qPrintable(ui.currentPage()));
+            return 217;
+        }
+        if (!selector || !popup || !selector->isVisible() || !selector->isEnabled())
+            return 223;
+        QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier,
+                          selector->mapToScene(selector->boundingRect().center()).toPoint());
+        QTest::qWait(15);
+        if (!popup->property("visible").toBool())
+            return 223;
+        QMetaObject::invokeMethod(popup, "close");
+        QTest::qWait(15);
+        // Native layout can settle after opening a popup; measure the final extent.
+        if (!output.isEmpty())
+            host.window()->grabWindow();
+        const auto settledRange = viewport->property("contentHeight").toReal() - viewport->height();
+        if (settledRange <= 0)
+            return 222;
+        if (testWheel) {
+            bool wheelMoved = false;
+            for (const auto wheelPoint : {startContent, cardStart}) {
+                QTest::mouseMove(host.window(), wheelPoint, 5);
+                QWheelEvent wheel(QPointF(wheelPoint), host.window()->mapToGlobal(wheelPoint), {},
+                                  QPoint(0, -120), Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase,
+                                  false);
+                wheel.setAccepted(false);
+                QCoreApplication::sendEvent(host.window(), &wheel);
+                host.window()->update();
+                wheelMoved = QTest::qWaitFor(
+                    [&] { return viewport->property("contentY").toReal() > origin; }, 500);
+                if (wheelMoved)
+                    break;
+            }
+            if (!wheelMoved) {
+                std::fprintf(stderr, "Dashboard wheel: theme=%s width=%d contentY=%.2f\n",
+                             qPrintable(theme), width, viewport->property("contentY").toReal());
+                return 218;
+            }
+        }
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        // A drag past either end is clamped to the visible range.
+        QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, startContent);
+        for (int step = 1; step <= 4; ++step)
+            QTest::mouseMove(host.window(), startContent + QPoint(0, step * 35), 20);
+        const auto top = viewport->property("contentY").toReal();
+        QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier,
+                            startContent + QPoint(0, 140));
+        if (std::abs(top - origin) > 0.5)
+            return 221;
+        viewport->setProperty("contentY", origin + settledRange);
+        QTest::qWait(15);
+        const auto bottom = dragContent(startContent);
+        if (std::abs(bottom - (origin + settledRange)) > 0.5) {
+            std::fprintf(stderr,
+                         "Dashboard bottom bound: theme=%s width=%d actual=%.2f "
+                         "expected=%.2f contentHeight=%.2f viewport=%.2f\n",
+                         qPrintable(theme), width, bottom, origin + settledRange,
+                         viewport->property("contentHeight").toReal(), viewport->height());
+            return 222;
+        }
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        if (!testTouch)
+            return 0;
+        const std::unique_ptr<QPointingDevice> touch(QTest::createTouchDevice());
+        auto sequence = QTest::touchEvent(host.window(), touch.get(), false);
+        const auto interactiveBeforeTouch = viewport->property("interactive").toBool();
+        sequence.press(0, startContent, host.window()).commit();
+        const auto interactiveAfterPress = viewport->property("interactive").toBool();
+        if (host.window()->grabWindow().isNull())
+            return 219;
+        for (int step = 1; step <= 4; ++step) {
+            sequence.move(0, startContent - QPoint(0, step * 35), host.window()).commit();
+            if (host.window()->grabWindow().isNull())
+                return 219;
+        }
+        const auto touchContent = viewport->property("contentY").toReal();
+        sequence.release(0, startContent - QPoint(0, 140), host.window()).commit();
+        if (touchContent <= origin + 30) {
+            std::fprintf(stderr,
+                         "Dashboard synthetic touch drag failed: theme=%s width=%d "
+                         "contentY=%.2f interactive=%d/%d/%d dragging=%d active=%d "
+                         "start=(%d,%d)\n",
+                         qPrintable(theme), width, touchContent, interactiveBeforeTouch,
+                         interactiveAfterPress, viewport->property("interactive").toBool(),
+                         viewport->property("dragging").toBool(), host.window()->isActive(),
+                         startContent.x(), startContent.y());
+            return 219;
+        }
+        viewport->setProperty("contentY", origin);
+        QTest::qWait(15);
+        return 0;
+    };
     host.resizeWindow({1000, 640});
     ui.navigate("home");
+    if (QCoreApplication::arguments().contains(QStringLiteral("--dashboard-drag-only"))) {
+        const bool testWheel =
+            !QCoreApplication::arguments().contains(QStringLiteral("--dashboard-no-wheel"));
+        const bool testTouch =
+            !QCoreApplication::arguments().contains(QStringLiteral("--dashboard-mouse-only"));
+        populate();
+        host.window()->requestActivate();
+        if (!QTest::qWaitForWindowActive(host.window(), 3000))
+            return 225;
+        for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+            ui.setThemeMode(theme);
+            for (const auto width : {1000, 360}) {
+                host.resizeWindow({width, 640});
+                host.window()->update();
+                QTest::qWait(100);
+                const auto cards = objects("current_subscription_card");
+                auto* viewport = cards.size() == 1 ? cards.first()->parentItem() : nullptr;
+                while (viewport && !viewport->inherits("QQuickFlickable"))
+                    viewport = viewport->parentItem();
+                if (!viewport)
+                    return 224;
+                const auto origin = viewport->property("originY").toReal();
+                const auto range =
+                    viewport->property("contentHeight").toReal() - viewport->height();
+                if (range <= 0)
+                    return 224;
+                viewport->setProperty("contentY", origin);
+                host.window()->update();
+                QTest::qWait(50);
+                const auto result =
+                    checkDashboardDrag(viewport, theme, width, origin, testWheel, testTouch);
+                if (result != 0)
+                    return result;
+                if (!capture(QStringLiteral("dashboard_drag_%1_%2").arg(theme).arg(width)))
+                    return 224;
+            }
+        }
+        std::printf(
+            "Dashboard drag: mouse, click and bounds passed; wheel %s; synthetic touch %s\n",
+            testWheel ? "passed" : "excluded", testTouch ? "passed" : "excluded");
+        return 0;
+    }
     QTest::qWait(50);
     // Control state can arrive before profiles; the selected name must still be drawn.
     if (!profileVisible("日常订阅 · Everyday", -1, ""))
@@ -381,11 +621,28 @@ int runVisualProbe(ApplicationHost& host) {
     ui.applyData({1, "visual-fixture", {{"groups", proxyGroups}}, ui.dataDemands().generations});
     populate();
     QTest::qWait(80);
-    const auto firstNodeGroup = objects(QStringLiteral("proxy_group_节点选择"));
-    const auto firstNodeTile =
+    auto firstNodeGroup = objects(QStringLiteral("proxy_group_节点选择"));
+    auto firstNodeTile =
         objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
-    if (firstNodeGroup.size() != 1 || firstNodeTile.size() != 1)
+    if (firstNodeGroup.size() == 1 && firstNodeTile.isEmpty()) {
+        const auto pages = objects("proxies_page");
+        const auto lists = objects("proxy_group_list");
+        if (pages.size() == 1)
+            pages.first()->setProperty("expandedGroups", QVariantList{QStringLiteral("节点选择")});
+        if (lists.size() == 1)
+            lists.first()->setProperty("contentY", 0);
+        for (int attempt = 0; attempt < 20 && firstNodeTile.isEmpty(); ++attempt) {
+            QTest::qWait(20);
+            firstNodeTile =
+                objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
+        }
+    }
+    if (firstNodeGroup.size() != 1 || firstNodeTile.size() != 1) {
+        std::fprintf(stderr, "Proxy fixture unavailable: groups=%lld nodes=%lld\n",
+                     static_cast<long long>(firstNodeGroup.size()),
+                     static_cast<long long>(firstNodeTile.size()));
         return 204;
+    }
     const auto group = objects(QStringLiteral("proxy_group_节点选择"));
     const auto tiles =
         objects(QStringLiteral("proxy_member_节点选择_") + members.first().toString());
@@ -1068,12 +1325,25 @@ int runVisualProbe(ApplicationHost& host) {
                     return 146;
                 QTest::qWait(25);
                 if (bar->isVisible() || std::abs(form->width() - bodyWidth) > 0.5 ||
-                    !test::checkPageAlignment(host.window()) || !bar->setProperty("policy", policy))
+                    !test::checkPageAlignment(host.window()) ||
+                    !bar->setProperty("policy", policy)) {
+                    std::fprintf(stderr,
+                                 "Scrollbar hide failed: page=%s theme=%s width=%d "
+                                 "bar=%d form=%.1f expected=%.1f\n",
+                                 qPrintable(page), qPrintable(theme), width, bar->isVisible(),
+                                 form->width(), bodyWidth);
                     return 146;
+                }
                 QTest::qWait(25);
                 if (!bar->isVisible() || std::abs(form->width() - bodyWidth) > 0.5 ||
-                    !test::checkPageAlignment(host.window()))
+                    !test::checkPageAlignment(host.window())) {
+                    std::fprintf(stderr,
+                                 "Scrollbar restore failed: page=%s theme=%s width=%d "
+                                 "bar=%d form=%.1f expected=%.1f policy=%d\n",
+                                 qPrintable(page), qPrintable(theme), width, bar->isVisible(),
+                                 form->width(), bodyWidth, bar->property("policy").toInt());
                     return 146;
+                }
                 const auto contentHeight = viewport->property("contentHeight").toReal();
                 const auto origin = viewport->property("originY").toReal();
                 const auto range = contentHeight - viewport->height();
@@ -1081,6 +1351,38 @@ int runVisualProbe(ApplicationHost& host) {
                     return 141;
                 viewport->setProperty("contentY", origin);
                 QTest::qWait(15);
+                bar->setProperty("active", true);
+                auto* thumb = bar->property("contentItem").value<QQuickItem*>();
+                if (!thumb)
+                    return 203;
+                const auto start = thumb->mapToScene(thumb->boundingRect().center()).toPoint();
+                const auto end = start + QPoint(0, qRound(bar->height() * 0.35));
+                QTest::mouseMove(host.window(), start, 5);
+                QTest::mousePress(host.window(), Qt::LeftButton, Qt::NoModifier, start);
+                const auto pressed = bar->property("pressed").toBool();
+                QTest::mouseMove(host.window(), start + (end - start) / 2, 20);
+                QTest::mouseMove(host.window(), end, 20);
+                const auto dragged = viewport->property("contentY").toReal();
+                QTest::mouseRelease(host.window(), Qt::LeftButton, Qt::NoModifier, end);
+                if (!pressed || dragged <= origin + range * 0.15) {
+                    std::fprintf(stderr,
+                                 "Scrollbar drag failed: page=%s theme=%s width=%d "
+                                 "start=(%d,%d) end=(%d,%d) pressed=%d "
+                                 "contentY=%.2f origin=%.2f range=%.2f\n",
+                                 qPrintable(page), qPrintable(theme), width, start.x(), start.y(),
+                                 end.x(), end.y(), int(pressed), dragged, origin, range);
+                    return 203;
+                }
+                viewport->setProperty("contentY", origin);
+                QTest::qWait(15);
+                if (page == "home") {
+                    // Synthetic touch remains an explicit targeted probe because delivery can
+                    // stall under both Qt's native and offscreen platform plugins.
+                    const auto result =
+                        checkDashboardDrag(viewport, theme, width, origin, true, false);
+                    if (result != 0)
+                        return result;
+                }
                 if (!QMetaObject::invokeMethod(bar, "increase"))
                     return 142;
                 QTest::qWait(15);
@@ -1228,8 +1530,11 @@ int runVisualProbe(ApplicationHost& host) {
                                  .contains(button->mapRectToItem(headers.first(),
                                                                  button->boundingRect())) ||
                             !test::focusInScroll(button)) {
-                            std::fprintf(stderr, "Group action overflow: font=%d width=%d\n",
-                                         pixels, width);
+                            std::fprintf(stderr,
+                                         "Group action overflow: font=%d width=%d "
+                                         "headers=%lld button=%d\n",
+                                         pixels, width, static_cast<long long>(headers.size()),
+                                         button != nullptr);
                             return 202;
                         }
                     }
@@ -1253,7 +1558,7 @@ int runVisualProbe(ApplicationHost& host) {
         evidence.write(QJsonDocument(captures).toJson());
     }
     std::puts("Visual UI: eight pages, both themes, retained draft, equal cards, menu/dialog, "
-              "360/800/1000/1200/1440, home/settings scrollbar geometry and interaction passed");
+              "360/800/1000/1200/1440, dashboard drag and scrollbar interaction passed");
     return 0;
 }
 } // namespace quickclash

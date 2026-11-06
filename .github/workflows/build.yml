@@ -52,6 +52,7 @@ jobs:
           ./scripts/check_progress.ps1
           ./tests/scripts/check_progress_test.ps1
           ./tests/scripts/select_ci_scope_test.ps1
+          ./tests/scripts/select_windows_tests_test.ps1
           ./tests/scripts/native_process_test.ps1
           ./tests/scripts/fetch_dependencies_test.ps1
           ./tests/scripts/publish_release_test.ps1
@@ -106,9 +107,9 @@ jobs:
           RELEASE_REF: ${{ github.ref_name }}
         run: |
           # Clean hosted builds need the same budget in fast and full mode.
-          ./scripts/build_windows.ps1 -Fast:($env:FULL_VALIDATION -ne 'true') -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
+          ./scripts/build_windows.ps1 -Fast:($env:FULL_VALIDATION -ne 'true') -Full:($env:FULL_VALIDATION -eq 'true') -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
           if ($env:FULL_VALIDATION -eq 'true') {
-            ./scripts/build_windows.ps1 -Headless -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
+            ./scripts/build_windows.ps1 -Headless -Full -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
             ./scripts/probe_mihomo.ps1
           }
           if ($env:PUBLISH_PACKAGE -eq 'true') {

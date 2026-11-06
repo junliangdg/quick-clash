@@ -98,9 +98,10 @@ FlatTile {
             profile: root.profile
         }
         Label {
+            objectName: "subscription_update_status"
             visible: !!root.profile.secretRef
             text: root.profile.lastUpdateResult === "Failed" ? qsTr("Update failed; the working configuration is kept") : root.profile.pendingApply ? qsTr("Changes waiting to be applied") : qsTr("Downloaded and validated")
-            color: root.theme.muted
+            color: root.profile.lastUpdateResult === "Failed" ? root.theme.error : root.profile.pendingApply ? root.theme.warning : root.theme.text
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }

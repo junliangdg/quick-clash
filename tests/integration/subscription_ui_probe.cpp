@@ -4,6 +4,7 @@
 #include "focus_layout_checks.h"
 #include <QApplication>
 #include <QClipboard>
+#include <QColor>
 #include <QDir>
 #include <QGuiApplication>
 #include <QJSValue>
@@ -62,6 +63,38 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                                                         {{"total", 1000000}, {"download", 1234}},
                                                         QDateTime::currentDateTimeUtc())}});
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
+    // The same details component is used on the dashboard and in every card.
+    // Only collapse times which actually render as the same local minute.
+    const auto originalFirst = profiles[0].toObject();
+    auto timestampFixture = originalFirst;
+    const auto checkTimes = [&](const QString& updated, const QString& collected,
+                                bool showCollected) {
+        timestampFixture.insert("updatedAt", updated);
+        timestampFixture.insert("usageCollectedAt", collected);
+        profiles[0] = timestampFixture;
+        ui.applyData({1, "fixture", {{"profiles", profiles}}});
+        QCoreApplication::processEvents();
+        auto* details = host.window()->findChild<QQuickItem*>("home_subscription_details");
+        auto* update =
+            details ? details->findChild<QQuickItem*>("subscription_updated_overview") : nullptr;
+        auto* usage =
+            details ? details->findChild<QQuickItem*>("subscription_usage_collected") : nullptr;
+        if (!details || !details->isVisible() || !update || !update->isVisible() || !usage ||
+            usage->isVisible() != showCollected) {
+            std::fprintf(stderr, "Dashboard timestamps: updated=%s collected=%s expected=%d\n",
+                         updated.toUtf8().constData(), collected.toUtf8().constData(),
+                         showCollected);
+            return false;
+        }
+        return true;
+    };
+    if (!checkTimes("2026-10-28T00:00:00Z", "2026-10-28T00:00:59Z", false) ||
+        !checkTimes("2026-10-28T00:02:00Z", "2026-10-28T00:00:00Z", true) ||
+        !checkTimes("2026-10-28T00:02:00Z", {}, true) ||
+        !checkTimes("invalid", "2026-10-28T00:00:00Z", true))
+        return 133;
+    profiles[0] = originalFirst;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
     if (!ui.navigate("subscriptions"))
         return 80;
     host.resizeWindow({1500, 850});
@@ -81,9 +114,24 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         url->isVisible() || !click(host, openImport) ||
         !importDialog->property("visible").toBool() || !url->isVisible() || !url->hasActiveFocus())
         return 118;
+    // Flow positions its buttons during polish; wait for a rendered layout before clicking.
+    if (!visualOutput.isEmpty() && host.window()->grabWindow().isNull())
+        return 119;
+    if (!QTest::qWaitFor(
+            [&] {
+                host.window()->update();
+                return add->parentItem() && add->parentItem()->height() >= add->height();
+            },
+            2000)) {
+        std::fprintf(stderr, "Import actions layout: height=%.2f implicit=%.2f button=%.2f\n",
+                     add->parentItem() ? add->parentItem()->height() : -1,
+                     add->parentItem() ? add->parentItem()->implicitHeight() : -1, add->height());
+        return 119;
+    }
     url->setProperty("text", "https://fixture.invalid/private-token");
     importNameField->setProperty("text", "Import fixture");
-    if (!click(host, add))
+    const auto submitImport = [&] { return test::focusInScroll(add) && click(host, add); };
+    if (!submitImport())
         return 119;
     ui.applyControl({{"publicationGeneration", "1"},
                      {"epoch", "fixture"},
@@ -92,9 +140,17 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     QTest::qWait(20);
     if (!importDialog->property("visible").toBool() || !importError->isVisible() ||
         url->property("text") != "https://fixture.invalid/private-token" ||
-        importNameField->property("text") != "Import fixture")
+        importNameField->property("text") != "Import fixture") {
+        std::fprintf(stderr,
+                     "Import failure state: dialog=%d error=%d attempted=%d active=%d url=%d "
+                     "name=%d\n",
+                     importDialog->property("visible").toBool(), importError->isVisible(),
+                     importDialog->property("attempted").toBool(), host.window()->isActive(),
+                     url->property("text") == "https://fixture.invalid/private-token",
+                     importNameField->property("text") == "Import fixture");
         return 120;
-    if (!click(host, add))
+    }
+    if (!submitImport())
         return 121;
     ui.applyControl({{"publicationGeneration", "1"},
                      {"epoch", "fixture"},
@@ -159,6 +215,40 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         !alert->isVisible() || alert->property("text").toString().isEmpty() ||
         !collected->property("text").toString().contains("2026"))
         return 99;
+    auto* updatedCard = first->findChild<QQuickItem*>("subscription_updated_card");
+    auto* usage = first->findChild<QQuickItem*>("subscription_usage");
+    auto* expiry = first->findChild<QQuickItem*>("subscription_expiry");
+    auto* status = first->findChild<QQuickItem*>("subscription_update_status");
+    if (!updatedCard || !usage || !expiry || !status)
+        return 134;
+    for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+        ui.setThemeMode(theme);
+        warned.insert("updatedAt", "2026-10-28T00:00:00Z");
+        warned.insert("usageCollectedAt", "2026-10-28T00:00:59Z");
+        warned.insert("pendingApply", false);
+        warned.insert("lastUpdateResult", "Updated");
+        profiles[firstIndex] = warned;
+        ui.applyData({1, "fixture", {{"profiles", profiles}}});
+        QCoreApplication::processEvents();
+        const auto primary = usage->property("color").value<QColor>();
+        if (collected->isVisible() || !updatedCard->isVisible() ||
+            updatedCard->property("color").value<QColor>() != primary ||
+            expiry->property("color").value<QColor>() != primary ||
+            status->property("color").value<QColor>() != primary ||
+            collected->property("color").value<QColor>() == primary)
+            return 135;
+        warned.insert("updatedAt", "2026-10-28T00:02:00Z");
+        warned.insert("lastUpdateResult", "Failed");
+        profiles[firstIndex] = warned;
+        ui.applyData({1, "fixture", {{"profiles", profiles}}});
+        QCoreApplication::processEvents();
+        if (!collected->isVisible() || status->property("color").value<QColor>() == primary)
+            return 136;
+    }
+    warned.insert("pendingApply", true);
+    warned.remove("lastUpdateResult");
+    profiles[firstIndex] = warned;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
     QSignalSpy action(first, SIGNAL(actionRequested(QString, QString)));
     QSignalSpy manage(first, SIGNAL(manageRequested(QString)));
     auto* title = first->findChild<QQuickItem*>(QStringLiteral("select_subscription"));
@@ -203,14 +293,32 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (token.isEmpty() || !savedUrl->property("text").toString().isEmpty())
         return 106;
     ui.subscriptionUrlReady(managedId, token, fixtureUrl);
-    if (savedUrl->property("text") != fixtureUrl)
+    if (savedUrl->property("text") != fixtureUrl ||
+        savedUrl->property("cursorPosition").toInt() != 0)
         return 107;
-    QMetaObject::invokeMethod(showUrl, "clicked");
     token = request(copyUrl);
+    if (savedUrl->property("text") != fixtureUrl)
+        return 137;
     ui.subscriptionUrlReady(managedId, token, fixtureUrl);
     if (QGuiApplication::clipboard()->text() != fixtureUrl ||
-        !savedUrl->property("text").toString().isEmpty() || page->property("urlResult") != "Copied")
+        savedUrl->property("text") != fixtureUrl || page->property("urlResult") != "Copied")
+        return 138;
+    QMetaObject::invokeMethod(showUrl, "clicked");
+    // Let the native clipboard release the preceding write before issuing another.
+    if (!visualOutput.isEmpty())
+        QTest::qWait(150);
+    token = request(copyUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (!QTest::qWaitFor([&] { return QGuiApplication::clipboard()->text() == fixtureUrl; },
+                         1000) ||
+        !savedUrl->property("text").toString().isEmpty() ||
+        page->property("urlResult") != "Copied") {
+        std::fprintf(stderr, "Hidden URL copy: clipboard=%d fieldEmpty=%d result=%s\n",
+                     QGuiApplication::clipboard()->text() == fixtureUrl,
+                     savedUrl->property("text").toString().isEmpty(),
+                     qPrintable(page->property("urlResult").toString()));
         return 108;
+    }
     token = request(showUrl);
     ui.setUiVisible(false);
     ui.subscriptionUrlReady(managedId, token, fixtureUrl);
@@ -230,6 +338,49 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                 QTest::qWait(50);
                 if (!test::checkScrollLayouts(host.window()))
                     return 114;
+                auto* actions =
+                    host.window()->findChild<QQuickItem*>("subscription_editor_actions");
+                auto* validate =
+                    host.window()->findChild<QQuickItem*>("subscription_validate_source");
+                auto* editSource =
+                    host.window()->findChild<QQuickItem*>("subscription_edit_source");
+                auto* editOverrides =
+                    host.window()->findChild<QQuickItem*>("subscription_edit_overrides");
+                if (!actions || !validate || !editSource || !editOverrides)
+                    return 139;
+                const QList<QQuickItem*> buttons{validate, editSource, editOverrides};
+                const auto spacing = actions->property("spacing").toReal();
+                for (int index = 0; index < buttons.size(); ++index) {
+                    const auto* button = buttons[index];
+                    if (button->parentItem() != actions || button->x() < -0.5 ||
+                        button->x() + button->width() > actions->width() + 0.5)
+                        return 140;
+                    if (index == 0)
+                        continue;
+                    const auto* previous = buttons[index - 1];
+                    const bool shouldFit =
+                        previous->x() + previous->width() + spacing + button->width() <=
+                        actions->width() + 0.5;
+                    const bool sameRow = qAbs(previous->y() - button->y()) < 0.5;
+                    if (shouldFit != sameRow ||
+                        (sameRow && button->x() + 0.5 < previous->x() + previous->width()) ||
+                        (!sameRow && button->y() + 0.5 < previous->y() + previous->height())) {
+                        std::fprintf(stderr,
+                                     "Subscription actions overlap/wrap: font=%d width=%d "
+                                     "button=%d form=%.1f previous=%.1f..%.1f next=%.1f..%.1f\n",
+                                     pixels, size.width(), index, actions->width(), previous->x(),
+                                     previous->x() + previous->width(), button->x(),
+                                     button->x() + button->width());
+                        return 141;
+                    }
+                }
+                if (pixels == 14 && size.width() == 1000 &&
+                    (qAbs(validate->y() - editSource->y()) > 0.5 ||
+                     qAbs(validate->y() - editOverrides->y()) > 0.5))
+                    return 142;
+                if (pixels == 21 && size.width() == 360 &&
+                    qAbs(validate->y() - editOverrides->y()) < 0.5)
+                    return 143;
                 for (const auto* name :
                      {"subscription_name", "subscription_saved_url", "subscription_update_interval",
                       "subscription_provider_mode", "subscription_download_route",
@@ -435,8 +586,10 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         !editor->property("loadedToken").toString().isEmpty())
         return 119;
     QMetaObject::invokeMethod(editor, "close");
-    if (!QTest::qWaitFor([&] { return editor.isNull(); }, 1000))
+    if (!QTest::qWaitFor([&] { return editor.isNull(); }, 1000)) {
+        std::fprintf(stderr, "Closing overlay editor did not release it\n");
         return 120;
+    }
     std::puts("Subscription UI: bounded/reused delegates, stable actions, persistent management, "
               "incremental metadata, responsive long text and keyboard passed");
     return 0;

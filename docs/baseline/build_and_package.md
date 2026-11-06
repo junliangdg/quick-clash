@@ -29,14 +29,14 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 仓库目录统一为 `quick-clash`，实际工作路径为 `D:/repos/quick-clash`，[目录迁移](../progress/reports/windows_validation.md#工程与内核)及会话写权限更新已完成。移动源码目录后，旧 CMake/Ninja 生成文件含原绝对路径，不能直接复用；保留旧 `build/` 作为历史资料，使用全新目录，例如 `-BuildDirectory build/windows_x64`、`-BuildDirectory build/headless_x64 -Headless`。脚本和 presets 均从当前仓库位置求路径，下载缓存 `.cache/` 可继续按摘要校验使用。
 
     pwsh -NoProfile -File scripts/fetch_dependencies.ps1
-    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Fresh
-    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Headless -Fresh
+    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Full -Fresh
+    pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Headless -Full -Fresh
 
 上面两条是冻结参考环境的验收命令，不是本地开发唯一入口。`-QtRoot` 可省略；省略时脚本不覆盖 `CMAKE_PREFIX_PATH` 或 PATH 中的 Qt，由 IDE kit、用户 preset 或调用环境负责提供。`-VsInstallPath` 可选择具体 Visual Studio 安装；未指定时优先沿用当前可找到 `cl.exe` 的开发者环境，否则才用 vswhere 选择最新含 x64 C++ 工具的实例。Ninja 默认由 CMake/PATH 查找，也可用 `-Ninja` 显式指定。不同 Qt、编译器或 generator 必须使用独立构建目录或 `-Fresh`，避免复用已有 CMake cache。
 
 脚本仍使用仓库 Ninja preset；可用 `-CMake` 指定 CMake 路径、`-BuildDirectory` 指定独立构建目录。默认使用 PATH 的 cmake，不隐式退到旧版本。Qt Creator/VS Code 可以选择兼容的 Qt ≥6.9 套件并提供 `CMAKE_PREFIX_PATH`，个人机器路径写入不提交的 `CMakeUserPresets.json`；首次先获取依赖，CMake 配置本身不联网。Qt 6.9.0 为最低版本 CI 配置，实际构建结论仍以相应版本的验收结果为准。
 
-构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存 configure/build/qmllint/ctest 输出、退出码、耗时、超时标记及 JUnit。默认配置最多120秒，构建/lint和整套CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；GitHub快速和完整验证均将构建/lint与整套CTest预算提高到1200秒，以容纳托管runner上的干净Qt 6.9 QML构建，本地默认值仍为600秒；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。UI构建自动执行生成模块的`quickclash_qmllint`和CTest，包括offscreen软件渲染smoke；headless运行契约测试。
+构建/探针入口要求 PowerShell ≥7.2。`build_windows.ps1` 每次在所选构建目录的 `logs/<UTC 时间>_<运行 ID>/` 保存所运行步骤的输出、退出码、耗时、超时标记、选定范围 `scope.json` 及适用的 JUnit。默认配置最多120秒，构建/lint和选定的CTest各600秒，可通过`-ConfigureTimeoutSeconds`、`-BuildTimeoutSeconds`、`-TestTimeoutSeconds`调整；GitHub快速和完整验证均将构建/lint与CTest预算提高到1200秒，以容纳托管runner上的干净Qt 6.9 QML构建，本地默认值仍为600秒；每个用例仍受CMake中的独立时限约束，超时仅结束本次创建的进程树。步骤预算是进程保护上限，不要求为用满预算扩大检查。默认仅最小冒烟；QML变化用 `-Lint` 执行生成模块的 `quickclash_qmllint`，CI快速/完整模式自动执行。
 
 默认UI开发构建目录为`build/dev`，headless为`build/headless`，本地独立发行默认`build/release`；Windows CI完成测试后在同一`build/dev`切换为无测试发行配置以复用编译结果，详见下节。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。Actions即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
@@ -48,9 +48,34 @@ Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构�
 
 仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
-Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup，与快速构建排除的目标保持一致，不修改其断言或时限。默认不带-Fast的本地入口仍构建/测试全部目标。
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup，与快速构建排除的目标保持一致，不修改其断言或时限。本地默认与CI快速模式分别选用，详见下方日常定向入口。
 
-`v*`标签或手动勾选`full_validation`时，同次Windows运行改为全部CTest、独立headless构建/6项测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式适用于内核/恢复/存储关键改动和版本发布，快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+`v*`标签或手动勾选`full_validation`时，同次Windows运行显式使用`-Full`，执行全部CTest、独立headless完整构建/测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式用于版本发布、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；局部内核/恢复/存储修改先定向覆盖相关路径。快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+
+### 日常定向验证
+
+在已配置的本机环境中，按改动选择一个入口；QML变化在所选命令追加 `-Lint`，仅脚本/文档变化不为流程要求重建产品。
+
+```powershell
+# 默认：客户端/服务及最小冒烟所需目标，运行 contracts 和 qml_smoke。
+./scripts/build_windows.ps1
+
+# 在 PowerShell 中调用时用数组选择确切测试名；慢测试也可单独选取。
+./scripts/build_windows.ps1 -Test ui_state,ui_subscriptions -Lint
+./scripts/build_windows.ps1 -Test runtime_proxy_latency
+
+# 局部样式可构建后人工检查受影响页面；此命令本身不验证行为。
+./scripts/build_windows.ps1 -BuildOnly -Lint
+
+# 显式跨模块快速回归，或有触发理由的完整回归。
+./scripts/build_windows.ps1 -Fast
+./scripts/build_windows.ps1 -Full
+./scripts/build_windows.ps1 -Headless -Full
+```
+
+`-Test`、`-BuildOnly`、`-Fast`、`-Full`互斥。CMake配置生成`quickclash_tests.json`，记录当前配置的CTest名称及对应构建目标；定向入口先验证名称，再构建产品和被选测试的目标，只运行确切匹配的测试，共用测试程序不会扩大运行范围。拼错、当前配置不支持的测试或空测试范围直接失败；显式选择的慢测试不受`ci_slow`排除。`-Headless`默认只跑`contracts`，不引入UI。直接`ctest --preset dev`仍表示完整套件；已用IDE构建对应目标时也可用`ctest --test-dir build/dev -R '^(ui_state|qml_smoke)$' --output-on-failure --no-tests=error`定向运行。
+
+选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
 
 ### GitHub持续交付与干净发行包
 

@@ -13,9 +13,12 @@ ColumnLayout {
     readonly property bool completeUsage: status.complete === true
     readonly property real usedBytes: completeUsage ? Number(status.used) : 0
     readonly property real totalBytes: Number(status.quota || 0)
+    readonly property string updatedTime: profile.updatedAt ? dateText(profile.updatedAt) : qsTr("Unknown")
+    readonly property string collectedTime: profile.usageCollectedAt ? dateText(profile.usageCollectedAt) : qsTr("Unknown")
+    readonly property bool sameDisplayedTime: !!profile.updatedAt && !!profile.usageCollectedAt && updatedTime !== qsTr("Unknown") && collectedTime !== qsTr("Unknown") && updatedTime === collectedTime
     function dateText(value): string {
         const date = new Date(value);
-        return isNaN(date.getTime()) ? qsTr("Unknown") : date.toLocaleString(Qt.locale());
+        return isNaN(date.getTime()) ? qsTr("Unknown") : date.toLocaleString(Qt.locale(), Locale.ShortFormat);
     }
     function sizeText(value): string {
         if (value >= 1073741824)
@@ -24,17 +27,19 @@ ColumnLayout {
     }
     spacing: 6
     Label {
+        objectName: "subscription_updated_card"
         visible: !root.overview
-        text: qsTr("Updated: %1").arg(root.profile.updatedAt ? root.dateText(root.profile.updatedAt) : qsTr("Unknown"))
-        color: root.theme.muted
+        text: qsTr("Updated: %1").arg(root.updatedTime)
+        color: root.updatedTime === qsTr("Unknown") ? root.theme.muted : root.theme.text
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
         textFormat: Text.PlainText
     }
     Label {
+        objectName: "subscription_usage"
         visible: !root.overview
         text: root.completeUsage ? qsTr("Used %1 / %2").arg(root.sizeText(root.usedBytes)).arg(root.totalBytes > 0 ? root.sizeText(root.totalBytes) : qsTr("Not provided")) : qsTr("Usage not provided")
-        color: root.theme.text
+        color: root.completeUsage ? root.theme.text : root.theme.muted
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
     }
@@ -79,8 +84,9 @@ ColumnLayout {
         wrapMode: Text.WordWrap
     }
     Label {
+        objectName: "subscription_expiry"
         text: qsTr("Expires: %1").arg(root.status.expiresAt ? root.dateText(root.status.expiresAt) : qsTr("Not provided"))
-        color: root.theme.muted
+        color: root.status.expiresAt ? root.theme.text : root.theme.muted
         font.pixelSize: root.overview ? root.theme.scaledSize(12) : root.theme.bodySize
         Layout.fillWidth: true
         wrapMode: Text.WordWrap
@@ -95,8 +101,8 @@ ColumnLayout {
     }
     Label {
         objectName: "subscription_usage_collected"
-        visible: !!root.profile.secretRef
-        text: qsTr("Usage collected: %1").arg(root.profile.usageCollectedAt ? root.dateText(root.profile.usageCollectedAt) : qsTr("Unknown"))
+        visible: !!root.profile.secretRef && !root.sameDisplayedTime
+        text: qsTr("Usage collected: %1").arg(root.collectedTime)
         color: root.theme.muted
         font.pixelSize: root.overview ? root.theme.scaledSize(12) : root.theme.supportingSize
         Layout.fillWidth: true
@@ -111,8 +117,9 @@ ColumnLayout {
         wrapMode: Text.WordWrap
     }
     Label {
+        objectName: "subscription_updated_overview"
         visible: root.overview
-        text: qsTr("Updated: %1").arg(root.profile.updatedAt ? root.dateText(root.profile.updatedAt) : qsTr("Unknown"))
+        text: qsTr("Updated: %1").arg(root.updatedTime)
         color: root.theme.muted
         font.pixelSize: root.theme.scaledSize(12)
         Layout.fillWidth: true

@@ -10,6 +10,7 @@
 #include <QTimer>
 #include <QVariantList>
 #include <QtQml/qqmlregistration.h>
+#include <functional>
 #include <memory>
 
 namespace quickclash::presentation {
@@ -70,6 +71,8 @@ class UiState : public QObject {
     Q_PROPERTY(QString download READ download NOTIFY sampleChanged)
     Q_PROPERTY(QVariantList uploadHistory READ uploadHistory NOTIFY sampleChanged)
     Q_PROPERTY(QVariantList downloadHistory READ downloadHistory NOTIFY sampleChanged)
+    Q_PROPERTY(bool trafficHasHistory READ trafficHasHistory NOTIFY sampleChanged)
+    Q_PROPERTY(bool trafficStopped READ trafficStopped NOTIFY sampleChanged)
     Q_PROPERTY(quickclash::presentation::ReplayModel* proxyModel READ proxyModel CONSTANT)
     Q_PROPERTY(quickclash::presentation::ReplayModel* connectionModel READ connectionModel CONSTANT)
     Q_PROPERTY(bool trayAvailable READ trayAvailable WRITE setTrayAvailable NOTIFY hostChanged)
@@ -78,7 +81,8 @@ class UiState : public QObject {
     Q_PROPERTY(
         bool unloadWhenHidden READ unloadWhenHidden WRITE setUnloadWhenHidden NOTIFY hostChanged)
   public:
-    explicit UiState(QString settingsFile = {}, QObject* parent = nullptr);
+    explicit UiState(QString settingsFile = {}, QObject* parent = nullptr,
+                     std::function<qint64()> trafficClock = {});
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
     }
@@ -228,7 +232,7 @@ class UiState : public QObject {
     [[nodiscard]] bool uiVisible() const {
         return uiVisible_;
     }
-    // Minimized windows retain only the host traffic lease until hidden or unloaded.
+    // Hidden or minimized windows release page leases; a ready core keeps shared traffic.
     void setUiVisible(bool visible, bool minimized = false);
     [[nodiscard]] bool replay() const {
         return replay_;
@@ -249,6 +253,8 @@ class UiState : public QObject {
     [[nodiscard]] QString download() const;
     [[nodiscard]] QVariantList uploadHistory() const;
     [[nodiscard]] QVariantList downloadHistory() const;
+    [[nodiscard]] bool trafficHasHistory() const;
+    [[nodiscard]] bool trafficStopped() const;
     [[nodiscard]] ReplayModel* proxyModel() {
         return &proxyModel_;
     }
@@ -334,7 +340,12 @@ class UiState : public QObject {
     [[nodiscard]] bool acceptGeneration(quint64 generation, const QString& epoch);
     void updateTimer();
     void clearChannel(const QString& channel);
-    void clearTrafficHistory();
+    enum class TrafficMode { Unknown, Sampling, Stopped };
+    [[nodiscard]] TrafficMode trafficMode(const QVariantMap& control) const;
+    void setTrafficMode(TrafficMode mode, qint64 time);
+    [[nodiscard]] bool advanceTrafficHistory(qint64 time);
+    void appendTrafficPoint(const QVariant& upload, const QVariant& download);
+    void updateTrafficTimer();
     void refreshTelemetry();
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
@@ -359,6 +370,7 @@ class UiState : public QObject {
     application::RuntimeDemands dataDemands_;
     QHash<QString, QVariantMap> states_;
     QTimer replayTimer_;
+    QTimer trafficTimer_;
     int sample_ = 0;
     ReplayModel proxyModel_{ReplayModel::Kind::Proxies};
     ReplayModel connectionModel_{ReplayModel::Kind::Connections};
@@ -396,6 +408,10 @@ class UiState : public QObject {
     QVariantList liveUpload_;
     QVariantList liveDownload_;
     QString trafficSample_;
+    qint64 trafficHistoryTimeMs_ = 0;
+    TrafficMode trafficMode_ = TrafficMode::Unknown;
+    bool trafficGapRequired_ = false;
+    std::function<qint64()> trafficClock_;
     QString liveEpoch_;
     std::unique_ptr<infra::SettingsService> settings_;
 };

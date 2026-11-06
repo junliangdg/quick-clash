@@ -392,13 +392,17 @@ int main(int argc, char* argv[]) {
             check(editor.editor().isEmpty(), "old draft publication cannot reappear after hide");
         }
         {
-            UiState traffic;
+            qint64 now = 1000;
+            UiState traffic({}, nullptr, [&now] { return now; });
             traffic.setUiVisible(true);
+            traffic.applyControl(
+                {{"publicationGeneration", "1"}, {"epoch", "traffic-window"}, {"ready", true}});
             const auto trafficGeneration = traffic.dataDemands().generations.value("traffic");
             check(traffic.dataDemands().active == QSet<QString>{"traffic"},
                   "visible host starts one traffic lease independently of the current page");
             traffic.setDemand("chart", "traffic", true);
-            const auto deliver = [&traffic](int second) {
+            const auto deliver = [&traffic, &now](int second) {
+                now = second * 1000LL;
                 traffic.applyData(
                     {1,
                      "traffic-window",
@@ -456,17 +460,18 @@ int main(int argc, char* argv[]) {
                   QJsonObject{{"traffic", QJsonObject{{"time", "79000"}, {"up", 1024}}}}}},
                 traffic.dataDemands().generations};
             traffic.setUiVisible(false);
-            check(traffic.uploadHistory().size() == 60 &&
-                      !traffic.uploadHistory().constLast().isValid() &&
-                      traffic.dataDemands().active.isEmpty(),
-                  "hiding a minimized window stops traffic and resets the 60-point window");
+            check(traffic.uploadHistory().constLast().toDouble() == 78.0 &&
+                      traffic.dataDemands().active == QSet<QString>{"traffic"} &&
+                      traffic.dataDemands().generations.value("traffic") == trafficGeneration,
+                  "hiding retains the ready core's shared stream and bounded history");
             traffic.applyData(lateTraffic);
-            check(!traffic.uploadHistory().constLast().isValid(),
-                  "late traffic cannot refill hidden history");
+            deliver(80);
+            check(traffic.uploadHistory().at(58).toDouble() == 1.0 &&
+                      traffic.uploadHistory().constLast().toDouble() == 80.0,
+                  "hidden traffic continues to append without restarting the stream");
             traffic.setUiVisible(true);
-            traffic.applyData(lateTraffic);
-            check(!traffic.uploadHistory().constLast().isValid(),
-                  "restoring from hidden rejects the previous traffic lease");
+            check(traffic.uploadHistory().constLast().toDouble() == 80.0,
+                  "restoring from hidden immediately exposes recent samples");
             traffic.setDemand("chart", "traffic", true);
             deliver(100);
             deliver(104);
@@ -476,6 +481,7 @@ int main(int argc, char* argv[]) {
                   "missed seconds remain gaps rather than zero traffic");
             for (int second = 105; second < 165; ++second) {
                 const auto rate = second % 3 == 0 ? 0 : second % 3 == 1 ? 1 : 1073741824;
+                now = second * 1000LL + (second % 2 ? 40 : -40);
                 traffic.applyData(
                     {1,
                      "traffic-window",
@@ -493,9 +499,28 @@ int main(int argc, char* argv[]) {
                       peaks.at(57).toDouble() == 0 && peaks.at(58).toDouble() == 1.0 / 1024 &&
                       peaks.at(59).toDouble() == 1048576,
                   "zero, near-zero and extreme peaks remain consecutive with normal clock jitter");
-            traffic.applyControl({{"publicationGeneration", "2"}, {"epoch", "new-core"}});
-            check(!traffic.uploadHistory().constLast().isValid(),
-                  "core epoch changes still reset traffic history");
+            traffic.setUiVisible(false);
+            const auto oldLease = traffic.dataDemands().generations;
+            traffic.applyControl(
+                {{"publicationGeneration", "1"}, {"epoch", "traffic-window"}, {"ready", false}});
+            check(traffic.dataDemands().active.isEmpty() &&
+                      traffic.uploadHistory().constLast().toDouble() == 1048576 &&
+                      traffic.upload() == QString::fromUtf8("—"),
+                  "an unconfirmed stop releases traffic but retains its last history");
+            traffic.applyData({1,
+                               "traffic-window",
+                               {{"traffic", QJsonObject{{"traffic", QJsonObject{{"time", "165000"},
+                                                                                {"up", 1024}}}}}},
+                               oldLease});
+            check(traffic.uploadHistory().constLast().toDouble() == 1048576,
+                  "a late sample from the stopped stream cannot replace the history");
+            traffic.applyControl(
+                {{"publicationGeneration", "2"}, {"epoch", "new-core"}, {"ready", true}});
+            traffic.applyData(lateTraffic);
+            check(traffic.dataDemands().active == QSet<QString>{"traffic"} &&
+                      traffic.dataDemands().generations.value("traffic") > trafficGeneration &&
+                      traffic.uploadHistory().constLast().toDouble() == 1048576,
+                  "new hidden session retains history and rejects the old epoch");
             traffic.setDashboardOption("resources", true);
             traffic.setDashboardOption("unknown", true);
             check(traffic.dashboard().value("resources").toBool() &&
@@ -503,7 +528,131 @@ int main(int argc, char* argv[]) {
                   "bounded dashboard preferences");
         }
         {
-            UiState live;
+            qint64 now = 1000;
+            UiState background({}, nullptr, [&now] { return now; });
+            check(background.dataDemands().active.isEmpty(),
+                  "a hidden host without a ready core has no traffic demand");
+            background.applyControl(
+                {{"publicationGeneration", "1"}, {"epoch", "background-start"}, {"ready", true}});
+            check(background.dataDemands().active == QSet<QString>{"traffic"},
+                  "a core becoming ready before any window opens starts background traffic");
+            background.applyData(
+                {1,
+                 "background-start",
+                 {{"traffic",
+                   QJsonObject{{"traffic", QJsonObject{{"time", "1000"}, {"up", 2048}}}}}},
+                 background.dataDemands().generations});
+            background.setUiVisible(true);
+            check(background.uploadHistory().constLast().toDouble() == 2.0,
+                  "the first window sees samples collected during hidden startup");
+            background.setDemand("home", "traffic", true);
+            const auto visibleLease = background.dataDemands().generations;
+            background.applyControl(
+                {{"publicationGeneration", "1"}, {"epoch", "background-start"}, {"ready", false}});
+            background.applyData(
+                {1,
+                 "background-start",
+                 {{"traffic",
+                   QJsonObject{{"traffic", QJsonObject{{"time", "2000"}, {"up", 4096}}}}}},
+                 visibleLease});
+            check(!background.dataDemands().active.contains("traffic") &&
+                      background.uploadHistory().constLast().toDouble() == 2.0,
+                  "stopping a visible core revokes even the page traffic lease and rejects late "
+                  "data");
+            background.applyControl(
+                {{"publicationGeneration", "2"}, {"epoch", "visible-restart"}, {"ready", true}});
+            check(background.dataDemands().active.contains("traffic") &&
+                      background.dataDemands().generations.value("traffic") >
+                          visibleLease.value("traffic"),
+                  "a ready visible restart creates a fresh traffic lease");
+        }
+        {
+            qint64 now = 100000;
+            UiState continuity({}, nullptr, [&now] { return now; });
+            continuity.setUiVisible(true);
+            const auto control = [&continuity](int generation, const QString& epoch, bool ready,
+                                               const QString& status, bool busy = false) {
+                continuity.applyControl({{"publicationGeneration", QString::number(generation)},
+                                         {"epoch", epoch},
+                                         {"ready", ready},
+                                         {"status", status},
+                                         {"busy", busy},
+                                         {"recovering", false}});
+            };
+            const auto sample = [&continuity, &now](int generation, const QString& epoch, int rate,
+                                                    int total) {
+                continuity.applyData(
+                    {static_cast<quint64>(generation),
+                     epoch,
+                     {{"traffic",
+                       QJsonObject{{"traffic", QJsonObject{{"time", QString::number(now)},
+                                                           {"up", rate * 1024},
+                                                           {"down", rate * 2048},
+                                                           {"upTotal", total}}}}}},
+                     continuity.dataDemands().generations});
+            };
+            control(1, "first", true, "Ready");
+            sample(1, "first", 8, 500);
+            const auto oldLease = continuity.dataDemands().generations;
+            now += 1000;
+            control(1, "first", false, "Stopped");
+            check(continuity.upload() == "0.0 KiB/s" && continuity.download() == "0.0 KiB/s" &&
+                      continuity.uploadHistory().contains(8.0) &&
+                      !continuity.telemetry().contains("traffic"),
+                  "confirmed stop keeps prior history, clears session totals and shows zero rate");
+            continuity.setUiVisible(false);
+            now += 3000;
+            auto points = continuity.uploadHistory();
+            check(points.at(56).toDouble() == 8.0 && points.at(57).toDouble() == 0.0 &&
+                      points.at(58).toDouble() == 0.0 && points.at(59).toDouble() == 0.0,
+                  "confirmed stopped time fills zeros while the window is hidden");
+            control(1, "first", false, "Stopped", true);
+            check(continuity.upload() == QString::fromUtf8("—"),
+                  "busy stopped state is not treated as a confirmed stop");
+            now += 2000;
+            points = continuity.uploadHistory();
+            check(!points.at(59).isValid() && !points.at(58).isValid() &&
+                      points.at(57).toDouble() == 0.0,
+                  "uncertain time is blank rather than zero");
+            control(1, "first", false, "Uncertain");
+            now += 1000;
+            control(2, "second", true, "Ready");
+            continuity.applyData(
+                {1,
+                 "first",
+                 {{"traffic", QJsonObject{{"traffic", QJsonObject{{"time", QString::number(now)},
+                                                                  {"up", 999 * 1024}}}}}},
+                 oldLease});
+            check(!continuity.telemetry().contains("traffic") &&
+                      continuity.upload() == QString::fromUtf8("—"),
+                  "old epoch cannot restore its rate or cumulative total");
+            sample(2, "second", 12, 7);
+            points = continuity.uploadHistory();
+            check(points.contains(8.0) && points.constLast().toDouble() == 12 &&
+                      !points.at(58).isValid() &&
+                      continuity.telemetry().value("traffic").toMap().value("upTotal").toInt() == 7,
+                  "new session follows retained history across a gap with its own total");
+            now += 4000;
+            points = continuity.uploadHistory();
+            check(!points.constLast().isValid() && points.contains(12.0),
+                  "a missing live stream advances as gaps without a later sample");
+            continuity.setUiVisible(true);
+            now += 1000;
+            control(2, "second", false, "Stopped");
+            continuity.setUiVisible(false);
+            now += 61000;
+            continuity.setUiVisible(true);
+            points = continuity.uploadHistory();
+            check(points.size() == 60 && std::all_of(points.cbegin(), points.cend(),
+                                                     [](const auto& point) {
+                                                         return point.isValid() &&
+                                                                point.toDouble() == 0;
+                                                     }),
+                  "long hidden stop naturally replaces the complete window with zeros");
+        }
+        {
+            qint64 now = 2;
+            UiState live({}, nullptr, [&now] { return now; });
             live.setUiVisible(true);
             check(live.createDemandKey("rules") != live.createDemandKey("rules"),
                   "page instances own distinct keys so old destruction cannot revoke a new page");
@@ -566,8 +715,9 @@ int main(int argc, char* argv[]) {
             live.applyControl(control);
             check(live.liveConnections()->captureIds() == QStringList{"new"},
                   "old generation cannot revive old connections");
-            check(live.uploadHistory().size() == 60 && !live.uploadHistory().constFirst().isValid(),
-                  "epoch resets traffic history to empty samples");
+            check(live.uploadHistory().size() == 60 &&
+                      live.uploadHistory().constLast().toDouble() == 2,
+                  "epoch preserves prior traffic history");
             check(profileChanges == 1 && groupChanges == 1,
                   "epoch alone does not notify unrelated profiles/groups");
         }
@@ -639,8 +789,8 @@ int main(int argc, char* argv[]) {
             check(live.liveRules()->count() == 0 && live.liveProviders()->count() == 0 &&
                       live.liveLogs()->count() == 0 && live.liveConnections()->count() == 0 &&
                       live.uploadHistory().size() == 60 && !live.telemetry().contains("memory"),
-                  "hide releases all page models, paused logs and resources; traffic ring resets "
-                  "to zeros");
+                  "hide releases page models, paused logs and resources while keeping a bounded "
+                  "traffic ring");
             const auto lifecycle = diagnostic.value("dataLifecycle").toObject();
             check(lifecycle.value("appliedChannels").toArray().isEmpty() &&
                       lifecycle.value("pendingLogCount").toInt() == 0,

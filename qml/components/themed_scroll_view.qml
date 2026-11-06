@@ -13,6 +13,8 @@ ScrollView {
     // PageHost extends only page-root views into the existing shell margin.
     readonly property real pageLeftOutset: focusMargin + leftPadding
     readonly property real pageRightOutset: focusMargin + rightPadding
+    // Explicit Flickable content items need the same attached bar as the ScrollView.
+    property bool attachScrollBarToContent: false
     contentWidth: availableWidth
     contentHeight: form ? form.implicitHeight + 2 * focusMargin : 0
     // Stable width avoids a feedback loop between wrapping and scrollbar visibility.
@@ -20,7 +22,8 @@ ScrollView {
     rightPadding: mirrored ? 0 : theme.scrollBarWidth
     clip: true
     ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
-    ScrollBar.vertical: ScrollBar {
+    ScrollBar.vertical: verticalBar
+    ScrollBar {
         id: verticalBar
         objectName: "themed_vertical_scroll_bar"
         // Replacing the style's bar also replaces its viewport geometry bindings.
@@ -30,6 +33,12 @@ ScrollView {
         y: control.topPadding
         height: control.availableHeight
         active: control.ScrollBar.horizontal.active
+    }
+    Binding {
+        target: control.contentItem
+        property: "ScrollBar.vertical"
+        value: verticalBar
+        when: control.attachScrollBarToContent
     }
     Binding {
         target: control.form

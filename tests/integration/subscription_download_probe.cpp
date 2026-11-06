@@ -30,7 +30,8 @@ int subscriptionDownloadProbe() {
     infra::JsonStore store(directory.path());
     if (std::holds_alternative<domain::Error>(store.open()))
         return 1;
-    application::DesktopRuntime runtime(store);
+    auto now = QDateTime::currentDateTimeUtc();
+    application::DesktopRuntime runtime(store, nullptr, nullptr, [&now] { return now; });
     runtime.initialize();
     const auto check = [&](bool result, const char* message) {
         if (!result)
@@ -78,6 +79,7 @@ int subscriptionDownloadProbe() {
     origin.extraHeaders.insert("/subscription",
                                "profile-title: base64:5py65Zy6\r\n"
                                "Content-Disposition: attachment; filename=other.yaml\r\n");
+    origin.subscriptionUsage = "upload=10;download=20;total=100";
     runtime.addSubscription(source, "  ");
     if (!check(done() && error().isEmpty() && !profile().isEmpty() &&
                    origin.lastUserAgent.startsWith("clash.meta/1.19.33"),
@@ -114,15 +116,32 @@ int subscriptionDownloadProbe() {
     origin.extraHeaders.insert("/subscription", "profile-title: Changed by provider\r\n");
     runtime.configureSubscription(id, 0, false);
     const auto originalHash = profile().value("sourceHash");
+    const auto collectedAtImport = profile().value("usageCollectedAt");
+    const auto usageAtImport = profile().value("usage");
+    now = now.addSecs(120);
+    origin.subscriptionUsage.clear();
     runtime.updateProfile(id);
     if (!check(done() && error().isEmpty() && profile().value("name") == "Cache fixture" &&
                    profile().value("sourceHash") == originalHash &&
+                   profile().value("updatedAt") == now.toString(Qt::ISODate) &&
+                   !collectedAtImport.toString().isEmpty() &&
+                   profile().value("usageCollectedAt") == collectedAtImport &&
+                   profile().value("usage") == usageAtImport &&
                    origin.requestHeaders.last().toObject().value("if-none-match") ==
                        "\"public-v1\"" &&
                    origin.requestHeaders.last().toObject().contains("if-modified-since") &&
                    origin.lastCookie.isEmpty(),
-               "304 reuses verified source and never sends cookies"))
+               "304 without usage keeps the previous sample and advances the update time"))
         return 6;
+    now = now.addSecs(120);
+    origin.subscriptionUsage = "upload=20;download=40;total=100";
+    runtime.updateProfile(id);
+    if (!check(done() && error().isEmpty() &&
+                   profile().value("updatedAt") == now.toString(Qt::ISODate) &&
+                   profile().value("usageCollectedAt") == now.toString(Qt::ISODate) &&
+                   profile().value("usage") != usageAtImport,
+               "304 with usage refreshes both timestamps and the sample"))
+        return 41;
     if (!std::holds_alternative<std::monostate>(
             store.writeBytes(profile().value("sourceRef").toString(), "damaged")))
         return 7;

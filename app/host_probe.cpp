@@ -2,6 +2,7 @@
 #include "application_host.h"
 #include <QAction>
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QPointer>
 #include <QTimer>
 #include <cstdio>
@@ -284,7 +285,10 @@ int runHostProbe(ApplicationHost& host) {
                 {1,
                  "host-traffic",
                  {{"traffic",
-                   QJsonObject{{"traffic", QJsonObject{{"time", "1000"}, {"up", 1024}}}}}},
+                   QJsonObject{
+                       {"traffic",
+                        QJsonObject{{"time", QString::number(QDateTime::currentMSecsSinceEpoch())},
+                                    {"up", 1024}}}}}},
                  host.state().dataDemands().generations});
             host.state().setUnloadWhenHidden(true);
             host.state().requestMinimize();
@@ -298,7 +302,8 @@ int runHostProbe(ApplicationHost& host) {
                              host.state().dataDemands().active == QSet<QString>{"traffic"} &&
                              host.state().dataDemands().generations.value("traffic") ==
                                  trafficGeneration &&
-                             host.state().uploadHistory().constLast().toDouble() == 1.0,
+                             host.state().uploadHistory().contains(1.0) &&
+                             !host.state().uploadHistory().constLast().isValid(),
                          "minimized taskbar retains only traffic without clearing history"))
                 return;
             host.state().requestClose(true);
@@ -313,7 +318,8 @@ int runHostProbe(ApplicationHost& host) {
         case 3:
             if (!require(host.state().dataDemands().generations.value("traffic") ==
                                  trafficGeneration &&
-                             host.state().uploadHistory().constLast().toDouble() == 1.0,
+                             host.state().uploadHistory().contains(1.0) &&
+                             !host.state().uploadHistory().constLast().isValid(),
                          "restore retains traffic history and stream generation"))
                 return;
             host.state().setReplay(true);
