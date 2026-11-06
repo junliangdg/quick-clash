@@ -15,7 +15,7 @@ QuickClash brings subscriptions, proxy groups, routing rules, connections, and n
   </picture>
 </p>
 
-<p align="center"><sub>Dashboard from the 0.1.0 development build, captured with Qt 6.12 in an isolated offscreen/software environment using synthetic data. The <a href="docs/reference/quickclash_minimal_preview.html">offline interaction preview</a> illustrates the current eight-page structure and supports English / 简体中文, with English selected initially. See <a href="docs/reference/README.md">sources, rendering conditions, and preview scope</a>.</sub></p>
+<p align="center"><sub>Dashboard from the 0.1.0 development build, with 15 px sidebar labels in medium and semibold weights, captured with Qt 6.12 in an isolated offscreen/software environment using synthetic data. The <a href="docs/reference/quickclash_minimal_preview.html">offline interaction preview</a> illustrates the current eight-page structure and supports English / 简体中文, with English selected initially. See <a href="docs/reference/README.md">sources, rendering conditions, and preview scope</a>.</sub></p>
 
 <p align="center">
   <img src="docs/reference/quickclash_minimal_narrow_en.png" alt="QuickClash English dashboard in a narrow desktop window, with stacked cards and bottom navigation" width="360">

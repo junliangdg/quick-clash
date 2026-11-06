@@ -45,7 +45,7 @@ foreach ($taskRelative in 'bin/quickclash.exe', 'core/mihomo.exe', 'bin/Qt6Core.
 $taskMatrix = Get-Content -LiteralPath (Join-Path $taskPackage 'metadata/release_matrix.json') -Raw | ConvertFrom-Json
 if ((Get-FileHash -LiteralPath (Join-Path $taskPackage 'core/mihomo.exe')).Hash.ToLowerInvariant() -cne
     $taskMatrix.mihomo.windows.executable_sha256) { throw 'Frozen official core mismatch.' }
-foreach ($taskRelative in 'readme.md', 'bin/Qt6Network.dll', 'plugins/platforms/qwindows.dll', 'licenses/quickclash_gpl_3.txt') {
+foreach ($taskRelative in 'readme.md', 'readme_zh_cn.md', 'bin/Qt6Network.dll', 'plugins/platforms/qwindows.dll', 'licenses/quickclash_gpl_3.txt') {
     if (-not (Test-Path -LiteralPath (Join-Path $taskPackage $taskRelative))) { throw "Missing $taskRelative" }
 }
 function New-ProbeStore([string]$Name) {

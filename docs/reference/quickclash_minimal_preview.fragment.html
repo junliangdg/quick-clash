@@ -151,10 +151,11 @@ https://example.org</textarea></label><p class="supporting" id="qc-test-count">å
 #qc-style-review .nav-open {display:none;}
 #qc-style-review[data-nav-wide="false"] .nav-open {display:inline-flex;}
 #qc-style-review[data-nav-wide="false"] .nav-close {display:none;}
-#qc-style-review .app-nav>button {justify-content:flex-start;gap:16px;padding:8px 12px;min-height:40px;color:var(--muted);background:transparent;text-align:left;}
-#qc-style-review .app-nav>button svg {width:20px;height:20px;}
+#qc-style-review .app-nav>button {justify-content:flex-start;gap:16px;padding:8px 12px;min-height:40px;font-size:15px;line-height:20px;font-weight:500;color:var(--text);background:transparent;text-align:left;}
+#qc-style-review .app-nav>button svg {width:20px;height:20px;color:var(--muted);}
 #qc-style-review .app-nav>button:hover {background:var(--hover);}
-#qc-style-review .app-nav>button[aria-current="page"] {color:var(--on-selected);background:var(--selected);}
+#qc-style-review .app-nav>button[aria-current="page"] {font-weight:600;color:var(--on-selected);background:var(--selected);}
+#qc-style-review .app-nav>button[aria-current="page"] svg {color:var(--on-selected);}
 #qc-style-review .app-nav .settings-nav {margin-top:auto;}
 #qc-style-review .app-main {display:flex;flex-direction:column;min-width:0;min-height:0;padding:16px 24px 12px;}
 #qc-style-review .page-heading {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px;flex-wrap:wrap;}

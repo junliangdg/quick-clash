@@ -69,7 +69,7 @@ Copy-SourceObligations (Join-Path $taskRepo 'docs/baseline/licenses.md') (Join-P
 foreach ($taskLicense in Get-ChildItem -LiteralPath (Join-Path $taskRepo 'resources/licenses') -File) {
     Copy-Item -LiteralPath $taskLicense.FullName -Destination (Join-Path $taskDestination 'licenses')
 }
-Copy-Item -LiteralPath (Join-Path $taskRepo 'resources/windows_readme.md') -Destination (Join-Path $taskDestination 'readme.md')
+& (Join-Path $PSScriptRoot 'copy_windows_readmes.ps1') -Destination $taskDestination
 Copy-Item -LiteralPath $taskMatrixPath -Destination (Join-Path $taskDestination 'metadata/release_matrix.json')
 Copy-Item -LiteralPath (Join-Path $taskRepo 'docs/baseline/config_policy.json') -Destination (Join-Path $taskDestination 'metadata/config_policy.json')
 # Preserve Qt-provided license/notices when present; deployment keeps runtime
@@ -98,7 +98,7 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskDestination -File -Recurse
         throw "Non-runtime content in release package: $taskRelative"
     }
 }
-foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe', 'licenses/quickclash_gpl_3.txt')) {
+foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe', 'licenses/quickclash_gpl_3.txt', 'readme.md', 'readme_zh_cn.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskDestination $taskRequired) -PathType Leaf)) { throw "Missing runtime file: $taskRequired" }
 }
 $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | Sort-Object FullName | ForEach-Object {

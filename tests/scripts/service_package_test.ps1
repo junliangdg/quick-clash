@@ -18,6 +18,7 @@ function New-Fixture {
         $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($taskPath))
         [IO.File]::WriteAllText($taskPath, "fixture:$taskRelative")
     }
+    & (Join-Path $taskRepo 'scripts/copy_windows_readmes.ps1') -Destination $taskDirectory
     $taskEntries = @(Get-ChildItem -LiteralPath $taskDirectory -File -Recurse | ForEach-Object {
         @{ path = [IO.Path]::GetRelativePath($taskDirectory, $_.FullName).Replace([char]92, [char]47); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant() }
     })
@@ -31,8 +32,11 @@ try {
     $taskDestination = Join-Path $taskRoot 'copied'
     Copy-ServicePackage $taskPackage $taskDestination
     if ([IO.File]::ReadAllText((Join-Path $taskDestination 'bin/quickclash_service.exe')) -cne 'fixture:bin/quickclash_service.exe') { throw 'Original locked bytes not copied.' }
+    foreach ($taskReadme in 'readme.md', 'readme_zh_cn.md') {
+        if (Test-Path -LiteralPath (Join-Path $taskDestination $taskReadme)) { throw 'Root documentation must not be installed as service payload.' }
+    }
 } finally { Close-ServicePackage $taskPackage }
-Write-Output 'PASS: locked source copy and digest verification'
+Write-Output 'PASS: bilingual package accepted; locked source copy and digest verification; root documentation excluded'
 foreach ($taskKind in 'unlisted', 'corrupt', 'duplicate', 'escape', 'missing', 'schema') {
     $taskDirectory = New-Fixture
     $taskManifestPath = Join-Path $taskDirectory 'metadata/package_manifest.json'
@@ -40,8 +44,8 @@ foreach ($taskKind in 'unlisted', 'corrupt', 'duplicate', 'escape', 'missing', '
     switch ($taskKind) {
         'unlisted' { [IO.File]::WriteAllText((Join-Path $taskDirectory 'bin/extra.dll'), 'injected') }
         'corrupt' { [IO.File]::WriteAllText((Join-Path $taskDirectory 'core/mihomo.exe'), 'wrong') }
-        'duplicate' { $taskManifest.files += $taskManifest.files[0] }
-        'escape' { $taskManifest.files[0].path = 'bin/../../outside.exe' }
+        'duplicate' { $taskManifest.files += @($taskManifest.files | Where-Object path -EQ 'bin/quickclash.exe')[0] }
+        'escape' { @($taskManifest.files | Where-Object path -EQ 'bin/quickclash.exe')[0].path = 'bin/../../outside.exe' }
         'missing' { $taskManifest.files = @($taskManifest.files | Where-Object path -ne 'bin/quickclash_service.exe') }
         'schema' { $taskManifest.schema_version = 99 }
     }

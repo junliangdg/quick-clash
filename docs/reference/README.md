@@ -6,6 +6,8 @@
 
 HTML 用于检查信息结构与代表性交互，浏览器原生控件、字体、滚动条和简化表单与 Qt 实现会有差异，不承诺逐像素一致或覆盖全部业务状态。实际外观以 Qt 截图和程序为准，交互及失败处理以设计契约为准。
 
+展开侧栏的主导航采用15px文字，普通态Medium（500）与正文色、选中态DemiBold（600）与紫色文字及浅选中底色；底部设置入口同规格。普通图标保持20px与次要灰色，行高40、条目间距4。产品字号和尺寸随宿主文字比例缩放，HTML展示基准比例；图标轨和窄窗底栏保留纯图标形式。
+
 “关于→使用须知”展示产品中英文正文及Mihomo（原Clash.Meta）命名；HTML仅供主动查看，不模拟产品首次启动的确认持久化。现有首页截图对此入口无覆盖，须知外观以产品为准。
 
 | 文件 | 用途 |
@@ -33,14 +35,16 @@ pwsh -NoProfile -File scripts/check_progress.ps1
 pwsh -NoProfile -File scripts/check_source_layout.ps1
 ~~~
 
-图像可使用既有测试构建的隔离 `--visual-test --probe-language=en-US --visual-output=<build下目录>` 入口生成，中文使用 `--probe-language=zh-CN`；核看各轮 `light_home.png`、`dark_home.png`、`dark_home_360.png` 及 `captures.json` 后，只精选 README 所需图复制到本目录。完整输出留在忽略的 build 下，禁止使用真实用户订阅或凭据截图。图像仅反映记录的渲染环境，不能替代原生 GPU、系统集成或资源验收。
+图像可使用既有测试构建的隔离 `--visual-test --reference-only --probe-language=en-US --visual-output=<build下目录>` 入口生成，中文使用 `--probe-language=zh-CN`。`--reference-only`仅导出宽窗明暗首页和深色窄窗三张代表图，不执行完整视觉回归矩阵；核看各轮 `light_home.png`、`dark_home.png`、`dark_home_360.png` 及 `captures.json` 后，只精选 README 所需图复制到本目录。完整输出留在忽略的 build 下，禁止使用真实用户订阅或凭据截图。图像仅反映记录的渲染环境，不能替代原生 GPU、系统集成或资源验收。
+
+Windows离屏导图须设置 `QT_QPA_PLATFORM=offscreen`、`QT_QUICK_BACKEND=software`、`QT_QPA_FONTDIR=C:/Windows/Fonts` 和 `QT_SCALE_FACTOR=1`，字体仅从本机已安装目录读取，不复制入库。进程成功退出不代表文字已经正确渲染；替换素材前须人工核看字体、布局和侧栏状态。
 
 ## 当前素材来源
 
 - 同步日期：2026-11-07；对照当前工作区的 `qml/features`、`qml/components` 与设计正文，包含尚未提交的界面改动。
 - 六张 PNG 来自同一 `0.1.0` 开发构建，Qt 6.12.0、DPR 1，offscreen/software 隔离视觉探针生成，无真实业务或网络接管。宽窗为 1000×640，窄窗为 360×640 逻辑像素；均只展示首页顶部视口，下方卡片需滚动查看。窄窗是桌面布局，不表示移动平台已实现。
 - 英文图使用 `en-US` 界面；订阅、策略组和节点名称来自合成用户数据，不随界面语言翻译。中文图使用 `zh-CN` 界面。
-- 截图源程序 SHA-256：`c38cd621f0ac6275106008dd6de048f73e6f67128b47a0d7efcbe8f414dd76b1`。中文原始输出位于忽略的 `build/reference_sync_20261107/`，英文位于 `build/reference_english_20261107/`；长期保留的是本目录六张精选图及此来源说明。
+- 截图源程序 SHA-256：`f819920dc863aaab8f60af9f74d196697789c4b4524dbd736cb0a0aa4f63169f`。中文原始输出位于忽略的 `build/navigation_typography_20261107/zh_fonts/`，英文位于 `build/navigation_typography_20261107/en_fonts/`；均通过`--reference-only`生成，包含15px主导航文字与500/600字重。长期保留的是本目录六张精选图及此来源说明。
 - HTML 按相同页面结构独立编排，所有交互只改变当前文档；网页重新打开后回到英文初始样例，不持久化语言或表单。
 
 预览使用公开假数据和本地交互。节点、域名、用量、时间及测试结果均为演示；不访问网络，不读取用户配置，不修改系统代理/端口/文件，不作为产品默认值、真实功能或资源验收证据。复制按钮仅显示反馈，不改写系统剪贴板。预览默认浅色，产品默认跟随系统，两者用途不同。

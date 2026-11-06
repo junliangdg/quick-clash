@@ -43,8 +43,8 @@ function Open-ServicePackage([string]$Directory) {
         $taskTotal = [long]0
         foreach ($taskEntry in $taskManifest.files) {
             $taskRelative = $taskEntry.path
-            # Package scripts are not executed or installed by this copier.
-            if ($taskRelative -cin 'readme.md', 'service_package.ps1') { continue }
+            # Root documentation and package scripts are not installed by this copier.
+            if ($taskRelative -cin 'readme.md', 'readme_zh_cn.md', 'service_package.ps1') { continue }
             if ($taskRelative -isnot [string] -or $taskRelative.Length -gt 240 -or
                 $taskRelative -cnotmatch '^(bin|core|geo|metadata|licenses|plugins|qml|translations)/[A-Za-z0-9_ .()/+-]+$' -or
                 @($taskRelative.Split('/') | Where-Object { $_ -in '', '.', '..' -or $_ -match '[. ]$|^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])([.]|$)' }).Count) { throw 'Unsafe package path.' }

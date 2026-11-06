@@ -87,6 +87,8 @@ Windows验证runner复用已装工具/依赖；验证与打包在同一PowerShel
 
 `scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和程序内置的固定动作服务安装入口（不附带 PowerShell 安装脚本）。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。
 
+发行包和本地验证包共用 [英文随包说明](../../resources/windows_readme.md) 与 [中文随包说明](../../resources/windows_readme_zh_cn.md)，通过 `scripts/copy_windows_readmes.ps1` 复制为包根目录的 `readme.md` 和 `readme_zh_cn.md`，并调整语言切换与许可链接；不从根目录项目 README 自动生成。两份文件均进入文件摘要清单，包含首次使用、系统代理/TUN、停止与异常恢复、数据及许可说明。完整 [Windows 使用指南](windows_user_guide.md) 留在仓库维护。
+
 Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
 
 ZIP解压目录是程序、服务、核心和随包Geo的唯一发行来源。首次TUN请求UAC，SCM直接注册bin/quickclash_service.exe并设为自动启动；不在Program Files复制运行文件。后续重开/同目录更新免UAC；更新服务文件前先停止服务，移动目录须再次授权。ProgramData仅保留授权、私有会话及清理日志。
@@ -113,7 +115,7 @@ P0定义布局，P2-16交付本机完整离线包并核对清开发Qt PATH后的
 
 运行 `pwsh -NoProfile -File scripts/deploy_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p1_validated`，工具不在PATH时补-CMake。脚本将prefix解析为绝对路径，通过qt_generate_deploy_qml_app_script收集Qt/QML，移除开发Qt PATH后用随包Windows插件执行smoke并留结果。P2-16核对完整依赖/CRT/内核及启动证据，P3-14补干净环境TLS/运行路径；Mihomo字节校验后单独加入，不构建Go源码。当前固定Geo范围见P3-10，许可义务见[台账](licenses.md)。
 
-P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入项目GPL-3.0-only许可、VC CRT、官方/Qt/YAML许可、release_matrix、用户指南和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境由P3-14在G3前验收，未按本机清PATH放行。
+P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildDirectory build/p1_windows -Destination dist/p2_final -CMake 'C:/Program Files/CMake/bin/cmake.exe'。默认读取固定官方内核缓存并核验摘要，显式加入项目GPL-3.0-only许可、VC CRT、官方/Qt/YAML许可、release_matrix、中英文随包说明和文件摘要；目标目录必须尚不存在。Mihomo许可证文本路径可用-MihomoLicense指定，须为固定版本原文。当前包是本地开发验证，BUILD_TESTING探针开启、未签名；干净普通用户环境由P3-14在G3前验收，未按本机清PATH放行。
 
 安装目录只读，applicationName=QuickClash；实际数据路径为QStandardPaths::AppConfigLocation/QuickClash对应位置，以设置页展示值为准，不再使用未实现的AppLocalDataLocation约定。运行文件、元数据、DPAPI密文、原文/语义/会话配置分区存放。订阅URL/头与测试目标使用DPAPI；节点凭据存在受限ACL文件，预览遮蔽，日志不输出原始内核内容。P1 ui.ini偏好迁移后保留原件。
 
@@ -123,7 +125,7 @@ P2完整打包入口：pwsh -NoProfile -File scripts/package_windows.ps1 -BuildD
 
 测试构建离线包可运行tests/scripts/desktop_package_test.ps1 -PackageRoot '<完整包>' -Phase Package、Host、Flow或Proxy。Package核对全包摘要/x64和清开发Qt环境后的本地导入/Ready及缺核心修复；Host核对真实托盘隐藏卸载/转发、整GUI强杀与单实例重开。Flow覆盖GUI订阅/节点/模式、显式及WinINet客户端HTTPS转发与退出重开，会临时申请当前用户系统代理。Proxy会临时启用当前用户WinINet代理并用独立进程改绕过列表，核对冲突/新基线和原快照还原，仅在当前值仍属于本轮测试时恢复，不覆盖后续外部修改。原始证据默认写build/新目录，显式标记隔离数据，不使用个人配置；此探针仅BUILD_TESTING开启，不能代替干净机器、真实换网或TUN。包内metadata/release_matrix.json存在时核心只按随包路径解析，缺件不得回退开发缓存。
 
-将当前测试包准备成无需源码仓库的独立目录：pwsh -NoProfile -File scripts/create_windows_validation_kit.ps1 -PackageRoot '<完整测试包>' -Destination 'build/windows_validation_kit'。目标必须不存在且在源包目录之外；复制前核对原包摘要，保留原manifest，带上必要脚本、公开回环TLS证书/私钥及[工具包说明](../../resources/windows_validation_readme.md)，另生成validation_manifest.json用于发现搬运损坏，不构成签名。复制整个目录后在工具包根目录运行上述脚本，-PackageRoot使用'./package'。目标桌面需要Windows x64和PowerShell 7.2+（可用官方便携版），无需Qt SDK或VS；该要求仅用于验收脚本。产品服务安装不依赖PowerShell；以普通用户运行，验收夹具本身不要求安装权限服务，显式测试 TUN 时由应用请求一次 UAC。测试证书仅进程内信任；本机工具验证不等于干净机器验收。
+将当前测试包准备成无需源码仓库的独立目录：pwsh -NoProfile -File scripts/create_windows_validation_kit.ps1 -PackageRoot '<完整测试包>' -Destination 'build/windows_validation_kit'。目标必须不存在且在源包目录之外；复制前核对原包摘要，要求并保留两份中英文随包说明及原manifest，带上必要脚本、公开回环TLS证书/私钥及[工具包说明](../../resources/windows_validation_readme.md)，另生成validation_manifest.json用于发现搬运损坏，不构成签名。复制整个目录后在工具包根目录运行上述脚本，-PackageRoot使用'./package'。目标桌面需要Windows x64和PowerShell 7.2+（可用官方便携版），无需Qt SDK或VS；该要求仅用于验收脚本。产品服务安装不依赖PowerShell；以普通用户运行，验收夹具本身不要求安装权限服务，显式测试 TUN 时由应用请求一次 UAC。测试证书仅进程内信任；本机工具验证不等于干净机器验收。
 
 ## P1 原型的构建与边界
 

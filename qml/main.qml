@@ -280,11 +280,11 @@ ApplicationWindow {
                 icon.width: tokens.scaledSize(20)
                 icon.height: tokens.scaledSize(20)
                 icon.color: highlighted ? tokens.onSelection : tokens.muted
-                palette.text: highlighted ? tokens.onSelection : tokens.muted
+                palette.text: highlighted ? tokens.onSelection : tokens.text
                 palette.highlightedText: tokens.onSelection
                 font.family: tokens.fontFamily
-                font.pixelSize: tokens.bodySize
-                font.weight: highlighted ? Font.DemiBold : Font.Normal
+                font.pixelSize: tokens.navigationSize
+                font.weight: highlighted ? Font.DemiBold : Font.Medium
                 highlighted: window.ui.currentPage === modelData.pageId
                 activeFocusOnTab: true
                 Accessible.name: modelData.title

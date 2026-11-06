@@ -22,7 +22,7 @@ pwsh -NoProfile -File tests/scripts/desktop_package_test.ps1 -PackageRoot './pac
 
 Flow 和 Proxy 会临时修改当前用户 WinINet 系统代理。测试结束核对原快照恢复，外部后续修改不覆盖。测试期间该用户其他遵循系统代理的应用也会受影响。关闭本工具包内其他 QuickClash 测试实例后再运行；不需要安装或启停权限服务，不开启 TUN。
 
-测试使用标记的隔离数据目录和公开测试证书/私钥，证书只由测试进程信任，不安装到系统。测试私钥不得用于真实服务。包内 package/readme.md 提供产品使用、限制及异常中断后的代理手工恢复说明。
+测试使用标记的隔离数据目录和公开测试证书/私钥，证书只由测试进程信任，不安装到系统。测试私钥不得用于真实服务。包内英文 `package/readme.md` 与中文 `package/readme_zh_cn.md` 提供产品使用、限制及异常中断后的代理手工恢复说明。
 
 原始证据默认写入本目录的 build/desktop_package_<UTC时间>/，也可用 -EvidenceRoot '<新的绝对目录>' 指定；已有目录拒绝覆盖。成功输出 PASS <阶段>，对应 result.json 中 passed=true，任意失败返回非零。保留失败目录及日志，不手动把失败标成通过。证据可能包含本机路径和标识，分享前复核。
 

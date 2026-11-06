@@ -15,7 +15,7 @@ QuickClash 把订阅、代理组、分流规则、连接和网络控制集中到
   </picture>
 </p>
 
-<p align="center"><sub>0.1.0 开发版仪表盘，使用 Qt 6.12 在 offscreen/software 隔离环境中生成，数据均为合成演示。<a href="docs/reference/quickclash_minimal_preview.html">离线交互示意</a>按当前八页面结构编排，支持 English / 简体中文，默认英文，可在页首切换；来源、渲染条件和适用范围见<a href="docs/reference/README.md">预览说明</a>。</sub></p>
+<p align="center"><sub>0.1.0 开发版仪表盘，侧栏使用15px导航文字与更明确的选中层级；使用 Qt 6.12 在 offscreen/software 隔离环境中生成，数据均为合成演示。<a href="docs/reference/quickclash_minimal_preview.html">离线交互示意</a>按当前八页面结构编排，支持 English / 简体中文，默认英文，可在页首切换；来源、渲染条件和适用范围见<a href="docs/reference/README.md">预览说明</a>。</sub></p>
 
 <p align="center">
   <img src="docs/reference/quickclash_minimal_narrow_zh_cn.png" alt="QuickClash 中文仪表盘的桌面窄窗布局，卡片纵排并使用底部导航" width="360">

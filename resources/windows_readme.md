@@ -1,27 +1,57 @@
 # QuickClash for Windows x64
 
-端口冲突可在设置中选择“使用可用端口…”并确认，或手动修改后重试；应用不静默改端口。TUN自动避让未知同名网卡，使用受保护保存的安装专属名；另一代理/VPN接管默认路由时先提示冲突并保留普通模式。清理不确定时阻止第二会话，不删除第三方网卡。GUI/服务须同包更新。
+[English](windows_readme.md) | [简体中文](windows_readme_zh_cn.md)
 
-自动避让只针对网卡名称；Windows 虽可有多张虚拟网卡，但同时只能有一个默认路由实际承载全局流量。另一全隧道 TUN 存在时会提示冲突，QuickClash 不会降低 metric 抢占；WSL/Hyper-V 等局部路由虚拟网卡可以共存。
+QuickClash is an independent graphical client based on Mihomo (formerly Clash.Meta). It uses the official precompiled core without developing or modifying it, and does not provide remote proxy nodes, node accounts, or subscription services. Supply configurations you are authorized to use from sources you trust. Learn how to stop network interception and recover connectivity before enabling system proxy or TUN, and comply with applicable laws and regulations.
 
-解压完整 ZIP 后运行 `bin/quickclash.exe`。请保留 bin、core、geo、metadata 与 licenses 目录，不要单独移动可执行文件。
+This is an unsigned Windows x64 portable development build. Local Windows usage has been validated in limited scenarios; clean standard-user environments and remaining authorization and system-event scenarios still require validation. The file hashes in `metadata/package_manifest.json` detect changed files; they do not establish a trusted publisher or replace a signature.
 
-在订阅页导入 Clash Meta (mihomo) YAML 文件或 HTTPS 订阅地址。首份有效配置会启动随包内核；随后可在代理页选择节点，并在首页开启当前用户的系统代理。首次导入不会自动开启系统代理或 TUN。订阅最多跟随5次HTTPS安全重定向，拒绝降级和循环；跨站移除来源认证头。
+## Getting started
 
-关闭窗口可保留托盘与后台转发；从托盘选择退出会停止本应用的内核，并恢复仍由本应用拥有的系统代理设置。设置页面可调整主题、窗口和托盘行为，语言跟随系统。
+1. Extract the **entire ZIP** and run `bin/quickclash.exe`. Keep all extracted directories together, including `bin/`, `core/`, `geo/`, `metadata/`, `licenses/`, and the Qt runtime directories. Do not move the executable on its own.
+2. Read the first-launch **Usage notice**. **I understand** saves its version locally; ordinary upgrades do not require another acknowledgment. If saving fails, you can enter the app to recover, and the notice appears again at the next launch. Reopen it from **Settings → About → Usage notice**.
+3. Open **Subscriptions** and add an HTTPS subscription URL or import a local Mihomo YAML file. The first valid profile is selected and its core starts automatically. System proxy and TUN stay off on first use. Failed downloads or validation keep the previous configuration.
+4. Open **Proxies** to select a manual-group member or use an automatic group. Latency tests do not change manual selections. “Core ready” confirms the local runtime, not public internet access or that every remote node works.
+5. Use the ready local HTTP/SOCKS5 address directly, enable **System proxy** for applications that follow Windows proxy settings, or enable **TUN** as described below. Theme, English/Simplified Chinese/system language, and window/tray behavior are available in Settings.
 
-core/mihomo.exe 和 Geo 数据来自随包锁定版本，缺失或摘要不符会阻止相关配置；客户端不会自动下载补齐。版本、来源和文件摘要见 metadata。QuickClash 以 GPL-3.0-only 发布，完整许可见 licenses/quickclash_gpl_3.txt；第三方许可与通知见 licenses。当前便携包未签名。
+## Stopping and recovering connectivity
 
-TUN 需要权限服务。解压后直接运行 `bin/quickclash.exe`，在设置或首页首次开启 TUN 时，QuickClash 会请求一次 Windows 管理员确认：服务尚未安装则从本包安装，目录尚未授权则把当前目录登记为受信客户端目录。确认后 TUN 自动开启，无需再启动管理员程序；取消则保持普通模式，可稍后重试。普通系统代理不要求安装服务。
+Closing to the tray keeps forwarding active. Minimizing retains the taskbar entry. Choose **Exit** from the tray to stop the owned core and restore system proxy settings that still belong to QuickClash. Changes made later by other software are preserved.
 
-便携目录本身就是受信位置：服务只接受“受信目录下的 quickclash.exe”发来的请求，并绑定当前活动控制台会话与进程创建时间。移动或改名程序目录后需要重新授权一次，避免旧路径被其他程序复用。该目录内的服务、运行库及未来更新均被持续信任，写权限可能影响后续SYSTEM执行；信任的是位置，不证明镜像内容；请不要把 QuickClash 放在 Everyone/Anonymous 可写的目录，也不要从来源不明的副本授权。
+**If the GUI crashes or is forcibly terminated, the system proxy may still point to a stopped local port and affect connectivity.** This applies in both ordinary and service modes. Reopen QuickClash to check and recover its saved proxy lease; it can start this recovery without internet access. Saved proxy/TUN intent may resume after reopening, so explicitly turn off the switches if you want interception to remain off. If reopening is unavailable or recovery fails, inspect **Windows Settings → Network & internet → Proxy**. Change only the manual proxy entry you can identify as QuickClash's local endpoint, preserving any settings subsequently changed by other software. A running service does not guarantee immediate system proxy recovery after GUI failure.
 
-同目录升级无需重复UAC；替换服务程序或运行库前先停止QuickClashService，再更新完整包并重启。程序、服务、官方内核及Geo均以便携目录为权威来源。跨目录换包或移动目录后需重新授权；旧版首次迁移需一次UAC，成功后清理可识别的旧服务载荷。卸载在管理员终端运行 bin\quickclash.exe --service-setup uninstall，删除注册与授权并保留用户文件。
+For a port conflict, open **Settings → Network** and edit the ports or use **Use available ports…** to fill the draft, then confirm with **Apply network settings…**. QuickClash does not silently change saved ports. Applying changes while the core runs can interrupt connections.
 
-安装与授权由同一程序的固定 --service-setup 动作完成，不依赖PowerShell或脚本。首次将SCM直接指向本目录服务，无需复制运行文件；日志保留在临时目录。普通权限的validate仅检查布局。同目录update只重启已授权服务，不改变授权或路径。
+## TUN, service authorization, and portable updates
 
-不再在Program Files保存第二份服务/核心/Geo。ProgramData仅保存受保护授权、私有会话配置及TUN清理日志。运行时Geo副本按同一快照校验并可重建；手动Geo更新/回退两种模式共用。
+TUN requires the privileged service; ordinary system proxy use does not. The first TUN request prompts for Windows administrator approval to install the service from this package or authorize its current directory. Approval continues the TUN request; cancellation keeps ordinary mode. The GUI stays at normal user privilege. Service setup uses the executable's fixed actions and does not require PowerShell.
 
-服务随系统自动启动，后续重开应用或启动已停止服务无需UAC；保存的TUN意图由GUI重开后恢复。服务本身开机不独自开启TUN。活动控制台单用户会话限制和断线Job清理保留，真实TUN转发及故障验收以任务台账为准。
+The service trusts the authorized location of `bin/quickclash.exe` and binds requests to the active console session and process identity. That trust also covers service files, runtime libraries, and later updates in the directory; it does not prove their contents are authentic. Use a trusted package in a directory that Everyone/Anonymous cannot write to. Moving or renaming the portable directory requires authorization again. The supported scope is a single active console user; remote desktop and cross-user operation have not been validated.
 
-设置中的“打开数据目录”可用于查看本地诊断。配置或资源错误会显示在界面中；先退出应用并核对完整解压的目录，再重新导入有效配置。重新解压程序不会自动删除用户数据。
+The service starts with Windows, but does not enable TUN on its own at boot. The GUI restores saved TUN intent when reopened. QuickClash avoids conflicting adapter names; another VPN/TUN owning the default route must be disabled first. Local-route adapters such as WSL/Hyper-V can coexist. If cleanup is uncertain, another session is blocked; do not delete unrelated adapters.
+
+Keep the GUI and service from the same package. Before replacing files in an authorized directory, turn off TUN, exit QuickClash, and stop `QuickClashService`; replace the complete package and restart. Updating the same authorized directory does not require directory authorization again. The portable directory is the source of program, service, core, and bundled Geo files; `%ProgramData%/QuickClash` holds protected authorization and private session/cleanup data.
+
+Before deleting or moving an installation with a registered service, uninstall the service from an administrator terminal, with the current directory set to the extracted package root:
+
+```powershell
+.\bin\quickclash.exe --service-setup uninstall
+```
+
+This removes service registration and directory authorization while preserving program files and user data.
+
+## Data, core, resources, and known limitations
+
+Use **Settings → Data and diagnostics → Open data folder** to find the actual user data location. Re-extracting the program does not erase that data. Subscription addresses, headers, and test targets use current-user Windows DPAPI; node credentials, drafts, backups, and recovery archives can contain plain text secrets. Keep them private. A copied credential file cannot be decrypted under another Windows account.
+
+Bundled `core/mihomo.exe` and Geo files are checked against frozen metadata; missing or invalid files block their use rather than being silently downloaded. Use **Settings → Core and resources** for compatible-core download/repair and Geo download, apply, and rollback. Core downloads require a separate apply confirmation. Scheduled Geo downloads leave a pending snapshot for confirmation; **Update Geo databases…** asks for confirmation before downloading, validating, and applying both databases together. Only the client's compatibility list is supported for core downloads, not arbitrary upstream versions. Applying resources can restart the core and interrupt connections. Keep the complete package available for recovery.
+
+Custom strategy groups belong to their subscription/profile entry. Updating that entry or changing its URL retains them; deleting it removes its groups, and history rollback restores that version's definitions. Missing dependencies or name conflicts reject updates and preserve previous data. A reported disappearance after changing a subscription has not been reproduced or explained.
+
+Configuration backups can contain plain text credentials and have no password encryption. Both backup scopes currently refuse a whole export if an enabled profile-specific `RULE-SET` depends on a runtime rule provider unavailable in the offline snapshot. Keep an independent copy of important source configurations; do not assume every runtime-provider configuration can be backed up offline.
+
+For configuration or resource errors, read the displayed error, exit normally, and check the full extracted package before retrying. Damaged or newer-schema user data is preserved and may require explicit recovery; do not delete the data directory as a first troubleshooting step.
+
+## Licenses
+
+QuickClash is licensed under GPL-3.0-only; see [the project license](../LICENSE). Third-party components have their own licenses and notices in `licenses/`; [source obligations](../docs/baseline/licenses.md) describe the required source materials. This development package is unsigned. Public distribution still requires checking the complete corresponding-source materials for Qt, Mihomo, and Geo; upstream links and license texts alone do not complete that check.

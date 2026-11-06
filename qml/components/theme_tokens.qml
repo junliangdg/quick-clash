@@ -47,6 +47,7 @@ QtObject {
     readonly property int compactHeight: scaledSize(32)
     readonly property int rowHeight: scaledSize(40)
     readonly property int bodySize: scaledSize(14)
+    readonly property int navigationSize: scaledSize(15)
     readonly property int supportingSize: scaledSize(12)
     readonly property int titleSize: scaledSize(24)
     readonly property int focusWidth: 2

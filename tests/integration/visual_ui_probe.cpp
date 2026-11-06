@@ -323,6 +323,28 @@ int runVisualProbe(ApplicationHost& host) {
                  ui.dataDemands().generations});
         }
     };
+    // Reference exports only need the README's three representative viewports.
+    if (QCoreApplication::arguments().contains(QStringLiteral("--reference-only"))) {
+        host.resizeWindow({1000, 640});
+        ui.navigate("home");
+        for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+            ui.setThemeMode(theme);
+            populate();
+            if (!capture(theme + "_home"))
+                return 118;
+        }
+        host.resizeWindow({360, 640});
+        populate();
+        if (!capture(QStringLiteral("dark_home_360")))
+            return 118;
+        if (!output.isEmpty()) {
+            QFile evidence(QDir(output).filePath("captures.json"));
+            if (!evidence.open(QIODevice::WriteOnly) ||
+                evidence.write(QJsonDocument(captures).toJson()) < 0)
+                return 120;
+        }
+        return host.qmlErrorCount() == 0 ? 0 : 123;
+    }
     if (QCoreApplication::arguments().contains(QStringLiteral("--page-review-only"))) {
         ui.setThemeMode("light");
         for (const int width : {360, 1000}) {

@@ -56,6 +56,7 @@ jobs:
           ./tests/scripts/native_process_test.ps1
           ./tests/scripts/fetch_dependencies_test.ps1
           ./tests/scripts/publish_release_test.ps1
+          ./tests/scripts/package_readmes_test.ps1
           $global:LASTEXITCODE = 0
       - uses: actions/upload-artifact@v6
         if: always()

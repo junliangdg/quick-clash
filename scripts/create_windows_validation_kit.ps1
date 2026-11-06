@@ -31,7 +31,7 @@ try {
     $taskPackageTarget = Join-Path $taskDestination 'package'
     Copy-ServicePackage $taskPackage $taskPackageTarget
     # The service copier deliberately excludes root documentation and the manifest.
-    foreach ($taskRelative in 'readme.md', 'metadata/package_manifest.json') {
+    foreach ($taskRelative in 'readme.md', 'readme_zh_cn.md', 'metadata/package_manifest.json') {
         $taskEntry = @($taskManifest.files | Where-Object { $_.path -ceq $taskRelative })
         $taskStream = $null
         try {
