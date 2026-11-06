@@ -39,6 +39,7 @@ class UiState : public QObject {
     Q_PROPERTY(bool replayRunning READ replayRunning NOTIFY demandsChanged)
     Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
+    Q_PROPERTY(bool usageNoticePending READ usageNoticePending NOTIFY usageNoticeChanged)
     Q_PROPERTY(QVariantMap dashboard READ dashboard NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QVariantMap settingsSession READ settingsSession NOTIFY settingsSessionChanged)
@@ -229,6 +230,14 @@ class UiState : public QObject {
     [[nodiscard]] bool settingsReady() const {
         return settingsReady_;
     }
+    [[nodiscard]] bool usageNoticePending() const {
+        return preferencesLoaded_ && usageNoticeVersion_ < kUsageNoticeVersion &&
+               !usageNoticeDismissed_;
+    }
+    Q_INVOKABLE void acknowledgeUsageNotice();
+    Q_INVOKABLE void showUsageNotice() {
+        emit usageNoticeRequested();
+    }
     [[nodiscard]] QVariantList navigation() const;
     [[nodiscard]] QVariantList compactNavigation() const;
     [[nodiscard]] QString runtimeStatus() const;
@@ -329,6 +338,8 @@ class UiState : public QObject {
     void subscriptionAddressCloseRequested(const QString& action);
     void routeChanged();
     void storageChanged();
+    void usageNoticeChanged();
+    void usageNoticeRequested();
     void runtimeChanged();
     void settingsSessionChanged();
     void settingsQuitConfirmationRequired();
@@ -377,7 +388,13 @@ class UiState : public QObject {
     [[nodiscard]] QVariantList history(bool upload) const;
     void persist(const QString& key, const QVariant& value);
     void applyPreferences(const QString& theme, bool unload, bool acknowledged,
-                          const QString& language, const QJsonObject& dashboard);
+                          const QString& language, const QJsonObject& dashboard,
+                          int usageNoticeVersion);
+    // Increment only for material changes to the notice, independently of app releases.
+    static constexpr int kUsageNoticeVersion = 1;
+    int usageNoticeVersion_ = 0;
+    bool preferencesLoaded_ = false;
+    bool usageNoticeDismissed_ = false;
     FeatureRegistry registry_;
     QString currentPage_ = QStringLiteral("home");
     QString routeError_;

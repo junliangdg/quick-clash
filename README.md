@@ -2,7 +2,7 @@
 
 [English](README.md) | [简体中文](README.zh-CN.md)
 
-**A Mihomo desktop client built with C++20 and Qt Quick, currently developed and validated on Windows.**
+**An independent desktop client built with C++20 and Qt Quick, based on the Mihomo (formerly Clash.Meta) core and currently developed and validated on Windows.**
 
 QuickClash brings subscriptions, proxy groups, routing rules, connections, and network controls into one interface. It uses the official precompiled Mihomo core without modifying it. The interface adapts from a full sidebar to an icon rail and bottom navigation as the window narrows. Clear status feedback, bounded caches, and reclaimable UI resources guide development.
 
@@ -38,13 +38,19 @@ QuickClash brings subscriptions, proxy groups, routing rules, connections, and n
 
 The [Releases page](https://github.com/junliangdg/quick-clash/releases) is the download entry point. The repository's CI is configured to publish an unsigned `continuous` Windows development snapshot after its fast checks pass. Snapshot binaries may lag the working tree, and a CI pass does not establish stable-release readiness. For a source build, see the commands below.
 
-1. Extract the **entire** Windows x64 portable ZIP and launch `bin/quickclash.exe`. Keep `bin/`, `core/`, `geo/`, `metadata/`, and `licenses/` together; user data is stored separately in the directory shown in Settings.
+1. Extract the **entire** Windows x64 portable ZIP, launch `bin/quickclash.exe`, and read the first-launch usage notice. Keep `bin/`, `core/`, `geo/`, `metadata/`, and `licenses/` together; user data is stored separately in the directory shown in Settings.
 2. Open **Subscriptions → Add subscription** and enter a standard HTTPS subscription URL or import a local YAML file. The name is optional. The first valid profile is selected and its core starts automatically; system proxy and TUN stay off on first use. An import error retains the input for correction.
 3. On **Proxies**, select a member of a manual group, or let an automatic group choose. Use node delay controls for individual tests and the group's **Test latency** button for the group and its subgroups. Testing does not change a manual selection. Select Rule, Global, or Direct mode from the dashboard or tray.
 4. Use the ready local HTTP/SOCKS5 proxy address directly, enable **System proxy** for applications that follow Windows proxy settings, or enable **TUN** for supported network interception. First-time TUN setup requests UAC authorization for the dedicated service; ordinary proxy use does not require installing it.
 5. Closing to the tray keeps forwarding active; **Exit** cleans up the owned session and proxy lease. Minimizing keeps a taskbar entry. If QuickClash is forcibly terminated and connectivity is affected, reopen it to recover its proxy lease, or inspect **Windows Settings → Network & internet → Proxy**, preserving any later changes made by other software.
 
 “Core ready” confirms a local runtime, not public internet reachability. The dashboard's IP queries and site checks, and the Tests page's HTTPS checks, help inspect the selected path; they do not measure bandwidth or guarantee that every remote node works. Detailed operation and recovery steps are in the [Windows user guide](docs/baseline/windows_user_guide.md).
+
+### Usage notice
+
+QuickClash manages configurations and subscriptions you import. Proxy traffic is handled by the bundled official Mihomo core; this project does not develop or modify that core or provide remote proxy nodes, node accounts, or subscription services. Supply configurations or subscriptions you are authorized to use and check that their sources are trustworthy. Enabling system proxy or TUN changes how this device accesses the network; learn how to stop these features and restore connectivity, and comply with applicable laws and regulations.
+
+The first launch shows a usage notice in English or Simplified Chinese. **I understand** saves its version locally; ordinary software upgrades do not show it again, and only material notice changes require a new version. Existing settings without an acknowledgment also show it. Storage failures still let you dismiss the notice and access recovery; failed writes retain old settings and the next launch shows the notice again. Reopen it from **Settings → About → Usage notice**. QuickClash and bundled components are covered by their respective open-source licenses; see “License and feedback” below and the distribution's `licenses/` directory.
 
 ### Custom automatic strategy groups
 

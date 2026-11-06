@@ -47,7 +47,7 @@ SettingsService::SettingsService(QString root, QObject* parent)
             state->runtime->initialize();
             emit runtimeChanged(state->runtime->snapshot());
             emit loaded(QStringLiteral("system"), false, false, QStringLiteral("system"),
-                        UiPreferences{}.dashboard);
+                        UiPreferences{}.dashboard, 0);
             return;
         }
         auto value = std::get<UiPreferences>(preferences);
@@ -73,7 +73,7 @@ SettingsService::SettingsService(QString root, QObject* parent)
         if (!state->store->readOnly())
             state->runtime->enableBackgroundManagement();
         emit loaded(value.theme, value.unloadWhenHidden, value.closeAcknowledged, value.language,
-                    value.dashboard);
+                    value.dashboard, value.usageNoticeVersion);
     });
     connect(
         &thread_, &QThread::finished, worker_,
@@ -107,7 +107,8 @@ void SettingsService::save(UiPreferences preferences) {
             emit failed(error->code);
         } else {
             emit saved(preferences.theme, preferences.unloadWhenHidden,
-                       preferences.closeAcknowledged, preferences.language, preferences.dashboard);
+                       preferences.closeAcknowledged, preferences.language, preferences.dashboard,
+                       preferences.usageNoticeVersion);
         }
     });
 }

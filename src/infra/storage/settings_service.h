@@ -21,9 +21,9 @@ class SettingsService final : public QObject {
     void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
                                     const QString& errorCode);
     void loaded(const QString& theme, bool unload, bool acknowledged, const QString& language,
-                const QJsonObject& dashboard);
+                const QJsonObject& dashboard, int usageNoticeVersion);
     void saved(const QString& theme, bool unload, bool acknowledged, const QString& language,
-               const QJsonObject& dashboard);
+               const QJsonObject& dashboard, int usageNoticeVersion);
     void failed(const QString& code);
     void runtimeChanged(const QJsonObject& state);
     void dataChanged(const quickclash::application::RuntimeUpdate& update);

@@ -258,6 +258,7 @@ if(QUICKCLASH_BUILD_UI)
         qml/components/delay_label.qml
         qml/components/themed_spin_box.qml
         qml/components/themed_dialog.qml
+        qml/components/usage_notice_dialog.qml
         qml/components/themed_scroll_view.qml
         qml/components/settings_tabs.qml
         qml/components/settings_row.qml
@@ -644,6 +645,12 @@ if(BUILD_TESTING)
         add_test(NAME ui_language COMMAND quickclash --language-test)
         add_test(NAME ui_settings COMMAND quickclash --settings-ui-test --probe-language=en-US)
         add_test(NAME ui_settings_zh COMMAND quickclash --settings-ui-test --probe-language=zh-CN)
+        add_test(NAME ui_usage_notice COMMAND quickclash --usage-notice-test --probe-language=en-US)
+        add_test(NAME ui_usage_notice_zh COMMAND quickclash --usage-notice-test --probe-language=zh-CN)
+        set_tests_properties(ui_usage_notice ui_usage_notice_zh PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
+            FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
+            TIMEOUT 20)
         set_tests_properties(ui_settings ui_settings_zh PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
@@ -684,7 +691,8 @@ if(BUILD_TESTING)
             foreach(quickclash_ui_test IN ITEMS ui_prototype qml_smoke ui_keyboard
                     ui_accessibility ui_accessibility_zh ui_visual ui_responsive ui_runtime_lists
                     ui_runtime_lists_zh ui_custom_groups ui_custom_groups_zh ui_subscriptions
-                    ui_subscriptions_zh ui_language ui_settings ui_settings_zh host_lifecycle)
+                    ui_subscriptions_zh ui_language ui_settings ui_settings_zh ui_usage_notice
+                    ui_usage_notice_zh host_lifecycle)
                 get_test_property(${quickclash_ui_test} ENVIRONMENT quickclash_ui_environment)
                 list(APPEND quickclash_ui_environment "QT_QPA_FONTDIR=$ENV{SystemRoot}/Fonts")
                 set_tests_properties(${quickclash_ui_test} PROPERTIES

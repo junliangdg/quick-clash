@@ -6,6 +6,8 @@
 
 ## 1. 已确定的项目方向
 
+内核首次介绍使用 **Mihomo（原 Clash.Meta）**，后文简称“Mihomo”或“内核”；QuickClash为独立客户端。技术名称、官方资产/URL及历史证据保持原样。首次启动及“设置→关于”提供同一中英文使用须知，产品边界与确认存储契约见[12](12-设置存储安全与诊断.md#12-设置页最终编排)。
+
 **QuickClash 是跨平台 Mihomo 客户端：当前 P3/G3 在 Windows 上交付可日常使用版本，Linux/macOS 在 P4 逐平台原生覆盖，Android/iOS 作为远期宿主仅保留边界。** 当前只有 Windows 具备原生实现与验收证据；跨平台目标不等于其他平台已支持。静态检查、原生构建、真实系统验收分别记录，不互相替代；当前不创建移动端工程。UI 统一采用极简桌面工具风，以 C++20 + Qt Quick 实现，保持默认RHI/GPU渲染。客户端以小内存占用为目标，不设跨机器统一的固定MB硬门槛，Mihomo 单列。应用显示名 QuickClash，内部程序/命名空间名 quickclash；自有源码目录/文件采用小写下划线，现代 C++/Qt 所有权和工具约定见 [编码规范](../development/cpp_style.md)。
 
 **先交付最小订阅—代理闭环：添加完整 Mihomo YAML 订阅或本地文件 → 校验/激活 → 启动官方预编译 Mihomo → 选择代理组/节点与模式 → 开启系统代理 → 验证真实转发 → 停止并恢复。** 内核固定来自 [MetaCubeX/mihomo 官方 Releases](https://github.com/MetaCubeX/mihomo/releases)，按 tag/OS/arch/CPU/摘要锁定，不自行编译或修改。安装包携带已验证程序，首次启动可离线使用。

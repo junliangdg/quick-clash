@@ -63,9 +63,26 @@ ApplicationWindow {
         else
             dialog.close();
     }
-    Component.onCompleted: syncUserRuleBinding()
+    function openUsageNotice(): void {
+        usageNoticeLoader.active = true;
+        const dialog = usageNoticeLoader.item as UsageNoticeDialog;
+        if (dialog) dialog.open();
+    }
+    Component.onCompleted: {
+        syncUserRuleBinding();
+        if (ui.usageNoticePending) openUsageNotice();
+    }
     Connections {
         target: window.ui
+        function onUsageNoticeChanged(): void {
+            if (window.ui.usageNoticePending) {
+                window.openUsageNotice();
+            } else {
+                const dialog = usageNoticeLoader.item as UsageNoticeDialog;
+                if (dialog && dialog.acknowledgmentRequired) dialog.close();
+            }
+        }
+        function onUsageNoticeRequested(): void { window.openUsageNotice(); }
         function onSettingsQuitConfirmationRequired(): void {
             settingsQuitLoader.active = true;
             const dialog = settingsQuitLoader.item as ThemedDialog;
@@ -78,6 +95,17 @@ ApplicationWindow {
                 dialog.open();
         }
         function onRuntimeChanged(): void { window.syncUserRuleBinding(); }
+    }
+    Loader {
+        id: usageNoticeLoader
+        objectName: "usage_notice_loader"
+        active: false
+        sourceComponent: UsageNoticeDialog {
+            ui: window.ui
+            theme: tokens
+            parent: Overlay.overlay
+            onClosed: usageNoticeLoader.active = false
+        }
     }
     Loader {
         id: settingsQuitLoader

@@ -308,7 +308,7 @@ ListView {
     clip: true
     FileDialog {
         id: fileDialog
-        title: qsTr("Import Clash Meta (mihomo) profile")
+        title: qsTr("Import Mihomo profile")
         nameFilters: [qsTr("YAML profiles (*.yaml *.yml)"), qsTr("All files (*)")]
         onAccepted: root.beginImport("import", [selectedFile.toString(), profileName.text])
     }

@@ -259,6 +259,8 @@ int main(int argc, char* argv[]) {
                   "legacy settings fixture without a language field");
             check(std::get<infra::UiPreferences>(settings.load()).language == "system",
                   "legacy settings retain the system-language default");
+            check(std::get<infra::UiPreferences>(settings.load()).usageNoticeVersion == 0,
+                  "legacy settings show the current usage notice");
             check(good(settings.save({"dark", true, true, "zh"})), "preferences committed");
             auto dashboard = std::get<infra::UiPreferences>(settings.load());
             check(dashboard.language == "zh", "explicit language survives reload");
@@ -283,6 +285,16 @@ int main(int argc, char* argv[]) {
                   "unsupported language is rejected");
             check(std::get<infra::UiPreferences>(settings.load()).language == "zh",
                   "invalid language retains the saved choice");
+            auto noticed = std::get<infra::UiPreferences>(settings.load());
+            noticed.usageNoticeVersion = 1;
+            check(good(settings.save(noticed)) &&
+                      std::get<infra::UiPreferences>(settings.load()).usageNoticeVersion == 1,
+                  "usage notice version survives reload");
+            noticed.usageNoticeVersion = -1;
+            check(std::holds_alternative<domain::Error>(settings.save(noticed)) &&
+                      std::get<infra::UiPreferences>(settings.load()).usageNoticeVersion == 1 &&
+                      std::get<infra::UiPreferences>(settings.load()).language == "zh",
+                  "failed notice save preserves acknowledgment and other preferences");
 #ifdef Q_OS_WIN
             const auto credentials = platform::makeCredentialStore(store);
             const auto reference = QUuid::createUuid().toString(QUuid::WithoutBraces);
@@ -307,6 +319,24 @@ int main(int argc, char* argv[]) {
                 "failed commit is reported");
             check(std::get<infra::UiPreferences>(settings.load()).theme == "dark",
                   "old settings intact");
+        }
+        {
+            QTemporaryDir invalidNoticeRoot;
+            check(QDir().mkpath(invalidNoticeRoot.filePath("config")), "notice fixture directory");
+            const auto path = invalidNoticeRoot.filePath("config/settings.json");
+            const QByteArray invalid("{\"schemaVersion\":1,\"theme\":\"dark\","
+                                     "\"unloadWhenHidden\":false,\"closeAcknowledged\":true,"
+                                     "\"usageNoticeVersion\":\"1\"}");
+            rawWrite(path, invalid);
+            infra::JsonStore store(invalidNoticeRoot.path());
+            check(good(store.open()), "open invalid notice fixture");
+            infra::SettingsRepository settings(store);
+            check(std::holds_alternative<domain::Error>(settings.load()) && store.readOnly() &&
+                      std::holds_alternative<domain::Error>(settings.save({})),
+                  "invalid notice metadata freezes storage without default overwrite");
+            QFile original(path);
+            check(original.open(QIODevice::ReadOnly) && original.readAll() == invalid,
+                  "failed acknowledgment retains invalid settings byte for byte");
         }
         {
             QTemporaryDir invalidLanguageRoot;

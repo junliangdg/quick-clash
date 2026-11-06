@@ -27,6 +27,75 @@ template <typename Condition> bool waitFor(Condition condition) {
     return bool(condition());
 }
 } // namespace
+int runUsageNoticeUiProbe(ApplicationHost& host) {
+    auto& ui = host.state();
+    const auto find = [&host](const char* name) {
+        return host.window()->findChild<QObject*>(QLatin1String(name));
+    };
+    const auto opened = [&] {
+        auto* dialog = find("usage_notice_dialog");
+        return dialog && dialog->property("opened").toBool();
+    };
+    const auto fail = [](const char* message) {
+        std::fprintf(stderr, "Usage notice probe: %s\n", message);
+        return 1;
+    };
+    if (!waitFor([&] { return host.window() && opened(); }) || !ui.usageNoticePending())
+        return fail("first launch opens the notice");
+    const auto body = find("usage_notice_body")->property("text").toString();
+    const bool chinese = QCoreApplication::arguments().contains("--probe-language=zh-CN");
+    if (!body.contains("Mihomo") || !body.contains("Clash.Meta") ||
+        !body.contains("GPL-3.0-only") ||
+        !body.contains(chinese ? QStringLiteral("不提供远程代理节点")
+                               : QStringLiteral("does not provide remote proxy nodes")) ||
+        find("usage_notice_dialog")->property("title").toString() !=
+            (chinese ? QStringLiteral("使用须知") : QStringLiteral("Usage notice")))
+        return fail("localized product boundaries and license text");
+    const auto outputPrefix =
+        QDir(QCoreApplication::applicationDirPath()).filePath("usage_notice_probe_") +
+        (chinese ? QStringLiteral("zh") : QStringLiteral("en"));
+    const auto originalSize = host.window()->size();
+    host.resizeWindow({360, 480});
+    QTest::qWait(100);
+    auto* acknowledge = qobject_cast<QQuickItem*>(find("usage_notice_acknowledge"));
+    if (!acknowledge || !acknowledge->isVisible() ||
+        acknowledge->mapToScene({0, 0}).y() + acknowledge->height() > host.window()->height() ||
+        !host.window()->grabWindow().save(outputPrefix + ".png"))
+        return fail("narrow notice keeps its acknowledgment accessible");
+    auto* viewport = find("usage_notice_scroll")->property("contentItem").value<QQuickItem*>();
+    if (!viewport)
+        return fail("notice has a scrollable viewport");
+    const auto bottom =
+        std::max(0.0, viewport->property("contentHeight").toDouble() - viewport->height());
+    viewport->setProperty("contentY", bottom);
+    QTest::qWait(20);
+    if (std::abs(viewport->property("contentY").toDouble() - bottom) > 1 ||
+        !host.window()->grabWindow().save(outputPrefix + "_bottom.png"))
+        return fail("long notice can scroll to its license paragraph");
+    QTest::keyClick(host.window(), Qt::Key_Escape);
+    if (!opened() || !ui.usageNoticePending())
+        return fail("Escape cannot silently acknowledge the notice");
+    acknowledge->forceActiveFocus(Qt::TabFocusReason);
+    QTest::keyClick(host.window(), Qt::Key_Return);
+    if (!waitFor([&] { return !ui.usageNoticePending() && ui.settingsReady() && !opened(); }))
+        return fail("keyboard acknowledgment saves and releases the dialog");
+    host.resizeWindow(originalSize);
+    host.unloadWindow();
+    if (!host.showWindow() || !waitFor([&] { return host.contentReady(); }) || opened())
+        return fail("UI reconstruction does not repeat an acknowledged notice");
+    ui.navigate("settings");
+    ui.setSettingsCategory(4);
+    if (!waitFor([&] { return find("settings_usage_notice"); }) ||
+        !QMetaObject::invokeMethod(find("settings_usage_notice"), "clicked") || !waitFor(opened) ||
+        find("usage_notice_body")->property("text").toString() != body)
+        return fail("About reopens the same notice");
+    QTest::keyClick(host.window(), Qt::Key_Escape);
+    if (!waitFor([&] { return !opened(); }) || ui.usageNoticePending() || host.qmlErrorCount())
+        return fail("read-only review closes without changing acknowledgment or QML errors");
+    std::puts("Usage notice: localized first launch, narrow scroll, keyboard acknowledgment, "
+              "UI reconstruction and About review passed");
+    return 0;
+}
 int runSettingsUiProbe(ApplicationHost& host) {
     std::setvbuf(stdout, nullptr, _IONBF, 0);
     auto& ui = host.state();

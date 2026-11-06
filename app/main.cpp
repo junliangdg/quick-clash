@@ -147,10 +147,11 @@ int main(int argc, char* argv[]) {
     const bool subscriptionUiTest = arguments.contains(QStringLiteral("--subscription-ui-test"));
     const bool languageTest = arguments.contains(QStringLiteral("--language-test"));
     const bool settingsUiTest = arguments.contains(QStringLiteral("--settings-ui-test"));
+    const bool usageNoticeTest = arguments.contains(QStringLiteral("--usage-notice-test"));
     const bool isolated = desktopTest || smoke || prototype || hostTest || trayTest ||
                           keyboardTest || accessibilityTest || responsiveTest || visualTest ||
                           runtimeListTest || customGroupsUiTest || subscriptionUiTest ||
-                          languageTest || settingsUiTest || pageMemoryTest ||
+                          languageTest || settingsUiTest || usageNoticeTest || pageMemoryTest ||
                           arguments.contains(QStringLiteral("--isolated")) ||
                           arguments.contains(QStringLiteral("--subscription-memory-test"));
 #else
@@ -178,8 +179,9 @@ int main(int argc, char* argv[]) {
             quickclash::test::desktopProbeSettings(option(QStringLiteral("--desktop-root")));
         if (probeSettings.isEmpty())
             return 15;
-    } else if (isolated && (!runtimeProbe.isEmpty() || languageTest || settingsUiTest ||
-                            arguments.contains(QStringLiteral("--subscription-memory-test")))) {
+    } else if (isolated &&
+               (!runtimeProbe.isEmpty() || languageTest || settingsUiTest || usageNoticeTest ||
+                arguments.contains(QStringLiteral("--subscription-memory-test")))) {
         probeDirectory = std::make_unique<QTemporaryDir>();
         if (!probeDirectory->isValid())
             return 15;
@@ -219,6 +221,18 @@ int main(int argc, char* argv[]) {
         host.setLanguageController(&localization);
 #else
     host.setLanguageController(&localization);
+#endif
+#ifdef QUICKCLASH_TEST_PROBES
+    // Existing isolated probes exercise their own surfaces after acknowledging onboarding.
+    if (isolated && !usageNoticeTest) {
+        const auto acknowledge = [&host] {
+            if (host.state().settingsReady())
+                host.state().acknowledgeUsageNotice();
+        };
+        QObject::connect(&host.state(), &quickclash::presentation::UiState::storageChanged, &host,
+                         acknowledge);
+        acknowledge();
+    }
 #endif
     QObject::connect(&instance, &quickclash::SingleInstance::activationRequested, &host,
                      [&host] { (void)host.showWindow(); });
@@ -373,6 +387,9 @@ int main(int argc, char* argv[]) {
     }
     if (settingsUiTest) {
         return quickclash::runSettingsUiProbe(host);
+    }
+    if (usageNoticeTest) {
+        return quickclash::runUsageNoticeUiProbe(host);
     }
     if (runtimeListTest) {
         return quickclash::runRuntimeListProbe(host);

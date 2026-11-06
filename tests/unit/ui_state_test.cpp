@@ -2,7 +2,9 @@
 #include "presentation/feature_registry.h"
 #include "presentation/ui_state.h"
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
+#include <QFile>
 #include <QTemporaryDir>
 #include <QThread>
 #include <algorithm>
@@ -835,6 +837,10 @@ int main(int argc, char* argv[]) {
         {
             UiState state(settings);
             ready(state);
+            check(state.usageNoticePending(), "new settings require notice acknowledgment");
+            state.acknowledgeUsageNotice();
+            ready(state);
+            check(!state.usageNoticePending(), "notice acknowledgment confirmed after saving");
             const auto compact = state.compactNavigation();
             check(compact.size() == 4 && compact[0].toMap().value("pageId") == "home" &&
                       compact[1].toMap().value("pageId") == "proxies" &&
@@ -907,6 +913,51 @@ int main(int argc, char* argv[]) {
         ready(reopened);
         check(reopened.themeMode() == "light", "theme persists across process facade lifetime");
         check(reopened.languageMode() == "zh", "language persists across process facade lifetime");
+        check(!reopened.usageNoticePending(), "notice stays acknowledged after reopening");
+        {
+            QTemporaryDir recoveryRoot;
+            check(QDir().mkpath(recoveryRoot.filePath("config")), "notice recovery fixture");
+            const auto path = recoveryRoot.filePath("config/settings.json");
+            const QByteArray damaged("{broken settings}");
+            {
+                QFile fixture(path);
+                check(fixture.open(QIODevice::WriteOnly) &&
+                          fixture.write(damaged) == damaged.size(),
+                      "damaged settings fixture");
+            }
+            const auto recoveryReady = [](UiState& state) {
+                QElapsedTimer timer;
+                timer.start();
+                // Damaged preferences report an error before publishing recovery defaults.
+                while (!state.usageNoticePending() && timer.elapsed() < 5000) {
+                    QCoreApplication::processEvents();
+                    QThread::msleep(1);
+                }
+                check(state.settingsReady() && state.usageNoticePending(),
+                      "asynchronous recovery preferences available");
+            };
+            {
+                UiState recovering(recoveryRoot.filePath("ui.ini"));
+                recoveryReady(recovering);
+                check(recovering.usageNoticePending(), "recovery UI retains the usage notice");
+                recovering.acknowledgeUsageNotice();
+                QElapsedTimer timer;
+                timer.start();
+                while (recovering.storageError().isEmpty() && timer.elapsed() < 5000) {
+                    QCoreApplication::processEvents();
+                    QThread::msleep(1);
+                }
+                check(!recovering.storageError().isEmpty() && !recovering.usageNoticePending() &&
+                          recovering.navigate("settings"),
+                      "failed acknowledgment dismisses the notice for this run and allows repair");
+                QFile retained(path);
+                check(retained.open(QIODevice::ReadOnly) && retained.readAll() == damaged,
+                      "failed acknowledgment never overwrites damaged settings");
+            }
+            UiState retry(recoveryRoot.filePath("ui.ini"));
+            recoveryReady(retry);
+            check(retry.usageNoticePending(), "failed acknowledgment is shown on the next launch");
+        }
         std::cout << "UI state contracts passed\n";
         return 0;
     } catch (const std::exception& error) {

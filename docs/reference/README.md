@@ -6,6 +6,8 @@
 
 HTML 用于检查信息结构与代表性交互，浏览器原生控件、字体、滚动条和简化表单与 Qt 实现会有差异，不承诺逐像素一致或覆盖全部业务状态。实际外观以 Qt 截图和程序为准，交互及失败处理以设计契约为准。
 
+“关于→使用须知”展示产品中英文正文及Mihomo（原Clash.Meta）命名；HTML仅供主动查看，不模拟产品首次启动的确认持久化。现有首页截图对此入口无覆盖，须知外观以产品为准。
+
 | 文件 | 用途 |
 |---|---|
 | [quickclash_minimal_preview.fragment.html](quickclash_minimal_preview.fragment.html) | 可编辑的 HTML/CSS/JS 源；本地图标占位由生成脚本嵌入 SVG |

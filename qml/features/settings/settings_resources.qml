@@ -328,7 +328,7 @@ ColumnLayout {
                     id: geoBody1
                     wrapMode: Text.WordWrap
                     color: root.theme.text
-                    text: qsTranslate("settings_page", "Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.")
+                    text: qsTranslate("settings_page", "Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Mihomo, and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.")
                 }
             }
             onAccepted: root.ui.runtimeCommand("update_geo")

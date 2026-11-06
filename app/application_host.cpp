@@ -381,8 +381,8 @@ bool ApplicationHost::startAtLogin() {
         return true;
     }
     const auto startup = state_.runtime().value(QStringLiteral("startup")).toMap();
-    if (state_.settingsReady() && startup.value(QStringLiteral("hidden"), true).toBool() &&
-        recoverableFromTray())
+    if (state_.settingsReady() && !state_.usageNoticePending() &&
+        startup.value(QStringLiteral("hidden"), true).toBool() && recoverableFromTray())
         return true;
     return showWindow();
 }

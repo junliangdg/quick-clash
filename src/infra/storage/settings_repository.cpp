@@ -1,4 +1,5 @@
 #include "infra/storage/settings_repository.h"
+#include <limits>
 
 namespace quickclash::infra {
 namespace {
@@ -37,6 +38,16 @@ domain::Result<UiPreferences> SettingsRepository::load() {
                               object->value(QStringLiteral("unloadWhenHidden")).toBool(),
                               object->value(QStringLiteral("closeAcknowledged")).toBool(),
                               languageValue.toString(QStringLiteral("system"))};
+    const auto notice = object->value(QStringLiteral("usageNoticeVersion"));
+    if (!notice.isUndefined()) {
+        const auto version = notice.toInteger(-1);
+        if (!notice.isDouble() || version < 0 || version > std::numeric_limits<int>::max() ||
+            notice.toDouble() != static_cast<double>(version)) {
+            store_.freeze();
+            return storageError("SettingsRecoveryRequired");
+        }
+        preferences.usageNoticeVersion = static_cast<int>(version);
+    }
     const auto dashboard = object->value(QStringLiteral("dashboard"));
     if (!dashboard.isUndefined() && !dashboard.isObject()) {
         store_.freeze();
@@ -62,12 +73,16 @@ domain::CommandResult SettingsRepository::save(const UiPreferences& preferences)
     if (!validLanguage(preferences.language)) {
         return storageError("InvalidLanguage");
     }
+    if (preferences.usageNoticeVersion < 0) {
+        return storageError("InvalidUsageNoticeVersion");
+    }
     return store_.write(kSettings,
                         {{QStringLiteral("theme"), preferences.theme},
                          {QStringLiteral("unloadWhenHidden"), preferences.unloadWhenHidden},
                          {QStringLiteral("closeAcknowledged"), preferences.closeAcknowledged},
                          {QStringLiteral("language"), preferences.language},
-                         {QStringLiteral("dashboard"), preferences.dashboard}});
+                         {QStringLiteral("dashboard"), preferences.dashboard},
+                         {QStringLiteral("usageNoticeVersion"), preferences.usageNoticeVersion}});
 }
 QJsonObject SettingsRepository::runtimeDefaults() {
     return {{QStringLiteral("mode"), QStringLiteral("rule")},

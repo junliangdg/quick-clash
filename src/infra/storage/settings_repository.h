@@ -11,6 +11,7 @@ struct UiPreferences {
         {QStringLiteral("curve"), true},    {QStringLiteral("ip"), true},
         {QStringLiteral("sites"), true},    {QStringLiteral("resources"), false},
         {QStringLiteral("details"), false}, {QStringLiteral("hideAddresses"), false}};
+    int usageNoticeVersion = 0;
 };
 class SettingsRepository final {
   public:

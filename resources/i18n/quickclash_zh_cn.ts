@@ -252,8 +252,8 @@
       <translation>订阅返回内容为空，请检查地址或账户状态。</translation>
     </message>
     <message>
-      <source>The server did not return a Clash Meta (mihomo) YAML profile. Use a standard subscription URL; Base64 and share links are not supported yet.</source>
-      <translation>服务器未返回 Clash Meta (mihomo) YAML 配置。请使用标准订阅地址；暂不支持 Base64 和节点分享链接。</translation>
+      <source>The server did not return a Mihomo YAML profile. Use a standard subscription URL; Base64 and share links are not supported yet.</source>
+      <translation>服务器未返回 Mihomo YAML 配置。请使用标准订阅地址；暂不支持 Base64 和节点分享链接。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="153" />
@@ -270,8 +270,8 @@
       <translation>随包 Geo 数据缺失或损坏，请恢复完整的应用程序包。</translation>
     </message>
     <message>
-      <source>Clash Meta (mihomo) manages this group's current node automatically.</source>
-      <translation>此代理组的当前节点由 Clash Meta (mihomo) 自动管理。</translation>
+      <source>Mihomo manages this group's current node automatically.</source>
+      <translation>此代理组的当前节点由 Mihomo 自动管理。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="162" />
@@ -416,8 +416,8 @@
       <translation>%1 个订阅 · %2 个代理组 · %3 个节点</translation>
     </message>
     <message>
-      <source>Official Clash Meta (mihomo) %1 · Local proxy ready</source>
-      <translation>官方 Clash Meta (mihomo) %1 · 本地代理就绪</translation>
+      <source>Official Mihomo %1 · Local proxy ready</source>
+      <translation>官方 Mihomo %1 · 本地代理就绪</translation>
     </message>
     <message>
       <source>Import and select a profile, then start Mihomo.</source>
@@ -595,12 +595,12 @@
       <translation>私有提交：%1 MB</translation>
     </message>
     <message>
-      <source>Clash Meta (mihomo) · Configuration validator</source>
-      <translation>Clash Meta (mihomo) · 配置校验内核</translation>
+      <source>Mihomo · Configuration validator</source>
+      <translation>Mihomo · 配置校验内核</translation>
     </message>
     <message>
-      <source>Clash Meta (mihomo) · Core</source>
-      <translation>Clash Meta (mihomo) · 内核</translation>
+      <source>Mihomo · Core</source>
+      <translation>Mihomo · 内核</translation>
     </message>
     <message>
       <source>Unavailable</source>
@@ -1285,8 +1285,8 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="23" />
-      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Clash Meta (mihomo), and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.</source>
-      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Clash Meta (mihomo) 校验后一起应用于普通和 TUN 模式。现有连接会重新建立，并保留上一份快照。</translation>
+      <source>Downloads GeoIP and GeoSite from MetaCubeX over HTTPS, validates both with Mihomo, and applies them together in both normal and TUN modes. Existing connections restart. The previous snapshot is retained.</source>
+      <translation>通过 HTTPS 从 MetaCubeX 下载 GeoIP 和 GeoSite，经 Mihomo 校验后一起应用于普通和 TUN 模式。现有连接会重新建立，并保留上一份快照。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="29" />
@@ -1345,8 +1345,8 @@
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="211" />
-      <source>QuickClash manages loopback listeners and session secrets. DNS runs inside Clash Meta (mihomo). Providers are validated snapshots; Geo uses verified bundled resources.</source>
-      <translation>QuickClash 管理本地监听和会话密钥。DNS 由 Clash Meta (mihomo) 处理，提供者使用已校验快照，Geo 使用随包校验资源。</translation>
+      <source>QuickClash manages loopback listeners and session secrets. DNS runs inside Mihomo. Providers are validated snapshots; Geo uses verified bundled resources.</source>
+      <translation>QuickClash 管理本地监听和会话密钥。DNS 由 Mihomo 处理，提供者使用已校验快照，Geo 使用随包校验资源。</translation>
     </message>
     <message>
       <location filename="../../qml/features/settings/settings_page.qml" line="230" />
@@ -1758,8 +1758,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="149" />
-      <source>Standard HTTPS subscriptions request Clash Meta (mihomo) YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.</source>
-      <translation>标准 HTTPS 订阅直接请求 Clash Meta (mihomo) YAML。首次有效导入会自动选中；点击订阅卡片即可切换其代理分组和运行配置。</translation>
+      <source>Standard HTTPS subscriptions request Mihomo YAML. The first valid import is selected automatically. Click a subscription card to switch its groups and running configuration.</source>
+      <translation>标准 HTTPS 订阅直接请求 Mihomo YAML。首次有效导入会自动选中；点击订阅卡片即可切换其代理分组和运行配置。</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="163" />
@@ -1793,8 +1793,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="18" />
-      <source>Import Clash Meta (mihomo) profile</source>
-      <translation>导入 Clash Meta (mihomo) 配置</translation>
+      <source>Import Mihomo profile</source>
+      <translation>导入 Mihomo 配置</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="24" />
@@ -3362,5 +3362,19 @@
     <message><source>TUN requires the Windows service and may request administrator authorization.</source><translation>TUN 需要 Windows 服务，可能请求管理员授权。</translation></message>
     <message><source>TUN authorization details</source><translation>TUN 授权详情</translation></message>
     <message><source>Hide TUN authorization details</source><translation>收起 TUN 授权详情</translation></message>
+  </context>
+  <context>
+    <name>usage_notice_dialog</name>
+    <message><source>Usage notice</source><translation>使用须知</translation></message>
+    <message><source>I understand</source><translation>我已了解</translation></message>
+    <message><source>QuickClash is an independent graphical client based on the Mihomo (formerly Clash.Meta) core. It manages proxy configurations and subscriptions that you import. Proxy traffic is handled by the bundled official Mihomo core; this project does not develop or modify that core.</source><translation>QuickClash 是基于 Mihomo（原 Clash.Meta）内核的独立图形客户端，用于管理用户自行导入的代理配置与订阅。代理转发由随包的官方 Mihomo 内核完成，本项目不自行开发或修改该内核。</translation></message>
+    <message><source>QuickClash does not provide remote proxy nodes, node accounts, or subscription services. Supply configurations or subscriptions you are authorized to use and check that their sources are trustworthy.</source><translation>QuickClash 不提供远程代理节点、节点账号或订阅服务。请自行准备有权使用的配置或订阅，并确认其来源可信。</translation></message>
+    <message><source>Enabling system proxy or TUN changes how this device accesses the network. Learn how to stop these features and restore connectivity, and comply with applicable laws and regulations.</source><translation>启用系统代理或 TUN 会改变设备的网络访问方式。请了解相关功能及停止、恢复方法，并遵守适用的法律法规。</translation></message>
+    <message><source>QuickClash is released under GPL-3.0-only. Bundled third-party components are covered by their own open-source licenses; see LICENSE in the source and the licenses directory in the distribution.</source><translation>QuickClash 以 GPL-3.0-only 发布，所含第三方组件分别适用各自的开源许可。详情见源码中的 LICENSE 及发行包中的 licenses 目录。</translation></message>
+  </context>
+  <context>
+    <name>settings_about</name>
+    <message><source>Usage notice</source><translation>使用须知</translation></message>
+    <message><source>An independent graphical client based on the Mihomo (formerly Clash.Meta) core.</source><translation>基于 Mihomo（原 Clash.Meta）内核的独立图形客户端。</translation></message>
   </context>
 </TS>

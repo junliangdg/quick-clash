@@ -51,6 +51,7 @@ UiState::UiState(QString settingsFile, QObject* parent, std::function<qint64()> 
                 });
     } else {
         settingsReady_ = true;
+        preferencesLoaded_ = true;
     }
     replayTimer_.setInterval(1000);
     connect(&replayTimer_, &QTimer::timeout, this, [this] {
@@ -741,7 +742,7 @@ QString UiState::errorText(const QString& customError) const {
     if (code == QStringLiteral("EmptySubscription"))
         return tr("The subscription returned no content. Check the URL or account status.");
     if (code == QStringLiteral("UnsupportedSubscriptionFormat"))
-        return tr("The server did not return a Clash Meta (mihomo) YAML profile. Use a standard "
+        return tr("The server did not return a Mihomo YAML profile. Use a standard "
                   "subscription URL; Base64 and share links are not supported yet.");
     if (code == QStringLiteral("UnsupportedConfigFeature"))
         return tr("This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
@@ -788,7 +789,7 @@ QString UiState::errorText(const QString& customError) const {
         return tr("Use at most 32 HTTPS providers, 4 MiB each and 16 MiB total, with supported "
                   "YAML or text payloads.");
     if (code == QStringLiteral("ProxyGroupAutomatic"))
-        return tr("Clash Meta (mihomo) manages this group's current node automatically.");
+        return tr("Mihomo manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))
         return tr("The subscription exceeds the 16 MiB limit.");
     if (code == QStringLiteral("InvalidSubscriptionSchedule"))
@@ -1176,12 +1177,23 @@ void UiState::setUnloadWhenHidden(bool enabled) {
 void UiState::acknowledgeClose() {
     persist(QStringLiteral("close_acknowledged"), true);
 }
+void UiState::acknowledgeUsageNotice() {
+    if (!usageNoticePending())
+        return;
+    // A failed write must not trap the recovery UI behind a modal notice. Only a
+    // confirmed save changes the stored version; the next launch will retry it.
+    usageNoticeDismissed_ = true;
+    emit usageNoticeChanged();
+    persist(QStringLiteral("usage_notice_version"), kUsageNoticeVersion);
+}
 void UiState::persist(const QString& key, const QVariant& value) {
     if (!settingsReady_) {
         return;
     }
-    infra::UiPreferences preferences{themeMode_, unloadWhenHidden_, closeAcknowledged_,
-                                     languageMode_, dashboard_};
+    infra::UiPreferences preferences{themeMode_,    unloadWhenHidden_, closeAcknowledged_,
+                                     languageMode_, dashboard_,        usageNoticeVersion_};
+    if (key == QStringLiteral("usage_notice_version"))
+        preferences.usageNoticeVersion = value.toInt();
     if (key == QStringLiteral("dashboard"))
         preferences.dashboard = QJsonObject::fromVariantMap(value.toMap());
     if (key == QStringLiteral("theme")) {
@@ -1202,18 +1214,21 @@ void UiState::persist(const QString& key, const QVariant& value) {
         settings_->save(preferences);
     } else {
         applyPreferences(preferences.theme, preferences.unloadWhenHidden,
-                         preferences.closeAcknowledged, preferences.language,
-                         preferences.dashboard);
+                         preferences.closeAcknowledged, preferences.language, preferences.dashboard,
+                         preferences.usageNoticeVersion);
     }
 }
 void UiState::applyPreferences(const QString& theme, bool unload, bool acknowledged,
-                               const QString& language, const QJsonObject& dashboard) {
+                               const QString& language, const QJsonObject& dashboard,
+                               int usageNoticeVersion) {
     const bool languageChanged = languageMode_ != language;
     themeMode_ = theme;
     unloadWhenHidden_ = unload;
     closeAcknowledged_ = acknowledged;
     languageMode_ = language;
     dashboard_ = dashboard;
+    usageNoticeVersion_ = usageNoticeVersion;
+    preferencesLoaded_ = true;
     storageError_.clear();
     settingsReady_ = true;
     emit themeChanged();
@@ -1221,6 +1236,7 @@ void UiState::applyPreferences(const QString& theme, bool unload, bool acknowled
         emit languageModeChanged(language);
     emit hostChanged();
     emit storageChanged();
+    emit usageNoticeChanged();
 }
 void UiState::runtimeCommand(const QString& command, const QStringList& arguments) {
     if (command == QStringLiteral("clear_logs")) {

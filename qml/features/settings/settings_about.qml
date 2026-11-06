@@ -43,6 +43,18 @@ ColumnLayout {
                 color: root.theme.muted
                 wrapMode: Text.WordWrap
             }
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("An independent graphical client based on the Mihomo (formerly Clash.Meta) core.")
+                color: root.theme.muted
+                wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                objectName: "settings_usage_notice"
+                theme: root.theme
+                text: qsTr("Usage notice")
+                onClicked: root.ui.showUsageNotice()
+            }
         }
     }
 }
