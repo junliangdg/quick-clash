@@ -830,6 +830,7 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         root["external-controller-pipe"] =
             QDir::toNativeSeparators(QStringLiteral("//./pipe/") + pipe_).toStdString();
         root["secret"] = QUuid::createUuid().toString().toStdString();
+        root["find-process-mode"] = "always";
         root["tun"]["enable"] = tun;
         root["tun"]["device"] = tunName_.toStdString();
         root["tun"]["stack"] = "mixed";

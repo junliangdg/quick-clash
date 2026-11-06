@@ -19,6 +19,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonDocument>
 #include <QNetworkProxy>
 #include <QNetworkReply>
@@ -1443,6 +1444,23 @@ int main(int argc, char** argv) {
                  }),
                  "held connection snapshot", reopened))
         return 151;
+#ifdef Q_OS_WIN
+    const auto expectedProcess = QFileInfo(QCoreApplication::applicationFilePath()).fileName();
+    if (!require(waitFor([&] {
+                     for (const auto& value : reopened.snapshot().value("connections").toArray()) {
+                         const auto entry = value.toObject();
+                         if (entry.value("id").toString() == capturedId)
+                             return entry.value("metadata")
+                                        .toObject()
+                                        .value("process")
+                                        .toString()
+                                        .compare(expectedProcess, Qt::CaseInsensitive) == 0;
+                     }
+                     return false;
+                 }),
+                 "held proxy connection identifies its originating process", reopened))
+        return 188;
+#endif
     reopened.featureCommand("close_connection", {"old-epoch", capturedId});
     if (!require(!reopened.snapshot().value("features").toObject().value("closeRunning").toBool(),
                  "old epoch rejected", reopened))

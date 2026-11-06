@@ -350,7 +350,9 @@ int main(int argc, char* argv[]) {
             for (const auto& invalid :
                  {QJsonObject{{"set", QJsonObject{{"tun", QJsonObject{{"enable", true}}}}}},
                   QJsonObject{{"set", QJsonObject{{"dns", QJsonValue::Null}}}},
+                  QJsonObject{{"set", QJsonObject{{"find-process-mode", "off"}}}},
                   QJsonObject{{"remove", QJsonArray{"secret"}}},
+                  QJsonObject{{"remove", QJsonArray{"find-process-mode"}}},
                   QJsonObject{{"rules", QJsonObject{{"mode", "guess"}, {"items", QJsonArray{}}}}},
                   QJsonObject{{"arbitrary", true}}})
                 check(std::holds_alternative<Error>(
@@ -812,8 +814,26 @@ int main(int argc, char* argv[]) {
         check(!config.semanticYaml.contains("secret:"), "semantic template has no secret");
         const auto session = quickclash::infra::materializeSession(config, QByteArray(64, 'a'));
         check(std::holds_alternative<QByteArray>(session) &&
-                  std::get<QByteArray>(session).contains("secret:"),
-              "session requires secret");
+                  std::get<QByteArray>(session).contains("secret:") &&
+                  std::get<QByteArray>(session).contains("find-process-mode: always"),
+              "session includes secret and process lookup");
+        for (const auto* mode : {"always", "strict", "off"}) {
+            const auto processSource =
+                fixture("inline_valid.yaml") + "\nfind-process-mode: " + mode;
+            const auto prepared = quickclash::infra::preflightConfig(processSource, {});
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(prepared),
+                  "valid subscription process modes accepted");
+            const auto& value = std::get<quickclash::infra::PreflightConfig>(prepared);
+            check(std::find(value.overriddenFields.begin(), value.overriddenFields.end(),
+                            QStringLiteral("find-process-mode")) != value.overriddenFields.end() &&
+                      !value.semanticYaml.contains("find-process-mode") &&
+                      std::get<QByteArray>(
+                          quickclash::infra::materializeSession(value, QByteArray(64, 'a')))
+                          .contains("find-process-mode: always"),
+                  "process lookup is managed without changing the source");
+        }
+        expectError(fixture("inline_valid.yaml") + "\nfind-process-mode: invalid\n",
+                    "InvalidConfigField");
         check(std::holds_alternative<Error>(quickclash::infra::materializeSession(config, "weak")),
               "weak secret rejected");
         const auto flowInput = quickclash::infra::preflightConfig(
@@ -831,11 +851,15 @@ int main(int argc, char* argv[]) {
                       quickclash::infra::preflightConfig(std::get<QByteArray>(flowSession), {})),
               "canonical block root and quoted secret preserve one valid document");
         const auto legacySession = quickclash::infra::materializeSession(
-            {"{proxies: [], proxy-groups: [], rules: ['MATCH,DIRECT']}", {}}, QByteArray(32, 'x'));
+            {"{proxies: [], proxy-groups: [], rules: ['MATCH,DIRECT'], "
+             "find-process-mode: off}",
+             {}},
+            QByteArray(32, 'x'));
         check(std::holds_alternative<QByteArray>(legacySession) &&
+                  std::get<QByteArray>(legacySession).contains("find-process-mode: always") &&
                   std::holds_alternative<quickclash::infra::PreflightConfig>(
                       quickclash::infra::preflightConfig(std::get<QByteArray>(legacySession), {})),
-              "legacy flow artifact still materializes after upgrade");
+              "legacy flow artifact enables process lookup after upgrade");
         const auto metadata = quickclash::infra::configMetadata(
             "proxies: []\nignored: {nested: [one, {two: three}]}\n"
             "dns: {enable: true}\nrules: ['GEOIP,CN,DIRECT', 'MATCH,DIRECT']\n");

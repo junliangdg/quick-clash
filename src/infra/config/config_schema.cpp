@@ -351,9 +351,14 @@ class Schema final {
               "profile",
               "geodata-mode",
               "geo-auto-update",
+              "find-process-mode",
               "unified-delay",
               "tcp-concurrent"},
              QStringLiteral("$"));
+        if (root["find-process-mode"])
+            require(oneOf(text(root["find-process-mode"], "$.find-process-mode"),
+                          {"always", "strict", "off"}),
+                    "$.find-process-mode");
         for (const auto* field : {"unified-delay", "tcp-concurrent", "ipv6"})
             if (root[field])
                 boolean(root[field], QStringLiteral("$.") + field);

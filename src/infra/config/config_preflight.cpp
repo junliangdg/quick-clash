@@ -198,10 +198,11 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         if (const auto* failure = std::get_if<domain::Error>(&validated))
             return *failure;
         const std::vector<std::string> managed{
-            "mixed-port",  "port",        "socks-port",      "redir-port",
-            "tproxy-port", "allow-lan",   "bind-address",    "external-controller",
-            "secret",      "external-ui", "external-ui-url", "tun",
-            "profile",     "mode",        "geodata-mode",    "geo-auto-update"};
+            "mixed-port",       "port",        "socks-port",      "redir-port",
+            "tproxy-port",      "allow-lan",   "bind-address",    "external-controller",
+            "secret",           "external-ui", "external-ui-url", "tun",
+            "profile",          "mode",        "geodata-mode",    "geo-auto-update",
+            "find-process-mode"};
         for (const auto& key : managed) {
             if (root[key]) {
                 output.overriddenFields.push_back(QString::fromStdString(key));
@@ -548,17 +549,19 @@ domain::Result<QByteArray> materializeSession(const PreflightConfig& config,
             // Older stored artifacts can retain a flow root. Keep them readable on upgrade.
             auto root = YAML::Load(config.semanticYaml.toStdString());
             require(root.IsMap());
+            root["find-process-mode"] = "always";
             root["secret"] = secret.toStdString();
             return serializeYaml(root);
         }
-        // Preflight emits a block root mapping with managed secret removed. Append the only
-        // session field without rebuilding the entire (possibly 20,000-rule) YAML graph.
+        // Preflight and legacy stored artifacts omit managed session fields. Append these
+        // without rebuilding the entire (possibly 20,000-rule) YAML graph.
         // The scalar still uses the YAML emitter so arbitrary secret bytes cannot inject YAML.
         YAML::Emitter scalar;
         scalar << YAML::DoubleQuoted << secret.toStdString();
         if (!scalar.good() || config.semanticYaml.isEmpty())
             return inputError("InvalidYaml");
         auto session = config.semanticYaml;
+        session += "\nfind-process-mode: always\n";
         session += "\nsecret: ";
         session.append(scalar.c_str(), static_cast<qsizetype>(scalar.size()));
         session += '\n';

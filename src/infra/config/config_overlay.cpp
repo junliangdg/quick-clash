@@ -61,6 +61,7 @@ domain::Result<QByteArray> composeOverlay(const QByteArray& source, const QJsonO
                                      QStringLiteral("socks-port"),
                                      QStringLiteral("allow-lan"),
                                      QStringLiteral("bind-address"),
+                                     QStringLiteral("find-process-mode"),
                                      QStringLiteral("listeners"),
                                      QStringLiteral("proxy-providers"),
                                      QStringLiteral("rule-providers"),
