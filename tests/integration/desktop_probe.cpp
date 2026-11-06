@@ -2,6 +2,7 @@
 #include "application_host.h"
 #include "desktop_flow_probe.h"
 #include "desktop_proxy_probe.h"
+#include "infra/core/service_client.h"
 #include "platform/process_memory.h"
 #include <QCoreApplication>
 #include <QDateTime>
@@ -11,6 +12,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QPointer>
+#include <QQuickItem>
 #include <QSGRendererInterface>
 #include <QSaveFile>
 #include <QSignalSpy>
@@ -20,6 +22,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <functional>
+#include <utility>
 
 namespace quickclash::test {
 namespace {
@@ -40,6 +43,32 @@ bool waitFor(const std::function<bool()>& condition, int milliseconds = 20000) {
 int freePort() {
     QTcpServer server;
     return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+}
+QQuickItem* visualItem(QQuickItem* parent, const QString& name) {
+    if (!parent)
+        return nullptr;
+    if (parent->objectName() == name)
+        return parent;
+    for (auto* child : parent->childItems())
+        if (auto* found = visualItem(child, name))
+            return found;
+    return nullptr;
+}
+QJsonObject serviceStatus() {
+    infra::ServiceClient client;
+    domain::Result<QJsonObject> response = domain::Error{};
+    bool finished = false;
+    client.command(QStringLiteral("status"), {}, [&](domain::Result<QJsonObject> value) {
+        response = std::move(value);
+        finished = true;
+    });
+    if (!waitFor([&] { return finished; }, 5000)) {
+        client.close();
+        return {{QStringLiteral("error"), QStringLiteral("StatusTimeout")}};
+    }
+    if (const auto* value = std::get_if<QJsonObject>(&response))
+        return *value;
+    return {{QStringLiteral("error"), std::get<domain::Error>(response).code}};
 }
 bool save(const QString& path, const QJsonObject& value) {
     QSaveFile file(path);
@@ -99,6 +128,7 @@ int runDesktopProbe(ApplicationHost& host) {
     };
     if (!check(!output.isEmpty() &&
                    (phase == "import" || phase == "lifecycle" || phase == "hold" ||
+                    phase == "proxy_hold" || phase == "proxy_reopen" || phase == "tun_gui" ||
                     phase == "reopen" || phase == "repair" || phase == "proxy" || phase == "flow" ||
                     phase == "flow_reopen" || phase == "traffic" || phase == "startup"),
                "explicit output and supported phase required") ||
@@ -148,6 +178,21 @@ int runDesktopProbe(ApplicationHost& host) {
         result.insert(QStringLiteral("passed"), true);
         return snapshot(QStringLiteral("completed")) ? 0 : 185;
     }
+    if (phase == "proxy_reopen") {
+        if (!check(ui.profiles().size() == 1 && desktopProxyReopenProbe(host, result) &&
+                       host.qmlErrorCount() == 0,
+                   "reopen restores the interrupted native proxy lease"))
+            return 197;
+        result.insert(QStringLiteral("passed"), true);
+        return snapshot(QStringLiteral("completed")) ? 0 : 185;
+    }
+    if (phase == "tun_gui") {
+        const auto initial = serviceStatus();
+        result.insert(QStringLiteral("serviceInitial"), initial);
+        if (!check(initial.value("clean").toBool() && !initial.value("coreRunning").toBool(),
+                   "TUN GUI probe requires an idle, clean service"))
+            return 199;
+    }
     if (phase != "reopen") {
         auto mixed = freePort(), controller = freePort();
         while (mixed == controller && mixed != 0)
@@ -195,6 +240,121 @@ int runDesktopProbe(ApplicationHost& host) {
     const auto selection = ui.runtime().value(QStringLiteral("selectionGeneration"));
     if (!check(corePid.toInt() > 0 && !selected.toString().isEmpty(), "owned core and selection"))
         return 177;
+    if (phase == "tun_gui") {
+        host.resizeWindow({1280, 1000});
+        host.window()->show();
+        host.window()->requestActivate();
+        if (!check(QTest::qWaitForWindowExposed(host.window(), 5000) &&
+                       QTest::qWaitForWindowActive(host.window(), 3000),
+                   "native TUN probe requires an active window"))
+            return 199;
+        QPointer<QQuickItem> control;
+        QJsonArray stages;
+        const auto toggle = [&](const QString& surface, bool desired) {
+            if (!control || !control->isEnabled())
+                return false;
+            QSignalSpy clicked(control, SIGNAL(clicked()));
+            if (!clicked.isValid())
+                return false;
+            const auto before = ui.runtime();
+            const auto point = control->mapToScene(control->boundingRect().center()).toPoint();
+            for (int press = 0; press < 6; ++press)
+                QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, point);
+            const auto immediate = clicked.count();
+            const bool pending = waitFor([&] {
+                const auto state = ui.runtime();
+                return state.value("busy").toBool() &&
+                       state.value(desired ? "tunPending" : "tunDisabling").toBool();
+            });
+            const bool disabled = pending && control && !control->isEnabled();
+            const auto atBusy = clicked.count();
+            if (disabled)
+                for (int press = 0; press < 6; ++press)
+                    QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, point);
+            const auto duringBusy = clicked.count() - atBusy;
+            const bool completed = waitFor(
+                [&] {
+                    const auto state = ui.runtime();
+                    return state.value("ready").toBool() && !state.value("busy").toBool() &&
+                           state.value("tunState") == (desired ? "On" : "Off") &&
+                           state.value("coreExecutionMode") == (desired ? "Service" : "Local") &&
+                           state.value("corePid").toInt() > 0 &&
+                           state.value("corePid") != before.value("corePid") &&
+                           state.value("preferences").toMap().value("tunDesired").toBool() ==
+                               desired;
+                },
+                30000);
+            const auto settled = ui.runtime();
+            QTest::qWait(500);
+            const auto after = ui.runtime();
+            const bool stable =
+                completed && after.value("ready").toBool() && !after.value("busy").toBool() &&
+                after.value("tunState") == settled.value("tunState") &&
+                after.value("corePid") == settled.value("corePid") &&
+                after.value("epoch") == settled.value("epoch") &&
+                after.value("preferences").toMap().value("tunDesired").toBool() == desired;
+            stages.append(QJsonObject{{"surface", surface},
+                                      {"desired", desired},
+                                      {"immediateClicks", static_cast<int>(immediate)},
+                                      {"busyObserved", pending},
+                                      {"disabledWhileBusy", disabled},
+                                      {"busyClicks", static_cast<int>(duringBusy)},
+                                      {"completed", completed},
+                                      {"stableAfter500Ms", stable},
+                                      {"pidBefore", before.value("corePid").toInt()},
+                                      {"pidAfter", after.value("corePid").toInt()},
+                                      {"error", after.value("error").toString()}});
+            return immediate >= 1 && immediate <= 6 && disabled && duringBusy == 0 && stable;
+        };
+        bool passed = true;
+        for (const auto& surface : {QStringLiteral("home"), QStringLiteral("settings")}) {
+            if (!passed || !ui.navigate(surface)) {
+                passed = false;
+                break;
+            }
+            if (surface == QStringLiteral("settings"))
+                ui.setSettingsCategory(1);
+            const auto name = surface == QStringLiteral("home") ? QStringLiteral("home_tun")
+                                                                : QStringLiteral("settings_tun");
+            if (!waitFor([&] {
+                    control = visualItem(host.window()->contentItem(), name);
+                    return control && control->isVisible() && control->isEnabled();
+                })) {
+                result.insert(QStringLiteral("missingTunSurface"), surface);
+                passed = false;
+                break;
+            }
+            // Bring each switch into the visible viewport before native mouse events.
+            for (auto* parent = control->parentItem(); parent; parent = parent->parentItem()) {
+                if (!parent->property("contentY").isValid())
+                    continue;
+                const auto center = control->mapToItem(parent, control->boundingRect().center());
+                const auto current = parent->property("contentY").toDouble();
+                const auto maximum =
+                    std::max(0.0, parent->property("contentHeight").toDouble() - parent->height());
+                parent->setProperty(
+                    "contentY",
+                    std::clamp(current + center.y() - parent->height() / 2, 0.0, maximum));
+            }
+            QTest::qWait(30);
+            passed = toggle(surface, true) && toggle(surface, false);
+        }
+        result.insert(QStringLiteral("tunGuiStages"), stages);
+        ui.runtimeCommand(QStringLiteral("stop"));
+        const bool stopped = waitFor([&] {
+            const auto state = ui.runtime();
+            return !state.value("ready").toBool() && !state.value("busy").toBool() &&
+                   state.value("corePid").toInt() == 0;
+        });
+        const auto final = serviceStatus();
+        result.insert(QStringLiteral("serviceFinal"), final);
+        if (!check(passed && stopped && final.value("clean").toBool() &&
+                       !final.value("coreRunning").toBool(),
+                   "rapid native TUN clicks serialize and leave the service clean"))
+            return 199;
+        result.insert(QStringLiteral("passed"), true);
+        return snapshot(QStringLiteral("completed")) ? 0 : 185;
+    }
     if (phase == "traffic") {
         host.window()->hide();
         host.window()->show();
@@ -290,7 +450,10 @@ int runDesktopProbe(ApplicationHost& host) {
         result.insert(QStringLiteral("passed"), true);
         return snapshot(QStringLiteral("completed")) ? 0 : 185;
     }
-    if (phase == "hold") {
+    if (phase == "hold" || phase == "proxy_hold") {
+        if (phase == "proxy_hold" &&
+            !check(desktopProxyHoldProbe(host, result), "native GUI applies a durable lease"))
+            return 198;
         if (!snapshot(QStringLiteral("holding")))
             return 178;
         // The controller kills this whole GUI process, not a worker surrogate.

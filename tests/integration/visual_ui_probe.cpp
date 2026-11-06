@@ -1104,10 +1104,27 @@ int runVisualProbe(ApplicationHost& host) {
                     ui.setSettingsCategory(4);
                     QTest::qWait(25);
                     const auto versions = objects("application_version");
-                    if (versions.size() != 1 ||
-                        !viewport->mapRectToScene(viewport->boundingRect())
-                             .contains(versions.first()->mapRectToScene(
-                                 versions.first()->boundingRect())) ||
+                    const auto viewportBounds = viewport->mapRectToScene(viewport->boundingRect());
+                    const auto versionBounds =
+                        versions.size() == 1
+                            ? versions.first()->mapRectToScene(versions.first()->boundingRect())
+                            : QRectF{};
+                    if (versions.size() != 1 || !viewportBounds.contains(versionBounds)) {
+                        const auto* settingsPage = objects("settings_page").value(0);
+                        std::fprintf(
+                            stderr,
+                            "About viewport: theme=%s width=%d count=%lld "
+                            "view=(%.2f,%.2f %.2fx%.2f) version=(%.2f,%.2f %.2fx%.2f) "
+                            "contentY=%.2f contentHeight=%.2f restoring=%d\n",
+                            qPrintable(theme), width, static_cast<long long>(versions.size()),
+                            viewportBounds.x(), viewportBounds.y(), viewportBounds.width(),
+                            viewportBounds.height(), versionBounds.x(), versionBounds.y(),
+                            versionBounds.width(), versionBounds.height(),
+                            viewport->property("contentY").toReal(),
+                            viewport->property("contentHeight").toReal(),
+                            settingsPage ? int(settingsPage->property("restoring").toBool()) : -1);
+                    }
+                    if (versions.size() != 1 || !viewportBounds.contains(versionBounds) ||
                         !capture(QStringLiteral("%1_settings_about_%2").arg(theme).arg(width)))
                         return 199;
                     ui.setSettingsCategory(1);

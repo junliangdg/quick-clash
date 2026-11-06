@@ -2537,9 +2537,6 @@ void DesktopRuntime::setTun(bool desired) {
     if (!busy_ && !engine_.cleanupUncertain() && desired == engine_.tunActive() &&
         desired == runtimePreferences_.value(QStringLiteral("tunDesired")).toBool())
         return;
-    // An explicit TUN action is a fresh user retry; clear the automatic restart cap.
-    tunRecoveryBlocked_ = false;
-    tunRecoveryBudget_.reset();
     if (platformInfo_.capabilities.value(QStringLiteral("tun")) == QStringLiteral("Unsupported")) {
         error(QStringLiteral("ServicePlatformUnsupported"));
         return;
@@ -2548,6 +2545,10 @@ void DesktopRuntime::setTun(bool desired) {
         error(QStringLiteral("OperationUnavailable"));
         return;
     }
+    // Only an accepted user action is a fresh retry. A rejected busy request
+    // must not reset the automatic recovery budget of the operation in flight.
+    tunRecoveryBlocked_ = false;
+    tunRecoveryBudget_.reset();
     backgroundSuppressed_ = false;
     recoveryTimer_.stop();
     // Every explicit enable revalidates the service before touching the network. A persisted

@@ -18,6 +18,8 @@ Item {
     Accessible.name: qsTr("Settings categories")
     objectName: "settings_tabs"
     function ensureVisible(index): void {
+        // Selection changes font weight and widths; Row positioning is polished later.
+        tabRow.forceLayout();
         const button = tabs.itemAt(index);
         if (!button)
             return;

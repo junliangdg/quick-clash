@@ -60,6 +60,25 @@ Item {
             viewport.contentY = Math.min(maximum, bounds.y + bounds.height - body.availableHeight + margin);
         root.rememberView();
     }
+    function polishTree(item): void {
+        // Nested Controls and Layouts can all defer their implicit sizes to polish.
+        for (const child of item.children)
+            polishTree(child);
+        item.ensurePolished();
+    }
+    function revealRecovery(): void {
+        const data = categoryLoader.item as SettingsData;
+        if (!recoveryRequested || restoring || !viewport || !data || !data.recoveryAnchor.visible)
+            return;
+        polishTree(settingsForm);
+        polishTree(settingsForm);
+        const y = data.recoveryAnchor.mapToItem(viewport.contentItem, 0, 0).y;
+        // Do not consume the request while nested layouts still have their old height.
+        if (body.contentHeight + 1 < y + data.recoveryAnchor.height)
+            return;
+        viewport.contentY = Math.max(0, Math.min(y - theme.focusMargin, body.contentHeight - body.availableHeight));
+        recoveryRequested = false;
+    }
     onWidthChanged: Qt.callLater(revealFocusedField)
     onHeightChanged: Qt.callLater(revealFocusedField)
     onCategoryChanged: {
@@ -115,6 +134,8 @@ Item {
                     onClicked: {
                         root.ui.setSettingsCategory(3);
                         root.recoveryRequested = true;
+                        if (!root.restoring)
+                            recoveryLater.restart();
                     }
                 }
                 Loader {
@@ -129,6 +150,10 @@ Item {
                         onTriggered: {
                             if (!categoryLoader.item || !root.viewport)
                                 return;
+                            // Clamp the remembered position against this category's
+                            // layout, not the previous Loader item's deferred height.
+                            root.polishTree(settingsForm);
+                            root.polishTree(settingsForm);
                             root.viewport.contentY = Math.min(root.ui.settingsPosition(root.category), Math.max(0, body.contentHeight - body.availableHeight));
                             root.restoring = false;
                             if (root.restoreFieldFocus) {
@@ -138,16 +163,28 @@ Item {
                                 root.restoreFieldFocus = false;
                             }
                             if (root.recoveryRequested)
-                                root.Window.window.update();
+                                recoveryLater.restart();
                         }
                     }
                 }
+            }
+            Timer {
+                id: recoveryLater
+                interval: 0
+                onTriggered: root.revealRecovery()
             }
             Connections {
                 target: root.viewport
                 function onContentYChanged(): void {
                     if (!root.restoring)
                         root.rememberView();
+                }
+            }
+            Connections {
+                target: body
+                enabled: root.recoveryRequested && !root.restoring
+                function onContentHeightChanged(): void {
+                    recoveryLater.restart();
                 }
             }
             Connections {
@@ -160,12 +197,7 @@ Item {
                 target: root.Window.window
                 enabled: root.recoveryRequested
                 function onFrameSwapped(): void {
-                    const data = categoryLoader.item as SettingsData;
-                    if (!data || root.restoring)
-                        return;
-                    const y = data.recoveryAnchor.mapToItem(root.viewport.contentItem, 0, 0).y;
-                    root.viewport.contentY = Math.max(0, Math.min(y - root.theme.focusMargin, body.contentHeight - body.availableHeight));
-                    root.recoveryRequested = false;
+                    root.revealRecovery();
                 }
             }
         }

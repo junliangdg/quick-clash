@@ -95,9 +95,9 @@ int runSettingsUiProbe(ApplicationHost& host) {
     ui.setSettingsCategory(2);
     if (!waitFor([&] { return object("settings_resources"); }))
         return fail("resource settings load");
-    for (const auto& recovery : {
-             std::pair{"settings_core_advanced", "settings_core_bundled"},
-             std::pair{"settings_geo_advanced", "settings_geo_recovery_actions"}}) {
+    for (const auto& recovery :
+         {std::pair{"settings_core_advanced", "settings_core_bundled"},
+          std::pair{"settings_geo_advanced", "settings_geo_recovery_actions"}}) {
         auto* toggle = object(recovery.first);
         auto* actions = item(recovery.second);
         auto* accessible = toggle ? QAccessible::queryAccessibleInterface(toggle) : nullptr;
@@ -116,6 +116,9 @@ int runSettingsUiProbe(ApplicationHost& host) {
         host.window()->show();
         if (!QTest::qWaitForWindowExposed(host.window(), 5000))
             return fail("native captures require an exposed window");
+        host.window()->requestActivate();
+        if (!QTest::qWaitForWindowActive(host.window(), 3000))
+            return fail("native interaction requires an active window");
         std::printf("Settings capture: Qt %s platform=%s graphicsApi=%d dpr=%.2f\n", qVersion(),
                     qPrintable(QGuiApplication::platformName()),
                     int(host.window()->rendererInterface()->graphicsApi()),
@@ -201,12 +204,26 @@ int runSettingsUiProbe(ApplicationHost& host) {
             if (!ui.navigate("settings") || !waitFor([&] { return item("settings_more_pages"); }))
                 return fail("compact settings navigation loads");
             auto* more = item("settings_more_pages");
+            // Qt may postpone GridLayout polish for an inactive native window. Inspect
+            // the geometry of a rendered frame before asserting the label fits.
+            if (!output.isEmpty() && host.window()->grabWindow().isNull())
+                return fail("compact navigation frame can be rendered");
             if (!waitFor([&] {
                     return more->property("text").toString() ==
                                QCoreApplication::translate("main", "Other") &&
                            more->width() + 0.5 >= more->implicitWidth();
-                }))
+                })) {
+                std::fprintf(stderr,
+                             "Other font=%d page=%s text=%s expected=%s width=%.2f "
+                             "implicit=%.2f visible=%d active=%d\n",
+                             pixels, page, qPrintable(more->property("text").toString()),
+                             qPrintable(QCoreApplication::translate("main", "Other")),
+                             more->width(), more->implicitWidth(), more->isVisible(),
+                             host.window()->isActive());
+                if (!output.isEmpty())
+                    host.window()->grabWindow().save(QDir(output).filePath("other_failure.png"));
                 return fail("compact navigation shows the complete Other label");
+            }
             more->forceActiveFocus(Qt::TabFocusReason);
             QTest::keyClick(host.window(), Qt::Key_Return);
             if (!waitFor(
@@ -253,16 +270,43 @@ int runSettingsUiProbe(ApplicationHost& host) {
     }
     if (!activate("settings_open_recovery") || !waitFor([&] { return object("settings_data"); }))
         return fail("read-only settings have a direct recovery route");
-    if (!waitFor([&] { return !object("settings_page")->property("recoveryRequested").toBool(); }))
-        return fail("recovery navigation waits for the laid-out native frame");
+    if (!waitFor(
+            [&] { return !object("settings_page")->property("recoveryRequested").toBool(); })) {
+        auto* page = object("settings_page");
+        auto* body = item("settings_body");
+        auto* view = body ? body->property("contentItem").value<QQuickItem*>() : nullptr;
+        auto* data = item("settings_data");
+        auto* anchor = item("settings_recovery");
+        std::fprintf(
+            stderr,
+            "Recovery: restoring=%d category=%d active=%d exposed=%d visible=%d "
+            "data=%p anchor=%p anchor-y=%.2f anchor-height=%.2f contentY=%.2f "
+            "contentHeight=%.2f bodyHeight=%.2f\n",
+            page->property("restoring").toBool(), session().value("category").toInt(),
+            host.window()->isActive(), host.window()->isExposed(), host.window()->isVisible(), data,
+            anchor, anchor ? anchor->y() : -1, anchor ? anchor->height() : -1,
+            view ? view->property("contentY").toReal() : -1,
+            view ? view->property("contentHeight").toReal() : -1, body ? body->height() : -1);
+        if (!output.isEmpty()) {
+            host.window()->grabWindow().save(QDir(output).filePath("recovery_failure.png"));
+            QTest::qWait(100);
+            std::fprintf(stderr, "After grabWindow: recoveryRequested=%d\n",
+                         page->property("recoveryRequested").toBool());
+        }
+        return fail("recovery navigation waits for the laid-out frame");
+    }
     auto* recoveryScroll = item("settings_body")->property("contentItem").value<QQuickItem*>();
     auto* recovery = item("settings_recovery");
     if (!recoveryScroll->boundingRect().intersects(
             recovery->mapRectToItem(recoveryScroll, recovery->boundingRect())))
         return fail("the recovery entry reveals its actual recovery group");
-    if (!output.isEmpty() &&
-        !host.window()->grabWindow().save(QDir(output).filePath("readonly_32_360.png")))
-        return fail("read-only recovery capture succeeds");
+    if (!output.isEmpty()) {
+        if (!host.window()->grabWindow().save(QDir(output).filePath("readonly_32_360.png")))
+            return fail("read-only recovery capture succeeds");
+        if (!recoveryScroll->boundingRect().intersects(
+                recovery->mapRectToItem(recoveryScroll, recovery->boundingRect())))
+            return fail("recovery remains visible in the rendered frame");
+    }
     ui.applyControl(healthyControl);
     // All maintenance confirmations remain bounded, lazy and cancellable.
     struct DialogCase {
@@ -335,17 +379,26 @@ int runSettingsUiProbe(ApplicationHost& host) {
         return fail("backward scroll returns the strip without selecting a category");
     const auto point =
         strip->mapToScene(QPointF(strip->width() * 0.8, strip->height() / 2)).toPoint();
+    if (!output.isEmpty()) {
+        host.window()->requestActivate();
+        if (!QTest::qWaitForWindowActive(host.window(), 3000))
+            return fail("native touch probe requires an active window");
+    }
     const std::unique_ptr<QPointingDevice> touch(QTest::createTouchDevice());
-    QTest::touchEvent(host.window(), touch.get()).press(0, point, host.window());
+    auto touchSequence = QTest::touchEvent(host.window(), touch.get(), false);
+    touchSequence.press(0, point, host.window()).commit();
     for (int step = 1; step <= 5; ++step) {
-        QTest::touchEvent(host.window(), touch.get())
-            .move(0, point - QPoint(step * 18, 0), host.window());
+        touchSequence.move(0, point - QPoint(step * 18, 0), host.window()).commit();
         QTest::qWait(15);
     }
-    QTest::touchEvent(host.window(), touch.get()).release(0, point - QPoint(90, 0), host.window());
+    touchSequence.release(0, point - QPoint(90, 0), host.window()).commit();
     QTest::qWait(20);
-    if (session().value("category").toInt() != 0 || strip->property("contentX").toReal() <= 0)
+    if (session().value("category").toInt() != 0 || strip->property("contentX").toReal() <= 0) {
+        std::fprintf(stderr, "Touch drag: category=%d contentX=%.2f active=%d moving=%d\n",
+                     session().value("category").toInt(), strip->property("contentX").toReal(),
+                     host.window()->isActive(), strip->property("moving").toBool());
         return fail("touch dragging scrolls the strip without activating a tab");
+    }
     QApplication::setFont(originalFont);
     ui.setSettingsCategory(0);
     item("settings_tab_0")->forceActiveFocus(Qt::TabFocusReason);
