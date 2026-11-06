@@ -254,6 +254,12 @@ bool focusInScroll(QQuickItem* control) {
     }
     control->forceActiveFocus(Qt::TabFocusReason);
     QTest::qWait(20);
+    // Resizing or changing text can leave a layout waiting for polish. Check the
+    // geometry of a rendered frame, as checkVisibleFocusFrames does above.
+    if (control->window()->grabWindow().isNull()) {
+        std::fprintf(stderr, "Unable to render focus layout frame\n");
+        return false;
+    }
     return frameFits(control, true);
 }
 } // namespace quickclash::test

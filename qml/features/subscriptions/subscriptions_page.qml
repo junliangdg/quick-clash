@@ -568,6 +568,7 @@ ListView {
         }
         contentItem: ThemedScrollView {
             id: managementScroll
+            objectName: "subscription_management_scroll"
             Keys.onEscapePressed: event => { root.requestSourceClose("dialog"); event.accepted = true; }
             theme: root.theme
             form: managementScrollForm
@@ -597,6 +598,8 @@ ListView {
                     theme: root.theme
                     objectName: "subscription_name"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     maximumLength: 80
                     placeholderText: qsTr("Name")
                 }
@@ -622,6 +625,8 @@ ListView {
                     objectName: "subscription_saved_url"
                     theme: root.theme
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     readOnly: !root.editingSource || root.sourceSaving
                     selectByMouse: true
                     placeholderText: root.managedProfile.secretRef ? qsTr("Hidden") : qsTr("No subscription URL")
@@ -711,6 +716,8 @@ ListView {
                     visible: headersToggle.expanded && root.editingSource
                     enabled: !root.sourceSaving
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     placeholderText: qsTr("Headers as JSON: Authorization, User-Agent, Accept")
                     Accessible.name: qsTr("Request headers (optional)")
                     Accessible.description: qsTr("Request headers (optional)")

@@ -506,6 +506,19 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     ui.subscriptionUrlReady(managedId, token, fixtureUrl);
     QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_headers_toggle"),
                               "clicked");
+    auto* managementScroll =
+        host.window()->findChild<QQuickItem*>("subscription_management_scroll");
+    auto* headers = host.window()->findChild<QObject*>("subscription_source_headers");
+    if (!managementScroll || !headers)
+        return 166;
+    const auto originalUrl = savedUrl->property("text").toString();
+    const auto originalHeaders = headers->property("text").toString();
+    const auto longUrl =
+        QStringLiteral("https://fixture.invalid/") + QString(512, QLatin1Char('W'));
+    const auto longHeaders = QStringLiteral("{\"Authorization\":\"") +
+                             QString(512, QLatin1Char('W')) + QStringLiteral("\"}");
+    if (!savedUrl->setProperty("text", longUrl) || !headers->setProperty("text", longHeaders))
+        return 166;
     const auto baselineFont = QApplication::font();
     for (const auto pixels : {14, 21}) {
         auto font = baselineFont;
@@ -564,6 +577,18 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                                      pixels, size.width());
                         return 115;
                     }
+                    if (QString::fromLatin1(name) == "subscription_name" ||
+                        QString::fromLatin1(name) == "subscription_saved_url" ||
+                        QString::fromLatin1(name) == "subscription_source_headers") {
+                        const auto formWidth = managementScroll->property("formWidth").toReal();
+                        if (field->width() > formWidth + 0.5) {
+                            std::fprintf(stderr,
+                                         "Subscription field exceeds form: %s width=%.1f "
+                                         "form=%.1f font=%d window=%d\n",
+                                         name, field->width(), formWidth, pixels, size.width());
+                            return 167;
+                        }
+                    }
                     if (!visualOutput.isEmpty() &&
                         (QString::fromLatin1(name) == "subscription_name" ||
                          QString::fromLatin1(name) == "subscription_source_headers")) {
@@ -580,6 +605,9 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         }
     }
     QApplication::setFont(baselineFont);
+    if (!savedUrl->setProperty("text", originalUrl) ||
+        !headers->setProperty("text", originalHeaders))
+        return 166;
     QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_cancel_source"),
                               "clicked");
     host.resizeWindow({1500, 850});
