@@ -368,16 +368,20 @@ void DesktopRuntime::finishSubscription(const std::shared_ptr<SubscriptionDownlo
             if (item.value(QStringLiteral("id")) != context->id)
                 continue;
             item.insert(QStringLiteral("secretRef"), secretRef);
+            if (updatingSubscription_ == context->id)
+                item.insert(QStringLiteral("lastUpdateSaved"), true);
             item.insert(QStringLiteral("updatedAt"), clock_().toString(Qt::ISODate));
             for (auto it = metadata.begin(); it != metadata.end(); ++it)
                 item.insert(it.key(), it.value());
             catalog[index] = item;
         }
         if (saveCatalog(catalog)) {
+            if (updatingSubscription_ == context->id)
+                subscriptionCandidateSaved_ = true;
             collectGarbage();
             if (context->id == selectedId_ &&
                 previous.value(QStringLiteral("pendingApply")).toBool() &&
-                previous.value(QStringLiteral("autoApply")).toBool()) {
+                (subscriptionApplyNow_ || previous.value(QStringLiteral("autoApply")).toBool())) {
                 applyProfile(context->id, engine_.ready());
                 return;
             }

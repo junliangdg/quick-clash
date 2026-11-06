@@ -246,6 +246,22 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
             return 136;
     }
     warned.insert("pendingApply", true);
+    warned.insert("lastApplyError", "CoreConfigValidationFailed");
+    warned.insert("lastUpdateResult", "Failed");
+    warned.insert("lastUpdateError", "SubscriptionDownloadFailed");
+    warned.insert("lastUpdateSaved", false);
+    profiles[firstIndex] = warned;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
+    QCoreApplication::processEvents();
+    auto* updateError = first->findChild<QQuickItem*>("subscription_update_error");
+    auto* applyError = first->findChild<QQuickItem*>("subscription_apply_error");
+    auto* pendingStatus = first->findChild<QQuickItem*>("subscription_pending_status");
+    if (!updateError || !updateError->isVisible() || !applyError || !applyError->isVisible() ||
+        !pendingStatus || !pendingStatus->isVisible())
+        return 155;
+    warned.remove("lastApplyError");
+    warned.remove("lastUpdateError");
+    warned.remove("lastUpdateSaved");
     warned.remove("lastUpdateResult");
     profiles[firstIndex] = warned;
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
@@ -281,13 +297,33 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     auto* savedUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_saved_url"));
     auto* showUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_show_url"));
     auto* copyUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_copy_url"));
+    auto* editUrl = host.window()->findChild<QObject*>(QStringLiteral("subscription_edit_url"));
+    auto* saveUrl =
+        host.window()->findChild<QObject*>(QStringLiteral("subscription_validate_source"));
+    auto* closeManagement =
+        host.window()->findChild<QObject*>(QStringLiteral("subscription_management_close"));
+    auto* closeConfirmation = host.window()->findChild<QObject*>(
+        QStringLiteral("subscription_source_close_confirmation"));
     const auto fixtureUrl = QStringLiteral("https://fixture.invalid/sub?token=private%2Bvalue");
     const auto request = [&](QObject* button) {
         QMetaObject::invokeMethod(button, "clicked");
         return page->property("urlRequestToken").toString();
     };
-    if (!savedUrl || !showUrl || !copyUrl || !savedUrl->property("text").toString().isEmpty())
+    if (!savedUrl || !showUrl || !copyUrl || !editUrl || !saveUrl || !closeManagement ||
+        !closeConfirmation || !savedUrl->property("text").toString().isEmpty())
         return 105;
+    auto localProfile = profiles[firstIndex].toObject();
+    localProfile.remove("secretRef");
+    profiles[firstIndex] = localProfile;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
+    QMetaObject::invokeMethod(editUrl, "clicked");
+    if (!page->property("editingSource").toBool() ||
+        !savedUrl->property("text").toString().isEmpty())
+        return 160;
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_cancel_source"),
+                              "clicked");
+    profiles[firstIndex] = warned;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
     auto token = request(showUrl);
     ui.subscriptionUrlReady("another-profile", token, fixtureUrl);
     if (token.isEmpty() || !savedUrl->property("text").toString().isEmpty())
@@ -326,6 +362,91 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         !page->property("urlRequestToken").toString().isEmpty())
         return 109;
     ui.setUiVisible(true);
+    token = request(editUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    if (!page->property("editingSource").toBool() || savedUrl->property("readOnly").toBool() ||
+        savedUrl->property("text") != fixtureUrl)
+        return 145;
+    savedUrl->setProperty("text", "https://fixture.invalid/new-token");
+    if (ui.navigate("home") || !closeConfirmation->property("visible").toBool() ||
+        savedUrl->property("text") != "https://fixture.invalid/new-token")
+        return 151;
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_close_continue"),
+                              "clicked");
+    QMetaObject::invokeMethod(closeManagement, "clicked");
+    if (!closeConfirmation->property("visible").toBool() || !page->property("sourceDirty").toBool())
+        return 146;
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_close_continue"),
+                              "clicked");
+    QMetaObject::invokeMethod(saveUrl, "clicked");
+    const auto operationToken = page->property("sourceOperationToken").toString();
+    if (operationToken.isEmpty() || !page->property("sourceSaving").toBool())
+        return 147;
+    QMetaObject::invokeMethod(closeManagement, "clicked");
+    if (!dialog->property("visible").toBool() || !ui.subscriptionAddressSaving())
+        return 152;
+    ui.subscriptionSourceFinished(managedId, "stale-token", false, "SubscriptionDownloadFailed");
+    if (!page->property("sourceSaving").toBool())
+        return 148;
+    ui.subscriptionSourceFinished(managedId, operationToken, false, "SubscriptionDownloadFailed");
+    if (page->property("sourceSaving").toBool() || ui.subscriptionAddressSaving() ||
+        !dialog->property("visible").toBool() ||
+        savedUrl->property("text") != "https://fixture.invalid/new-token" ||
+        page->property("sourceError").toString().isEmpty() ||
+        !page->property("sourceDirty").toBool()) {
+        std::fprintf(
+            stderr,
+            "Source failure: saving=%d stateSaving=%d visible=%d input=%d error=%s dirty=%d\n",
+            page->property("sourceSaving").toBool(), ui.subscriptionAddressSaving(),
+            dialog->property("visible").toBool(),
+            savedUrl->property("text") == "https://fixture.invalid/new-token",
+            qPrintable(page->property("sourceError").toString()),
+            page->property("sourceDirty").toBool());
+        return 149;
+    }
+    QMetaObject::invokeMethod(saveUrl, "clicked");
+    const auto retryToken = page->property("sourceOperationToken").toString();
+    ui.subscriptionSourceFinished(managedId, retryToken, true, "CoreConfigValidationFailed");
+    if (page->property("editingSource").toBool() ||
+        page->property("urlResult") != "SavedApplyFailed" ||
+        !savedUrl->property("text").toString().isEmpty())
+        return 150;
+    token = request(editUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    savedUrl->setProperty("text", "https://fixture.invalid/close-after-save");
+    QMetaObject::invokeMethod(closeManagement, "clicked");
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_close_save"),
+                              "clicked");
+    const auto closeToken = page->property("sourceOperationToken").toString();
+    if (!dialog->property("visible").toBool() || closeToken.isEmpty())
+        return 153;
+    ui.subscriptionSourceFinished(managedId, closeToken, true, {});
+    if (dialog->property("visible").toBool() || ui.subscriptionAddressSaving())
+        return 154;
+    QMetaObject::invokeMethod(dialog, "open");
+    token = request(editUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    savedUrl->setProperty("text", "https://fixture.invalid/delete-draft");
+    auto* deleteButton = host.window()->findChild<QObject*>("subscription_delete");
+    auto* deleteConfirmation =
+        host.window()->findChild<QObject*>("subscription_delete_confirmation");
+    if (!deleteButton || !deleteConfirmation || !ui.subscriptionAddressDirty())
+        return 161;
+    QMetaObject::invokeMethod(deleteButton, "clicked");
+    if (!deleteConfirmation->property("visible").toBool())
+        return 162;
+    QMetaObject::invokeMethod(deleteConfirmation, "accept");
+    if (dialog->property("visible").toBool() || closeConfirmation->property("visible").toBool() ||
+        ui.subscriptionAddressDirty())
+        return 163;
+    QMetaObject::invokeMethod(dialog, "open");
+    QTest::qWait(30);
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_advanced"),
+                              "clicked");
+    token = request(editUrl);
+    ui.subscriptionUrlReady(managedId, token, fixtureUrl);
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_headers_toggle"),
+                              "clicked");
     const auto baselineFont = QApplication::font();
     for (const auto pixels : {14, 21}) {
         auto font = baselineFont;
@@ -348,7 +469,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                     host.window()->findChild<QQuickItem*>("subscription_edit_overrides");
                 if (!actions || !validate || !editSource || !editOverrides)
                     return 139;
-                const QList<QQuickItem*> buttons{validate, editSource, editOverrides};
+                const QList<QQuickItem*> buttons{editSource, editOverrides};
                 const auto spacing = actions->property("spacing").toReal();
                 for (int index = 0; index < buttons.size(); ++index) {
                     const auto* button = buttons[index];
@@ -374,17 +495,10 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                         return 141;
                     }
                 }
-                if (pixels == 14 && size.width() == 1000 &&
-                    (qAbs(validate->y() - editSource->y()) > 0.5 ||
-                     qAbs(validate->y() - editOverrides->y()) > 0.5))
-                    return 142;
-                if (pixels == 21 && size.width() == 360 &&
-                    qAbs(validate->y() - editOverrides->y()) < 0.5)
-                    return 143;
                 for (const auto* name :
                      {"subscription_name", "subscription_saved_url", "subscription_update_interval",
                       "subscription_provider_mode", "subscription_download_route",
-                      "subscription_source_url", "subscription_source_headers"}) {
+                      "subscription_source_headers"}) {
                     auto* field = host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
                     if (!test::focusInScroll(field)) {
                         std::fprintf(stderr, "Subscription focus: %s font=%d width=%d\n", name,
@@ -407,6 +521,8 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         }
     }
     QApplication::setFont(baselineFont);
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_cancel_source"),
+                              "clicked");
     host.resizeWindow({1500, 850});
     QTest::qWait(50);
     if (!test::focusInScroll(host.window()->findChild<QQuickItem*>("subscription_name")))
@@ -590,6 +706,22 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
         std::fprintf(stderr, "Closing overlay editor did not release it\n");
         return 120;
     }
+    if (!ui.profileModel()->profile("p0").contains("id"))
+        profiles.prepend(originalFirst);
+    else
+        profiles[0] = originalFirst;
+    ui.applyData({1, "fixture", {{"profiles", profiles}}});
+    QMetaObject::invokeMethod(page, "manage", Q_ARG(QVariant, "p0"));
+    token = request(editUrl);
+    ui.subscriptionUrlReady("p0", token, fixtureUrl);
+    savedUrl->setProperty("text", "https://fixture.invalid/navigate-away");
+    if (ui.navigate("home") || !closeConfirmation->property("visible").toBool())
+        return 156;
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_close_discard"),
+                              "clicked");
+    if (!QTest::qWaitFor([&] { return !ui.pageSource().toString().contains("subscriptions_page"); },
+                         1000))
+        return 157;
     std::puts("Subscription UI: bounded/reused delegates, stable actions, persistent management, "
               "incremental metadata, responsive long text and keyboard passed");
     return 0;

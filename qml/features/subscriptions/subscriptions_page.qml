@@ -15,6 +15,18 @@ ListView {
     property string urlRequestToken: ""
     property string urlRequestAction: ""
     property string urlResult: ""
+    property bool editingSource: false
+    property bool loadingSource: false
+    property bool sourceDirty: false
+    property bool sourceSaving: false
+    property string sourceBaseline: ""
+    property string sourceOperationId: ""
+    property string sourceOperationToken: ""
+    property string sourceError: ""
+    property string sourceCloseAction: ""
+    property bool suppressSourceCloseRejection: false
+    property bool sourceRevealed: false
+    property bool sourceHasHeaders: false
     function editProfile(profileId, layer): void {
         editorLoader.active = true;
         const editor = editorLoader.item as ProfileEditor;
@@ -36,7 +48,101 @@ ListView {
         urlRequestToken = "";
         urlRequestAction = "";
         urlResult = "";
-        savedUrl.clear();
+        sourceRevealed = false;
+        if (!editingSource) {
+            savedUrl.clear();
+            sourceBaseline = "";
+        }
+    }
+    function resetSourceEditor() {
+        editingSource = false;
+        loadingSource = false;
+        sourceDirty = false;
+        sourceBaseline = "";
+        sourceError = "";
+        sourceHeaders.clear();
+        sourceHasHeaders = false;
+        clearSavedUrl();
+        ui.setSubscriptionAddressDirty(false);
+    }
+    function editSource() {
+        sourceError = "";
+        if (!managedProfile.secretRef) {
+            beginSourceEdit("");
+        } else if (savedUrl.text.length > 0) {
+            beginSourceEdit(savedUrl.text);
+        } else {
+            loadingSource = true;
+            requestSavedUrl("edit");
+        }
+    }
+    function beginSourceEdit(url) {
+        sourceBaseline = url;
+        savedUrl.text = url;
+        editingSource = true;
+        loadingSource = false;
+        sourceRevealed = true;
+        savedUrl.forceActiveFocus(Qt.TabFocusReason);
+        savedUrl.selectAll();
+    }
+    function submitSource() {
+        if (!editingSource || sourceSaving || ui.runtime.busy || !savedUrl.text.trim())
+            return;
+        const closeAction = sourceCloseAction;
+        sourceCloseAction = "";
+        suppressSourceCloseRejection = true;
+        sourceCloseConfirmation.close();
+        suppressSourceCloseRejection = false;
+        sourceOperationId = managedId;
+        sourceOperationToken = Date.now().toString() + ":" + Math.random().toString();
+        sourceSaving = true;
+        sourceCloseAction = closeAction;
+        sourceError = "";
+        ui.setSubscriptionAddressDirty(false);
+        ui.setSubscriptionAddressSaving(true);
+        ui.runtimeCommand("source", [sourceOperationId, savedUrl.text, sourceHeaders.text, sourceOperationToken]);
+    }
+    function checkSourceDirty() {
+        sourceDirty = savedUrl.text !== sourceBaseline || sourceHasHeaders;
+        ui.setSubscriptionAddressDirty(sourceDirty && !sourceSaving);
+    }
+    function requestSourceClose(action) {
+        if (action !== "navigate")
+            ui.clearSubscriptionAddressNavigation();
+        if (sourceSaving) {
+            sourceCloseAction = action;
+            return;
+        }
+        if (action === "cancel_edit" && !sourceDirty) {
+            resetSourceEditor();
+            return;
+        }
+        sourceCloseAction = action;
+        if (editingSource && sourceDirty && !sourceSaving) {
+            sourceCloseConfirmation.open();
+            return;
+        }
+        finishSourceClose();
+    }
+    function finishSourceClose() {
+        const action = sourceCloseAction;
+        sourceCloseAction = "";
+        suppressSourceCloseRejection = true;
+        sourceCloseConfirmation.close();
+        suppressSourceCloseRejection = false;
+        resetSourceEditor();
+        if (action === "dialog")
+            management.close();
+        else if (action === "navigate") {
+            management.close();
+            Qt.callLater(function () { root.ui.resumeSubscriptionAddressNavigation(); });
+        }
+        else if (action === "cancel_edit")
+            return;
+        else if (action === "close")
+            ui.requestClose();
+        else if (action === "quit")
+            ui.requestQuit();
     }
     function requestSavedUrl(action) {
         urlRequestToken = "";
@@ -73,19 +179,20 @@ ListView {
         const previousName = managedProfile.name || "";
         const previousSource = managedProfile.secretRef || "";
         managedProfile = ui.profileModel.profile(managedId);
-        if ((managedProfile.secretRef || "") !== previousSource)
+        if ((managedProfile.secretRef || "") !== previousSource && !editingSource)
             clearSavedUrl();
         if (!managedProfile.id) {
             rollbackConfirmation.close();
             deleteConfirmation.close();
             management.close();
+            resetSourceEditor();
             managedId = "";
         } else if (itemName.text === previousName || !itemName.activeFocus) {
             itemName.text = managedProfile.name || "";
         }
     }
     function manage(profileId) {
-        clearSavedUrl();
+        resetSourceEditor();
         managedId = profileId;
         refreshManaged();
         if (managedId)
@@ -102,6 +209,8 @@ ListView {
         target: root.ui
         function onUiVisibleChanged() {
             if (!root.ui.uiVisible) {
+                if (root.editingSource)
+                    root.sourceRevealed = false;
                 root.clearSavedUrl();
                 importDialog.close();
             }
@@ -120,21 +229,58 @@ ListView {
             root.urlRequestAction = "";
             if (!url) {
                 root.urlResult = "Failed";
+                root.loadingSource = false;
             } else if (action === "copy") {
                 root.ui.copyText(url);
                 root.urlResult = "Copied";
+            } else if (action === "edit") {
+                root.beginSourceEdit(url);
             } else {
                 savedUrl.text = url;
                 savedUrl.cursorPosition = 0;
+                root.sourceRevealed = true;
             }
+        }
+        function onSubscriptionSourceFinished(profileId: string, token: string, saved: bool, errorCode: string) {
+            if (profileId !== root.sourceOperationId || token !== root.sourceOperationToken || !token)
+                return;
+            root.sourceSaving = false;
+            root.ui.setSubscriptionAddressSaving(false);
+            root.sourceOperationId = "";
+            root.sourceOperationToken = "";
+            if (saved && !errorCode && root.sourceCloseAction) {
+                root.finishSourceClose();
+                return;
+            }
+            root.sourceCloseAction = "";
+            root.ui.clearSubscriptionAddressNavigation();
+            if (!management.visible || profileId !== root.managedId) {
+                root.ui.setSubscriptionAddressDirty(false);
+                return;
+            }
+            if (saved) {
+                root.resetSourceEditor();
+                root.urlResult = errorCode ? "SavedApplyFailed" : "Saved";
+                root.sourceError = errorCode ? root.ui.errorText(errorCode) : "";
+            } else {
+                root.sourceError = root.ui.errorText(errorCode);
+                root.sourceDirty = true;
+                root.ui.setSubscriptionAddressDirty(true);
+            }
+        }
+        function onSubscriptionAddressCloseRequested(action: string) {
+            root.requestSourceClose(action);
         }
     }
     onVisibleChanged: {
         if (!visible) {
+            if (editingSource)
+                sourceRevealed = false;
             clearSavedUrl();
             importDialog.close();
         }
     }
+    Component.onDestruction: ui.setSubscriptionAddressDirty(false)
     onCardColumnsChanged: ui.profileRows.columns = cardColumns
     Component.onCompleted: ui.profileRows.columns = cardColumns
     model: ui.profileRows
@@ -272,6 +418,55 @@ ListView {
         }
     }
     ThemedDialog {
+        id: sourceCloseConfirmation
+        objectName: "subscription_source_close_confirmation"
+        theme: root.theme
+        parent: Overlay.overlay
+        title: qsTr("The subscription URL has not been saved")
+        modal: true
+        anchors.centerIn: parent
+        closePolicy: Popup.CloseOnEscape
+        onRejected: {
+            if (!root.suppressSourceCloseRejection) {
+                root.sourceCloseAction = "";
+                root.ui.clearSubscriptionAddressNavigation();
+            }
+        }
+        contentItem: ColumnLayout {
+            spacing: 12
+            Label {
+                Layout.fillWidth: true
+                text: qsTr("Save and update the subscription, discard the changes, or continue editing.")
+                color: root.theme.text
+                wrapMode: Text.WordWrap
+            }
+            Flow {
+                Layout.fillWidth: true
+                spacing: 8
+                ActionButton {
+                    objectName: "subscription_close_save"
+                    theme: root.theme
+                    prominent: true
+                    text: qsTr("Save and update")
+                    enabled: !root.ui.runtime.busy && !root.sourceSaving && savedUrl.text.trim().length > 0
+                    onClicked: root.submitSource()
+                }
+                ActionButton {
+                    objectName: "subscription_close_discard"
+                    theme: root.theme
+                    text: qsTr("Discard changes")
+                    onClicked: root.finishSourceClose()
+                }
+                ActionButton {
+                    objectName: "subscription_close_continue"
+                    theme: root.theme
+                    text: qsTr("Continue editing")
+                    onClicked: { root.sourceCloseAction = ""; root.ui.clearSubscriptionAddressNavigation(); sourceCloseConfirmation.close(); }
+                }
+            }
+        }
+    }
+    ThemedDialog {
         id: rollbackConfirmation
         theme: root.theme
         parent: Overlay.overlay
@@ -283,6 +478,7 @@ ListView {
     }
     ThemedDialog {
         id: deleteConfirmation
+        objectName: "subscription_delete_confirmation"
         theme: root.theme
         parent: Overlay.overlay
         title: qsTr("Delete this subscription?")
@@ -295,6 +491,7 @@ ListView {
             wrapMode: Text.WordWrap
         }
         onAccepted: {
+            root.resetSourceEditor();
             management.close();
             root.ui.runtimeCommand("delete", [root.managedId]);
         }
@@ -309,16 +506,36 @@ ListView {
         anchors.centerIn: parent
         width: Math.min(640, Math.max(0, root.availableWidth - 16))
         height: Math.min(650, root.height - 24)
-        standardButtons: Dialog.Close
-        onAboutToHide: root.clearSavedUrl()
+        closePolicy: Popup.NoAutoClose
+        property bool authorizedHide: false
+        footer: DialogButtonBox {
+            padding: root.theme.panelPadding
+            ActionButton {
+                objectName: "subscription_management_close"
+                theme: root.theme
+                text: qsTr("Close")
+                onClicked: root.requestSourceClose("dialog")
+            }
+            background: Item {}
+        }
         onOpened: {
-            root.clearSavedUrl();
+            authorizedHide = false;
+            if (!root.editingSource || !root.sourceDirty)
+                root.resetSourceEditor();
             itemName.text = root.managedProfile.name || "";
-            sourceUrl.clear();
-            sourceHeaders.clear();
+        }
+        onClosed: {
+            if (root.editingSource && root.sourceDirty && !authorizedHide) {
+                management.open();
+                root.requestSourceClose("dialog");
+            } else {
+                root.resetSourceEditor();
+            }
+            authorizedHide = false;
         }
         contentItem: ThemedScrollView {
             id: managementScroll
+            Keys.onEscapePressed: event => { root.requestSourceClose("dialog"); event.accepted = true; }
             theme: root.theme
             form: managementScrollForm
             ColumnLayout {
@@ -359,8 +576,7 @@ ListView {
                     onClicked: root.ui.runtimeCommand("rename", [root.managedId, itemName.text])
                 }
                 Label {
-                    visible: !!root.managedProfile.secretRef
-                    text: qsTr("Saved subscription URL")
+                    text: qsTr("Subscription URL")
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     wrapMode: Text.Wrap
@@ -372,24 +588,33 @@ ListView {
                     objectName: "subscription_saved_url"
                     theme: root.theme
                     Layout.fillWidth: true
-                    visible: !!root.managedProfile.secretRef
-                    readOnly: true
+                    readOnly: !root.editingSource || root.sourceSaving
                     selectByMouse: true
-                    placeholderText: qsTr("Hidden")
-                    Accessible.name: qsTr("Saved subscription URL")
+                    placeholderText: root.managedProfile.secretRef ? qsTr("Hidden") : qsTr("No subscription URL")
+                    Accessible.name: qsTr("Subscription URL")
+                    echoMode: root.sourceRevealed ? TextInput.Normal : TextInput.Password
+                    maximumLength: 8192
+                    onTextChanged: {
+                        if (root.editingSource)
+                            root.checkSourceDirty();
+                        root.sourceError = "";
+                    }
+                    onAccepted: if (root.editingSource) root.submitSource()
                 }
                 Flow {
-                    visible: !!root.managedProfile.secretRef
                     Layout.fillWidth: true
                     spacing: 8
                     ActionButton {
                         width: Math.min(implicitWidth, parent.width)
                         objectName: "subscription_show_url"
                         theme: root.theme
-                        text: savedUrl.text ? qsTr("Hide URL") : qsTr("Show URL")
-                        enabled: !root.urlRequestToken
+                        visible: !!root.managedProfile.secretRef || root.editingSource
+                        text: root.sourceRevealed ? qsTr("Hide URL") : qsTr("Show URL")
+                        enabled: !root.urlRequestToken && !root.sourceSaving
                         onClicked: {
-                            if (savedUrl.text)
+                            if (root.editingSource)
+                                root.sourceRevealed = !root.sourceRevealed;
+                            else if (savedUrl.text)
                                 root.clearSavedUrl();
                             else
                                 root.requestSavedUrl("show");
@@ -399,15 +624,94 @@ ListView {
                         width: Math.min(implicitWidth, parent.width)
                         objectName: "subscription_copy_url"
                         theme: root.theme
+                        visible: !!root.managedProfile.secretRef || root.editingSource
                         text: qsTr("Copy URL")
-                        enabled: !root.urlRequestToken
-                        onClicked: root.requestSavedUrl("copy")
+                        enabled: !root.urlRequestToken && !root.sourceSaving
+                        onClicked: {
+                            if (root.editingSource) {
+                                root.ui.copyText(savedUrl.text);
+                                root.urlResult = "Copied";
+                            } else
+                                root.requestSavedUrl("copy");
+                        }
+                    }
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_edit_url"
+                        theme: root.theme
+                        text: root.managedProfile.secretRef ? qsTr("Edit") : qsTr("Add subscription URL")
+                        visible: !root.editingSource
+                        enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly && !root.urlRequestToken && !root.sourceSaving
+                        onClicked: root.editSource()
                     }
                 }
                 Label {
-                    visible: !!root.urlResult
-                    text: root.urlResult === "Copied" ? qsTr("URL copied") : qsTr("Could not read the saved URL")
-                    color: root.urlResult === "Copied" ? root.theme.muted : root.theme.error
+                    visible: root.editingSource
+                    text: qsTr("Saving downloads and checks the new URL. A running subscription may restart and interrupt connections.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ActionButton {
+                    id: headersToggle
+                    objectName: "subscription_headers_toggle"
+                    theme: root.theme
+                    visible: root.editingSource
+                    property bool expanded: false
+                    text: expanded ? qsTr("Hide request headers") : qsTr("Request headers (optional)")
+                    onClicked: expanded = !expanded
+                }
+                Label {
+                    visible: root.editingSource
+                    text: qsTr("Existing custom headers are not carried over. Enter any headers required by the new URL.")
+                    color: root.theme.muted
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+                ThemedField {
+                    id: sourceHeaders
+                    theme: root.theme
+                    objectName: "subscription_source_headers"
+                    visible: headersToggle.expanded && root.editingSource
+                    enabled: !root.sourceSaving
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("Headers as JSON: Authorization, User-Agent, Accept")
+                    echoMode: TextInput.Password
+                    maximumLength: 8192
+                    onTextChanged: {
+                        root.sourceHasHeaders = text.length > 0;
+                        if (root.editingSource)
+                            root.checkSourceDirty();
+                    }
+                }
+                Flow {
+                    visible: root.editingSource
+                    Layout.fillWidth: true
+                    spacing: 8
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_validate_source"
+                        theme: root.theme
+                        prominent: true
+                        text: root.sourceSaving ? qsTr("Downloading and checking…") : qsTr("Save and update")
+                        pending: root.sourceSaving
+                        enabled: !root.ui.runtime.busy && !root.sourceSaving && savedUrl.text.trim().length > 0
+                        onClicked: root.submitSource()
+                    }
+                    ActionButton {
+                        width: Math.min(implicitWidth, parent.width)
+                        objectName: "subscription_cancel_source"
+                        theme: root.theme
+                        text: qsTr("Cancel")
+                        enabled: !root.sourceSaving
+                        onClicked: root.requestSourceClose("cancel_edit")
+                    }
+                }
+                Label {
+                    objectName: "subscription_source_result"
+                    visible: !!root.urlResult || !!root.sourceError
+                    text: root.sourceError ? (root.urlResult === "SavedApplyFailed" ? qsTr("URL saved; applying failed: %1").arg(root.sourceError) : root.sourceError) : root.urlResult === "Copied" ? qsTr("URL copied") : root.urlResult === "Saved" ? qsTr("URL saved and subscription updated") : qsTr("Could not read the saved URL")
+                    color: root.sourceError || root.urlResult === "Failed" ? root.theme.error : root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                 }
@@ -429,7 +733,7 @@ ListView {
                     Layout.minimumWidth: 0
                     theme: root.theme
                     visible: !!root.managedProfile.secretRef
-                    text: qsTr("Apply updates when selected")
+                    text: qsTr("Apply automatic updates to the current subscription")
                     checked: !!root.managedProfile.autoApply
                     enabled: !root.ui.runtime.busy
                     palette.windowText: root.theme.text
@@ -480,42 +784,20 @@ ListView {
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
-                ThemedField {
-                    id: sourceUrl
+                ActionButton {
+                    id: advancedButton
+                    objectName: "subscription_advanced"
                     theme: root.theme
-                    objectName: "subscription_source_url"
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("New HTTPS URL (leave blank to keep source)")
-                    Accessible.name: qsTr("New HTTPS URL (leave blank to keep source)")
-                    echoMode: TextInput.Password
-                    maximumLength: 8192
-                }
-                ThemedField {
-                    id: sourceHeaders
-                    theme: root.theme
-                    objectName: "subscription_source_headers"
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("Headers as JSON: Authorization, User-Agent, Accept")
-                    echoMode: TextInput.Password
-                    maximumLength: 8192
+                    property bool expanded: false
+                    text: expanded ? qsTr("Hide advanced settings") : qsTr("Advanced settings")
+                    onClicked: expanded = !expanded
                 }
                 Flow {
                     objectName: "subscription_editor_actions"
+                    visible: advancedButton.expanded
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
                     spacing: 8
-                    ActionButton {
-                        width: Math.min(implicitWidth, parent.width)
-                        objectName: "subscription_validate_source"
-                        theme: root.theme
-                        text: qsTr("Validate and replace source")
-                        enabled: !root.ui.runtime.busy && sourceUrl.text.length > 0
-                        onClicked: {
-                            root.ui.runtimeCommand("source", [root.managedId, sourceUrl.text, sourceHeaders.text]);
-                            sourceUrl.clear();
-                            sourceHeaders.clear();
-                        }
-                    }
                     ActionButton {
                         width: Math.min(implicitWidth, parent.width)
                         objectName: "subscription_edit_source"
@@ -537,7 +819,7 @@ ListView {
                     id: versions
                     theme: root.theme
                     Layout.fillWidth: true
-                    visible: (root.managedProfile.history || []).length > 0
+                    visible: advancedButton.expanded && (root.managedProfile.history || []).length > 0
                     model: (root.managedProfile.history || []).map(function (version, index) {
                         return qsTr("Version %1 · %2").arg(index + 1).arg(version.updatedAt || "—");
                     })
@@ -548,7 +830,7 @@ ListView {
                     Layout.maximumWidth: managementScroll.formWidth
                     theme: root.theme
                     text: qsTr("Restore selected version…")
-                    visible: (root.managedProfile.history || []).length > 0
+                    visible: advancedButton.expanded && (root.managedProfile.history || []).length > 0
                     enabled: !root.ui.runtime.busy
                     onClicked: {
                         root.historyIndex = versions.currentIndex;
@@ -557,12 +839,13 @@ ListView {
                     }
                 }
                 ActionButton {
+                    objectName: "subscription_delete"
                     Layout.minimumWidth: 0
                     Layout.maximumWidth: managementScroll.formWidth
                     theme: root.theme
                     text: qsTr("Delete")
                     destructive: true
-                    enabled: !root.ui.runtime.busy
+                    enabled: !root.ui.runtime.busy && !root.sourceSaving
                     onClicked: deleteConfirmation.open()
                 }
             }

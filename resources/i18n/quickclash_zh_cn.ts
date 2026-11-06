@@ -1553,7 +1553,27 @@
   </context>
   <context>
     <name>subscriptions_page</name>
+    <message><source>No subscription URL</source><translation>尚未设置订阅地址</translation></message>
+    <message><source>Add subscription URL</source><translation>添加订阅地址</translation></message>
     <message><source>Deleting the selected subscription restores network settings and stops its session. Its custom rules and proxy binding are removed; global rules and other subscriptions are kept.</source><translation>删除所选订阅会恢复网络设置并停止其会话，同时移除此配置的专属规则和代理组绑定；全局规则和其他订阅不受影响。</translation></message>
+    <message><source>Subscription URL</source><translation>订阅地址</translation></message>
+    <message><source>Edit</source><translation>修改</translation></message>
+    <message><source>Cancel</source><translation>取消</translation></message>
+    <message><source>The subscription URL has not been saved</source><translation>订阅地址尚未保存</translation></message>
+    <message><source>Save and update the subscription, discard the changes, or continue editing.</source><translation>可以保存并更新订阅、放弃更改或继续编辑。</translation></message>
+    <message><source>Save and update</source><translation>保存并更新</translation></message>
+    <message><source>Discard changes</source><translation>放弃更改</translation></message>
+    <message><source>Continue editing</source><translation>继续编辑</translation></message>
+    <message><source>Saving downloads and checks the new URL. A running subscription may restart and interrupt connections.</source><translation>保存时会下载并检查新地址，正在使用的订阅可能重启并短暂中断连接。</translation></message>
+    <message><source>Downloading and checking…</source><translation>正在下载和检查…</translation></message>
+    <message><source>URL saved; applying failed: %1</source><translation>地址已保存，但应用失败：%1</translation></message>
+    <message><source>URL saved and subscription updated</source><translation>地址已保存，订阅已更新</translation></message>
+    <message><source>Apply automatic updates to the current subscription</source><translation>自动更新后应用当前订阅</translation></message>
+    <message><source>Hide advanced settings</source><translation>收起高级设置</translation></message>
+    <message><source>Advanced settings</source><translation>高级设置</translation></message>
+    <message><source>Hide request headers</source><translation>收起请求头</translation></message>
+    <message><source>Request headers (optional)</source><translation>请求头（可选）</translation></message>
+    <message><source>Existing custom headers are not carried over. Enter any headers required by the new URL.</source><translation>原有自定义请求头不会沿用，请按新地址的要求重新填写。</translation></message>
   </context>
   <context>
     <name>subscription_details</name>
@@ -2344,6 +2364,22 @@
   </context>
   <context>
     <name>subscription_card</name>
+    <message><source>Applying failed: %1</source><translation>应用失败：%1</translation></message>
+    <message><source>Applying an update may briefly interrupt connections.</source><translation>应用更新可能短暂中断连接。</translation></message>
+    <message><source>Updating…</source><translation>正在更新…</translation></message>
+    <message><source>New configuration saved; applying failed</source><translation>新配置已保存，但应用失败</translation></message>
+    <message><source>Update failed; the previous configuration is kept</source><translation>更新失败；已保留之前的配置</translation></message>
+    <message><source>New configuration downloaded; the previous version is in use</source><translation>新配置已下载，当前仍使用旧版本</translation></message>
+    <message><source>Updated; available when this subscription is selected</source><translation>已更新，使用此订阅时生效</translation></message>
+    <message><source>Already up to date</source><translation>已是最新</translation></message>
+    <message><source>Updated and applied</source><translation>已更新并应用</translation></message>
+    <message><source>Updated</source><translation>已更新</translation></message>
+    <message><source>A previously downloaded configuration is still waiting to be applied</source><translation>之前下载的配置仍待应用</translation></message>
+    <message><source>A previously downloaded configuration is available when selected</source><translation>之前下载的配置将在选择此订阅时生效</translation></message>
+    <message><source>Retry update</source><translation>重试更新</translation></message>
+    <message><source>Retry applying</source><translation>重试应用</translation></message>
+    <message><source>Apply now</source><translation>立即应用</translation></message>
+    <message><source>Use this subscription</source><translation>使用此订阅</translation></message>
     <message><source>Selected</source><translation>已选中</translation></message>
     <message><source>Click to select</source><translation>点击选择</translation></message>
     <message><source>HTTPS subscription</source><translation>HTTPS 订阅</translation></message>

@@ -115,6 +115,75 @@ int subscriptionDownloadProbe() {
     runtime.renameProfile(id, "Cache fixture");
     origin.extraHeaders.insert("/subscription", "profile-title: Changed by provider\r\n");
     runtime.configureSubscription(id, 0, false);
+    const auto initialBody = origin.subscription;
+    origin.subscription += "# manual update fixture\n";
+    origin.entityTags.remove("/subscription");
+    origin.lastModified.remove("/subscription");
+    runtime.updateProfile(id);
+    if (!check(done() && profile().value("pendingApply").toBool(),
+               "scheduled policy leaves a selected update pending when automatic apply is off"))
+        return 42;
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && !profile().value("pendingApply").toBool() &&
+                   !runtime.snapshot().value("ready").toBool(),
+               "manual update applies an unchanged pending candidate without starting the core"))
+        return 43;
+    origin.subscription += "# manual changed fixture\n";
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && !profile().value("pendingApply").toBool(),
+               "manual changed update applies even when automatic apply is off"))
+        return 44;
+    QString sourceResultToken;
+    QString sourceResultError;
+    bool sourceResultSaved = false;
+    QObject::connect(
+        &runtime, &application::DesktopRuntime::subscriptionSourceFinished, &runtime,
+        [&](const QString&, const QString& token, bool saved, const QString& errorCode) {
+            sourceResultToken = token;
+            sourceResultSaved = saved;
+            sourceResultError = errorCode;
+        });
+    const auto priorSecret = profile().value("secretRef");
+    origin.payloads.insert("/failed-edit", "<html>bad subscription</html>");
+    runtime.changeProfileSource(id, source.left(source.lastIndexOf('/')) + "/failed-edit", {}, true,
+                                "failed-edit");
+    if (!check(done() && sourceResultToken == "failed-edit" && !sourceResultSaved &&
+                   !sourceResultError.isEmpty() && profile().value("secretRef") == priorSecret,
+               "failed source edit reports its token and preserves the saved address"))
+        return 45;
+    origin.subscription = initialBody;
+    runtime.changeProfileSource(id, source, {}, true, "saved-edit");
+    if (!check(done() && sourceResultToken == "saved-edit" && sourceResultSaved &&
+                   sourceResultError.isEmpty() && !profile().value("pendingApply").toBool(),
+               "source edit saves and applies the selected stopped subscription"))
+        return 46;
+    const auto selected = runtime.snapshot().value("selectedId");
+    runtime.addSubscription(source, "Other subscription");
+    if (!check(done() && runtime.snapshot().value("profiles").toArray().size() == 2 &&
+                   runtime.snapshot().value("selectedId") == selected,
+               "adding another subscription retains the current selection"))
+        return 48;
+    const auto otherId =
+        runtime.snapshot().value("profiles").toArray()[1].toObject().value("id").toString();
+    origin.subscription += "# nonselected update\n";
+    runtime.updateProfile(otherId, true);
+    if (!check(done() && error().isEmpty() && runtime.snapshot().value("selectedId") == selected &&
+                   !runtime.snapshot().value("ready").toBool() &&
+                   runtime.snapshot()
+                       .value("profiles")
+                       .toArray()[1]
+                       .toObject()
+                       .value("pendingApply")
+                       .toBool(),
+               "manual update of another subscription does not select or start it"))
+        return 49;
+    runtime.deleteProfile(otherId);
+    origin.subscription = initialBody;
+    origin.entityTags.insert("/subscription", "\"public-v1\"");
+    origin.lastModified.insert("/subscription", "Wed, 28 Oct 2026 01:00:00 GMT");
+    runtime.updateProfile(id);
+    if (!done() || !error().isEmpty())
+        return 47;
     const auto originalHash = profile().value("sourceHash");
     const auto collectedAtImport = profile().value("usageCollectedAt");
     const auto usageAtImport = profile().value("usage");

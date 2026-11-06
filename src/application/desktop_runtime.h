@@ -41,9 +41,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
                          const QString& route = QStringLiteral("Direct"));
     void setSubscriptionRoute(const QString& id, const QString& route);
     void cancelGeo();
-    void updateProfile(const QString& id);
+    void updateProfile(const QString& id, bool applyNow = false);
     void configureSubscription(const QString& id, int intervalMinutes, bool autoApply);
-    void changeProfileSource(const QString& id, const QString& url, const QString& headers);
+    void changeProfileSource(const QString& id, const QString& url, const QString& headers,
+                             bool applyNow = false, const QString& token = {});
     void requestSubscriptionUrl(const QString& id, const QString& token);
     void selectProfile(const QString& id);
     void renameProfile(const QString& id, const QString& name);
@@ -73,6 +74,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
   signals:
     // One-shot reply to an explicit management action; never part of published state.
     void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
+    void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
+                                    const QString& errorCode);
     // Reliable compact control state, not a complete diagnostic snapshot.
     void changed(const QJsonObject& state);
     void dataPublished(const quickclash::application::RuntimeUpdate& update);
@@ -282,6 +285,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void fetchGeo(int index, QJsonObject snapshot, quint64 generation);
     void scheduleSubscriptions();
     void completeSubscriptionUpdate(const QString& result);
+    void completeSubscriptionApply();
     void scheduleBackgroundStart(bool afterFailure = false, bool shortFailure = false);
     [[nodiscard]] domain::CommandResult saveProxyIntent(bool desired);
     [[nodiscard]] QUuid beginOperation(const QString& kind);
@@ -379,6 +383,12 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     QElapsedTimer coreUptime_;
     std::function<QDateTime()> clock_;
     QString updatingSubscription_;
+    QString applyingSubscriptionRetry_;
+    QString subscriptionSourceToken_;
+    bool subscriptionApplyNow_ = false;
+    bool subscriptionCandidateSaved_ = false;
+    bool subscriptionContentChanged_ = false;
+    bool subscriptionWasPending_ = false;
     bool shuttingDown_ = false;
     bool backgroundManaged_ = false;
     bool backgroundSuppressed_ = false;
@@ -461,6 +471,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool previouslyProxied_ = false;
     bool restartAttempt_ = false;
     bool modeOnlyApply_ = false;
+    bool applyingConfirmedSource_ = false;
     bool persistedProxyIntent_ = false;
     std::optional<bool> previousProxyIntent_;
     quint64 operationGeneration_ = 0;

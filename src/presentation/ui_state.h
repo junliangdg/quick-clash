@@ -196,6 +196,29 @@ class UiState : public QObject {
     Q_INVOKABLE void setLogsPaused(bool paused);
     Q_INVOKABLE void runtimeCommand(const QString& command, const QStringList& arguments = {});
     Q_INVOKABLE void copyText(const QString& text);
+    Q_INVOKABLE void setSubscriptionAddressDirty(bool dirty) {
+        subscriptionAddressDirty_ = dirty;
+    }
+    [[nodiscard]] bool subscriptionAddressDirty() const {
+        return subscriptionAddressDirty_;
+    }
+    Q_INVOKABLE void setSubscriptionAddressSaving(bool saving) {
+        subscriptionAddressSaving_ = saving;
+    }
+    Q_INVOKABLE void clearSubscriptionAddressNavigation() {
+        subscriptionAddressNavigation_.clear();
+        subscriptionAddressNavigationContext_.clear();
+    }
+    Q_INVOKABLE void resumeSubscriptionAddressNavigation() {
+        const auto page = subscriptionAddressNavigation_;
+        const auto context = subscriptionAddressNavigationContext_;
+        clearSubscriptionAddressNavigation();
+        if (!page.isEmpty())
+            (void)navigate(page, context);
+    }
+    [[nodiscard]] bool subscriptionAddressSaving() const {
+        return subscriptionAddressSaving_;
+    }
     Q_INVOKABLE void setDashboardOption(const QString& key, bool value);
     [[nodiscard]] QVariantMap dashboard() const {
         return dashboard_.toVariantMap();
@@ -210,6 +233,7 @@ class UiState : public QObject {
     [[nodiscard]] QVariantList compactNavigation() const;
     [[nodiscard]] QString runtimeStatus() const;
     [[nodiscard]] QString runtimeError() const;
+    Q_INVOKABLE QString errorText(const QString& code) const;
     [[nodiscard]] QString currentPage() const {
         return currentPage_;
     }
@@ -300,6 +324,9 @@ class UiState : public QObject {
     }
   signals:
     void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
+    void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
+                                    const QString& errorCode);
+    void subscriptionAddressCloseRequested(const QString& action);
     void routeChanged();
     void storageChanged();
     void runtimeChanged();
@@ -358,6 +385,10 @@ class UiState : public QObject {
     QString languageMode_ = QStringLiteral("system");
     bool systemDark_ = false;
     bool uiVisible_ = false;
+    bool subscriptionAddressDirty_ = false;
+    bool subscriptionAddressSaving_ = false;
+    QString subscriptionAddressNavigation_;
+    QVariantMap subscriptionAddressNavigationContext_;
     bool uiMinimized_ = false;
     bool replay_ = false;
     int replayConnections_ = 1000;

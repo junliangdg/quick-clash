@@ -11,6 +11,9 @@ FlatTile {
     required property var profile
     readonly property string profileId: profile.id || ""
     readonly property bool selected: profileId === ui.runtime.selectedId
+    readonly property bool updateFailed: profile.lastUpdateResult === "Failed"
+    readonly property bool applyFailed: !!profile.pendingApply && ((updateFailed && profile.lastUpdateSaved === true) || !!profile.lastApplyError)
+    readonly property bool updating: !!ui.runtime.busy && ui.runtime.updatingSubscriptionId === profileId
     signal manageRequested(string profileId)
     signal actionRequested(string command, string profileId)
     function focusSelect() {
@@ -100,8 +103,32 @@ FlatTile {
         Label {
             objectName: "subscription_update_status"
             visible: !!root.profile.secretRef
-            text: root.profile.lastUpdateResult === "Failed" ? qsTr("Update failed; the working configuration is kept") : root.profile.pendingApply ? qsTr("Changes waiting to be applied") : qsTr("Downloaded and validated")
-            color: root.profile.lastUpdateResult === "Failed" ? root.theme.error : root.profile.pendingApply ? root.theme.warning : root.theme.text
+            text: root.updating ? qsTr("Updating…") : root.updateFailed ? (root.profile.lastUpdateSaved ? qsTr("New configuration saved; applying failed") : qsTr("Update failed; the previous configuration is kept")) : root.profile.pendingApply ? (root.selected ? qsTr("New configuration downloaded; the previous version is in use") : qsTr("Updated; available when this subscription is selected")) : root.profile.lastUpdateResult === "Updated" ? (root.profile.lastUpdateChanged === false ? qsTr("Already up to date") : root.selected ? qsTr("Updated and applied") : qsTr("Updated")) : qsTr("Downloaded and validated")
+            color: root.updateFailed ? root.theme.error : root.profile.pendingApply && root.selected ? root.theme.warning : root.theme.text
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+        Label {
+            objectName: "subscription_update_error"
+            visible: root.updateFailed && !!root.profile.lastUpdateError
+            text: root.ui.errorText(root.profile.lastUpdateError || "")
+            color: root.theme.error
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+        Label {
+            objectName: "subscription_apply_error"
+            visible: !!root.profile.pendingApply && !!root.profile.lastApplyError
+            text: qsTr("Applying failed: %1").arg(root.ui.errorText(root.profile.lastApplyError || ""))
+            color: root.theme.error
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+        Label {
+            objectName: "subscription_pending_status"
+            visible: root.updateFailed && !!root.profile.pendingApply && !root.profile.lastUpdateSaved
+            text: root.selected ? qsTr("A previously downloaded configuration is still waiting to be applied") : qsTr("A previously downloaded configuration is available when selected")
+            color: root.theme.warning
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
@@ -112,6 +139,14 @@ FlatTile {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
         }
+        Label {
+            visible: root.selected && !!root.ui.runtime.ready
+            text: qsTr("Applying an update may briefly interrupt connections.")
+            color: root.theme.muted
+            font.pixelSize: root.theme.supportingSize
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
         Flow {
             Layout.fillWidth: true
             spacing: 8
@@ -119,10 +154,20 @@ FlatTile {
                 width: Math.min(implicitWidth, parent.width)
                 objectName: "update_subscription"
                 theme: root.theme
-                text: qsTr("Update")
+                text: root.updating ? qsTr("Updating…") : root.updateFailed && !root.applyFailed ? qsTr("Retry update") : qsTr("Update")
+                pending: root.updating
                 visible: !!root.profile.secretRef
-                enabled: !root.ui.runtime.busy
+                enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
                 onClicked: root.actionRequested("update", root.profileId)
+            }
+            ActionButton {
+                width: Math.min(implicitWidth, parent.width)
+                objectName: "apply_subscription"
+                theme: root.theme
+                visible: !!root.profile.pendingApply
+                text: root.selected ? (root.applyFailed ? qsTr("Retry applying") : qsTr("Apply now")) : qsTr("Use this subscription")
+                enabled: !root.ui.runtime.busy && !root.ui.runtime.readOnly
+                onClicked: root.actionRequested("select", root.profileId)
             }
         }
     }

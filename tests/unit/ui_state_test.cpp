@@ -364,6 +364,10 @@ int main(int argc, char* argv[]) {
                 check(!errors.runtimeError().isEmpty() && errors.runtimeError() != code,
                       "startup and installation errors explain recovery instead of raw codes");
             }
+            const auto download = errors.errorText(QStringLiteral("SubscriptionDownloadFailed"));
+            check(!download.isEmpty() && download != QStringLiteral("SubscriptionDownloadFailed") &&
+                      download != errors.runtimeError(),
+                  "subscription error text uses its own error code instead of runtime state");
         }
         {
             UiState editor;

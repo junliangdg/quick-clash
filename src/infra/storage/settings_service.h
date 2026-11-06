@@ -18,6 +18,8 @@ class SettingsService final : public QObject {
     void command(const QString& name, const QStringList& arguments = {});
   signals:
     void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
+    void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
+                                    const QString& errorCode);
     void loaded(const QString& theme, bool unload, bool acknowledged, const QString& language,
                 const QJsonObject& dashboard);
     void saved(const QString& theme, bool unload, bool acknowledged, const QString& language,

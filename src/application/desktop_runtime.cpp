@@ -718,6 +718,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("selectedName"), selectedName_},
         {QStringLiteral("status"), status_},
         {QStringLiteral("busy"), busy_},
+        {QStringLiteral("updatingSubscriptionId"), updatingSubscription_},
         {QStringLiteral("selectingProxy"), !pendingGroup_.isEmpty() && !restoringNodes_},
         {QStringLiteral("ready"), engine_.ready()},
         {QStringLiteral("backgroundManaged"), backgroundManaged_},
@@ -847,6 +848,8 @@ void DesktopRuntime::publish() {
     if (!busy_ && !updatingSubscription_.isEmpty())
         completeSubscriptionUpdate(lastError_.isEmpty() ? QStringLiteral("Updated")
                                                         : QStringLiteral("Failed"));
+    if (!busy_ && !applyingSubscriptionRetry_.isEmpty())
+        completeSubscriptionApply();
     if (publicationGeneration_ == 0 || publicationEpoch_ != epoch_) {
         ++publicationGeneration_;
         publicationEpoch_ = epoch_;
@@ -988,6 +991,11 @@ void DesktopRuntime::scheduleSubscriptions() {
 }
 void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
     const auto id = std::exchange(updatingSubscription_, {});
+    const auto token = std::exchange(subscriptionSourceToken_, {});
+    const bool saved = std::exchange(subscriptionCandidateSaved_, false);
+    const bool changed = std::exchange(subscriptionContentChanged_, false);
+    const bool wasPending = std::exchange(subscriptionWasPending_, false);
+    subscriptionApplyNow_ = false;
     auto catalog = profiles_;
     for (qsizetype i = 0; i < catalog.size(); ++i) {
         auto item = catalog[i].toObject();
@@ -1006,6 +1014,8 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
                                                            ? QStringLiteral("UserStopped")
                                                        : success ? QString{}
                                                                  : lastError_);
+        item.insert(QStringLiteral("lastUpdateSaved"), saved);
+        item.insert(QStringLiteral("lastUpdateChanged"), changed || wasPending);
         item.insert(QStringLiteral("lastAttemptAt"), clock_().toString(Qt::ISODate));
         item.insert(QStringLiteral("updateFailures"), failures);
         item.insert(
@@ -1017,6 +1027,23 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
     }
     (void)saveCatalog(catalog);
     scheduleSubscriptions();
+    if (!token.isEmpty())
+        emit subscriptionSourceFinished(
+            id, token, saved,
+            result == QStringLiteral("Cancelled") ? QStringLiteral("UserStopped") : lastError_);
+}
+void DesktopRuntime::completeSubscriptionApply() {
+    const auto id = std::exchange(applyingSubscriptionRetry_, {});
+    auto catalog = profiles_;
+    for (qsizetype i = 0; i < catalog.size(); ++i) {
+        auto item = catalog[i].toObject();
+        if (item.value(QStringLiteral("id")) != id)
+            continue;
+        item.insert(QStringLiteral("lastApplyError"), lastError_);
+        catalog[i] = item;
+        (void)saveCatalog(catalog);
+        break;
+    }
 }
 void DesktopRuntime::error(const QString& code) {
     if (!busy_) {
@@ -1160,7 +1187,7 @@ void DesktopRuntime::addSubscription(const QString& url, const QString& name,
                                      const QString& route) {
     download(url, name, {}, {}, route);
 }
-void DesktopRuntime::updateProfile(const QString& id) {
+void DesktopRuntime::updateProfile(const QString& id, bool applyNow) {
     if (busy_ || store_.readOnly()) {
         error(QStringLiteral("OperationUnavailable"));
         return;
@@ -1171,6 +1198,10 @@ void DesktopRuntime::updateProfile(const QString& id) {
         return;
     }
     updatingSubscription_ = id;
+    subscriptionApplyNow_ = applyNow;
+    subscriptionCandidateSaved_ = false;
+    subscriptionContentChanged_ = false;
+    subscriptionWasPending_ = item.value(QStringLiteral("pendingApply")).toBool();
     lastError_.clear();
     const auto secret = credentials_->read(item.value(QStringLiteral("secretRef")).toString());
     if (const auto* failure = std::get_if<domain::Error>(&secret)) {
@@ -1187,9 +1218,12 @@ void DesktopRuntime::updateProfile(const QString& id) {
              envelope.value(QStringLiteral("cache")).toObject());
 }
 void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
-                                         const QString& headers) {
+                                         const QString& headers, bool applyNow,
+                                         const QString& token) {
     if (busy_ || store_.readOnly()) {
         error(QStringLiteral("OperationUnavailable"));
+        if (!token.isEmpty())
+            emit subscriptionSourceFinished(id, token, false, lastError_);
         return;
     }
     const auto item = profile(id);
@@ -1197,9 +1231,16 @@ void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
                                                       : QJsonDocument::fromJson(headers.toUtf8());
     if (item.isEmpty() || !document.isObject() || headers.size() > 8192) {
         error(QStringLiteral("InvalidSubscriptionHeaders"));
+        if (!token.isEmpty())
+            emit subscriptionSourceFinished(id, token, false, lastError_);
         return;
     }
     updatingSubscription_ = id;
+    subscriptionSourceToken_ = token;
+    subscriptionApplyNow_ = applyNow;
+    subscriptionCandidateSaved_ = false;
+    subscriptionContentChanged_ = false;
+    subscriptionWasPending_ = item.value(QStringLiteral("pendingApply")).toBool();
     lastError_.clear();
     download(url, item.value(QStringLiteral("name")).toString(), id, document.object());
 }
@@ -1345,12 +1386,15 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     for (auto it = metadata.begin(); it != metadata.end(); ++it)
         if (!it.key().startsWith(QLatin1Char('_')))
             imported.insert(it.key(), it.value());
+    // Local layers belong to the stable profile ID. Resolve both layers from
+    // the same profile before validating an update or replacement source.
+    const auto existingProfile = profile(existingId);
     if (!imported.contains(QStringLiteral("overlay")))
         imported.insert(QStringLiteral("overlay"),
-                        profile(existingId).value(QStringLiteral("overlay")).toObject());
+                        existingProfile.value(QStringLiteral("overlay")).toObject());
     if (!imported.contains(QStringLiteral("customGroups")))
         imported.insert(QStringLiteral("customGroups"),
-                        profile(existingId).value("customGroups").toArray());
+                        existingProfile.value("customGroups").toArray());
     context->imported = imported;
     auto composed = infra::composeProfileConfig(bytes, imported);
     if (const auto* failure = std::get_if<domain::Error>(&composed)) {
@@ -1446,10 +1490,13 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
             item.value(QStringLiteral("snapshotHash")) ||
         (previous.value(QStringLiteral("overlay")) != item.value(QStringLiteral("overlay")) ||
          previous.value("customGroups") != item.value("customGroups"));
+    if (updatingSubscription_ == id)
+        item.insert(QStringLiteral("lastUpdateSaved"), true);
     const bool activate =
         selectedId_.isEmpty() ||
         (id == selectedId_ &&
-         (context->forceApply || item.value(QStringLiteral("autoApply")).toBool()) &&
+         (context->forceApply || (updatingSubscription_ == id && subscriptionApplyNow_) ||
+          item.value(QStringLiteral("autoApply")).toBool()) &&
          (changed || item.value(QStringLiteral("pendingApply")).toBool()));
     item.insert(QStringLiteral("pendingApply"),
                 changed || item.value(QStringLiteral("pendingApply")).toBool());
@@ -1466,6 +1513,10 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
         catalog.append(item);
     }
     if (saveCatalog(catalog)) {
+        if (updatingSubscription_ == id) {
+            subscriptionCandidateSaved_ = true;
+            subscriptionContentChanged_ = changed;
+        }
         // Catalog now owns the immutable source/snapshot, even if later application fails.
         context->candidates->references.clear();
         if (!context->editorToken.isEmpty() &&
@@ -1509,6 +1560,12 @@ void DesktopRuntime::selectProfile(const QString& id) {
     backgroundSuppressed_ = false;
     recoveryFailures_ = 0;
     recoveryTimer_.stop();
+    const auto item = profile(id);
+    if (item.value(QStringLiteral("pendingApply")).toBool() &&
+        !item.value(QStringLiteral("secretRef")).toString().isEmpty()) {
+        applyingSubscriptionRetry_ = id;
+        lastError_.clear();
+    }
     applyProfile(id, engine_.ready());
 }
 void DesktopRuntime::renameProfile(const QString& id, const QString& name) {
@@ -1626,6 +1683,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     const bool adjustSelected = id == selectedId_ && !previousPreferences_.isEmpty() &&
                                 previousPreferences_.value(QStringLiteral("userRules")) ==
                                     runtimePreferences_.value(QStringLiteral("userRules"));
+    applyingConfirmedSource_ = adjustSelected;
     auto context = configTransaction_;
     const bool trusted = context && context->validated &&
                          context->generation == operationGeneration_ && context->profileId == id &&
@@ -2186,19 +2244,36 @@ void DesktopRuntime::confirmed() {
     auto catalog = profiles_;
     for (qsizetype i = 0; i < catalog.size(); ++i) {
         auto item = catalog[i].toObject();
-        if (item.value(QStringLiteral("id")) == selectedId_ &&
-            candidate_.value(QStringLiteral("selection"))
-                    .toObject()
-                    .value(QStringLiteral("sourceHash")) ==
-                item.value(QStringLiteral("sourceHash")) &&
-            item.value(QStringLiteral("pendingApply")).toBool()) {
+        bool changed = false;
+        const bool appliedCandidate = !modeOnlyApply_ && !applyingConfirmedSource_ &&
+                                      item.value(QStringLiteral("id")) == selectedId_ &&
+                                      candidate_.value(QStringLiteral("selection"))
+                                              .toObject()
+                                              .value(QStringLiteral("sourceHash")) ==
+                                          item.value(QStringLiteral("sourceHash"));
+        if (appliedCandidate && item.value(QStringLiteral("pendingApply")).toBool()) {
             item.insert(QStringLiteral("pendingApply"), false);
-            catalog[i] = item;
+            changed = true;
         }
+        if (appliedCandidate &&
+            item.value(QStringLiteral("lastUpdateResult")) == QStringLiteral("Failed") &&
+            item.value(QStringLiteral("lastUpdateSaved")).toBool() && networkFailure.isEmpty()) {
+            item.insert(QStringLiteral("lastUpdateResult"), QStringLiteral("Updated"));
+            item.insert(QStringLiteral("lastUpdateError"), QString{});
+            changed = true;
+        }
+        if (appliedCandidate && networkFailure.isEmpty() &&
+            !item.value(QStringLiteral("lastApplyError")).toString().isEmpty()) {
+            item.insert(QStringLiteral("lastApplyError"), QString{});
+            changed = true;
+        }
+        if (changed)
+            catalog[i] = item;
     }
     const bool catalogSaved = saveCatalog(catalog);
     previousPreferences_ = {};
     modeOnlyApply_ = false;
+    applyingConfirmedSource_ = false;
     applying_ = false;
     busy_ = false;
     savedPreferences_ = runtimePreferences_;
@@ -2385,6 +2460,7 @@ void DesktopRuntime::start(bool systemProxy) {
     }
     restartAttempt_ = false;
     proxyDesired_ = systemProxy;
+    applyingConfirmedSource_ = true;
     candidate_ = repository_.manifest();
     previous_ = candidate_;
     const auto selection = candidate_.value(QStringLiteral("selection")).toObject();

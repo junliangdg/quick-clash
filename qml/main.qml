@@ -15,6 +15,8 @@ ApplicationWindow {
     readonly property bool wideNavigation: compact ? expandedRail : !collapsedSidebar
     readonly property int navigationWidth: narrow ? 0 : (wideNavigation ? (width >= 1200 ? 208 : 192) : 64)
     readonly property int pageMargin: narrow ? 12 : (compact ? 16 : 24)
+    readonly property int pageTopMargin: narrow ? 12 : 16
+    readonly property int pageBottomMargin: 12
     // At very narrow sizes, make the existing margin just large enough for the
     // full focus ring and scrollbar; no page width depends on scrollbar visibility.
     readonly property int pageContentMargin: Math.max(pageMargin, tokens.focusMargin + tokens.scrollBarWidth + 2)
@@ -273,10 +275,10 @@ ApplicationWindow {
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.horizontalCenter: parent.horizontalCenter
-                anchors.topMargin: window.pageMargin
-                anchors.bottomMargin: window.pageMargin
+                anchors.topMargin: window.pageTopMargin
+                anchors.bottomMargin: window.pageBottomMargin
                 width: Math.min(parent.width - 2 * window.pageContentMargin, 1440)
-                spacing: window.ui.currentPage === "settings" ? 8 : tokens.gap
+                spacing: 8
                 GridLayout {
                     id: pageHeading
                     objectName: "page_title_row"

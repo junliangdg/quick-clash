@@ -39,6 +39,8 @@ UiState::UiState(QString settingsFile, QObject* parent, std::function<qint64()> 
         connect(settings_.get(), &infra::SettingsService::dataChanged, this, &UiState::applyData);
         connect(settings_.get(), &infra::SettingsService::subscriptionUrlReady, this,
                 &UiState::subscriptionUrlReady);
+        connect(settings_.get(), &infra::SettingsService::subscriptionSourceFinished, this,
+                &UiState::subscriptionSourceFinished);
         connect(settings_.get(), &infra::SettingsService::operationCompleted, this,
                 &UiState::operationCompleted);
         connect(settings_.get(), &infra::SettingsService::failed, this,
@@ -539,7 +541,9 @@ QString UiState::runtimeStatus() const {
     return tr("Loading");
 }
 QString UiState::runtimeError() const {
-    const auto customError = runtime_.value(QStringLiteral("error")).toString();
+    return errorText(runtime_.value(QStringLiteral("error")).toString());
+}
+QString UiState::errorText(const QString& customError) const {
     if (customError == QStringLiteral("InvalidCustomGroup"))
         return tr("Check the group name, sources, probe URL and parameter ranges.");
     if (customError == QStringLiteral("InvalidCustomGroupFilter"))
@@ -562,7 +566,7 @@ QString UiState::runtimeError() const {
     if (customError == QStringLiteral("CustomGroupLimitExceeded"))
         return tr("A profile supports up to 32 custom groups and 256 KiB of group definitions.");
 
-    const auto code = runtime_.value(QStringLiteral("error")).toString();
+    const auto& code = customError;
     if (code == QStringLiteral("CorePlatformUnsupported") ||
         code == QStringLiteral("CredentialStoreUnsupported") ||
         code == QStringLiteral("SystemProxyUnsupported") ||
@@ -703,7 +707,9 @@ QString UiState::runtimeError() const {
         return tr("The editor requires UTF-8. Convert the source file before editing.");
     if (code == QStringLiteral("InvalidEditorDraft"))
         return tr("The saved draft is invalid. Load the latest version to replace it.");
-    const auto issues = runtime_.value(QStringLiteral("configIssues")).toList();
+    const auto issues = code == runtime_.value(QStringLiteral("error")).toString()
+                            ? runtime_.value(QStringLiteral("configIssues")).toList()
+                            : QVariantList{};
     if (!issues.isEmpty()) {
         QStringList lines;
         for (const auto& value : issues) {
@@ -821,6 +827,12 @@ bool UiState::navigate(const QString& pageId, const QVariantMap& context) {
     if (!registry_.resolve(pageId, context)) {
         routeError_ = tr("Unable to open page: invalid route or parameters");
         emit routeErrorChanged();
+        return false;
+    }
+    if (currentPage_ != pageId && (subscriptionAddressDirty_ || subscriptionAddressSaving_)) {
+        subscriptionAddressNavigation_ = pageId;
+        subscriptionAddressNavigationContext_ = context;
+        emit subscriptionAddressCloseRequested(QStringLiteral("navigate"));
         return false;
     }
     routeError_.clear();

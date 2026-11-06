@@ -756,6 +756,88 @@ int main(int argc, char** argv) {
                  "automatic apply failure compensates to confirmed session", reopened))
         return 69;
     QObject::disconnect(applyFailure);
+    reopened.updateProfile(subscriptionId, true);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                     reopened.snapshot().value("ready").toBool() &&
+                     !reopened.snapshot()
+                          .value("profiles")
+                          .toArray()[1]
+                          .toObject()
+                          .value("pendingApply")
+                          .toBool(),
+                 "manual update applies the unchanged candidate after a compensated failure",
+                 reopened))
+        return 171;
+    origin.subscription += "# pending after retry\n";
+    reopened.configureSubscription(subscriptionId, 0, false);
+    reopened.updateProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool(),
+                 "background policy still leaves a later candidate pending", reopened))
+        return 172;
+    candidateBlocked = false;
+    const auto retryFailure =
+        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &app,
+                         [&](const QJsonObject& state) {
+                             if (state.value("status") == "Starting" && !candidateBlocked)
+                                 candidateBlocked = candidatePortBlocker.listen(
+                                     QHostAddress::LocalHost, static_cast<quint16>(mixed));
+                             if (candidateBlocked && !state.value("error").toString().isEmpty())
+                                 candidatePortBlocker.close();
+                         });
+    reopened.selectProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                     candidateBlocked && reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool() &&
+                     !reopened.snapshot()
+                          .value("profiles")
+                          .toArray()[1]
+                          .toObject()
+                          .value("lastApplyError")
+                          .toString()
+                          .isEmpty(),
+                 "manual apply failure is recorded while retaining the candidate", reopened))
+        return 173;
+    QObject::disconnect(retryFailure);
+    reopened.selectProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                     reopened.snapshot().value("ready").toBool() &&
+                     !reopened.snapshot()
+                          .value("profiles")
+                          .toArray()[1]
+                          .toObject()
+                          .value("pendingApply")
+                          .toBool() &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("lastApplyError")
+                         .toString()
+                         .isEmpty(),
+                 "successful retry clears the manual apply error", reopened))
+        return 174;
+    origin.subscription += "# pending for mode change\n";
+    reopened.updateProfile(subscriptionId);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot()
+                         .value("profiles")
+                         .toArray()[1]
+                         .toObject()
+                         .value("pendingApply")
+                         .toBool(),
+                 "later candidate remains pending before changing mode", reopened))
+        return 175;
     reopened.setMode(QStringLiteral("rule"));
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
                      reopened.snapshot()

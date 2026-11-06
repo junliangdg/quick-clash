@@ -234,6 +234,94 @@ int customGroupsProbe() {
                    !group("HK auto").value("members").toArray().contains("JP-A"),
                "core candidates and current"))
         return 9;
+    runtime.selectProxy("manual", "HK auto");
+    if (!check(done() && waitFor([&] { return group("manual").value("current") == "HK auto"; }),
+               "local group selected as parent outbound"))
+        return 50;
+    const auto savedDefinitions = catalog().value("customGroups");
+    const auto replacementUrl =
+        QStringLiteral("https://127.0.0.1:%1/replacement").arg(origin.serverPort());
+    origin.payloads["/replacement"] = original + "# replacement address\n";
+    // Changing the URL happens on the subscription page, where the proxy and
+    // custom-group channels are released and must be reacquired on return.
+    runtime.setDemands({});
+    runtime.changeProfileSource(id, replacementUrl, {}, true);
+    if (!check(done() && runtime.snapshot().value("error").toString().isEmpty() &&
+                   runtime.snapshot().value("selectedId") == id &&
+                   catalog().value("customGroups") == savedDefinitions,
+               "replacing subscription retains local group definitions"))
+        return 46;
+    runtime.setDemands({"proxies", "providers", "custom_groups"});
+    if (!check(waitFor([&] { return view.value("definitions") == savedDefinitions; }) &&
+                   waitFor([&] {
+                       return group("HK auto").value("members").toArray().contains("HK-A");
+                   }) &&
+                   group("HK auto").value("members").toArray().contains("HK-A") &&
+                   group("manual").value("members").toArray().contains("HK auto") &&
+                   group("manual").value("current") == "HK auto",
+               "returning to proxy page shows and applies retained groups"))
+        return 49;
+    const auto priorSource = catalog().value("sourceRef");
+    const auto priorSecret = catalog().value("secretRef");
+    const auto priorPid = runtime.snapshot().value("corePid");
+    origin.payloads["/incompatible"] = original;
+    origin.payloads["/incompatible"].replace("manual", "new-selector");
+    runtime.changeProfileSource(
+        id, QStringLiteral("https://127.0.0.1:%1/incompatible").arg(origin.serverPort()), {}, true);
+    if (!check(done() && runtime.snapshot().value("error") == "CustomGroupParentMissing" &&
+                   catalog().value("sourceRef") == priorSource &&
+                   catalog().value("secretRef") == priorSecret &&
+                   catalog().value("customGroups") == savedDefinitions &&
+                   runtime.snapshot().value("corePid") == priorPid && !group("HK auto").isEmpty(),
+               "incompatible replacement preserves the original source and local groups"))
+        return 47;
+    runtime.changeProfileSource(
+        id, QStringLiteral("https://127.0.0.1:%1/subscription").arg(origin.serverPort()), {}, true);
+    if (!check(done() && runtime.snapshot().value("error").toString().isEmpty() &&
+                   catalog().value("customGroups") == savedDefinitions &&
+                   !group("HK auto").isEmpty(),
+               "restoring source retains local groups"))
+        return 48;
+    origin.payloads["/other"] = original;
+    origin.payloads["/other"].replace("manual", "other-selector");
+    runtime.addSubscription(QStringLiteral("https://127.0.0.1:%1/other").arg(origin.serverPort()),
+                            "Other subscription");
+    if (!check(done() && runtime.snapshot().value("error").toString().isEmpty() &&
+                   runtime.snapshot().value("profiles").toArray().size() == 2 &&
+                   runtime.snapshot().value("selectedId") == id,
+               "adding a second subscription retains the current one"))
+        return 52;
+    const auto otherId =
+        runtime.snapshot().value("profiles").toArray().last().toObject().value("id").toString();
+    runtime.setDemands({});
+    runtime.selectProfile(otherId);
+    if (!check(done() && runtime.snapshot().value("error").toString().isEmpty() &&
+                   runtime.snapshot().value("ready").toBool() &&
+                   runtime.snapshot().value("selectedId") == otherId &&
+                   catalog().value("customGroups") == savedDefinitions,
+               "switching subscriptions retains the original local groups"))
+        return 53;
+    runtime.selectProfile(id);
+    if (!check(done() && runtime.snapshot().value("error").toString().isEmpty() &&
+                   runtime.snapshot().value("ready").toBool() &&
+                   runtime.snapshot().value("selectedId") == id,
+               "switching back applies the original subscription"))
+        return 54;
+    runtime.setDemands({"proxies", "providers", "custom_groups"});
+    if (!check(
+            waitFor([&] {
+                return runtime.snapshot().value("customGroups").toObject().value("definitions") ==
+                           savedDefinitions &&
+                       group("manual").value("current") == "HK auto" &&
+                       group("HK auto").value("members").toArray().contains("HK-A");
+            }),
+            "returning to the original subscription restores its group and selection"))
+        return 55;
+    runtime.deleteProfile(otherId);
+    if (!check(done() && runtime.snapshot().value("profiles").toArray().size() == 1 &&
+                   runtime.snapshot().value("selectedId") == id,
+               "remove temporary second subscription"))
+        return 56;
     spec = catalog().value("customGroups").toArray().first().toObject();
     spec.insert("type", "fallback");
     if (!check(preview(spec, true) && apply(), "edit fallback"))
@@ -474,6 +562,25 @@ int customGroupsProbe() {
                }),
                "definitions survive restart"))
         return 29;
+    const auto copiedId = allProfiles.last().toObject().value("id").toString();
+    reopened.deleteProfile(id);
+    const auto remainingProfiles =
+        std::get<std::optional<QJsonObject>>(store.read("data/catalog.json"))
+            .value()
+            .value("profiles")
+            .toArray();
+    bool removed = true;
+    bool copyRetained = false;
+    for (const auto& value : remainingProfiles) {
+        const auto item = value.toObject();
+        removed = removed && item.value("id") != id;
+        if (item.value("id") == copiedId)
+            copyRetained = item.value("customGroups") == localDefinitions;
+    }
+    if (!check(reopened.snapshot().value("error").toString().isEmpty() && removed && copyRetained &&
+                   remainingProfiles.size() == allProfiles.size() - 1,
+               "deleting a subscription removes its groups without affecting another profile"))
+        return 51;
     std::puts("custom groups runtime probe passed");
     return 0;
 }

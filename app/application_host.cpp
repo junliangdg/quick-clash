@@ -494,6 +494,10 @@ void ApplicationHost::hideWindow(bool confirmed) {
     if (!window_ || quitting_) {
         return;
     }
+    if (state_.subscriptionAddressDirty() || state_.subscriptionAddressSaving()) {
+        emit state_.subscriptionAddressCloseRequested(QStringLiteral("close"));
+        return;
+    }
     const bool available = recoverableFromTray();
     state_.setTrayAvailable(available);
     if (!available || (!confirmed && !state_.closeAcknowledged())) {
@@ -546,6 +550,11 @@ void ApplicationHost::unloadWindow() {
 }
 void ApplicationHost::quit() {
     if (quitting_) {
+        return;
+    }
+    if (state_.subscriptionAddressDirty() || state_.subscriptionAddressSaving()) {
+        if (showWindow())
+            emit state_.subscriptionAddressCloseRequested(QStringLiteral("quit"));
         return;
     }
     if (state_.hasSettingsDraft()) {
