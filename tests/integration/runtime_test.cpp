@@ -738,7 +738,8 @@ int main(int argc, char** argv) {
                              if (candidateBlocked && !state.value("error").toString().isEmpty())
                                  candidatePortBlocker.close();
                          });
-    origin.subscription += "# rejected candidate start\n";
+    origin.subscription.replace("name: added, type: http, server: 127.0.0.1, port: 1}",
+                                "name: added, type: http, server: 127.0.0.1, port: 2}");
     reopened.updateProfile(subscriptionId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
                      candidateBlocked && reopened.snapshot().value("ready").toBool() &&
@@ -769,7 +770,8 @@ int main(int argc, char** argv) {
                  "manual update applies the unchanged candidate after a compensated failure",
                  reopened))
         return 171;
-    origin.subscription += "# pending after retry\n";
+    origin.subscription.replace("name: added, type: http, server: 127.0.0.1, port: 2}",
+                                "name: added, type: http, server: 127.0.0.1, port: 3}");
     reopened.configureSubscription(subscriptionId, 0, false);
     reopened.updateProfile(subscriptionId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
@@ -1646,7 +1648,7 @@ int main(int argc, char** argv) {
         return 126;
     origin.payloads.insert(
         "/provider_nodes",
-        "proxies: [{name: managed_fixture, type: http, server: 127.0.0.1, port: 9}]\n");
+        "proxies: [{name: managed_fixture, type: http, server: 127.0.0.1, port: 10}]\n");
     bool cancellationQueued = false;
     QTimer cancelValidation;
     cancelValidation.setInterval(0);

@@ -1422,7 +1422,7 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
     configTransaction_ = context;
     publish();
     const auto weak = std::weak_ptr<ConfigTransaction>(context);
-    validate(context->semantic, [this, weak](bool valid) {
+    auto validated = [this, weak](bool valid) {
         const auto context = weak.lock();
         if (!context || context != configTransaction_ ||
             context->generation != operationGeneration_) {
@@ -1444,7 +1444,11 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
                 context->generation == operationGeneration_)
                 finishImport(context);
         });
-    });
+    };
+    if (matchesRunningConfig(context->profileId, context->semantic))
+        QTimer::singleShot(0, this, [validated = std::move(validated)] { validated(true); });
+    else
+        validate(context->semantic, std::move(validated));
 }
 void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& context) {
     if (context->previewOnly) {
@@ -1658,6 +1662,23 @@ void DesktopRuntime::discardConfigTransaction() {
     if (configTransaction_)
         configTransaction_->semantic = {};
     configTransaction_.reset();
+}
+bool DesktopRuntime::matchesRunningConfig(const QString& id, const QByteArray& semantic) const {
+    if (!engine_.ready() || engine_.cleanupUncertain() || recovering_ || modeOnlyApply_ ||
+        tunPending_ || tunDisabling_ || id != selectedId_ || id != sessionProfileId_ ||
+        id != effectiveProfileId_ || runtimePreferences_ != sessionPreferences_ ||
+        effectivePreferences_ != sessionPreferences_)
+        return false;
+    const auto selected = repository_.manifest().value(QStringLiteral("selection")).toObject();
+    const auto expected = selected.value(QStringLiteral("effectiveHash")).toString();
+    // Reuse only the exact confirmed template and launch preferences. In particular,
+    // identical YAML alone cannot authorize reusing a different core, Geo or TUN session.
+    return selected.value(QStringLiteral("profileId")) == id && hash(semantic) == expected &&
+           platform::verifyCoreArtifact(
+               coreExecutable(),
+               runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString()) &&
+           std::holds_alternative<std::monostate>(store_.verifyBytes(
+               selected.value(QStringLiteral("artifactRef")).toString(), expected));
 }
 void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     backgroundSuppressed_ = false;
@@ -1899,6 +1920,12 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             previousPreferences_.remove(QStringLiteral("schemaVersion"));
         }
         proxyDesired_ = previouslyProxied_;
+        if (matchesRunningConfig(id, semantic)) {
+            unchangedConfigApply_ = true;
+            discardConfigTransaction();
+            confirmed();
+            return;
+        }
         if (modeOnlyApply_ && engine_.ready()) {
             const auto staged = repository_.phase(QStringLiteral("CoreApplying"));
             if (const auto* failure = std::get_if<domain::Error>(&staged)) {
@@ -1954,7 +1981,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
                 launch();
         });
     };
-    if (!trusted)
+    if (!trusted && !matchesRunningConfig(id, context->semantic))
         validate(context->semantic,
                  [this, generation, commit = std::move(commit)](bool valid) mutable {
                      QTimer::singleShot(
@@ -2128,7 +2155,7 @@ void DesktopRuntime::confirmed() {
             return;
         }
     }
-    if (proxyDesired_ && !modeOnlyApply_) {
+    if (proxyDesired_ && !modeOnlyApply_ && !unchangedConfigApply_) {
         if (applying_) {
             const auto intent = repository_.phase(QStringLiteral("PlatformApplying"));
             if (const auto* failure = std::get_if<domain::Error>(&intent)) {
@@ -2190,7 +2217,7 @@ void DesktopRuntime::confirmed() {
         finishOperation(domain::OperationState::Succeeded);
         return;
     }
-    if (proxyDesired_ && !modeOnlyApply_) {
+    if (proxyDesired_ && !modeOnlyApply_ && !unchangedConfigApply_) {
         previousProxyIntent_ = persistedProxyIntent_;
         const auto saved = saveProxyIntent(true);
         if (const auto* failure = std::get_if<domain::Error>(&saved)) {
@@ -2200,7 +2227,7 @@ void DesktopRuntime::confirmed() {
     }
     const auto committed = repository_.commit();
     if (const auto* failure = std::get_if<domain::Error>(&committed)) {
-        if (modeOnlyApply_) {
+        if (modeOnlyApply_ || unchangedConfigApply_) {
             failedApply(failure->code);
             return;
         }
@@ -2273,6 +2300,7 @@ void DesktopRuntime::confirmed() {
     const bool catalogSaved = saveCatalog(catalog);
     previousPreferences_ = {};
     modeOnlyApply_ = false;
+    unchangedConfigApply_ = false;
     applyingConfirmedSource_ = false;
     applying_ = false;
     busy_ = false;
@@ -2294,6 +2322,34 @@ void DesktopRuntime::confirmed() {
     publish();
 }
 void DesktopRuntime::failedApply(const QString& code) {
+    if (unchangedConfigApply_ && engine_.ready()) {
+        const auto operationId =
+            repository_.pending().value(QStringLiteral("operationId")).toString();
+        const bool committed =
+            !operationId.isEmpty() &&
+            repository_.manifest().value(QStringLiteral("committedOperationId")) == operationId;
+        unchangedConfigApply_ = false;
+        discardConfigTransaction();
+        domain::CommandResult rolledBack = std::monostate{};
+        if (committed) {
+            previousPreferences_ = {};
+            savedPreferences_ = runtimePreferences_;
+        } else {
+            restorePreferences();
+            rolledBack = repository_.rollback();
+        }
+        applying_ = false;
+        busy_ = false;
+        status_ = QStringLiteral("Ready");
+        const auto* failure = std::get_if<domain::Error>(&rolledBack);
+        error(failure ? failure->code : code);
+        finishOperation(committed || failure ? domain::OperationState::Uncertain
+                                             : domain::OperationState::Failed,
+                        failure ? failure->code : code);
+        publish();
+        return;
+    }
+    unchangedConfigApply_ = false;
     if (modeOnlyApply_ && engine_.ready()) {
         failModeChange(code);
         return;
@@ -2497,6 +2553,7 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
     modeOnlyApply_ = false;
+    unchangedConfigApply_ = false;
     cancelCoreUpdate();
     const auto archiveStopped = coreArchive_.cancel();
     if (!coreArchive_.running())
@@ -2901,6 +2958,7 @@ void DesktopRuntime::restorePreferences() {
         runtimePreferences_ = previousPreferences_;
     previousPreferences_ = {};
     modeOnlyApply_ = false;
+    unchangedConfigApply_ = false;
 }
 domain::CommandResult DesktopRuntime::stopValidation() {
     validationDeadline_.stop();

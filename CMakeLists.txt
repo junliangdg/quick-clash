@@ -114,6 +114,17 @@ else()
         src/platform/unsupported/service_setup.cpp)
 endif()
 quickclash_warnings(quickclash_platform)
+add_executable(quickclash_network app/network_main.cpp)
+target_link_libraries(quickclash_network PRIVATE Qt6::Core Qt6::Network)
+quickclash_warnings(quickclash_network)
+install(TARGETS quickclash_network RUNTIME DESTINATION bin)
+add_library(quickclash_download
+    src/infra/network/download_network.cpp src/infra/network/download_network.h
+    src/infra/network/network_relay.cpp src/infra/network/network_relay.h)
+set_target_properties(quickclash_download PROPERTIES AUTOMOC ON)
+target_link_libraries(quickclash_download PUBLIC quickclash_platform Qt6::Network)
+add_dependencies(quickclash_download quickclash_network)
+quickclash_warnings(quickclash_download)
 add_library(quickclash_engine
     src/infra/core/core_health.cpp src/infra/core/core_health.h
     src/infra/core/listener_ports.cpp src/infra/core/listener_ports.h
@@ -156,7 +167,7 @@ target_sources(quickclash_runtime PRIVATE src/application/desktop_editor.cpp
     src/application/desktop_custom_groups.cpp)
 target_sources(quickclash_runtime PRIVATE src/application/desktop_rules.cpp)
   target_sources(quickclash_runtime PRIVATE src/application/desktop_maintenance.cpp)
-target_link_libraries(quickclash_runtime PUBLIC quickclash_engine quickclash_config PRIVATE quickclash_platform)
+target_link_libraries(quickclash_runtime PUBLIC quickclash_engine quickclash_config quickclash_download PRIVATE quickclash_platform)
 if(BUILD_TESTING AND WIN32)
     set_property(SOURCE src/application/desktop_runtime.cpp APPEND PROPERTY COMPILE_DEFINITIONS
         QUICKCLASH_DEVELOPMENT_CORE="${CMAKE_SOURCE_DIR}/.cache/mihomo/mihomo.exe")
@@ -198,7 +209,7 @@ if(QUICKCLASH_BUILD_UI)
     if(WIN32)
         # A client-only rebuild must not leave an incompatible service beside the GUI.
         # In particular, a locked service image must fail before publishing a new client.
-        add_dependencies(quickclash quickclash_service)
+        add_dependencies(quickclash quickclash_service quickclash_network)
     endif()
     target_sources(quickclash PRIVATE src/presentation/critical_alerts.cpp src/presentation/critical_alerts.h)
     target_compile_definitions(quickclash PRIVATE QUICKCLASH_VERSION="${PROJECT_VERSION}")
@@ -444,6 +455,13 @@ if(BUILD_TESTING)
             set_tests_properties(runtime_backup PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime_config_editor PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_subscription_download COMMAND runtime_test --subscription-download-test)
+            add_executable(download_network_test tests/integration/download_network_test.cpp
+                tests/integration/network_fixture.cpp tests/integration/network_fixture.h)
+            target_include_directories(download_network_test PRIVATE tests/integration)
+            target_link_libraries(download_network_test PRIVATE quickclash_download)
+            quickclash_warnings(download_network_test)
+            add_test(NAME download_network COMMAND download_network_test)
+            set_tests_properties(download_network PROPERTIES TIMEOUT 45 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_geo_update COMMAND runtime_test --geo-update-test)
             add_test(NAME runtime_core_update COMMAND runtime_test --core-update-test)
             set_tests_properties(runtime_core_update PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
@@ -547,6 +565,8 @@ if(BUILD_TESTING)
         # generated QML objects so a tested build can reuse them for packaging.
         add_library(quickclash_test_probes STATIC app/host_probe.cpp app/host_probe.h app/keyboard_probe.cpp
             tests/integration/desktop_probe.cpp tests/integration/desktop_probe.h
+            tests/integration/subscription_desktop_memory_probe.cpp
+            tests/integration/subscription_desktop_memory_probe.h
             tests/integration/desktop_proxy_probe.cpp tests/integration/desktop_proxy_probe.h
             tests/integration/desktop_flow_probe.cpp tests/integration/desktop_flow_probe.h
             tests/integration/native_proxy_client.cpp tests/integration/native_proxy_client.h
@@ -769,7 +789,7 @@ if(BUILD_TESTING)
     set(quickclash_product_targets quickclash_config quickclash_storage)
     set(quickclash_smoke_tests contracts)
     if(QUICKCLASH_BUILD_UI)
-        set(quickclash_product_targets quickclash)
+        set(quickclash_product_targets quickclash quickclash_network)
         if(WIN32)
             list(APPEND quickclash_product_targets quickclash_service)
         endif()

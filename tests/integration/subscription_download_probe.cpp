@@ -8,6 +8,11 @@
 #include <QTemporaryDir>
 #include <QThread>
 #include <cstdio>
+#ifdef Q_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 namespace quickclash::test {
 namespace {
@@ -301,6 +306,93 @@ int subscriptionDownloadProbe() {
     runtime.start(false);
     if (!check(done() && runtime.snapshot().value("ready").toBool(), "proxy core ready"))
         return 17;
+    const auto initialSession = runtime.snapshot();
+    origin.entityTags.remove("/subscription");
+    origin.lastModified.remove("/subscription");
+    const auto applyEquivalent = [&] {
+        const auto before = profile();
+        const auto beforeGeneration = runtime.snapshot().value("selectionGeneration");
+        bool validatedByChild = false;
+        const auto observe = QObject::connect(
+            &runtime, &application::DesktopRuntime::changed, &runtime, [&](const QJsonObject&) {
+                validatedByChild = validatedByChild || runtime.snapshot()
+                                                           .value("configLifecycle")
+                                                           .toObject()
+                                                           .value("validationActive")
+                                                           .toBool();
+            });
+        runtime.updateProfile(id, true);
+        const bool completed = done();
+        QObject::disconnect(observe);
+        return completed && error().isEmpty() &&
+               profile().value("sourceHash") != before.value("sourceHash") &&
+               !profile().value("pendingApply").toBool() &&
+               !profile().value("history").toArray().isEmpty() &&
+               runtime.snapshot().value("selectionGeneration") != beforeGeneration &&
+               runtime.snapshot().value("corePid") == initialSession.value("corePid") &&
+               runtime.snapshot().value("epoch") == initialSession.value("epoch") &&
+               runtime.snapshot().value("ready").toBool() && !validatedByChild;
+    };
+    origin.subscription += "# changed generation timestamp\n";
+    if (!check(applyEquivalent(), "comment-only update reuses confirmed core and validation"))
+        return 50;
+    origin.subscription.replace("public_dummy", "public_changed");
+    if (!check(applyEquivalent(), "ignored metadata update reuses confirmed core and validation"))
+        return 51;
+    origin.subscription.replace("public_changed", "public_dummy");
+    if (!check(applyEquivalent(), "equivalent source restoration clears pending application"))
+        return 52;
+#ifdef Q_OS_WIN
+    HANDLE manifestLock = INVALID_HANDLE_VALUE;
+    const auto observeCommit = QObject::connect(
+        &runtime, &application::DesktopRuntime::changed, &runtime, [&](const QJsonObject&) {
+            if (manifestLock == INVALID_HANDLE_VALUE && profile().value("pendingApply").toBool()) {
+                const auto path = store.root() + QStringLiteral("/data/runtime/current.json");
+                manifestLock = CreateFileW(reinterpret_cast<LPCWSTR>(path.utf16()), GENERIC_READ,
+                                           FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                           OPEN_EXISTING, 0, nullptr);
+            }
+        });
+    const auto beforeCommitFailure = runtime.snapshot();
+    origin.subscription += "# failed metadata transaction\n";
+    runtime.updateProfile(id, true);
+    const bool failedCommit = done();
+    QObject::disconnect(observeCommit);
+    const bool locked = manifestLock != INVALID_HANDLE_VALUE;
+    if (locked)
+        CloseHandle(manifestLock);
+    if (!check(failedCommit && locked && !error().isEmpty() &&
+                   profile().value("pendingApply").toBool() &&
+                   profile().value("lastUpdateSaved").toBool() &&
+                   runtime.snapshot().value("selectionGeneration") ==
+                       beforeCommitFailure.value("selectionGeneration") &&
+                   runtime.snapshot().value("corePid") == initialSession.value("corePid") &&
+                   runtime.snapshot().value("epoch") == initialSession.value("epoch") &&
+                   runtime.snapshot().value("ready").toBool(),
+               "metadata commit failure preserves live core and saved pending candidate"))
+        return 53;
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && !profile().value("pendingApply").toBool() &&
+                   runtime.snapshot().value("corePid") == initialSession.value("corePid") &&
+                   runtime.snapshot().value("epoch") == initialSession.value("epoch"),
+               "unchanged pending candidate retries without replacing the core"))
+        return 54;
+#endif
+    origin.subscription.replace("MATCH,upstream", "MATCH,DIRECT");
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && runtime.snapshot().value("ready").toBool() &&
+                   runtime.snapshot().value("epoch") != initialSession.value("epoch") &&
+                   !profile().value("pendingApply").toBool(),
+               "effective rule change still applies a new core session"))
+        return 55;
+    origin.subscription = initialBody;
+    origin.entityTags.insert("/subscription", "\"public-v1\"");
+    origin.lastModified.insert("/subscription", "Wed, 28 Oct 2026 01:00:00 GMT");
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && runtime.snapshot().value("ready").toBool() &&
+                   profile().value("sourceHash") == originalHash,
+               "restore confirmed forwarding after effective update"))
+        return 56;
     const auto pid = runtime.snapshot().value("corePid");
     runtime.setSubscriptionRoute(id, "RunningProxy");
     runtime.changeProfileSource(id, viaProxy, {});

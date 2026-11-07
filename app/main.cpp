@@ -116,6 +116,7 @@ int main(int argc, char* argv[]) {
         qputenv("QT_D3D_MAX_FRAME_LATENCY", "0");
     }
 #endif
+    quickclash::configureUiFontBackend();
     QApplication app(argc, argv);
     if (softwareRendering) {
         // Qt Quick owns the cross-platform raster scene graph; fonts keep normal Qt fallback.

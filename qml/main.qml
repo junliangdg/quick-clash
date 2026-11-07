@@ -284,7 +284,7 @@ ApplicationWindow {
                 palette.highlightedText: tokens.onSelection
                 font.family: tokens.fontFamily
                 font.pixelSize: tokens.navigationSize
-                font.weight: highlighted ? Font.DemiBold : Font.Medium
+                font.weight: highlighted ? Font.Bold : Font.Medium
                 highlighted: window.ui.currentPage === modelData.pageId
                 activeFocusOnTab: true
                 Accessible.name: modelData.title

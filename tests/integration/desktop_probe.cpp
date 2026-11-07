@@ -4,6 +4,7 @@
 #include "desktop_proxy_probe.h"
 #include "infra/core/service_client.h"
 #include "platform/process_memory.h"
+#include "subscription_desktop_memory_probe.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -91,6 +92,8 @@ int runDesktopProbe(ApplicationHost& host) {
     auto& ui = host.state();
     const auto phase = option("--desktop-phase");
     const auto output = option("--desktop-output");
+    if (phase == QStringLiteral("subscription_memory"))
+        return subscriptionDesktopMemoryProbe(host, output);
     QJsonObject result{{QStringLiteral("phase"), phase},
                        {QStringLiteral("passed"), false},
                        {QStringLiteral("guiPid"), QCoreApplication::applicationPid()}};

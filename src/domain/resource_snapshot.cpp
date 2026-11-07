@@ -25,7 +25,8 @@ bool valid(const QJsonObject& process) {
 QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& serviceObservation,
                              const QJsonObject& core, bool coreExpected,
                              const QJsonObject& validator, bool validatorExpected,
-                             const QJsonObject& coreExtractor, bool extractorExpected) {
+                             const QJsonObject& coreExtractor, bool extractorExpected,
+                             const QJsonObject& networkRelay, bool relayExpected) {
     QJsonObject memory;
     bool complete = valid(host) && serviceObservation.value(QStringLiteral("complete")).toBool();
     if (valid(host)) {
@@ -37,9 +38,12 @@ QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& service
     }
     const auto service = serviceObservation.value(QStringLiteral("service")).toObject();
     for (const auto& helper : {std::pair{QStringLiteral("service"), service},
-                               std::pair{QStringLiteral("coreExtractor"), coreExtractor}}) {
+                               std::pair{QStringLiteral("coreExtractor"), coreExtractor},
+                               std::pair{QStringLiteral("networkRelay"), networkRelay}}) {
         if (helper.second.isEmpty()) {
             if (helper.first == QStringLiteral("coreExtractor") && extractorExpected)
+                complete = false;
+            if (helper.first == QStringLiteral("networkRelay") && relayExpected)
                 complete = false;
             continue;
         }

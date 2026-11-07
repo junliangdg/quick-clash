@@ -56,6 +56,7 @@ int providerProbe() {
         address +
         "/rules\n    interval: 3600\nproxy-groups:\n- {name: selected, type: select, use: "
         "[nodes]}\nrules:\n- RULE-SET,domains,selected\n- MATCH,DIRECT\n";
+    origin.entityTags.insert("/subscription", "\"provider-main-v1\"");
     const auto check = [&](bool result, const char* message) {
         if (!result) {
             std::fprintf(stderr, "Provider assertion: %s\n", message);
@@ -243,9 +244,14 @@ int providerProbe() {
                    !origin.requests.contains("GET /rules"),
                "missing or corrupt reusable cache fails without replacing active snapshot"))
         return 11;
+    origin.requests = {};
+    origin.requestHeaders = {};
     runtime.updateProfile(id);
-    if (!check(done() && runtime.snapshot().value("ready").toBool(),
-               "full subscription update repairs resource cache"))
+    if (!check(done() && runtime.snapshot().value("ready").toBool() &&
+                   origin.requestHeaders.first().toObject().value("if-none-match") ==
+                       "\"provider-main-v1\"" &&
+                   origin.requests.contains("GET /nodes") && origin.requests.contains("GET /rules"),
+               "304 main source still refreshes and repairs provider resources"))
         return 12;
     runtime.configureSubscription(id, 0, false);
     const auto snapshotBeforePending = providerRow("proxy-providers").value("bytes");

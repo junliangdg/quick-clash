@@ -151,6 +151,7 @@ void DesktopRuntime::requestSubscription(const std::shared_ptr<SubscriptionDownl
         return;
     }
     context->bytes.clear();
+    context->cachedSourceVerified = false;
     context->visited.insert(url.adjusted(QUrl::NormalizePathSegments));
     subscriptionNetwork_.setProxy(
         context->proxy
@@ -250,13 +251,24 @@ void DesktopRuntime::requestSubscription(const std::shared_ptr<SubscriptionDownl
                 const auto previous = profile(context->id);
                 const auto reference = previous.value(QStringLiteral("sourceRef")).toString();
                 const auto expected = context->cache.value(QStringLiteral("sourceHash")).toString();
-                const auto cached = store_.readBytes(reference);
-                const bool valid =
-                    !context->cacheRetry && !expected.isEmpty() &&
-                    context->cache.value(QStringLiteral("finalUrl")) == url.toString() &&
-                    expected == previous.value(QStringLiteral("sourceHash")) &&
-                    std::holds_alternative<QByteArray>(cached) &&
-                    digest(std::get<QByteArray>(cached)) == expected;
+                bool valid = !context->cacheRetry && !expected.isEmpty() &&
+                             context->cache.value(QStringLiteral("finalUrl")) == url.toString() &&
+                             expected == previous.value(QStringLiteral("sourceHash"));
+                QByteArray cachedBody;
+                if (valid) {
+                    // Provider snapshots need the source to refresh dependencies. Plain
+                    // sources only need an integrity check, using a bounded streaming read.
+                    if (previous.contains(QStringLiteral("snapshotRef"))) {
+                        auto cached = store_.readBytes(reference);
+                        auto* body = std::get_if<QByteArray>(&cached);
+                        valid = body && digest(*body) == expected;
+                        if (valid)
+                            cachedBody = std::move(*body);
+                    } else {
+                        valid = std::holds_alternative<std::monostate>(
+                            store_.verifyBytes(reference, expected));
+                    }
+                }
                 if (!valid) {
                     if (context->cacheRetry) {
                         fail(QStringLiteral("SubscriptionCacheInvalid"));
@@ -267,7 +279,8 @@ void DesktopRuntime::requestSubscription(const std::shared_ptr<SubscriptionDownl
                     requestSubscription(context, url);
                     return;
                 }
-                context->bytes = std::get<QByteArray>(cached);
+                context->cachedSourceVerified = true;
+                context->bytes = std::move(cachedBody);
                 finishSubscription(context, reply, status);
                 return;
             }
@@ -316,12 +329,15 @@ void DesktopRuntime::finishSubscription(const std::shared_ptr<SubscriptionDownlo
                                         QNetworkReply* reply, int status) {
     busy_ = false;
     const auto previous = profile(context->id);
-    const auto bodyHash = digest(context->bytes);
+    const auto bodyHash = context->cachedSourceVerified
+                              ? context->cache.value(QStringLiteral("sourceHash")).toString()
+                              : digest(context->bytes);
     const bool unchanged =
         !previous.isEmpty() && !previous.contains(QStringLiteral("snapshotRef")) &&
         previous.value(QStringLiteral("sourceHash")) == bodyHash &&
-        std::holds_alternative<std::monostate>(
-            store_.verifyBytes(previous.value(QStringLiteral("sourceRef")).toString(), bodyHash));
+        (context->cachedSourceVerified ||
+         std::holds_alternative<std::monostate>(
+             store_.verifyBytes(previous.value(QStringLiteral("sourceRef")).toString(), bodyHash)));
     if (!unchanged) {
         const auto payloadError = infra::subscriptionPayloadError(context->bytes);
         if (!payloadError.isEmpty()) {

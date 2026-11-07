@@ -61,7 +61,7 @@ function Open-ServicePackage([string]$Directory) {
                 (Get-StreamSha256Hex $taskStream) -cne $taskEntry.sha256) { throw 'Package integrity check failed.' }
             $taskStream.Position = 0
         }
-        foreach ($taskRequired in 'bin/quickclash.exe', 'bin/quickclash_service.exe', 'core/mihomo.exe', 'bin/Qt6Core.dll') {
+        foreach ($taskRequired in 'bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/quickclash_network.exe', 'core/mihomo.exe', 'bin/Qt6Core.dll') {
             if (-not $taskPaths.Contains($taskRequired)) { throw "Required package file missing from manifest: $taskRequired" }
         }
         foreach ($taskTop in 'bin', 'core', 'geo', 'metadata', 'licenses', 'plugins', 'qml', 'translations') {

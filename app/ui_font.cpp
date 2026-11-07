@@ -5,6 +5,16 @@
 #include <algorithm>
 
 namespace quickclash {
+void configureUiFontBackend() {
+#ifdef Q_OS_WIN
+    // DirectWrite's fallback lookup can populate every installed font when
+    // the UI font needs an emoji fallback. Qt's GDI database resolves that case
+    // on demand, while the Quick scene graph keeps its default RHI backend.
+    // Qt's explicit -platform argument also overrides this environment default.
+    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "windows:fontengine=gdi");
+#endif
+}
 QFont platformUiFont() {
     auto font = QFontDatabase::systemFont(QFontDatabase::GeneralFont);
     int textPercent = 100;

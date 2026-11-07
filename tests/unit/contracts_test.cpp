@@ -489,6 +489,23 @@ int main(int argc, char* argv[]) {
                        .value("memoryComplete")
                        .toBool(),
                   "missing expected extractor makes the sample incomplete");
+            const auto relaying = quickclash::domain::resourceSnapshot(
+                host, {{"service", service}, {"complete", true}}, core, true, {}, false, {}, false,
+                counters(50), true);
+            check(relaying.value("memoryComplete").toBool() &&
+                      relaying.value("memory").toObject().value("client").toObject().value(
+                          "workingSet") == "353" &&
+                      relaying.value("memory")
+                              .toObject()
+                              .value("networkRelay")
+                              .toObject()
+                              .value("workingSet") == "51",
+                  "network transport contributes to the client total while core stays separate");
+            check(!quickclash::domain::resourceSnapshot(host, {{"complete", true}}, {}, false, {},
+                                                        false, {}, false, {}, true)
+                       .value("memoryComplete")
+                       .toBool(),
+                  "missing expected network transport makes the sample incomplete");
         }
         {
             const auto safe =

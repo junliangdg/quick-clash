@@ -88,7 +88,7 @@ foreach ($taskLicenseRoot in $taskLicenseRoots | Select-Object -Unique) {
         }
     }
 }
-$taskExecutableNames = @('quickclash.exe', 'quickclash_service.exe', 'mihomo.exe')
+$taskExecutableNames = @('quickclash.exe', 'quickclash_service.exe', 'quickclash_network.exe', 'mihomo.exe')
 foreach ($taskFile in Get-ChildItem -LiteralPath $taskDestination -File -Recurse) {
     $taskRelative = [IO.Path]::GetRelativePath($taskDestination, $taskFile.FullName).Replace('\', '/')
     if ($taskFile.Extension -in '.pdb', '.lib', '.obj', '.cpp', '.h', '.log' -or
@@ -98,7 +98,7 @@ foreach ($taskFile in Get-ChildItem -LiteralPath $taskDestination -File -Recurse
         throw "Non-runtime content in release package: $taskRelative"
     }
 }
-foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe', 'licenses/quickclash_gpl_3.txt', 'readme.md', 'readme_zh_cn.md')) {
+foreach ($taskRequired in @('bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/quickclash_network.exe', 'bin/Qt6Core.dll', 'bin/msvcp140.dll', 'bin/vcruntime140.dll', 'core/mihomo.exe', 'licenses/quickclash_gpl_3.txt', 'readme.md', 'readme_zh_cn.md')) {
     if (-not (Test-Path -LiteralPath (Join-Path $taskDestination $taskRequired) -PathType Leaf)) { throw "Missing runtime file: $taskRequired" }
 }
 $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | Sort-Object FullName | ForEach-Object {

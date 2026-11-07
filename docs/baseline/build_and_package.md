@@ -6,6 +6,8 @@
 
 Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件、插件及其依赖部署到构建输出目录；服务链接后也复制其运行DLL，使SCM的SYSTEM环境无需开发Qt PATH。CMake生成相对路径qt6.conf，优先于Qt自动生成的构建qt.conf，避免仅复制QtCore后丢失QML/TLS路径。修改Qt套件须使用新的构建目录；构建目录仍不是发行包，独立便携包须使用下述部署脚本，安装只生成匹配bin/qml/plugins布局的qt.conf，不携带开发qt6.conf。
 
+客户端还依赖共享的外部 TCP 传输程序 `quickclash_network`，随产品构建并安装到 `bin/`（Windows 为 `quickclash_network.exe`）；发行和服务包清单要求包含该文件并核对摘要，本地更新应使用同次构建的完整目录。`BUILD_TESTING=OFF` 仍须部署该运行依赖；订阅桌面内存探针仅在 `BUILD_TESTING=ON` 时链接，关闭测试的发行程序不链接该探针及 QtTest。
+
 - C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目要求 Qt ≥6.9，Windows CI 与启动回归固定 Qt 6.9.0，开发根目录可配置。
 - Windows 使用 MSVC 19.50.35727.0（Visual Studio 2026 18.4.1），SDK 10.0.26100.0。Qt 套件名为 msvc2022_64，该参考组合已完整链接/启动通过，不外推其他组合。
 - yaml-cpp 0.9.0 正式 release，版本、URL、SHA-256 统一读取 [release_matrix.json](release_matrix.json)。第三方只解到 build/_deps，不改上游 CMakeLists，不全局降低策略。

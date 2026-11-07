@@ -5,6 +5,8 @@
 #include "domain/proxy_latency.h"
 #include "infra/config/config_preflight.h"
 #include "infra/core/engine_session.h"
+#include "infra/network/download_network.h"
+#include "infra/network/network_relay.h"
 #include "infra/storage/config_repository.h"
 #include "infra/storage/provider_stage.h"
 #include "infra/storage/settings_repository.h"
@@ -102,7 +104,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void resolveGeoSnapshot(quint64 generation);
     void scheduleGeo();
     QTimer geoTimer_;
-    QNetworkAccessManager resourceNetwork_;
+    infra::NetworkRelay networkRelay_;
+    infra::DownloadNetwork resourceNetwork_{networkRelay_};
     QUrl geoResolvedBase_;
     QString geoRevision_;
     bool geoScheduled_ = false;
@@ -134,6 +137,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         bool fallback = false;
         bool cacheRetry = false;
         bool authorization = true;
+        bool cachedSourceVerified = false;
     };
     void requestSubscription(const std::shared_ptr<SubscriptionDownload>& context, const QUrl& url);
     void failSubscription(const QString& code);
@@ -188,6 +192,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         QString customGroupToken;
     };
     void finishImport(const std::shared_ptr<ConfigTransaction>& context);
+    [[nodiscard]] bool matchesRunningConfig(const QString& id, const QByteArray& semantic) const;
     void discardConfigTransaction();
     void applyProfile(const QString& id, bool startAfter);
     void launch();
@@ -304,10 +309,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     std::unique_ptr<IServiceSetup> serviceSetup_;
     infra::EngineSession engine_;
     std::unique_ptr<IDesktopProcess> validator_;
-    QNetworkAccessManager directNetwork_;
-    QNetworkAccessManager testNetwork_;
-    QNetworkAccessManager ipDirectNetwork_;
-    QNetworkAccessManager ipProxyNetwork_;
+    infra::DownloadNetwork directNetwork_{networkRelay_};
+    infra::DownloadNetwork testNetwork_{networkRelay_};
+    infra::DownloadNetwork ipDirectNetwork_{networkRelay_};
+    infra::DownloadNetwork ipProxyNetwork_{networkRelay_};
     QList<QPointer<QNetworkReply>> ipReplies_;
     quint64 ipGeneration_ = 0;
     QTimer validationDeadline_;
@@ -399,7 +404,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool tunDisabling_ = false;
     QList<qint64> crashTimes_;
     QPointer<QNetworkReply> downloadReply_;
-    QNetworkAccessManager subscriptionNetwork_;
+    infra::DownloadNetwork subscriptionNetwork_{networkRelay_};
     QUrl geoSourceBase_;
     bool geoOperationActive_ = false;
     std::shared_ptr<ProviderImport> providerImport_;
@@ -471,6 +476,7 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool previouslyProxied_ = false;
     bool restartAttempt_ = false;
     bool modeOnlyApply_ = false;
+    bool unchangedConfigApply_ = false;
     bool applyingConfirmedSource_ = false;
     bool persistedProxyIntent_ = false;
     std::optional<bool> previousProxyIntent_;
