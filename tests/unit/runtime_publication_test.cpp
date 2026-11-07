@@ -252,7 +252,12 @@ class RuntimePublicationTest final : public QObject {
         const auto first = runtime.snapshot().value("features").toObject();
         const auto host = first.value("memory").toObject().value("host").toObject();
 #ifdef Q_OS_WIN
-        QVERIFY(host.value("privateWorkingSet").toString().toULongLong() > 0);
+        QVERIFY(host.value("workingSet").toString().toULongLong() > 0);
+        QVERIFY(host.value("privateCommit").toString().toULongLong() > 0);
+        if (host.contains("privateWorkingSet"))
+            QVERIFY(host.value("privateWorkingSet").toString().toULongLong() > 0);
+        else
+            QVERIFY(!first.value("memoryComplete").toBool());
         auto identity = quickclash::platform::processIdentity(
             static_cast<quint32>(QCoreApplication::applicationPid()));
         QVERIFY(identity.created != 0);

@@ -37,15 +37,31 @@ QJsonObject sample(HANDLE process) {
     DWORD exitCode = 0;
     PROCESS_MEMORY_COUNTERS_EX2 counters{};
     counters.cb = sizeof(counters);
-    if (!GetExitCodeProcess(process, &exitCode) || exitCode != STILL_ACTIVE ||
-        !GetProcessMemoryInfo(process, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
-                              sizeof(counters)))
+    if (!GetExitCodeProcess(process, &exitCode) || exitCode != STILL_ACTIVE)
         return {};
-    return {{QStringLiteral("pid"), QString::number(GetProcessId(process))},
-            {QStringLiteral("created"), QString::number(creation(process))},
-            {QStringLiteral("privateWorkingSet"), QString::number(counters.PrivateWorkingSetSize)},
-            {QStringLiteral("workingSet"), QString::number(counters.WorkingSetSize)},
-            {QStringLiteral("privateCommit"), QString::number(counters.PrivateUsage)}};
+    if (!GetProcessMemoryInfo(process, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
+                              sizeof(counters))) {
+        PROCESS_MEMORY_COUNTERS_EX older{};
+        older.cb = sizeof(older);
+        if (!GetProcessMemoryInfo(process, reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&older),
+                                  sizeof(older)))
+            return {};
+        counters.WorkingSetSize = older.WorkingSetSize;
+        counters.PrivateUsage = older.PrivateUsage;
+    }
+    const auto pid = GetProcessId(process);
+    const auto created = creation(process);
+    if (!pid || !created)
+        return {};
+    QJsonObject result{{QStringLiteral("pid"), QString::number(pid)},
+                       {QStringLiteral("created"), QString::number(created)},
+                       {QStringLiteral("workingSet"), QString::number(counters.WorkingSetSize)},
+                       {QStringLiteral("privateCommit"), QString::number(counters.PrivateUsage)}};
+    // Older Windows builds may accept EX2 but leave this field unset.
+    if (counters.PrivateWorkingSetSize)
+        result.insert(QStringLiteral("privateWorkingSet"),
+                      QString::number(counters.PrivateWorkingSetSize));
+    return result;
 }
 } // namespace
 #endif

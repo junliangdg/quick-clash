@@ -151,7 +151,7 @@ foreach ($taskScenario in $taskScenarios) {
                     $taskLast = $taskSteady[-1]
                     100.0 * ($taskLast.cpu_total_seconds - $taskFirst.cpu_total_seconds) / ($taskLast.seconds - $taskFirst.seconds)
                 } else { $null }
-                if ($taskRows.Count -gt 0) {
+                if ($taskSummary.execution_result -eq 'Pass' -and $taskRows.Count -gt 0) {
                     $taskSummary.memory_measurement_result = if ($taskSteady.Count -gt 0) { 'Sampled' } else { 'NotRun' }
                 }
                 $taskSummaries.Add([pscustomobject]$taskSummary)

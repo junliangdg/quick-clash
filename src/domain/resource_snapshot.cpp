@@ -5,21 +5,37 @@
 namespace quickclash::domain {
 namespace {
 constexpr const char* metrics[] = {"privateWorkingSet", "workingSet", "privateCommit"};
-bool valid(const QJsonObject& process) {
+bool validMetric(const QJsonValue& value) {
+    const auto text = value.toString();
+    if (!value.isString() || text.isEmpty())
+        return false;
+    for (const auto character : text)
+        if (character < QLatin1Char('0') || character > QLatin1Char('9'))
+            return false;
+    bool ok = false;
+    (void)text.toULongLong(&ok);
+    return ok;
+}
+QJsonObject knownMetrics(const QJsonObject& process, bool& complete) {
+    QJsonObject known;
+    bool hasMetric = false;
     for (const auto* field : metrics) {
-        const auto value = process.value(QLatin1String(field));
-        bool ok = false;
-        const auto text = value.toString();
-        if (!value.isString() || text.isEmpty())
-            return false;
-        for (const auto character : text)
-            if (character < QLatin1Char('0') || character > QLatin1Char('9'))
-                return false;
-        (void)text.toULongLong(&ok);
-        if (!ok)
-            return false;
+        const auto key = QLatin1String(field);
+        const auto value = process.value(key);
+        if (validMetric(value)) {
+            known.insert(key, value);
+            hasMetric = true;
+        } else
+            complete = false;
     }
-    return true;
+    if (hasMetric) {
+        for (const auto* field : {"pid", "created"}) {
+            const auto key = QLatin1String(field);
+            if (process.contains(key))
+                known.insert(key, process.value(key));
+        }
+    }
+    return known;
 }
 } // namespace
 QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& serviceObservation,
@@ -28,13 +44,16 @@ QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& service
                              const QJsonObject& coreExtractor, bool extractorExpected,
                              const QJsonObject& networkRelay, bool relayExpected) {
     QJsonObject memory;
-    bool complete = valid(host) && serviceObservation.value(QStringLiteral("complete")).toBool();
-    if (valid(host)) {
-        memory.insert(QStringLiteral("host"), host);
-        QJsonObject client;
-        for (const auto* field : metrics)
-            client.insert(QLatin1String(field), host.value(QLatin1String(field)));
-        memory.insert(QStringLiteral("client"), client);
+    bool complete = serviceObservation.value(QStringLiteral("complete")).toBool();
+    const auto knownHost = knownMetrics(host, complete);
+    QJsonObject client;
+    if (!knownHost.isEmpty()) {
+        memory.insert(QStringLiteral("host"), knownHost);
+        for (const auto* field : metrics) {
+            const auto key = QLatin1String(field);
+            if (knownHost.contains(key))
+                client.insert(key, knownHost.value(key));
+        }
     }
     const auto service = serviceObservation.value(QStringLiteral("service")).toObject();
     for (const auto& helper : {std::pair{QStringLiteral("service"), service},
@@ -47,26 +66,24 @@ QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& service
                 complete = false;
             continue;
         }
-        const auto& counters = helper.second;
-        complete &= valid(counters);
-        if (valid(counters)) {
-            memory.insert(helper.first, counters);
-            if (valid(host)) {
-                auto client = memory.value(QStringLiteral("client")).toObject();
-                for (const auto* field : metrics) {
-                    const auto key = QLatin1String(field);
-                    const auto left = client.value(key).toString().toULongLong();
-                    const auto right = counters.value(key).toString().toULongLong();
-                    if (right > std::numeric_limits<quint64>::max() - left) {
-                        client.remove(key);
-                        complete = false;
-                    } else
-                        client.insert(key, QString::number(left + right));
-                }
-                memory.insert(QStringLiteral("client"), client);
-            }
+        const auto known = knownMetrics(helper.second, complete);
+        if (!known.isEmpty())
+            memory.insert(helper.first, known);
+        for (const auto* field : metrics) {
+            const auto key = QLatin1String(field);
+            if (!client.contains(key) || !known.contains(key))
+                continue;
+            const auto left = client.value(key).toString().toULongLong();
+            const auto right = known.value(key).toString().toULongLong();
+            if (right > std::numeric_limits<quint64>::max() - left) {
+                client.remove(key);
+                complete = false;
+            } else
+                client.insert(key, QString::number(left + right));
         }
     }
+    if (!client.isEmpty())
+        memory.insert(QStringLiteral("client"), client);
     for (const auto& item :
          {std::pair{QStringLiteral("core"), std::pair{core, coreExpected}},
           std::pair{QStringLiteral("validator"), std::pair{validator, validatorExpected}},
@@ -76,10 +93,9 @@ QJsonObject resourceSnapshot(const QJsonObject& host, const QJsonObject& service
                         serviceObservation.value(QStringLiteral("validatorExpected")).toBool()}}}) {
         if (!item.second.second)
             continue;
-        if (valid(item.second.first))
-            memory.insert(item.first, item.second.first);
-        else
-            complete = false;
+        const auto known = knownMetrics(item.second.first, complete);
+        if (!known.isEmpty())
+            memory.insert(item.first, known);
     }
     return {{QStringLiteral("memory"), memory}, {QStringLiteral("memoryComplete"), complete}};
 }

@@ -465,9 +465,49 @@ int main(int argc, char* argv[]) {
             bad.insert("workingSet", "-1");
             const auto rejected = quickclash::domain::resourceSnapshot(
                 host, {{"service", bad}, {"complete", true}}, core, true, {}, false);
+            const auto rejectedMemory = rejected.value("memory").toObject();
             check(!rejected.value("memoryComplete").toBool() &&
-                      !rejected.value("memory").toObject().contains("service"),
-                  "invalid resource counters cannot contribute to client total");
+                      !rejectedMemory.value("service").toObject().contains("workingSet") &&
+                      rejectedMemory.value("client").toObject().value("workingSet") == "101" &&
+                      rejectedMemory.value("client").toObject().value("privateCommit") == "105",
+                  "invalid resource counter is omitted while other known counters remain");
+            auto partialHost = host;
+            partialHost.remove("privateWorkingSet");
+            auto partialService = service;
+            partialService.remove("privateCommit");
+            auto partialCore = core;
+            partialCore.remove("privateWorkingSet");
+            const auto partialMetrics = quickclash::domain::resourceSnapshot(
+                partialHost, {{"service", partialService}, {"complete", true}}, partialCore, true,
+                {}, false);
+            const auto knownMemory = partialMetrics.value("memory").toObject();
+            const auto knownClient = knownMemory.value("client").toObject();
+            check(!partialMetrics.value("memoryComplete").toBool() &&
+                      !knownClient.contains("privateWorkingSet") &&
+                      knownClient.value("workingSet") == "302" &&
+                      knownClient.value("privateCommit") == "102" &&
+                      knownMemory.value("service").toObject().value("privateWorkingSet") == "200" &&
+                      knownMemory.value("core").toObject().value("workingSet") == "1001" &&
+                      !knownMemory.value("core").toObject().contains("privateWorkingSet"),
+                  "missing metrics retain known process values and partial client totals");
+            auto overflowingHost = host;
+            overflowingHost.insert("workingSet", "18446744073709551615");
+            const auto overflow = quickclash::domain::resourceSnapshot(
+                overflowingHost, {{"service", service}, {"complete", true}}, core, true, {}, false,
+                counters(1), true);
+            const auto overflowClient =
+                overflow.value("memory").toObject().value("client").toObject();
+            check(!overflow.value("memoryComplete").toBool() &&
+                      !overflowClient.contains("workingSet") &&
+                      overflowClient.value("privateWorkingSet") == "301" &&
+                      overflowClient.value("privateCommit") == "307",
+                  "overflowed client metric stays unavailable while other totals continue");
+            const auto absentHost = quickclash::domain::resourceSnapshot(
+                {}, {{"service", service}, {"complete", true}}, core, true, {}, false);
+            check(!absentHost.value("memoryComplete").toBool() &&
+                      !absentHost.value("memory").toObject().contains("client") &&
+                      absentHost.value("memory").toObject().value("service").toObject() == service,
+                  "known helper remains visible when the host cannot be sampled");
             const auto missingValidator = quickclash::domain::resourceSnapshot(
                 host, {{"complete", true}, {"validatorExpected", true}}, {}, false, {}, false);
             check(!missingValidator.value("memoryComplete").toBool(),

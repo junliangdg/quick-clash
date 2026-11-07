@@ -27,11 +27,17 @@ namespace QuickClash.Diagnostics {
         [DllImport("kernel32.dll", EntryPoint = "K32GetProcessMemoryInfo", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool ReadCounters(IntPtr process, ref ProcessMemoryCounters counters, uint size);
+        public static void Validate(ProcessMemoryCounters counters) {
+            // Older Windows builds may accept EX2 but leave this field unset.
+            if (counters.PrivateWorkingSetSize == UIntPtr.Zero)
+                throw new InvalidOperationException("Private working set is unavailable from GetProcessMemoryInfo; this sample was not recorded.");
+        }
         public static ProcessMemoryCounters Read(IntPtr process) {
             var counters = new ProcessMemoryCounters();
             counters.cb = (uint)Marshal.SizeOf<ProcessMemoryCounters>();
             if (!ReadCounters(process, ref counters, counters.cb))
                 throw new Win32Exception(Marshal.GetLastWin32Error());
+            Validate(counters);
             return counters;
         }
         public static ProcessMemoryCounters ReadPid(int pid) {
