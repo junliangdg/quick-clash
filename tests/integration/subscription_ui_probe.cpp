@@ -253,6 +253,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     warned.insert("providerMode", "runtime");
     warned.insert("managedProviders",
                   QJsonArray{QJsonObject{{"name", "nodes"}, {"mode", "runtime"}}});
+    warned.insert("history", QJsonArray{QJsonObject{{"updatedAt", "2026-10-28T00:00:00Z"}}});
     profiles[firstIndex] = warned;
     ui.applyData({1, "fixture", {{"profiles", profiles}}});
     QTest::qWait(30);
@@ -508,8 +509,9 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                               "clicked");
     auto* managementScroll =
         host.window()->findChild<QQuickItem*>("subscription_management_scroll");
+    auto* managementForm = host.window()->findChild<QQuickItem*>("subscription_management_form");
     auto* headers = host.window()->findChild<QObject*>("subscription_source_headers");
-    if (!managementScroll || !headers)
+    if (!managementScroll || !managementForm || !headers)
         return 166;
     const auto originalUrl = savedUrl->property("text").toString();
     const auto originalHeaders = headers->property("text").toString();
@@ -567,27 +569,38 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                         return 141;
                     }
                 }
+                if (host.window()->grabWindow().isNull())
+                    return 116;
+                for (auto* item : managementForm->childItems()) {
+                    if (item->isVisible() &&
+                        (item->x() < -0.5 ||
+                         item->x() + item->width() > managementForm->width() + 0.5)) {
+                        std::fprintf(stderr,
+                                     "Subscription form child exceeds bounds: %s (%s) "
+                                     "x=%.1f width=%.1f form=%.1f font=%d window=%d\n",
+                                     item->objectName().toUtf8().constData(),
+                                     item->metaObject()->className(), item->x(), item->width(),
+                                     managementForm->width(), pixels, size.width());
+                        return 168;
+                    }
+                }
                 for (const auto* name :
                      {"subscription_name", "subscription_saved_url", "subscription_update_interval",
                       "subscription_provider_mode", "subscription_download_route",
-                      "subscription_source_headers"}) {
+                      "subscription_source_headers", "subscription_versions"}) {
                     auto* field = host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
                     if (!test::focusInScroll(field)) {
                         std::fprintf(stderr, "Subscription focus: %s font=%d width=%d\n", name,
                                      pixels, size.width());
                         return 115;
                     }
-                    if (QString::fromLatin1(name) == "subscription_name" ||
-                        QString::fromLatin1(name) == "subscription_saved_url" ||
-                        QString::fromLatin1(name) == "subscription_source_headers") {
-                        const auto formWidth = managementScroll->property("formWidth").toReal();
-                        if (field->width() > formWidth + 0.5) {
-                            std::fprintf(stderr,
-                                         "Subscription field exceeds form: %s width=%.1f "
-                                         "form=%.1f font=%d window=%d\n",
-                                         name, field->width(), formWidth, pixels, size.width());
-                            return 167;
-                        }
+                    const auto formWidth = managementScroll->property("formWidth").toReal();
+                    if (field->width() > formWidth + 0.5) {
+                        std::fprintf(stderr,
+                                     "Subscription field exceeds form: %s width=%.1f "
+                                     "form=%.1f font=%d window=%d\n",
+                                     name, field->width(), formWidth, pixels, size.width());
+                        return 167;
                     }
                     if (!visualOutput.isEmpty() &&
                         (QString::fromLatin1(name) == "subscription_name" ||

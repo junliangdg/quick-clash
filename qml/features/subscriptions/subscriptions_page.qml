@@ -574,6 +574,7 @@ ListView {
             form: managementScrollForm
             ColumnLayout {
                 id: managementScrollForm
+                objectName: "subscription_management_form"
                 spacing: 12
                 Label {
                     objectName: "subscription_managed_geo_notice"
@@ -644,6 +645,7 @@ ListView {
                 }
                 Flow {
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 8
                     ActionButton {
                         width: Math.min(implicitWidth, parent.width)
@@ -691,6 +693,7 @@ ListView {
                     text: qsTr("Saving downloads and checks the new URL. A running subscription may restart and interrupt connections.")
                     color: root.theme.muted
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     wrapMode: Text.WordWrap
                 }
                 ActionButton {
@@ -700,6 +703,8 @@ ListView {
                     visible: root.editingSource
                     property bool expanded: false
                     text: expanded ? qsTr("Hide request headers") : qsTr("Request headers (optional)")
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     onClicked: expanded = !expanded
                 }
                 Label {
@@ -707,6 +712,7 @@ ListView {
                     text: qsTr("Existing custom headers are not carried over. Enter any headers required by the new URL.")
                     color: root.theme.muted
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     wrapMode: Text.WordWrap
                 }
                 ThemedField {
@@ -732,6 +738,7 @@ ListView {
                 Flow {
                     visible: root.editingSource
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     spacing: 8
                     ActionButton {
                         width: Math.min(implicitWidth, parent.width)
@@ -758,6 +765,7 @@ ListView {
                     text: root.sourceError ? (root.urlResult === "SavedApplyFailed" ? qsTr("URL saved; applying failed: %1").arg(root.sourceError) : root.sourceError) : root.urlResult === "Copied" ? qsTr("URL copied") : root.urlResult === "Saved" ? qsTr("URL saved and subscription updated") : qsTr("Could not read the saved URL")
                     color: root.sourceError || root.urlResult === "Failed" ? root.theme.error : root.theme.muted
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     wrapMode: Text.WordWrap
                 }
                 ThemedComboBox {
@@ -767,6 +775,8 @@ ListView {
                     theme: root.theme
                     visible: !!root.managedProfile.secretRef
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     enabled: !root.ui.runtime.busy
                     property var minutes: [0, 60, 360, 720, 1440]
                     model: [qsTr("Manual updates"), qsTr("Every hour"), qsTr("Every 6 hours"), qsTr("Every 12 hours"), qsTr("Every day")]
@@ -776,6 +786,7 @@ ListView {
                 ThemedSwitch {
                     Layout.fillWidth: true
                     Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     theme: root.theme
                     visible: !!root.managedProfile.secretRef
                     text: qsTr("Apply automatic updates to the current subscription")
@@ -789,6 +800,8 @@ ListView {
                     objectName: "subscription_provider_mode"
                     visible: (root.managedProfile.managedProviders || []).length > 0
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     enabled: !root.ui.runtime.busy
                     model: [qsTr("Provider mode: import snapshot"), qsTr("Provider mode: core runtime")]
                     currentIndex: root.managedProfile.providerMode === "runtime" ? 1 : 0
@@ -801,6 +814,7 @@ ListView {
                     color: root.theme.muted
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                 }
                 Label {
                     visible: !!root.managedProfile.secretRef
@@ -816,6 +830,8 @@ ListView {
                     objectName: "subscription_download_route"
                     visible: !!root.managedProfile.secretRef
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     enabled: !root.ui.runtime.busy
                     model: root.downloadRouteLabels
                     currentIndex: Math.max(0, root.downloadRoutes.indexOf(root.managedProfile.downloadRoute || "Direct"))
@@ -828,6 +844,7 @@ ListView {
                     color: root.theme.muted
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                 }
                 ActionButton {
                     id: advancedButton
@@ -835,6 +852,8 @@ ListView {
                     theme: root.theme
                     property bool expanded: false
                     text: expanded ? qsTr("Hide advanced settings") : qsTr("Advanced settings")
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     onClicked: expanded = !expanded
                 }
                 Flow {
@@ -862,8 +881,11 @@ ListView {
                 }
                 ThemedComboBox {
                     id: versions
+                    objectName: "subscription_versions"
                     theme: root.theme
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.maximumWidth: managementScroll.formWidth
                     visible: advancedButton.expanded && (root.managedProfile.history || []).length > 0
                     model: (root.managedProfile.history || []).map(function (version, index) {
                         return qsTr("Version %1 · %2").arg(index + 1).arg(version.updatedAt || "—");
