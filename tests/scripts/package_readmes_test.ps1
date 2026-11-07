@@ -32,8 +32,8 @@ function Write-FixtureManifest([string]$Directory) {
 function New-Fixture {
     $script:taskCase++
     $taskDirectory = Join-Path $taskRoot "case_$script:taskCase"
-    foreach ($taskRelative in 'bin/quickclash.exe', 'bin/quickclash_service.exe', 'core/mihomo.exe',
-        'bin/Qt6Core.dll', 'metadata/config_policy.json', 'licenses/quickclash_gpl_3.txt', 'licenses/source_obligations.md') {
+    foreach ($taskRelative in 'bin/quickclash.exe', 'bin/quickclash_service.exe', 'bin/quickclash_network.exe',
+        'core/mihomo.exe', 'bin/Qt6Core.dll', 'metadata/config_policy.json', 'licenses/quickclash_gpl_3.txt', 'licenses/source_obligations.md') {
         $taskPath = Join-Path $taskDirectory $taskRelative
         $null = [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($taskPath))
         [IO.File]::WriteAllText($taskPath, "fixture:$taskRelative")
@@ -72,12 +72,17 @@ $taskExtracted = Join-Path $taskRoot 'extracted'
 [IO.Compression.ZipFile]::ExtractToDirectory($taskArchive, $taskExtracted)
 $taskKit = Join-Path $taskRoot 'kit'
 & (Join-Path $taskRepo 'scripts/create_windows_validation_kit.ps1') -PackageRoot $taskExtracted -Destination $taskKit
+$taskKitTransport = Join-Path $taskKit 'package/bin/quickclash_network.exe'
+Require (Test-Path -LiteralPath $taskKitTransport -PathType Leaf) 'Validation kit omitted the network transport.'
+Require ((Get-FileHash -LiteralPath $taskKitTransport).Hash -ceq
+    (Get-FileHash -LiteralPath (Join-Path $taskDirectory 'bin/quickclash_network.exe')).Hash) 'Validation kit changed the network transport.'
 foreach ($taskReadme in $taskReadmes) {
     $taskKitReadme = Join-Path $taskKit "package/$taskReadme"
     Require ((Get-FileHash -LiteralPath $taskKitReadme).Hash -ceq (Get-FileHash -LiteralPath (Join-Path $taskDirectory $taskReadme)).Hash) 'Validation kit changed readme contents.'
     Require-Links $taskKitReadme @('readme.md', 'readme_zh_cn.md', 'licenses/quickclash_gpl_3.txt', 'licenses/source_obligations.md')
 }
 $taskKitManifest = Get-Content -LiteralPath (Join-Path $taskKit 'validation_manifest.json') -Raw | ConvertFrom-Json
+Require (@($taskKitManifest.files | Where-Object path -CEQ 'package/bin/quickclash_network.exe').Count -eq 1) 'Network transport missing from validation kit manifest.'
 foreach ($taskEntry in $taskKitManifest.files) {
     $taskPath = Join-Path $taskKit $taskEntry.path
     Require ((Get-Item -LiteralPath $taskPath).Length -eq $taskEntry.bytes -and
@@ -85,7 +90,7 @@ foreach ($taskEntry in $taskKitManifest.files) {
 }
 Require ((Get-FileHash -LiteralPath (Join-Path $taskExtracted 'metadata/package_manifest.json')).Hash -ceq
     (Get-FileHash -LiteralPath (Join-Path $taskKit 'package/metadata/package_manifest.json')).Hash) 'Source manifest was not preserved.'
-Write-Output 'PASS: ZIP round trip and real validation-kit creation preserve bilingual docs, links, and all manifest hashes'
+Write-Output 'PASS: ZIP round trip and real validation-kit creation preserve network transport, bilingual docs, links, and all manifest hashes'
 
 foreach ($taskReadme in $taskReadmes) {
     foreach ($taskKind in 'missing', 'corrupt', 'duplicate') {

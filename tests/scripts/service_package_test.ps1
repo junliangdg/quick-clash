@@ -5,10 +5,11 @@ $taskRepo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 $taskRoot = Join-Path $taskRepo ('build/script_tests/service_package/' + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $taskRoot
 $taskCase = 0
-function Require-Failure([scriptblock]$Action) {
-    $taskFailed = $false
-    try { & $Action } catch { $taskFailed = $true }
-    if (-not $taskFailed) { throw 'Expected refusal.' }
+function Require-Failure([scriptblock]$Action, [string]$Expected = '') {
+    $taskFailure = $null
+    try { & $Action } catch { $taskFailure = $_.Exception.Message }
+    if (-not $taskFailure) { throw 'Expected refusal.' }
+    if ($Expected -and -not $taskFailure.Contains($Expected)) { throw "Expected '$Expected', received '$taskFailure'." }
 }
 function New-Fixture {
     $script:taskCase++
@@ -48,11 +49,15 @@ foreach ($taskKind in 'unlisted', 'corrupt', 'duplicate', 'escape', 'missing', '
         'duplicate' { $taskManifest.files += @($taskManifest.files | Where-Object path -EQ 'bin/quickclash.exe')[0] }
         'escape' { @($taskManifest.files | Where-Object path -EQ 'bin/quickclash.exe')[0].path = 'bin/../../outside.exe' }
         'missing' { $taskManifest.files = @($taskManifest.files | Where-Object path -ne 'bin/quickclash_service.exe') }
-        'missing_transport' { $taskManifest.files = @($taskManifest.files | Where-Object path -ne 'bin/quickclash_network.exe') }
+        'missing_transport' {
+            $taskManifest.files = @($taskManifest.files | Where-Object path -ne 'bin/quickclash_network.exe')
+            [IO.File]::Delete((Join-Path $taskDirectory 'bin/quickclash_network.exe'))
+        }
         'schema' { $taskManifest.schema_version = 99 }
     }
     $taskManifest | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $taskManifestPath
-    Require-Failure { $taskUnexpected = Open-ServicePackage $taskDirectory; Close-ServicePackage $taskUnexpected }
+    $taskExpected = if ($taskKind -eq 'missing_transport') { 'Required package file missing from manifest: bin/quickclash_network.exe' } else { '' }
+    Require-Failure { $taskUnexpected = Open-ServicePackage $taskDirectory; Close-ServicePackage $taskUnexpected } $taskExpected
     Write-Output "PASS: $taskKind package rejected"
 }
 $taskDirectory = New-Fixture
