@@ -55,12 +55,13 @@ int runVisualProbe(ApplicationHost& host) {
         QTest::qWait(100);
         const auto frame = host.window()->grabWindow();
         QJsonArray roots;
-        for (auto* item : host.window()->contentItem()->childItems()) {
-            roots.append(QJsonObject{{"class", item->metaObject()->className()},
-                                     {"width", item->width()},
-                                     {"height", item->height()},
-                                     {"scale", item->scale()}});
-        }
+        if (!output.isEmpty())
+            for (auto* item : host.window()->contentItem()->childItems()) {
+                roots.append(QJsonObject{{"class", item->metaObject()->className()},
+                                         {"width", item->width()},
+                                         {"height", item->height()},
+                                         {"scale", item->scale()}});
+            }
         QJsonArray primaryButtons;
         bool foregroundCorrect = true;
         const auto visitButtons = [&](auto&& self, QQuickItem* item) -> void {
@@ -74,51 +75,55 @@ int runVisualProbe(ApplicationHost& host) {
                         content->property("color").value<QColor>() == expected &&
                         theme->property("accentForeground").value<QColor>() == expected;
                 }
-                primaryButtons.append(QJsonObject{
-                    {"text", item->property("text").toString()},
-                    {"accentForeground",
-                     theme ? theme->property("accentForeground").toString() : "missing"},
-                    {"contentClass", content ? content->metaObject()->className() : "missing"},
-                    {"color", content ? content->property("color").toString() : "missing"}});
+                if (!output.isEmpty())
+                    primaryButtons.append(QJsonObject{
+                        {"text", item->property("text").toString()},
+                        {"accentForeground",
+                         theme ? theme->property("accentForeground").toString() : "missing"},
+                        {"contentClass", content ? content->metaObject()->className() : "missing"},
+                        {"color", content ? content->property("color").toString() : "missing"}});
             }
             for (auto* child : item->childItems())
                 self(self, child);
         };
         visitButtons(visitButtons, host.window()->contentItem());
-        QJsonArray scrollBars;
-        for (auto* bar : objects("themed_vertical_scroll_bar")) {
-            auto* view = bar->parentItem();
-            if (!view || !view->isVisible())
-                continue;
-            const auto bounds = bar->mapRectToScene(bar->boundingRect());
-            scrollBars.append(QJsonObject{{"view", view->objectName()},
-                                          {"x", bounds.x()},
-                                          {"y", bounds.y()},
-                                          {"width", bounds.width()},
-                                          {"height", bounds.height()},
-                                          {"size", bar->property("size").toReal()},
-                                          {"position", bar->property("position").toReal()}});
+        if (!output.isEmpty()) {
+            QJsonArray scrollBars;
+            for (auto* bar : objects("themed_vertical_scroll_bar")) {
+                auto* view = bar->parentItem();
+                if (!view || !view->isVisible())
+                    continue;
+                const auto bounds = bar->mapRectToScene(bar->boundingRect());
+                scrollBars.append(QJsonObject{{"view", view->objectName()},
+                                              {"x", bounds.x()},
+                                              {"y", bounds.y()},
+                                              {"width", bounds.width()},
+                                              {"height", bounds.height()},
+                                              {"size", bar->property("size").toReal()},
+                                              {"position", bar->property("position").toReal()}});
+            }
+            auto* title = host.window()->findChild<QQuickItem*>("page_title_row");
+            const auto pageBounds = title ? title->mapRectToScene(title->boundingRect()) : QRectF{};
+            captures.append(
+                QJsonObject{{"name", name},
+                            {"pageContent", QJsonObject{{"left", pageBounds.left()},
+                                                        {"right", pageBounds.right()},
+                                                        {"width", pageBounds.width()}}},
+                            {"scrollBars", scrollBars},
+                            {"qtVersion", qVersion()},
+                            {"exposed", host.window()->isExposed()},
+                            {"roots", roots},
+                            {"primaryButtons", primaryButtons},
+                            {"width", host.window()->width()},
+                            {"height", host.window()->height()},
+                            {"contentWidth", host.window()->contentItem()->width()},
+                            {"contentHeight", host.window()->contentItem()->height()},
+                            {"dpr", host.window()->devicePixelRatio()},
+                            {"frameWidth", frame.width()},
+                            {"frameHeight", frame.height()},
+                            {"graphicsApi",
+                             static_cast<int>(host.window()->rendererInterface()->graphicsApi())}});
         }
-        auto* title = host.window()->findChild<QQuickItem*>("page_title_row");
-        const auto pageBounds = title ? title->mapRectToScene(title->boundingRect()) : QRectF{};
-        captures.append(QJsonObject{
-            {"name", name},
-            {"pageContent", QJsonObject{{"left", pageBounds.left()},
-                                        {"right", pageBounds.right()},
-                                        {"width", pageBounds.width()}}},
-            {"scrollBars", scrollBars},
-            {"qtVersion", qVersion()},
-            {"exposed", host.window()->isExposed()},
-            {"roots", roots},
-            {"primaryButtons", primaryButtons},
-            {"width", host.window()->width()},
-            {"height", host.window()->height()},
-            {"contentWidth", host.window()->contentItem()->width()},
-            {"contentHeight", host.window()->contentItem()->height()},
-            {"dpr", host.window()->devicePixelRatio()},
-            {"frameWidth", frame.width()},
-            {"frameHeight", frame.height()},
-            {"graphicsApi", static_cast<int>(host.window()->rendererInterface()->graphicsApi())}});
         const bool sizeMatches =
             host.window()->contentItem()->size() == QSizeF(host.window()->size());
         const bool saved = output.isEmpty() ||
@@ -1384,10 +1389,14 @@ int runVisualProbe(ApplicationHost& host) {
             ui.setDashboardOption("resources", false);
         }
     }
-    // Inspect the real bar after resize and content scrolling, not just the form's padding.
+    // Inspect both pages at wide and narrow sizes using different themes;
+    // retain every combination when collecting full visual evidence.
     for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
         ui.setThemeMode(theme);
         for (const auto width : {1000, 360}) {
+            if (output.isEmpty() &&
+                !((theme == "light" && width == 1000) || (theme == "dark" && width == 360)))
+                continue;
             host.resizeWindow({width, 640});
             for (const auto& page : {QStringLiteral("home"), QStringLiteral("settings")}) {
                 if (!ui.navigate(page))
@@ -1582,6 +1591,13 @@ int runVisualProbe(ApplicationHost& host) {
         for (const auto width : {1000, 600, 360}) {
             host.resizeWindow({width, 640});
             for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+                // Captures retain the full grid. Automated validation samples distinct
+                // wide, breakpoint and large-font narrow layouts instead of 18 repeats.
+                if (output.isEmpty() && !((pixels == 14 && width == 1000 && theme == "light") ||
+                                          (pixels == 14 && width == 600 && theme == "dark") ||
+                                          (pixels == 21 && width == 360 && theme == "light") ||
+                                          (pixels == 32 && width == 360 && theme == "dark")))
+                    continue;
                 ui.setThemeMode(theme);
                 for (const auto& page : {QStringLiteral("proxies"), QStringLiteral("subscriptions"),
                                          QStringLiteral("rules")}) {

@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $taskRepo = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '../..')).Path
 . (Join-Path $taskRepo 'scripts/service_package.ps1')
-$taskRoot = Join-Path $taskRepo ('build/service_package_test_' + [guid]::NewGuid().ToString('N'))
+$taskRoot = Join-Path $taskRepo ('build/script_tests/service_package/' + [guid]::NewGuid().ToString('N'))
 $null = New-Item -ItemType Directory -Path $taskRoot
 $taskCase = 0
 function Require-Failure([scriptblock]$Action) {

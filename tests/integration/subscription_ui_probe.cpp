@@ -73,6 +73,132 @@ bool checkUrlAccessibility(QObject* field, const QString& expectedLabel, bool pr
     }
     return true;
 }
+int checkSubscriptionLayout(ApplicationHost& host, QObject* savedUrl, const QString& visualOutput) {
+    auto& ui = host.state();
+    auto* managementScroll =
+        host.window()->findChild<QQuickItem*>("subscription_management_scroll");
+    auto* managementForm = host.window()->findChild<QQuickItem*>("subscription_management_form");
+    auto* headers = host.window()->findChild<QObject*>("subscription_source_headers");
+    if (!managementScroll || !managementForm || !headers)
+        return 166;
+    const auto originalUrl = savedUrl->property("text").toString();
+    const auto originalHeaders = headers->property("text").toString();
+    const auto longUrl =
+        QStringLiteral("https://fixture.invalid/") + QString(512, QLatin1Char('W'));
+    const auto longHeaders = QStringLiteral("{\"Authorization\":\"") +
+                             QString(512, QLatin1Char('W')) + QStringLiteral("\"}");
+    if (!savedUrl->setProperty("text", longUrl) || !headers->setProperty("text", longHeaders))
+        return 166;
+    const auto baselineFont = QApplication::font();
+    struct LayoutCase {
+        int pixels;
+        const char* theme;
+        QSize size;
+    };
+    QList<LayoutCase> cases{
+        {14, "light", {1000, 760}}, {14, "dark", {360, 640}}, {21, "light", {360, 640}}};
+    if (!visualOutput.isEmpty()) {
+        cases.clear();
+        for (const auto pixels : {14, 21})
+            for (const auto* theme : {"light", "dark"})
+                for (const auto& size : {QSize{1000, 760}, QSize{360, 640}})
+                    cases.append({pixels, theme, size});
+    }
+    for (const auto& entry : cases) {
+        const auto pixels = entry.pixels;
+        const auto size = entry.size;
+        const auto theme = QString::fromLatin1(entry.theme);
+        auto font = baselineFont;
+        font.setPixelSize(pixels);
+        QApplication::setFont(font);
+        ui.setThemeMode(theme);
+        host.resizeWindow(size);
+        QTest::qWait(50);
+        if (!test::checkScrollLayouts(host.window()))
+            return 114;
+        auto* actions = host.window()->findChild<QQuickItem*>("subscription_editor_actions");
+        auto* validate = host.window()->findChild<QQuickItem*>("subscription_validate_source");
+        auto* editSource = host.window()->findChild<QQuickItem*>("subscription_edit_source");
+        auto* editOverrides = host.window()->findChild<QQuickItem*>("subscription_edit_overrides");
+        if (!actions || !validate || !editSource || !editOverrides)
+            return 139;
+        const QList<QQuickItem*> buttons{editSource, editOverrides};
+        const auto spacing = actions->property("spacing").toReal();
+        for (int index = 0; index < buttons.size(); ++index) {
+            const auto* button = buttons[index];
+            if (button->parentItem() != actions || button->x() < -0.5 ||
+                button->x() + button->width() > actions->width() + 0.5)
+                return 140;
+            if (index == 0)
+                continue;
+            const auto* previous = buttons[index - 1];
+            const bool shouldFit = previous->x() + previous->width() + spacing + button->width() <=
+                                   actions->width() + 0.5;
+            const bool sameRow = qAbs(previous->y() - button->y()) < 0.5;
+            if (shouldFit != sameRow ||
+                (sameRow && button->x() + 0.5 < previous->x() + previous->width()) ||
+                (!sameRow && button->y() + 0.5 < previous->y() + previous->height())) {
+                std::fprintf(stderr,
+                             "Subscription actions overlap/wrap: font=%d width=%d "
+                             "button=%d form=%.1f previous=%.1f..%.1f next=%.1f..%.1f\n",
+                             pixels, size.width(), index, actions->width(), previous->x(),
+                             previous->x() + previous->width(), button->x(),
+                             button->x() + button->width());
+                return 141;
+            }
+        }
+        if (host.window()->grabWindow().isNull())
+            return 116;
+        for (auto* item : managementForm->childItems()) {
+            if (item->isVisible() &&
+                (item->x() < -0.5 || item->x() + item->width() > managementForm->width() + 0.5)) {
+                std::fprintf(stderr,
+                             "Subscription form child exceeds bounds: %s (%s) "
+                             "x=%.1f width=%.1f form=%.1f font=%d window=%d\n",
+                             item->objectName().toUtf8().constData(),
+                             item->metaObject()->className(), item->x(), item->width(),
+                             managementForm->width(), pixels, size.width());
+                return 168;
+            }
+        }
+        for (const auto* name :
+             {"subscription_name", "subscription_saved_url", "subscription_update_interval",
+              "subscription_provider_mode", "subscription_download_route",
+              "subscription_source_headers", "subscription_versions"}) {
+            auto* field = host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
+            if (!test::focusInScroll(field)) {
+                std::fprintf(stderr, "Subscription focus: %s font=%d width=%d\n", name, pixels,
+                             size.width());
+                return 115;
+            }
+            const auto formWidth = managementScroll->property("formWidth").toReal();
+            if (field->width() > formWidth + 0.5) {
+                std::fprintf(stderr,
+                             "Subscription field exceeds form: %s width=%.1f "
+                             "form=%.1f font=%d window=%d\n",
+                             name, field->width(), formWidth, pixels, size.width());
+                return 167;
+            }
+            if (!visualOutput.isEmpty() &&
+                (QString::fromLatin1(name) == "subscription_name" ||
+                 QString::fromLatin1(name) == "subscription_source_headers")) {
+                const auto path = QStringLiteral("focus_%1_%2_font_%3_%4.png")
+                                      .arg(theme)
+                                      .arg(size.width())
+                                      .arg(pixels)
+                                      .arg(QString::fromLatin1(name));
+                if (!host.window()->grabWindow().save(QDir(visualOutput).filePath(path)))
+                    return 116;
+            }
+        }
+    }
+    QApplication::setFont(baselineFont);
+    if (!savedUrl->setProperty("text", originalUrl) ||
+        !headers->setProperty("text", originalHeaders))
+        return 166;
+    std::puts("Subscription layout: representative wide/narrow and large-font cases passed");
+    return 0;
+}
 } // namespace
 int runSubscriptionUiProbe(ApplicationHost& host) {
     // Synthetic delivery only: no SettingsService, subscription, core or platform command
@@ -173,7 +299,7 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!checkUrlAccessibility(url, importLabel, true))
         return 164;
     importNameField->setProperty("text", "Import fixture");
-    const auto submitImport = [&] { return test::focusInScroll(add) && click(host, add); };
+    const auto submitImport = [&] { return test::revealInScroll(add) && click(host, add); };
     if (!submitImport())
         return 119;
     if (!checkUrlAccessibility(url, importLabel, true))
@@ -507,127 +633,18 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     ui.subscriptionUrlReady(managedId, token, fixtureUrl);
     QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_headers_toggle"),
                               "clicked");
-    auto* managementScroll =
-        host.window()->findChild<QQuickItem*>("subscription_management_scroll");
-    auto* managementForm = host.window()->findChild<QQuickItem*>("subscription_management_form");
-    auto* headers = host.window()->findChild<QObject*>("subscription_source_headers");
-    if (!managementScroll || !managementForm || !headers)
-        return 166;
-    const auto originalUrl = savedUrl->property("text").toString();
-    const auto originalHeaders = headers->property("text").toString();
-    const auto longUrl =
-        QStringLiteral("https://fixture.invalid/") + QString(512, QLatin1Char('W'));
-    const auto longHeaders = QStringLiteral("{\"Authorization\":\"") +
-                             QString(512, QLatin1Char('W')) + QStringLiteral("\"}");
-    if (!savedUrl->setProperty("text", longUrl) || !headers->setProperty("text", longHeaders))
-        return 166;
-    const auto baselineFont = QApplication::font();
-    for (const auto pixels : {14, 21}) {
-        auto font = baselineFont;
-        font.setPixelSize(pixels);
-        QApplication::setFont(font);
-        for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
-            ui.setThemeMode(theme);
-            for (const auto& size : {QSize{1000, 760}, QSize{360, 640}}) {
-                host.resizeWindow(size);
-                QTest::qWait(50);
-                if (!test::checkScrollLayouts(host.window()))
-                    return 114;
-                auto* actions =
-                    host.window()->findChild<QQuickItem*>("subscription_editor_actions");
-                auto* validate =
-                    host.window()->findChild<QQuickItem*>("subscription_validate_source");
-                auto* editSource =
-                    host.window()->findChild<QQuickItem*>("subscription_edit_source");
-                auto* editOverrides =
-                    host.window()->findChild<QQuickItem*>("subscription_edit_overrides");
-                if (!actions || !validate || !editSource || !editOverrides)
-                    return 139;
-                const QList<QQuickItem*> buttons{editSource, editOverrides};
-                const auto spacing = actions->property("spacing").toReal();
-                for (int index = 0; index < buttons.size(); ++index) {
-                    const auto* button = buttons[index];
-                    if (button->parentItem() != actions || button->x() < -0.5 ||
-                        button->x() + button->width() > actions->width() + 0.5)
-                        return 140;
-                    if (index == 0)
-                        continue;
-                    const auto* previous = buttons[index - 1];
-                    const bool shouldFit =
-                        previous->x() + previous->width() + spacing + button->width() <=
-                        actions->width() + 0.5;
-                    const bool sameRow = qAbs(previous->y() - button->y()) < 0.5;
-                    if (shouldFit != sameRow ||
-                        (sameRow && button->x() + 0.5 < previous->x() + previous->width()) ||
-                        (!sameRow && button->y() + 0.5 < previous->y() + previous->height())) {
-                        std::fprintf(stderr,
-                                     "Subscription actions overlap/wrap: font=%d width=%d "
-                                     "button=%d form=%.1f previous=%.1f..%.1f next=%.1f..%.1f\n",
-                                     pixels, size.width(), index, actions->width(), previous->x(),
-                                     previous->x() + previous->width(), button->x(),
-                                     button->x() + button->width());
-                        return 141;
-                    }
-                }
-                if (host.window()->grabWindow().isNull())
-                    return 116;
-                for (auto* item : managementForm->childItems()) {
-                    if (item->isVisible() &&
-                        (item->x() < -0.5 ||
-                         item->x() + item->width() > managementForm->width() + 0.5)) {
-                        std::fprintf(stderr,
-                                     "Subscription form child exceeds bounds: %s (%s) "
-                                     "x=%.1f width=%.1f form=%.1f font=%d window=%d\n",
-                                     item->objectName().toUtf8().constData(),
-                                     item->metaObject()->className(), item->x(), item->width(),
-                                     managementForm->width(), pixels, size.width());
-                        return 168;
-                    }
-                }
-                for (const auto* name :
-                     {"subscription_name", "subscription_saved_url", "subscription_update_interval",
-                      "subscription_provider_mode", "subscription_download_route",
-                      "subscription_source_headers", "subscription_versions"}) {
-                    auto* field = host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
-                    if (!test::focusInScroll(field)) {
-                        std::fprintf(stderr, "Subscription focus: %s font=%d width=%d\n", name,
-                                     pixels, size.width());
-                        return 115;
-                    }
-                    const auto formWidth = managementScroll->property("formWidth").toReal();
-                    if (field->width() > formWidth + 0.5) {
-                        std::fprintf(stderr,
-                                     "Subscription field exceeds form: %s width=%.1f "
-                                     "form=%.1f font=%d window=%d\n",
-                                     name, field->width(), formWidth, pixels, size.width());
-                        return 167;
-                    }
-                    if (!visualOutput.isEmpty() &&
-                        (QString::fromLatin1(name) == "subscription_name" ||
-                         QString::fromLatin1(name) == "subscription_source_headers")) {
-                        const auto path = QStringLiteral("focus_%1_%2_font_%3_%4.png")
-                                              .arg(theme)
-                                              .arg(size.width())
-                                              .arg(pixels)
-                                              .arg(QString::fromLatin1(name));
-                        if (!host.window()->grabWindow().save(QDir(visualOutput).filePath(path)))
-                            return 116;
-                    }
-                }
-            }
-        }
+    if (!visualOutput.isEmpty()) {
+        const auto layoutResult = checkSubscriptionLayout(host, savedUrl, visualOutput);
+        if (layoutResult)
+            return layoutResult;
     }
-    QApplication::setFont(baselineFont);
-    if (!savedUrl->setProperty("text", originalUrl) ||
-        !headers->setProperty("text", originalHeaders))
-        return 166;
     QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_cancel_source"),
                               "clicked");
     host.resizeWindow({1500, 850});
     QTest::qWait(50);
-    if (!test::focusInScroll(host.window()->findChild<QQuickItem*>("subscription_name")))
-        return 115;
     if (!visualOutput.isEmpty()) {
+        if (!test::focusInScroll(host.window()->findChild<QQuickItem*>("subscription_name")))
+            return 115;
         for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
             ui.setThemeMode(theme);
             for (const auto& size : {QSize(1500, 850), QSize(360, 640)}) {
@@ -777,13 +794,8 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     if (!content || content->property("text") != "# private draft" ||
         !editor->property("ready").toBool())
         return 102;
-    for (const auto width : {1000, 360}) {
-        host.resizeWindow({width, 640});
-        QTest::qWait(40);
-        if (!test::checkScrollLayouts(host.window()) ||
-            !test::focusInScroll(qobject_cast<QQuickItem*>(content)))
-            return 117;
-    }
+    if (!test::revealInScroll(qobject_cast<QQuickItem*>(content)))
+        return 117;
     content->setProperty("text", "# changed just before hide");
     if (!editor->property("dirty").toBool())
         return 103;
@@ -823,7 +835,70 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
                          1000))
         return 157;
     std::puts("Subscription UI: bounded/reused delegates, stable actions, persistent management, "
-              "incremental metadata, responsive long text and keyboard passed");
+              "incremental metadata, privacy and keyboard passed");
     return 0;
+}
+
+int runSubscriptionLayoutProbe(ApplicationHost& host) {
+    auto& ui = host.state();
+    ui.applyControl({{"publicationGeneration", "1"}, {"epoch", "layout"}, {"selectedId", "p0"}});
+    ui.applyData(
+        {1,
+         "layout",
+         {{"profiles",
+           QJsonArray{QJsonObject{
+               {"id", "p0"},
+               {"name", QString(80, QLatin1Char('W'))},
+               {"secretRef", "opaque"},
+               {"managedProviders",
+                QJsonArray{QJsonObject{{"name", "nodes"}, {"mode", "runtime"}}}},
+               {"history", QJsonArray{QJsonObject{{"updatedAt", "2026-10-28T00:00:00Z"}}}}}}}}});
+    if (!ui.navigate("subscriptions"))
+        return 80;
+    host.resizeWindow({1000, 760});
+    auto* page = host.window()->findChild<QObject*>("subscriptions_page");
+    if (!page || !QMetaObject::invokeMethod(page, "manage", Q_ARG(QVariant, "p0")))
+        return 87;
+    auto* savedUrl = host.window()->findChild<QObject*>("subscription_saved_url");
+    auto* dialog = host.window()->findChild<QObject*>("subscription_management");
+    auto* advanced = host.window()->findChild<QObject*>("subscription_advanced");
+    auto* headersToggle = host.window()->findChild<QObject*>("subscription_headers_toggle");
+    if (!savedUrl || !dialog || !advanced || !headersToggle ||
+        !QMetaObject::invokeMethod(advanced, "clicked") ||
+        !QMetaObject::invokeMethod(page, "beginSourceEdit",
+                                   Q_ARG(QVariant, "https://fixture.invalid")) ||
+        !QMetaObject::invokeMethod(headersToggle, "clicked"))
+        return 166;
+    const auto result = checkSubscriptionLayout(host, savedUrl, {});
+    if (result)
+        return result;
+    QMetaObject::invokeMethod(host.window()->findChild<QObject*>("subscription_cancel_source"),
+                              "clicked");
+    host.resizeWindow({1500, 850});
+    QTest::qWait(50);
+    if (!test::focusInScroll(host.window()->findChild<QQuickItem*>("subscription_name")))
+        return 115;
+    QMetaObject::invokeMethod(dialog, "close");
+    if (!QMetaObject::invokeMethod(page, "editProfile", Q_ARG(QVariant, "p0"),
+                                   Q_ARG(QVariant, "source")))
+        return 101;
+    ui.applyData({1,
+                  "layout",
+                  {{"editor", QJsonObject{{"id", "p0"},
+                                          {"kind", "source"},
+                                          {"token", "layout"},
+                                          {"text", "# fixture"},
+                                          {"name", "Fixture"}}}},
+                  ui.dataDemands().generations});
+    auto* content = host.window()->findChild<QQuickItem*>("profile_editor_text");
+    if (!content)
+        return 102;
+    for (const auto width : {1000, 360}) {
+        host.resizeWindow({width, 640});
+        QTest::qWait(40);
+        if (!test::checkScrollLayouts(host.window()) || !test::focusInScroll(content))
+            return 117;
+    }
+    return host.qmlErrorCount() == 0 ? 0 : 95;
 }
 } // namespace quickclash

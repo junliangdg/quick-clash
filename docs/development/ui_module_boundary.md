@@ -18,5 +18,5 @@ P1 使用 ui.ini 保存主题/关闭偏好；UiState 只保留最多 32 份轻�
 - 替换ScrollView的默认ScrollBar时必须同时保留样式的几何绑定：parent为外层ScrollView，竖条按mirrored定位边缘，y为topPadding、height为availableHeight，并保留横竖条active联动；不能让滚动条随正文移动或退化为左上角自然尺寸。回归须检查实际条的位置/高度，以及滚动位置和缩放后的同步，不仅检查正文padding。
 - 页内虚拟列表/表格保留自己的滚动和焦点策略；页面级订阅列表的稳定滚动条外延至页边距，代理列表的滚动视口外延，标题和卡片宽度不含滚动条。嵌入式表格的滚动条仍在表格内部，不能为边线统一破坏回收或横向滚动。
 - 普通控件沿用外扩FocusRing；导航、虚拟列表行与贴边节点背景设置`insetFocus: true`。水平表格按可见区设置focusClipLeft/Right；不要给每行增加Timer。
-- 焦点尺寸只取ThemeTokens.focusExtent/focusMargin，圆角跟随表面；步进视觉不改变命中范围。新表单必须补真实聚焦状态及窄窗检查，`contracts`负责裸ScrollView源约束，`ui_accessibility`检查八页面/字体缩放安全区与焦点，`ui_subscriptions`检查真实弹框，`ui_custom_groups`保留步进/焦点回归。
+- 焦点尺寸只取ThemeTokens.focusExtent/focusMargin，圆角跟随表面；步进视觉不改变命中范围。新表单必须补真实聚焦状态及窄窗检查，`contracts`负责裸ScrollView源约束；`ui_accessibility_layout`及其中文版检查八页面字体缩放安全区与焦点，`ui_subscription_layout`及其中文版检查订阅弹框，`ui_custom_groups_layout`和`ui_custom_groups_zh`检查步进与焦点几何。这些布局专项按改动定向运行，也包含在完整回归中；日常行为测试仍覆盖键盘和控件名称。
 - `Flow`只换行、不限制子控件宽度；其按钮/开关/选择器必须将width限制到可用宽度（如`Math.min(implicitWidth, parent.width)`），不能依赖Layout.fillWidth。横向工具栏按可用宽度与字号改为多行网格；可换行文字须提供fillWidth/minimumWidth及wrapMode，避免最小内容宽度反向撑破安全区。

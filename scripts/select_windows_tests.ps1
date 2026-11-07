@@ -21,7 +21,18 @@ $scope = 'smoke'
 $exclude = ''
 if ($Full) {
     $scope = 'full'
-    $selected = @($manifest.test_targets.Keys | Sort-Object)
+    if (-not $manifest.ContainsKey('full_replacements')) { throw 'Manifest is missing full-test replacements.' }
+    $replacements = $manifest.full_replacements
+    foreach ($short in $replacements.Keys) {
+        $replacement = $replacements[$short]
+        if (-not $manifest.test_targets.ContainsKey($short) -or
+            -not $manifest.test_targets.ContainsKey($replacement) -or
+            $replacements.ContainsKey($replacement)) {
+            throw "Invalid full-test replacement: $short -> $replacement"
+        }
+    }
+    $selected = @($manifest.test_targets.Keys | Where-Object { -not $replacements.ContainsKey($_) } | Sort-Object)
+    $exclude = 'full_redundant'
 } elseif ($Fast) {
     $scope = 'fast'
     $targets = @('quickclash_ci_fast')

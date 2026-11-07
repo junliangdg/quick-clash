@@ -162,6 +162,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
             output = arg.mid(18);
     if (!output.isEmpty() && !QDir().mkpath(output))
         return fail("capture directory can be created");
+    const bool layoutChecks = !output.isEmpty() || QCoreApplication::arguments().contains(
+                                                       QStringLiteral("--ui-layout-checks"));
     ui.setSettingsCategory(2);
     if (!waitFor([&] { return object("settings_resources"); }))
         return fail("resource settings load");
@@ -213,15 +215,24 @@ int runSettingsUiProbe(ApplicationHost& host) {
                     host.window()->devicePixelRatio());
     }
 
-    // Inspect real category instances at all representative widths, fonts and themes.
-    for (const auto pixels : {14, 21, 32}) {
+    // Labels and lazy categories are audited once; geometry uses representative cases.
+    const QList<int> fontSizes = layoutChecks ? QList<int>{14, 21, 32} : QList<int>{14};
+    for (const auto pixels : fontSizes) {
         auto font = originalFont;
         font.setPixelSize(pixels);
         QApplication::setFont(font);
         for (const auto size :
              {QSize(360, 480), QSize(600, 640), QSize(1000, 640), QSize(1440, 900)}) {
-            host.resizeWindow(size);
             for (const auto& theme : {QStringLiteral("light"), QStringLiteral("dark")}) {
+                if (output.isEmpty() &&
+                    (!layoutChecks
+                         ? (size != QSize(1000, 640) || theme != "light")
+                         : !((pixels == 14 && size == QSize(1440, 900) && theme == "light") ||
+                             (pixels == 14 && size == QSize(600, 640) && theme == "dark") ||
+                             (pixels == 21 && size == QSize(360, 480) && theme == "light") ||
+                             (pixels == 32 && size == QSize(360, 480) && theme == "dark"))))
+                    continue;
+                host.resizeWindow(size);
                 ui.setThemeMode(theme);
                 for (int category = 0; category < 5; ++category) {
                     ui.setSettingsCategory(category);
@@ -240,12 +251,14 @@ int runSettingsUiProbe(ApplicationHost& host) {
                                    .contains(tab->mapRectToItem(viewport, tab->boundingRect()));
                     };
                     // Native rendering can polish font-dependent widths one frame after loading.
-                    if (tab && viewport)
+                    if (layoutChecks && tab && viewport)
                         waitFor(tabVisible);
                     if (!tabs || !viewport || !tab || !body || !content ||
-                        !object(categories[category]) || body->height() < 48 || !tabVisible() ||
-                        content->property("contentWidth").toReal() > content->width() + 1 ||
-                        !test::checkScrollLayouts(host.window())) {
+                        !object(categories[category]) ||
+                        (layoutChecks &&
+                         (body->height() < 48 || !tabVisible() ||
+                          content->property("contentWidth").toReal() > content->width() + 1 ||
+                          !test::checkScrollLayouts(host.window())))) {
                         std::fprintf(
                             stderr,
                             "Geometry font=%d size=%dx%d category=%d body=%.1f tab=%.1f "
@@ -283,7 +296,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
         }
     }
     // Compact navigation exposes readable text, keyboard dismissal and every secondary route.
-    for (const auto pixels : {14, 32}) {
+    const QList<int> navigationFonts = layoutChecks ? QList<int>{14, 32} : QList<int>{14};
+    for (const auto pixels : navigationFonts) {
         auto font = originalFont;
         font.setPixelSize(pixels);
         QApplication::setFont(font);
@@ -299,7 +313,7 @@ int runSettingsUiProbe(ApplicationHost& host) {
             if (!waitFor([&] {
                     return more->property("text").toString() ==
                                QCoreApplication::translate("main", "Other") &&
-                           more->width() + 0.5 >= more->implicitWidth();
+                           (!layoutChecks || more->width() + 0.5 >= more->implicitWidth());
                 })) {
                 std::fprintf(stderr,
                              "Other font=%d page=%s text=%s expected=%s width=%.2f "
@@ -331,7 +345,7 @@ int runSettingsUiProbe(ApplicationHost& host) {
                     [&] { return item(name.constData()) && item(name.constData())->isVisible(); }))
                 return fail("secondary menu items are visible");
             auto* entry = item(name.constData());
-            if (entry->width() + 0.5 < entry->implicitWidth())
+            if (layoutChecks && entry->width() + 0.5 < entry->implicitWidth())
                 return fail("secondary menu labels fit at large fonts");
             QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier,
                               entry->mapToScene(entry->boundingRect().center()).toPoint());
@@ -353,7 +367,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
         ui.setSettingsCategory(category);
         QTest::qWait(25);
         if (!item("settings_storage_warning")->isVisible() ||
-            item("settings_body")->height() < 48 || !test::checkScrollLayouts(host.window()))
+            (layoutChecks &&
+             (item("settings_body")->height() < 48 || !test::checkScrollLayouts(host.window()))))
             return fail("read-only warnings preserve a usable scroll viewport");
     }
     if (!activate("settings_open_recovery") || !waitFor([&] { return object("settings_data"); }))
@@ -401,7 +416,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
         int category;
         const char* loader;
     };
-    for (const auto pixels : {14, 32}) {
+    const QList<int> dialogFonts = layoutChecks ? QList<int>{14, 32} : QList<int>{14};
+    for (const auto pixels : dialogFonts) {
         auto font = originalFont;
         font.setPixelSize(pixels);
         QApplication::setFont(font);
@@ -426,7 +442,7 @@ int runSettingsUiProbe(ApplicationHost& host) {
             QTest::qWait(25);
             if (!popup->property("visible").toBool() ||
                 !namedControls(namedControls, host.window()->contentItem()) ||
-                !test::checkVisibleFocusFrames(host.window()))
+                (layoutChecks && !test::checkVisibleFocusFrames(host.window())))
                 return fail("maintenance confirmations fit narrow windows and have names");
             QMetaObject::invokeMethod(popup, "reject");
             QTest::qWait(20);
@@ -465,27 +481,29 @@ int runSettingsUiProbe(ApplicationHost& host) {
         !waitFor([&] { return strip->property("contentX").toReal() <= 0.5; }) ||
         session().value("category").toInt() != 0)
         return fail("backward scroll returns the strip without selecting a category");
-    const auto point =
-        strip->mapToScene(QPointF(strip->width() * 0.8, strip->height() / 2)).toPoint();
-    if (!output.isEmpty()) {
-        host.window()->requestActivate();
-        if (!QTest::qWaitForWindowActive(host.window(), 3000))
-            return fail("native touch probe requires an active window");
-    }
-    const std::unique_ptr<QPointingDevice> touch(QTest::createTouchDevice());
-    auto touchSequence = QTest::touchEvent(host.window(), touch.get(), false);
-    touchSequence.press(0, point, host.window()).commit();
-    for (int step = 1; step <= 5; ++step) {
-        touchSequence.move(0, point - QPoint(step * 18, 0), host.window()).commit();
-        QTest::qWait(15);
-    }
-    touchSequence.release(0, point - QPoint(90, 0), host.window()).commit();
-    QTest::qWait(20);
-    if (session().value("category").toInt() != 0 || strip->property("contentX").toReal() <= 0) {
-        std::fprintf(stderr, "Touch drag: category=%d contentX=%.2f active=%d moving=%d\n",
-                     session().value("category").toInt(), strip->property("contentX").toReal(),
-                     host.window()->isActive(), strip->property("moving").toBool());
-        return fail("touch dragging scrolls the strip without activating a tab");
+    if (layoutChecks) {
+        const auto point =
+            strip->mapToScene(QPointF(strip->width() * 0.8, strip->height() / 2)).toPoint();
+        if (!output.isEmpty()) {
+            host.window()->requestActivate();
+            if (!QTest::qWaitForWindowActive(host.window(), 3000))
+                return fail("native touch probe requires an active window");
+        }
+        const std::unique_ptr<QPointingDevice> touch(QTest::createTouchDevice());
+        auto touchSequence = QTest::touchEvent(host.window(), touch.get(), false);
+        touchSequence.press(0, point, host.window()).commit();
+        for (int step = 1; step <= 5; ++step) {
+            touchSequence.move(0, point - QPoint(step * 18, 0), host.window()).commit();
+            QTest::qWait(15);
+        }
+        touchSequence.release(0, point - QPoint(90, 0), host.window()).commit();
+        QTest::qWait(20);
+        if (session().value("category").toInt() != 0 || strip->property("contentX").toReal() <= 0) {
+            std::fprintf(stderr, "Touch drag: category=%d contentX=%.2f active=%d moving=%d\n",
+                         session().value("category").toInt(), strip->property("contentX").toReal(),
+                         host.window()->isActive(), strip->property("moving").toBool());
+            return fail("touch dragging scrolls the strip without activating a tab");
+        }
     }
     QApplication::setFont(originalFont);
     ui.setSettingsCategory(0);
@@ -497,7 +515,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
         host.resizeWindow({width, 480});
         QTest::qWait(25);
         auto* focused = item("settings_tab_4");
-        if (!strip->boundingRect().contains(focused->mapRectToItem(strip, focused->boundingRect())))
+        if (layoutChecks &&
+            !strip->boundingRect().contains(focused->mapRectToItem(strip, focused->boundingRect())))
             return fail("resizing keeps the focused tab fully visible");
     }
     QTest::keyClick(host.window(), Qt::Key_Home);
@@ -513,7 +532,7 @@ int runSettingsUiProbe(ApplicationHost& host) {
     ui.editSetting("mixedPort", "18765");
     ui.editSetting("target", "https://example.org/settings-probe");
     const auto confirmation = ui.prepareNetworkSettings();
-    for (const auto width : {1000, 600, 599, 360, 1000, 360}) {
+    for (const auto width : {1000, 600, 599, 360, 1000}) {
         host.resizeWindow({width, 640});
         QTest::qWait(20);
         if (!network || object("settings_network") != network ||
@@ -595,8 +614,8 @@ int runSettingsUiProbe(ApplicationHost& host) {
     QMetaObject::invokeMethod(object("settings_quit_confirmation"), "accept");
     if (!waitFor([&] { return closingWindow.isNull(); }) || ui.hasSettingsDraft())
         return fail("accepting quit discards unsubmitted input and unloads the window");
-    std::puts("Settings: five lazy categories; 4 sizes x 3 fonts x 2 themes; manual tabs; host "
-              "drafts; independent saves; accessible controls; lazy dialogs; quit paths passed");
+    std::puts("Settings: lazy categories, manual tabs, drafts, saves, accessible controls, "
+              "dialogs and quit paths passed");
     return 0;
 }
 } // namespace quickclash

@@ -2,9 +2,6 @@
 #include "application_host.h"
 #include "focus_layout_checks.h"
 #include <QDir>
-#include <QElapsedTimer>
-#include <QEvent>
-#include <QFontInfo>
 #include <QGuiApplication>
 #include <QJSValue>
 #include <QJsonArray>
@@ -14,21 +11,12 @@
 #include <QQmlEngine>
 #include <QQuickItem>
 #include <QSGRendererInterface>
-#include <QSet>
 #include <QSignalSpy>
 #include <QTest>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <memory>
-#ifdef Q_OS_WIN
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-// clang-format off
-#include <windows.h>
-#include <psapi.h>
-// clang-format on
-#endif
 
 namespace quickclash {
 namespace {
@@ -56,6 +44,39 @@ bool click(ApplicationHost& host, const QString& name) {
     const auto point = item->mapToScene(QPointF(item->width() / 2, item->height() / 2)).toPoint();
     QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, point);
     QTest::qWait(20);
+    return true;
+}
+bool waitForFilter(presentation::RuntimeListModel* model, const QString& query, int count) {
+    if (QTest::qWaitFor([&] { return model->query() == query && model->count() == count; }, 1500))
+        return true;
+    qWarning() << "Filter did not settle: expected" << query << count << "actual" << model->query()
+               << model->count();
+    return false;
+}
+bool waitForClickable(ApplicationHost& host, const QString& name) {
+    auto* item = host.window()->findChild<QQuickItem*>(name);
+    if (!item)
+        item = findVisualItem(host.window()->contentItem(), name);
+    if (!item)
+        return false;
+    const bool ready = QTest::qWaitFor(
+        [&] {
+            return item->isVisible() && item->isEnabled() && item->width() > 0 &&
+                   item->height() > 0;
+        },
+        1500);
+    if (!ready) {
+        qWarning() << "Control did not become clickable:" << name << item->isVisible()
+                   << item->isEnabled() << item->size();
+        return false;
+    }
+    // A newly visible RowLayout child can retain its previous non-zero geometry
+    // until the next polish; deliver the frame before using coordinates for a click.
+    host.window()->requestUpdate();
+    if (host.window()->grabWindow().isNull()) {
+        qWarning() << "Could not render clickable control:" << name;
+        return false;
+    }
     return true;
 }
 bool checkCustomRulesLayout(ApplicationHost& host, bool listVisible = true) {
@@ -210,6 +231,9 @@ bool checkCustomRuleRow(ApplicationHost& host) {
 }
 } // namespace
 int runRuntimeListProbe(ApplicationHost& host) {
+    const auto capturePath = qEnvironmentVariable("QUICKCLASH_RULE_LAYOUT_CAPTURE_DIR");
+    const bool layoutChecks = !capturePath.isEmpty() || QCoreApplication::arguments().contains(
+                                                            QStringLiteral("--ui-layout-checks"));
     // No SettingsService, core, network or platform actions: only synthetic GUI channel delivery.
     if (QGuiApplication::platformName() != QStringLiteral("offscreen")) {
         // SW_HIDE startup requires another visibility transition before native layout/rendering.
@@ -295,19 +319,26 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(60);
     if (ui.liveConnections()->count() != 2)
         return 42;
-    QTest::qWait(140);
-    if (ui.liveConnections()->captureIds() != QStringList{"one"})
+    if (!waitForFilter(ui.liveConnections(), "alpha", 1) ||
+        ui.liveConnections()->captureIds() != QStringList{"one"})
         return 43;
     if (!filter->setProperty("text", "no-such-connection"))
         return 234;
-    QTest::qWait(180);
-    if (ui.liveConnections()->count() != 0 || !click(host, "connections_clear_filter") ||
-        !ui.liveConnections()->query().isEmpty() ||
-        !filter->property("text").toString().isEmpty() || ui.liveConnections()->count() != 2)
+    if (!waitForFilter(ui.liveConnections(), "no-such-connection", 0) ||
+        !waitForClickable(host, "connections_clear_filter"))
         return 235;
-    filter->setProperty("text", "alpha");
-    QTest::qWait(180);
-    if (!click(host, QStringLiteral("close_filtered_connections")))
+    if (!click(host, "connections_clear_filter") || !ui.liveConnections()->query().isEmpty() ||
+        !filter->property("text").toString().isEmpty() || ui.liveConnections()->count() != 2) {
+        auto* clear = host.window()->findChild<QQuickItem*>("connections_clear_filter");
+        qWarning() << "Connection filter clear:" << ui.liveConnections()->query()
+                   << ui.liveConnections()->count() << filter->property("text")
+                   << (clear ? clear->mapRectToScene(clear->boundingRect()) : QRectF());
+        return 235;
+    }
+    if (!filter->setProperty("text", "alpha") || !waitForFilter(ui.liveConnections(), "alpha", 1) ||
+        ui.liveConnections()->captureIds() != QStringList{"one"} ||
+        !waitForClickable(host, "close_filtered_connections") ||
+        !click(host, QStringLiteral("close_filtered_connections")))
         return 44;
     auto* page = host.window()->findChild<QObject*>(QStringLiteral("connections_page"));
     auto* dialog =
@@ -329,18 +360,31 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto* details = host.window()->findChild<QObject*>(QStringLiteral("connection_details"));
     if (!details || !details->property("visible").toBool() || page->property("selectedId") != "one")
         return 77;
-    filter->setProperty("text", "new");
+    if (!filter->setProperty("text", "new"))
+        return 78;
     ui.applyData({1,
                   "fixture",
                   {{"connections", QJsonArray{entry("one", "changed"), entry("new", "alpha")}}},
                   ui.dataDemands().generations});
-    QTest::qWait(180);
-    auto selected = page->property("selectedEntry");
-    if (selected.metaType() == QMetaType::fromType<QJSValue>())
-        selected = selected.value<QJSValue>().toVariant();
-    if (page->property("selectedEnded").toBool() ||
-        selected.toMap().value("metadata").toMap().value("host") != "changed")
+    const auto selectedHost = [&] {
+        auto selected = page->property("selectedEntry");
+        if (selected.metaType() == QMetaType::fromType<QJSValue>())
+            selected = selected.value<QJSValue>().toVariant();
+        return selected.toMap().value("metadata").toMap().value("host").toString();
+    };
+    if (!QTest::qWaitFor(
+            [&] {
+                return ui.liveConnections()->query() == "new" &&
+                       ui.liveConnections()->captureIds() == QStringList{"new"} &&
+                       selectedHost() == "changed";
+            },
+            1500) ||
+        page->property("selectedEnded").toBool()) {
+        qWarning() << "Selected connection did not update:" << ui.liveConnections()->query()
+                   << ui.liveConnections()->captureIds() << selectedHost()
+                   << page->property("selectedEnded");
         return 78;
+    }
     ui.applyData({1,
                   "fixture",
                   {{"connections", QJsonArray{entry("new", "alpha")}}},
@@ -387,8 +431,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto* ruleFilter = host.window()->findChild<QObject*>("runtime_filter");
     if (!ruleFilter || !ruleFilter->setProperty("text", "no-such-rule"))
         return 237;
-    QTest::qWait(180);
-    if (ui.liveRules()->count() != 0 || !click(host, "rules_clear_filter") ||
+    if (!waitForFilter(ui.liveRules(), "no-such-rule", 0) ||
+        !waitForClickable(host, "rules_clear_filter") || !click(host, "rules_clear_filter") ||
         !ruleFilter->property("text").toString().isEmpty() || ui.liveRules()->count() != 2)
         return 238;
     const auto checkHorizontalFocus = [&] {
@@ -414,7 +458,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
         QTest::qWait(40);
         return true;
     };
-    if (!checkHorizontalFocus())
+    if (layoutChecks && !checkHorizontalFocus())
         return 87;
     auto* rulesPage = host.window()->findChild<QObject*>(QStringLiteral("rules_page"));
     QString description;
@@ -455,7 +499,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!refreshRules || refreshRules->property("enabled").toBool())
         return 81;
     const auto beforeCustomRulesSize = host.window()->size();
-    host.resizeWindow({360, 640});
+    if (layoutChecks)
+        host.resizeWindow({360, 640});
     QQuickItem* customRulesEntry = nullptr;
     // Native resize and its QML layout can finish in different event turns.
     if (!QTest::qWaitFor(
@@ -463,6 +508,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
                 customRulesEntry = host.window()->findChild<QQuickItem*>("open_custom_rules");
                 if (!customRulesEntry || !customRulesEntry->isVisible())
                     return false;
+                if (!layoutChecks)
+                    return true;
                 const auto position = customRulesEntry->mapToScene(QPointF(0, 0));
                 return position.x() >= 0 &&
                        position.x() + customRulesEntry->width() <= host.window()->width();
@@ -504,7 +551,6 @@ int runRuntimeListProbe(ApplicationHost& host) {
                                      {"groups", QJsonArray{"Alpha"}},
                                      {"providers", QJsonArray{"first", "second"}}};
     ui.applyData({1, "fixture", {{"user_rules", customRuleView}}, ui.dataDemands().generations});
-    const auto capturePath = qEnvironmentVariable("QUICKCLASH_RULE_LAYOUT_CAPTURE_DIR");
     const auto captureRules = [&](const QString& name) {
         if (!capturePath.isEmpty()) {
             for (const auto* objectName :
@@ -519,28 +565,13 @@ int runRuntimeListProbe(ApplicationHost& host) {
     };
     host.resizeWindow({1000, 640});
     QTest::qWait(40);
-    if (!captureRules("wide") || !checkCustomRulesLayout(host) || !checkCustomRuleRow(host))
+    if (layoutChecks &&
+        (!captureRules("wide") || !checkCustomRulesLayout(host) || !checkCustomRuleRow(host)))
         return 203;
     auto* ruleList = host.window()->findChild<QQuickItem*>("user_rule_list");
     auto* firstRow = findVisualItem(ruleList, "user_rule_row_0");
-    const auto rect = [](QQuickItem* item) {
-        return QRectF(item->mapToScene(QPointF()), QSizeF(item->width(), item->height()));
-    };
-    auto* scopeControl = host.window()->findChild<QQuickItem*>("user_rule_scope");
-    auto* reloadControl = host.window()->findChild<QQuickItem*>("user_rule_reload");
-    auto* addControl = host.window()->findChild<QQuickItem*>("user_rule_add");
-    auto* confirmHint = host.window()->findChild<QQuickItem*>("custom_rules_confirm_hint");
-    auto* confirmControl = host.window()->findChild<QQuickItem*>("confirm_custom_rules");
-    if (!scopeControl || !reloadControl || !addControl || !confirmHint || !confirmControl ||
-        std::abs(rect(scopeControl).top() - rect(reloadControl).top()) > 1 ||
-        std::abs(rect(scopeControl).top() - rect(addControl).top()) > 1 ||
-        rect(confirmHint).bottom() <= rect(confirmControl).top() ||
-        rect(confirmHint).top() >= rect(confirmControl).bottom()) {
-        qWarning("Custom rules toolbar or footer failed to use the available width");
-        return 215;
-    }
     if (!ruleList || !firstRow || ruleList->property("count").toInt() != globalRules.size() ||
-        ruleList->height() + 4 < 6 * (firstRow->height() + 4)) {
+        (layoutChecks && ruleList->height() + 4 < 6 * (firstRow->height() + 4))) {
         qWarning() << "Insufficient visible custom rules" << (ruleList ? ruleList->height() : 0)
                    << (firstRow ? firstRow->height() : 0);
         return 209;
@@ -554,46 +585,65 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (ruleList->property("contentY").toReal() < maxScroll - 1)
         return 211;
     ruleList->setProperty("contentY", 0);
-    host.resizeWindow({1000, 900});
-    QTest::qWait(40);
-    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
-        ruleList->height() < shortListHeight + 100 || !captureRules("tall"))
-        return 212;
-    host.resizeWindow({360, 640});
-    QTest::qWait(40);
-    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("narrow"))
-        return 204;
-    host.resizeWindow({420, 640});
-    QTest::qWait(40);
-    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
-        rect(scopeControl).bottom() > rect(reloadControl).top() + 1 ||
-        rect(scopeControl).bottom() > rect(addControl).top() + 1 ||
-        std::abs(rect(reloadControl).top() - rect(addControl).top()) > 1 ||
-        rect(scopeControl).width() < rect(reloadControl).width() + rect(addControl).width() ||
-        rect(confirmHint).bottom() <= rect(confirmControl).top() ||
-        rect(confirmHint).top() >= rect(confirmControl).bottom()) {
-        qWarning("Custom rules toolbar or footer failed to fit in the narrow window");
-        return 204;
-    }
-    const auto originalFont = host.window()->property("uiFont");
-    auto largeFont = originalFont.value<QFont>();
-    largeFont.setPixelSize(32);
-    host.window()->setProperty("uiFont", largeFont);
-    host.resizeWindow({360, 480});
-    QTest::qWait(60);
-    if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("large"))
-        return 205;
     auto* ruleEditor = host.window()->findChild<QObject*>("user_rules_editor");
-    if (!ruleEditor ||
-        !QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(-1))))
+    if (!ruleEditor)
         return 207;
-    QTest::qWait(30);
-    if (!ruleEditor->property("formOpen").toBool() || !checkCustomRulesLayout(host, false))
-        return 208;
-    QMetaObject::invokeMethod(ruleEditor, "cancelForm");
-    host.window()->setProperty("uiFont", originalFont);
-    host.resizeWindow({1000, 640});
-    QTest::qWait(40);
+    if (layoutChecks) {
+        const auto rect = [](QQuickItem* item) {
+            return QRectF(item->mapToScene(QPointF()), QSizeF(item->width(), item->height()));
+        };
+        auto* scopeControl = host.window()->findChild<QQuickItem*>("user_rule_scope");
+        auto* reloadControl = host.window()->findChild<QQuickItem*>("user_rule_reload");
+        auto* addControl = host.window()->findChild<QQuickItem*>("user_rule_add");
+        auto* confirmHint = host.window()->findChild<QQuickItem*>("custom_rules_confirm_hint");
+        auto* confirmControl = host.window()->findChild<QQuickItem*>("confirm_custom_rules");
+        if (!scopeControl || !reloadControl || !addControl || !confirmHint || !confirmControl ||
+            std::abs(rect(scopeControl).top() - rect(reloadControl).top()) > 1 ||
+            std::abs(rect(scopeControl).top() - rect(addControl).top()) > 1 ||
+            rect(confirmHint).bottom() <= rect(confirmControl).top() ||
+            rect(confirmHint).top() >= rect(confirmControl).bottom()) {
+            qWarning("Custom rules toolbar or footer failed to use the available width");
+            return 215;
+        }
+        host.resizeWindow({1000, 900});
+        QTest::qWait(40);
+        if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
+            ruleList->height() < shortListHeight + 100 || !captureRules("tall"))
+            return 212;
+        host.resizeWindow({360, 640});
+        QTest::qWait(40);
+        if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("narrow"))
+            return 204;
+        host.resizeWindow({420, 640});
+        QTest::qWait(40);
+        if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) ||
+            rect(scopeControl).bottom() > rect(reloadControl).top() + 1 ||
+            rect(scopeControl).bottom() > rect(addControl).top() + 1 ||
+            std::abs(rect(reloadControl).top() - rect(addControl).top()) > 1 ||
+            rect(scopeControl).width() < rect(reloadControl).width() + rect(addControl).width() ||
+            rect(confirmHint).bottom() <= rect(confirmControl).top() ||
+            rect(confirmHint).top() >= rect(confirmControl).bottom()) {
+            qWarning("Custom rules toolbar or footer failed to fit in the narrow window");
+            return 204;
+        }
+        const auto originalFont = host.window()->property("uiFont");
+        auto largeFont = originalFont.value<QFont>();
+        largeFont.setPixelSize(32);
+        host.window()->setProperty("uiFont", largeFont);
+        host.resizeWindow({360, 480});
+        QTest::qWait(60);
+        if (!checkCustomRulesLayout(host) || !checkCustomRuleRow(host) || !captureRules("large"))
+            return 205;
+        if (!QMetaObject::invokeMethod(ruleEditor, "edit", Q_ARG(QVariant, QVariant(-1))))
+            return 207;
+        QTest::qWait(30);
+        if (!ruleEditor->property("formOpen").toBool() || !checkCustomRulesLayout(host, false))
+            return 208;
+        QMetaObject::invokeMethod(ruleEditor, "cancelForm");
+        host.window()->setProperty("uiFont", originalFont);
+        host.resizeWindow({1000, 640});
+        QTest::qWait(40);
+    }
     auto* ruleScope = host.window()->findChild<QObject*>("user_rule_scope");
     auto* confirmRules = host.window()->findChild<QObject*>("confirm_custom_rules");
     if (!click(host, QStringLiteral("user_rule_down_0")) ||
@@ -761,13 +811,15 @@ int runRuntimeListProbe(ApplicationHost& host) {
     QTest::qWait(30);
     if (bindingDialog->property("visible").toBool())
         return 220;
-    const auto oldSize = host.window()->size();
-    host.resizeWindow({360, 640});
-    QTest::qWait(50);
-    if (!test::checkVisibleFocusFrames(host.window()))
-        return 188;
-    host.resizeWindow(oldSize);
-    QTest::qWait(30);
+    if (layoutChecks) {
+        const auto oldSize = host.window()->size();
+        host.resizeWindow({360, 640});
+        QTest::qWait(50);
+        if (!test::checkVisibleFocusFrames(host.window()))
+            return 188;
+        host.resizeWindow(oldSize);
+        QTest::qWait(30);
+    }
     // A tray close now tears down the engine on the next event-loop turn. Exercise the
     // same boundary with both a staged rule and an unfinished rule form.
     if (!ruleScope->setProperty("currentIndex", 0) ||
@@ -1019,13 +1071,15 @@ int runRuntimeListProbe(ApplicationHost& host) {
         !resourceText.contains("ProviderDownloadFailed"))
         return 297;
     const auto resourceSize = host.window()->size();
-    for (const auto& size : {QSize{1200, 800}, QSize{360, 640}}) {
+    const QList<QSize> resourceSizes =
+        layoutChecks ? QList<QSize>{{1200, 800}, {360, 640}} : QList<QSize>{{1200, 800}};
+    for (const auto& size : resourceSizes) {
         host.resizeWindow(size);
         QTest::qWait(40);
-        if (resourceHint->height() + 0.5 < resourceHint->implicitHeight() ||
-            view->property("height").toReal() < 80)
+        if (layoutChecks && (resourceHint->height() + 0.5 < resourceHint->implicitHeight() ||
+                             view->property("height").toReal() < 80))
             return 289;
-        if (size.width() == 1200) {
+        if (layoutChecks && size.width() == 1200) {
             auto* viewport = qobject_cast<QQuickItem*>(view)->parentItem();
             while (viewport && !viewport->property("contentX").isValid())
                 viewport = viewport->parentItem();
@@ -1036,7 +1090,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
             return 290;
     }
     host.resizeWindow(resourceSize);
-    if (!checkHorizontalFocus())
+    if (layoutChecks && !checkHorizontalFocus())
         return 88;
     ui.applyData(
         {1,
@@ -1130,9 +1184,9 @@ int runRuntimeListProbe(ApplicationHost& host) {
     auto* logFilter = host.window()->findChild<QObject*>("runtime_filter");
     if (!logFilter || !logFilter->setProperty("text", "no-such-log"))
         return 239;
-    QTest::qWait(180);
+    const auto logFilterSettled = waitForFilter(ui.liveLogs(), "no-such-log", 0);
     auto* clearLogs = findVisualItem(host.window()->contentItem(), "logs_clear_filter");
-    if (ui.liveLogs()->count() != 0 || !clearLogs || !clearLogs->isVisible() ||
+    if (!logFilterSettled || !clearLogs || !clearLogs->isVisible() ||
         !QMetaObject::invokeMethod(clearLogs, "click") ||
         !logFilter->property("text").toString().isEmpty() || ui.liveLogs()->count() != 100) {
         qWarning() << "Log filter clear:" << ui.liveLogs()->count() << clearLogs
@@ -1598,341 +1652,5 @@ int runRuntimeListProbe(ApplicationHost& host) {
     std::puts("Runtime lists: leases, tab/hide/destruction release, late delivery, captured close, "
               "log pause/follow, 500-node search/locate and connection rule review passed");
     return 0;
-}
-int runPageMemoryProbe(ApplicationHost& host) {
-#ifndef Q_OS_WIN
-    Q_UNUSED(host)
-    return 77;
-#else
-    // Isolate Qt/QML from subscription IO, SettingsService, core and platform actions.
-    // Keep the same fonts, icons, window and fixture for hardware/software comparisons.
-    // A helper launched with SW_HIDE must transition visibility again before Windows can
-    // expose it; otherwise a hidden scene graph is not representative of the foreground.
-    host.window()->hide();
-    host.window()->show();
-    if (!QTest::qWaitForWindowExposed(host.window(), 5000))
-        return 119;
-    int fixtureNodes = 500;
-    const auto arguments = QCoreApplication::arguments();
-    for (const auto& argument : arguments) {
-        if (argument.startsWith(QStringLiteral("--page-memory-nodes="))) {
-            bool valid = false;
-            const auto requested = argument.mid(20).toInt(&valid);
-            if (!valid || requested < 1 || requested > 5000)
-                return 120;
-            fixtureNodes = requested;
-        }
-    }
-    struct Counters : PROCESS_MEMORY_COUNTERS_EX {
-        SIZE_T privateWorkingSetSize = 0;
-        ULONGLONG sharedCommitUsage = 0;
-    };
-    struct Sample {
-        quint64 privateWorkingSet = 0, workingSet = 0, privateCommit = 0, cpu100ns = 0;
-        QJsonObject json() const {
-            return {{"privateWorkingSet", QString::number(privateWorkingSet)},
-                    {"workingSet", QString::number(workingSet)},
-                    {"privateCommit", QString::number(privateCommit)}};
-        }
-    };
-    const auto read = [](Sample& sample) {
-        Counters counters;
-        counters.cb = sizeof(counters);
-        FILETIME created{}, exited{}, kernel{}, user{};
-        if (!GetProcessMemoryInfo(GetCurrentProcess(),
-                                  reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&counters),
-                                  sizeof(counters)) ||
-            !GetProcessTimes(GetCurrentProcess(), &created, &exited, &kernel, &user))
-            return false;
-        const auto ticks = [](FILETIME time) {
-            return (static_cast<quint64>(time.dwHighDateTime) << 32) | time.dwLowDateTime;
-        };
-        sample = {counters.privateWorkingSetSize, counters.WorkingSetSize, counters.PrivateUsage,
-                  ticks(kernel) + ticks(user)};
-        return true;
-    };
-    const auto page = [&host] {
-        auto* loader = host.window()->findChild<QObject*>(QStringLiteral("active_page_host"));
-        return loader ? loader->property("item").value<QObject*>() : nullptr;
-    };
-    // Repeater delegates may have a visual parent different from their QObject parent.
-    const auto objects = [](QObject* root) {
-        QSet<QObject*> found;
-        QList<QObject*> pending{root};
-        while (!pending.isEmpty()) {
-            auto* object = pending.takeLast();
-            if (!object || found.contains(object))
-                continue;
-            found.insert(object);
-            pending.append(object->children());
-            if (auto* item = qobject_cast<QQuickItem*>(object))
-                for (auto* child : item->childItems())
-                    pending.append(child);
-        }
-        return found;
-    };
-    const auto nodeControls = [&] {
-        int count = 0;
-        for (auto* object : objects(host.window()))
-            if (object->objectName() == QStringLiteral("test_node"))
-                ++count;
-        return count;
-    };
-    QElapsedTimer elapsed;
-    elapsed.start();
-    // Diagnostic-only smooth scroll: a manual run can set QUICKCLASH_PROBE_SCROLL=smooth
-    // to separate per-frame rendering cost from the row-jump cost of the default probe.
-    const bool smoothScroll = qEnvironmentVariable("QUICKCLASH_PROBE_SCROLL") == "smooth";
-    const bool traceScroll = qEnvironmentVariableIsSet("QUICKCLASH_PROBE_TRACE");
-    const auto stage = [&](const char* name, int milliseconds, bool scroll = false) {
-        Sample before, endpoint, peak;
-        if (!read(before))
-            return false;
-        QElapsedTimer clock;
-        clock.start();
-        int samples = 0;
-        QElapsedTimer frameClock;
-        frameClock.start();
-        QVector<qint64> frameTimes;
-        const auto frameConnection =
-            QObject::connect(host.window(), &QQuickWindow::frameSwapped, host.window(),
-                             [&] { frameTimes.append(frameClock.nsecsElapsed()); });
-        host.window()->requestUpdate();
-        const int smoothMilliseconds = qEnvironmentVariableIntValue("QUICKCLASH_PROBE_SCROLL_MS");
-        const int duration =
-            scroll && smoothScroll
-                ? std::max(milliseconds, smoothMilliseconds > 0 ? smoothMilliseconds : 6000)
-                : milliseconds;
-        qint64 nextTrace = 0;
-        qint64 nextSample = 0;
-        while (clock.elapsed() < duration) {
-            if (scroll && page()) {
-                auto* target =
-                    host.window()->findChild<QQuickItem*>(QStringLiteral("proxy_group_list"));
-                if (!target)
-                    for (auto* object : objects(page())) {
-                        auto* candidate = qobject_cast<QQuickItem*>(object);
-                        if (candidate && candidate->property("contentY").isValid()) {
-                            target = candidate;
-                            break;
-                        }
-                    }
-                if (target) {
-                    const auto extent = std::max(0.0, target->property("contentHeight").toDouble() -
-                                                          target->height());
-                    if (smoothScroll) {
-                        const double phase = std::fmod(clock.elapsed() / 6000.0, 2.0);
-                        target->setProperty("contentY",
-                                            extent * (phase < 1.0 ? phase : 2.0 - phase));
-                    } else {
-                        target->setProperty("contentY", extent * ((clock.elapsed() / 400) % 5) / 4);
-                    }
-                }
-            }
-            QTest::qWait(scroll ? 4 : 20);
-            if (scroll && clock.elapsed() < nextSample)
-                continue;
-            nextSample = clock.elapsed() + 20;
-            if (!read(endpoint))
-                return false;
-            if (traceScroll && scroll && clock.elapsed() >= nextTrace) {
-                std::printf("Page memory trace: stage=%s elapsedMs=%lld pws=%llu commit=%llu\n",
-                            name, static_cast<long long>(clock.elapsed()),
-                            static_cast<unsigned long long>(endpoint.privateWorkingSet),
-                            static_cast<unsigned long long>(endpoint.privateCommit));
-                nextTrace = clock.elapsed() + 2000;
-            }
-            peak.privateWorkingSet = std::max(peak.privateWorkingSet, endpoint.privateWorkingSet);
-            peak.workingSet = std::max(peak.workingSet, endpoint.workingSet);
-            peak.privateCommit = std::max(peak.privateCommit, endpoint.privateCommit);
-            ++samples;
-        }
-        QObject::disconnect(frameConnection);
-        QJsonObject frameStats{{"swapped", static_cast<int>(frameTimes.size())}};
-        if (frameTimes.size() > 1) {
-            QVector<qint64> intervals;
-            intervals.reserve(frameTimes.size() - 1);
-            for (qsizetype i = 1; i < frameTimes.size(); ++i)
-                intervals.append(frameTimes[i] - frameTimes[i - 1]);
-            std::sort(intervals.begin(), intervals.end());
-            const auto percentile = [&](double fraction) {
-                return intervals[std::min(intervals.size() - 1,
-                                          static_cast<qsizetype>(intervals.size() * fraction))] /
-                       1.0e6;
-            };
-            const double median = percentile(0.5);
-            int slowFrames = 0;
-            for (const auto interval : intervals)
-                slowFrames += interval > std::max<qint64>(1, static_cast<qint64>(median * 1.75e6));
-            frameStats.insert("count", static_cast<int>(intervals.size()));
-            frameStats.insert("medianMs", median);
-            frameStats.insert("p95Ms", percentile(0.95));
-            frameStats.insert("maxMs", static_cast<double>(intervals.last()) / 1.0e6);
-            frameStats.insert("slowFrames", slowFrames);
-        }
-        const QJsonObject result{
-            {"stage", QString::fromLatin1(name)},
-            {"elapsedMs", elapsed.elapsed()},
-            {"stageMs", clock.elapsed()},
-            {"cpuMs", static_cast<double>(endpoint.cpu100ns - before.cpu100ns) / 10000},
-            {"samples", samples},
-            {"endpoint", endpoint.json()},
-            {"sampledPeak", peak.json()},
-            {"windowObjects", objects(host.window()).size()},
-            {"pageObjects", objects(page()).size()},
-            {"nodeControls", nodeControls()},
-            {"exposed", host.window()->isExposed()},
-            {"visible", host.window()->isVisible()},
-            {"frames", frameStats},
-            {"modelGroups", host.state().groupCount()},
-            {"modelNodes", host.state().nodeCount()}};
-        std::printf("Page memory: %s\n",
-                    QJsonDocument(result).toJson(QJsonDocument::Compact).constData());
-        return host.contentReady() && host.qmlErrorCount() == 0;
-    };
-    auto& ui = host.state();
-    QTest::qWait(600);
-    const QJsonObject environment{
-        {"qt", QString::fromLatin1(qVersion())},
-        {"graphicsApi", static_cast<int>(host.window()->rendererInterface()->graphicsApi())},
-        {"font", QFontInfo(QGuiApplication::font()).family()},
-        {"width", host.window()->width()},
-        {"height", host.window()->height()},
-        {"dpr", host.window()->devicePixelRatio()},
-        {"nodes", fixtureNodes},
-        {"groups", 3}};
-    std::printf("Page environment: %s\n",
-                QJsonDocument(environment).toJson(QJsonDocument::Compact).constData());
-    if (!stage("startup_home", 1600))
-        return 100;
-    QJsonArray members, nodes, groups;
-    for (int i = 0; i < fixtureNodes; ++i) {
-        const auto name = QStringLiteral("日本高速%1|CTCU|0.5x").arg(i, 2, 10, QLatin1Char('0'));
-        members.append(name);
-        nodes.append(QJsonObject{{"name", name}, {"type", "HTTP"}, {"udp", true}});
-    }
-    QStringList groupNames;
-    for (int i = 0; i < 3; ++i) {
-        const auto name = QStringLiteral("代理组%1").arg(i);
-        groupNames.append(name);
-        groups.append(QJsonObject{{"name", name},
-                                  {"type", "Selector"},
-                                  {"members", members},
-                                  {"current", members.first()},
-                                  {"canSelect", true}});
-    }
-    ui.applyControl(
-        {{"publicationGeneration", "1"},
-         {"epoch", "fixture"},
-         {"ready", true},
-         {"status", "Ready"},
-         {"selectedId", "page_memory"},
-         {"outbound", QJsonObject{{"policy", groupNames.first()}, {"node", members.first()}}}});
-    ui.applyData(
-        {1,
-         "fixture",
-         {{"groups", groups},
-          {"nodes", nodes},
-          {"profiles", QJsonArray{QJsonObject{{"id", "page_memory"}, {"name", "公开切页夹具"}}}}},
-         ui.dataDemands().generations});
-    if (arguments.contains(QStringLiteral("--page-memory-home-only"))) {
-        if (!stage("home_with_nodes", 2500))
-            return 121;
-        auto* card = host.window()->findChild<QQuickItem*>(QStringLiteral("home_proxy_card"));
-        auto* viewport = card ? card->parentItem() : nullptr;
-        while (viewport && !viewport->inherits("QQuickFlickable"))
-            viewport = viewport->parentItem();
-        auto* selector = host.window()->findChild<QObject*>(QStringLiteral("home_proxy_selector"));
-        auto* popup = selector ? selector->property("popup").value<QObject*>() : nullptr;
-        if (!card || !viewport || !popup)
-            return 122;
-        viewport->setProperty("contentY", card->y());
-        QTest::qWait(100);
-        if (!QMetaObject::invokeMethod(popup, "open") || !stage("home_popup_open", 1800))
-            return 123;
-        if (!QMetaObject::invokeMethod(popup, "close") || !stage("home_popup_closed", 1800))
-            return 124;
-        return 0;
-    }
-    const QPointer<QObject> firstHome = page();
-    if (!ui.navigate("proxies") || !stage("proxies_one_group", 2200, true))
-        return 101;
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    if (!firstHome.isNull() || nodeControls() <= 0 || nodeControls() > 80)
-        return 102;
-    const QPointer<QObject> firstProxies = page();
-    if (!page() || !page()->setProperty("expandedGroups", groupNames) ||
-        !stage("proxies_three_groups", 2200, true) || nodeControls() <= 0 || nodeControls() > 80)
-        return 103;
-    if (!ui.navigate("subscriptions") || !stage("subscriptions", 2200))
-        return 104;
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    if (!firstProxies.isNull() || nodeControls() != 0)
-        return 105;
-    if (host.window()->findChild<QObject*>(QStringLiteral("profile_editor")) ||
-        !QMetaObject::invokeMethod(page(), "editProfile", Q_ARG(QVariant, "page_memory"),
-                                   Q_ARG(QVariant, "source")))
-        return 117;
-    QPointer<QObject> editor = host.window()->findChild<QObject*>(QStringLiteral("profile_editor"));
-    if (!editor)
-        return 117;
-    ui.applyData({1,
-                  "fixture",
-                  {{"editor", QJsonObject{{"id", "page_memory"},
-                                          {"kind", "source"},
-                                          {"token", "memory_editor"},
-                                          {"text", QString(512 * 1024, QLatin1Char('#'))},
-                                          {"name", "Public editor fixture"}}}},
-                  ui.dataDemands().generations});
-    if (!stage("editor_512k", 2200) || ui.editor().isEmpty())
-        return 118;
-    QMetaObject::invokeMethod(editor, "close");
-    if (!stage("editor_released", 500) || !ui.editor().isEmpty() || !editor.isNull())
-        return 119;
-    const QPointer<QObject> subscriptions = page();
-    if (!ui.navigate("home") || !stage("home_after_pages", 3000))
-        return 106;
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    if (!subscriptions.isNull())
-        return 107;
-    if (!ui.navigate("connections"))
-        return 109;
-    QJsonArray connectionRows;
-    for (int i = 0; i < 1000; ++i)
-        connectionRows.append(entry(QString::number(i), QStringLiteral("host%1.example").arg(i)));
-    ui.applyData({1, "fixture", {{"connections", connectionRows}}, ui.dataDemands().generations});
-    if (!stage("connections_1000", 2200, true) || ui.liveConnections()->count() != 1000)
-        return 110;
-    const QPointer<QObject> connections = page();
-    if (!ui.navigate("home"))
-        return 111;
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    if (!connections.isNull() || ui.liveConnections()->count() != 0)
-        return 112;
-    if (!ui.navigate("logs"))
-        return 113;
-    QJsonArray logRows;
-    for (int i = 0; i < 2000; ++i)
-        logRows.append(
-            QJsonObject{{"localSeq", QString::number(i)},
-                        {"time", "2026-10-28T00:00:00Z"},
-                        {"source", "Core"},
-                        {"level", "info"},
-                        {"message", QStringLiteral("公开日志夹具%1 example.test").arg(i)}});
-    ui.applyData({1, "fixture", {{"logs", logRows}}, ui.dataDemands().generations});
-    if (!stage("logs_2000", 2200, true) || ui.liveLogs()->count() != 2000)
-        return 114;
-    const QPointer<QObject> logs = page();
-    if (!ui.navigate("home"))
-        return 115;
-    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
-    if (!logs.isNull() || ui.liveLogs()->count() != 0)
-        return 116;
-    if (!ui.navigate("proxies") || !stage("proxies_reentry", 1800, true) || !ui.navigate("home") ||
-        !stage("home_after_reentry", 2200))
-        return 108;
-    std::puts("Page memory: old pages destroyed, node controls released, no core or settings IO");
-    return 0;
-#endif
 }
 } // namespace quickclash

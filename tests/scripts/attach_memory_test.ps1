@@ -2,7 +2,7 @@
 $ErrorActionPreference = 'Stop'
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../..'))
 $script = Join-Path $repo 'bench/attach_memory_windows.ps1'
-$root = Join-Path ([IO.Path]::GetTempPath()) ([guid]::NewGuid().ToString('N'))
+$root = Join-Path $repo ('build/script_tests/attach_memory/' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $root | Out-Null
 try {
     & $script -ClientPid $PID -OutputDirectory (Join-Path $root 'self') -Seconds 1
@@ -26,5 +26,5 @@ try {
     if (-not (Get-Process -Id $PID -ErrorAction Stop)) { throw 'Sampler controlled the target.' }
     Write-Output 'PASS: self counters/three metrics, duplicate rejection, missing rejection; target remains running (3 cases).'
 } finally {
-    Remove-Item -LiteralPath $root -Recurse -Force
+    Write-Output "Evidence retained in $root"
 }

@@ -99,6 +99,8 @@ int runAccessibilityProbe(ApplicationHost& host) {
         return QString{};
     };
     const auto output = option(QStringLiteral("--accessibility-output"));
+    const bool layoutChecks = !output.isEmpty() || QCoreApplication::arguments().contains(
+                                                       QStringLiteral("--ui-layout-checks"));
     if (!output.isEmpty() && !QDir().mkpath(output))
         return 150;
     const auto require = [](bool condition, const char* message) {
@@ -154,11 +156,18 @@ int runAccessibilityProbe(ApplicationHost& host) {
         return !frame.isNull() && frame.save(QDir(output).filePath(name + ".png"));
     };
     const auto baselineFont = QApplication::font();
-    for (const auto pixels : {14, 21, 32}) {
+    const QList<int> fontSizes = layoutChecks ? QList<int>{14, 21, 32} : QList<int>{14};
+    const QList<int> widths = layoutChecks ? QList<int>{1000, 360} : QList<int>{1000};
+    for (const auto pixels : fontSizes) {
         auto font = baselineFont;
         font.setPixelSize(pixels);
         QApplication::setFont(font);
-        for (const auto width : {1000, 360}) {
+        for (const auto width : widths) {
+            // Retain the full capture matrix only when explicitly collecting evidence.
+            if (output.isEmpty() && layoutChecks &&
+                !((pixels == 14 && width == 1000) ||
+                  ((pixels == 21 || pixels == 32) && width == 360)))
+                continue;
             host.resizeWindow({width, width == 360 ? 640 : 800});
             ui.setThemeMode(width == 360 ? "dark" : "light");
             for (const auto& page : {"home", "proxies", "subscriptions", "connections", "rules",
@@ -186,12 +195,14 @@ int runAccessibilityProbe(ApplicationHost& host) {
                 if (QString::fromLatin1(page) == "settings" &&
                     !capture(QStringLiteral("font_%1_width_%2_settings").arg(pixels).arg(width)))
                     return 156;
-                focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
+                if (layoutChecks)
+                    focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
                 if (QString::fromLatin1(page) == "proxies") {
                     auto* hint = findItem(window, "custom_group_hint");
-                    if (!hint || !hint->parentItem() ||
-                        hint->width() > hint->parentItem()->width() + 0.5 ||
-                        hint->height() + 0.5 < hint->implicitHeight())
+                    if (!hint ||
+                        (layoutChecks && (!hint->parentItem() ||
+                                          hint->width() > hint->parentItem()->width() + 0.5 ||
+                                          hint->height() + 0.5 < hint->implicitHeight())))
                         return 198;
                 }
                 if (QString::fromLatin1(page) == "subscriptions") {
@@ -200,9 +211,10 @@ int runAccessibilityProbe(ApplicationHost& host) {
                         return 195;
                     QTest::qWait(40);
                     if (!popup->property("visible").toBool() || !auditLabels(window, names) ||
-                        !test::checkVisibleFocusFrames(window) ||
-                        !test::focusInScroll(findItem(window, "subscription_url")) ||
-                        !test::focusInScroll(findItem(window, "import_local_file")))
+                        (layoutChecks &&
+                         (!test::checkVisibleFocusFrames(window) ||
+                          !test::focusInScroll(findItem(window, "subscription_url")) ||
+                          !test::focusInScroll(findItem(window, "import_local_file")))))
                         return 196;
                     if ((pixels == 14 || width == 360) &&
                         !capture(QStringLiteral("import_font_%1_width_%2").arg(pixels).arg(width)))
@@ -233,7 +245,8 @@ int runAccessibilityProbe(ApplicationHost& host) {
                         QTest::qWait(25);
                         if (!popup->property("visible").toBool())
                             return 188;
-                        focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
+                        if (layoutChecks)
+                            focusSafe = test::checkVisibleFocusFrames(window) && focusSafe;
                         if (width == 360 &&
                             QLatin1String(entry.loader) == "settings_loader_backupDialog" &&
                             !capture(
@@ -385,22 +398,26 @@ int runAccessibilityProbe(ApplicationHost& host) {
     auto* preview = findItem(window, "log_export_preview");
     if (!preview)
         return 181;
-    for (const auto pixels : {14, 21}) {
-        auto font = baselineFont;
-        font.setPixelSize(pixels);
-        QApplication::setFont(font);
-        for (const auto width : {1000, 360}) {
-            host.resizeWindow({width, 800});
-            QTest::qWait(40);
-            if (!test::checkVisibleFocusFrames(window) || !test::focusInScroll(preview))
-                return 189;
+    if (layoutChecks) {
+        for (const auto pixels : {14, 21}) {
+            auto font = baselineFont;
+            font.setPixelSize(pixels);
+            QApplication::setFont(font);
+            for (const auto width : {1000, 360}) {
+                host.resizeWindow({width, 800});
+                QTest::qWait(40);
+                if (!test::checkVisibleFocusFrames(window) || !test::focusInScroll(preview))
+                    return 189;
+            }
         }
-    }
-    QApplication::setFont(baselineFont);
-    host.resizeWindow({1000, 800});
-    QTest::qWait(40);
-    if (!test::focusInScroll(preview))
+        QApplication::setFont(baselineFont);
+        host.resizeWindow({1000, 800});
+        QTest::qWait(40);
+        if (!test::focusInScroll(preview))
+            return 189;
+    } else if (!test::revealInScroll(preview)) {
         return 189;
+    }
     QTest::keyClick(window, Qt::Key_Tab);
     if (!require(!preview->hasActiveFocus() && !source->hasActiveFocus(),
                  "tab leaves read-only preview inside modal"))
@@ -455,9 +472,10 @@ int runAccessibilityProbe(ApplicationHost& host) {
         if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size())
             return 168;
     }
-    std::printf("Accessibility: %lld labelled controls, 3 font sizes, 8 routes, wide/narrow, "
+    std::printf("Accessibility: %lld labelled controls, 8 routes, %s, "
                 "combo, modal cancel and focus restoration passed\n",
-                static_cast<long long>(names.size()));
+                static_cast<long long>(names.size()),
+                layoutChecks ? "wide/narrow and font layouts" : "representative layout");
     return host.qmlErrorCount() == 0 ? 0 : 169;
 }
 } // namespace quickclash

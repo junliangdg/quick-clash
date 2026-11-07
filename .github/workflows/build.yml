@@ -45,19 +45,30 @@ jobs:
       - name: Repository checks
         shell: pwsh
         run: |
-          ./scripts/build_design_docs.ps1 -Check
-          ./scripts/check_source_layout.ps1
-          ./scripts/check_ui_glyphs.ps1
-          ./scripts/check_platform_boundaries.ps1
-          ./scripts/check_progress.ps1
-          ./tests/scripts/check_progress_test.ps1
-          ./tests/scripts/select_ci_scope_test.ps1
-          ./tests/scripts/select_windows_tests_test.ps1
-          ./tests/scripts/native_process_test.ps1
-          ./tests/scripts/fetch_dependencies_test.ps1
-          ./tests/scripts/publish_release_test.ps1
-          ./tests/scripts/package_readmes_test.ps1
-          $global:LASTEXITCODE = 0
+          . ./scripts/native_process.ps1
+          $shell = (Get-Process -Id $PID).Path
+          $checks = @(
+            @{ path = 'scripts/build_design_docs.ps1'; arguments = @('-Check') }
+            @{ path = 'scripts/check_source_layout.ps1' }
+            @{ path = 'scripts/check_ui_glyphs.ps1' }
+            @{ path = 'scripts/check_platform_boundaries.ps1' }
+            @{ path = 'scripts/check_progress.ps1' }
+            @{ path = 'tests/scripts/check_progress_test.ps1' }
+            @{ path = 'tests/scripts/select_ci_scope_test.ps1' }
+            @{ path = 'tests/scripts/select_windows_tests_test.ps1' }
+            @{ path = 'tests/scripts/native_process_test.ps1' }
+            @{ path = 'tests/scripts/fetch_dependencies_test.ps1' }
+            @{ path = 'tests/scripts/publish_release_test.ps1' }
+            @{ path = 'tests/scripts/package_readmes_test.ps1' }
+            @{ path = 'tests/scripts/service_package_test.ps1' }
+            @{ path = 'tests/scripts/attach_memory_test.ps1' }
+          )
+          foreach ($check in $checks) {
+            $name = [IO.Path]::GetFileNameWithoutExtension($check.path)
+            $arguments = @('-NoProfile', '-File', $check.path)
+            if ($check.arguments) { $arguments += $check.arguments }
+            Invoke-NativeStep -Executable $shell -Arguments $arguments -WorkingDirectory $PWD.Path -LogPath "build/script_tests/repository_logs/$name.log" -TimeoutSeconds 120
+          }
       - uses: actions/upload-artifact@v6
         if: always()
         with:
@@ -109,8 +120,10 @@ jobs:
         run: |
           # Clean hosted builds need the same budget in fast and full mode.
           ./scripts/build_windows.ps1 -Fast:($env:FULL_VALIDATION -ne 'true') -Full:($env:FULL_VALIDATION -eq 'true') -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
+          ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/dev/quickclash_tests.json
           if ($env:FULL_VALIDATION -eq 'true') {
             ./scripts/build_windows.ps1 -Headless -Full -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
+            ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/headless/quickclash_tests.json
             ./scripts/probe_mihomo.ps1
           }
           if ($env:PUBLISH_PACKAGE -eq 'true') {
@@ -139,9 +152,11 @@ jobs:
           retention-days: 14
           path: |
             build/dev/logs/
+            build/dev/quickclash_tests.json
             build/dev/Testing/Temporary/
             build/dev/CMakeFiles/CMakeConfigureLog.yaml
             build/headless/logs/
+            build/headless/quickclash_tests.json
             build/headless/Testing/Temporary/
             build/headless/CMakeFiles/CMakeConfigureLog.yaml
             build/release/logs/

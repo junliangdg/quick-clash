@@ -48,9 +48,13 @@ Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构�
 
 仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
-Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行CMake注册的快速单元/UI测试；`ci_slow`标签覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup，与快速构建排除的目标保持一致，不修改其断言或时限。本地默认与CI快速模式分别选用，详见下方日常定向入口。
+Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通运行调用`build_windows.ps1 -Fast`，构建`quickclash_ci_fast`（客户端/服务/快速测试，跳过慢集成程序及独立探针），QML lint后运行快速单元和代表性UI行为测试。日常保留中英文订阅导入、失败保留与隐私、双语可访问标签/键盘、设置草稿与恢复、运行列表、自建组、响应式及宿主生命周期；几何/视觉、合成触摸、100次窗口重建与部分重复语言行为归入完整或定向验证。`ci_slow`也覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup。快速构建依赖由产品目标和未标`ci_slow`的测试目标自动汇总，不再另维护排除表；清单记录实际依赖，CI核对它与CTest选择一致。快速测试失败仍阻断continuous发布，不自动重试或忽略失败。
 
-`v*`标签或手动勾选`full_validation`时，同次Windows运行显式使用`-Full`，执行全部CTest、独立headless完整构建/测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式用于版本发布、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；局部内核/恢复/存储修改先定向覆盖相关路径。快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+仓库检查逐项通过`Invoke-NativeStep`启动独立PowerShell，每项限时120秒并保存stdout/stderr、退出码及耗时；显式`exit`与抛错均须阻断，不在步骤末尾重置失败码。除文档、布局、边界与既有脚本回归外，也运行隔离服务包锁定/摘要/路径拒绝和内存采样器自身计数/参数回归；后者仅采样本次测试进程约1秒，不是产品资源验收。日志及夹具统一进入`build/script_tests/`。需要真实测试包或应用程序的desktop/startup探针仍在对应产品或专项入口执行。
+
+订阅布局使用独立的`ui_subscription_layout` / `ui_subscription_layout_zh`，保留长名称、长URL/请求头、版本下拉、360宽/21px字号及各焦点框边界；不放宽严格几何容差。`ui_accessibility_layout` / `_zh`覆盖八页面、设置和导入弹框；`ui_settings_layout`、`ui_runtime_lists_layout`、`ui_custom_groups_layout`为英文布局检查，原有对应`_zh`用例同时执行中文行为和布局。运行列表专项包括自定义规则弹窗的宽窄窗、大字号及焦点边界，日常继续检查规则与列表交互。布局矩阵按桌面、断点、窄窗/大字号挑选代表组合，视觉滚动条检查用不同主题分别覆盖宽窄窗，避免无意义的全排列；带输出目录的原生截图入口仍保留原完整截图组合。`ui_visual`与`ui_prototype`在完整或定向运行。日常UI为隔离离屏检查，真实读屏、物理触摸、GPU与其他平台仍按风险另验。
+
+`v*`标签或手动勾选`full_validation`时，同次Windows运行显式使用`-Full`，执行去重后的完整CTest、独立headless完整构建/测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。`ui_state`包含`connection_rule`，布局版以代表性组合覆盖对应业务流程，因此完整套件排除这6个已被覆盖的短入口；短入口仍供定向运行，除`connection_rule`外的短入口也在日常运行。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式用于版本发布、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；局部内核/恢复/存储修改先定向覆盖相关路径。快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
 
 ### 日常定向验证
 
@@ -62,6 +66,8 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 
 # 在 PowerShell 中调用时用数组选择确切测试名；慢测试也可单独选取。
 ./scripts/build_windows.ps1 -Test ui_state,ui_subscriptions -Lint
+./scripts/build_windows.ps1 -Test ui_subscription_layout,ui_subscription_layout_zh
+./scripts/build_windows.ps1 -Test ui_settings_layout,ui_settings_zh
 ./scripts/build_windows.ps1 -Test runtime_proxy_latency
 
 # 局部样式可构建后人工检查受影响页面；此命令本身不验证行为。
@@ -73,11 +79,11 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 ./scripts/build_windows.ps1 -Headless -Full
 ```
 
-`-Test`、`-BuildOnly`、`-Fast`、`-Full`互斥。CMake配置生成`quickclash_tests.json`，记录当前配置的CTest名称及对应构建目标；定向入口先验证名称，再构建产品和被选测试的目标，只运行确切匹配的测试，共用测试程序不会扩大运行范围。拼错、当前配置不支持的测试或空测试范围直接失败；显式选择的慢测试不受`ci_slow`排除。`-Headless`默认只跑`contracts`，不引入UI。直接`ctest --preset dev`仍表示完整套件；已用IDE构建对应目标时也可用`ctest --test-dir build/dev -R '^(ui_state|qml_smoke)$' --output-on-failure --no-tests=error`定向运行。
+`-Test`、`-BuildOnly`、`-Fast`、`-Full`互斥。CMake配置生成`quickclash_tests.json`，记录当前配置的CTest名称、对应构建目标、快速构建实际依赖与完整测试替代关系；定向入口先验证名称，再构建产品和被选测试的目标，只运行确切匹配的测试，共用测试程序不会扩大运行范围。拼错、当前配置不支持的测试或空测试范围直接失败；显式选择的慢测试不受`ci_slow`排除。`-Headless`默认只跑`contracts`，不引入UI。`ctest --preset dev`同样执行去重后的完整套件；已用IDE构建对应目标时可用`ctest --test-dir build/dev -R '^(ui_state|qml_smoke)$' --output-on-failure --no-tests=error`定向运行，包括短入口。
 
 Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当前构建目录的服务正在运行并锁定 EXE，先关闭 TUN、正常退出客户端，再停止已注册的 QuickClashService 后重新构建并恢复服务；不要忽略服务链接失败而交付单独重建的客户端，否则本地载荷仍缺少新协议能力，重启服务也无法修复。
 
-选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
+选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品；配置后可加`-ConfiguredManifest build/dev/quickclash_tests.json`核对实际CMake注册、构建依赖与CI分组，无UI配置则传`build/headless/quickclash_tests.json`。Windows完整工作流和Linux/macOS手动工作流均核对各自UI/headless清单；跨平台构建、QML lint与CTest输出保留到artifact，CTest使用`--no-tests=error`，构建日志的`tee`管道使用显式`bash`的失败传播。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
 
 ### GitHub持续交付与干净发行包
 

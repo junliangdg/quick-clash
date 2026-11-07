@@ -554,6 +554,7 @@ if(BUILD_TESTING)
             tests/integration/focus_layout_checks.cpp tests/integration/focus_layout_checks.h
             tests/integration/service_probe.cpp tests/integration/service_probe.h
             tests/integration/runtime_ui_probe.cpp tests/integration/runtime_ui_probe.h
+            tests/integration/page_memory_probe.cpp tests/integration/page_memory_probe.h
             tests/integration/subscription_ui_probe.cpp tests/integration/subscription_ui_probe.h
             tests/integration/custom_groups_ui_probe.cpp tests/integration/custom_groups_ui_probe.h
             tests/integration/language_ui_probe.cpp tests/integration/language_ui_probe.h
@@ -623,7 +624,9 @@ if(BUILD_TESTING)
         add_test(NAME ui_keyboard COMMAND quickclash --keyboard-test)
         add_test(NAME ui_accessibility COMMAND quickclash --accessibility-test --probe-language=en-US)
         add_test(NAME ui_accessibility_zh COMMAND quickclash --accessibility-test --probe-language=zh-CN)
-        set_tests_properties(ui_accessibility ui_accessibility_zh PROPERTIES
+        add_test(NAME ui_accessibility_layout COMMAND quickclash --accessibility-test --ui-layout-checks --probe-language=en-US)
+        add_test(NAME ui_accessibility_layout_zh COMMAND quickclash --accessibility-test --ui-layout-checks --probe-language=zh-CN)
+        set_tests_properties(ui_accessibility ui_accessibility_zh ui_accessibility_layout ui_accessibility_layout_zh PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
             TIMEOUT 25)
@@ -634,29 +637,34 @@ if(BUILD_TESTING)
             TIMEOUT 60)
         add_test(NAME ui_responsive COMMAND quickclash --responsive-test)
         add_test(NAME ui_runtime_lists COMMAND quickclash --runtime-list-test --probe-language=en-US)
-        add_test(NAME ui_runtime_lists_zh COMMAND quickclash --runtime-list-test --probe-language=zh-CN)
+        add_test(NAME ui_runtime_lists_zh COMMAND quickclash --runtime-list-test --ui-layout-checks --probe-language=zh-CN)
+        add_test(NAME ui_runtime_lists_layout COMMAND quickclash --runtime-list-test --ui-layout-checks --probe-language=en-US)
         add_test(NAME ui_custom_groups COMMAND quickclash --custom-groups-ui-test)
-        add_test(NAME ui_custom_groups_zh COMMAND quickclash --custom-groups-ui-test --probe-language=zh-CN)
-        set_tests_properties(ui_custom_groups ui_custom_groups_zh PROPERTIES
+        add_test(NAME ui_custom_groups_zh COMMAND quickclash --custom-groups-ui-test --ui-layout-checks --probe-language=zh-CN)
+        add_test(NAME ui_custom_groups_layout COMMAND quickclash --custom-groups-ui-test --ui-layout-checks)
+        set_tests_properties(ui_custom_groups ui_custom_groups_zh ui_custom_groups_layout PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_HOVER_ENABLED=1;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
             TIMEOUT 30)
         add_test(NAME ui_subscriptions COMMAND quickclash --subscription-ui-test)
         add_test(NAME ui_subscriptions_zh COMMAND quickclash --subscription-ui-test --probe-language=zh-CN)
-        set_tests_properties(ui_subscriptions ui_subscriptions_zh PROPERTIES
+        add_test(NAME ui_subscription_layout COMMAND quickclash --subscription-layout-test)
+        add_test(NAME ui_subscription_layout_zh COMMAND quickclash --subscription-layout-test --probe-language=zh-CN)
+        set_tests_properties(ui_subscriptions ui_subscriptions_zh ui_subscription_layout ui_subscription_layout_zh PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
-            TIMEOUT 15)
+            TIMEOUT 25)
         add_test(NAME ui_language COMMAND quickclash --language-test)
         add_test(NAME ui_settings COMMAND quickclash --settings-ui-test --probe-language=en-US)
-        add_test(NAME ui_settings_zh COMMAND quickclash --settings-ui-test --probe-language=zh-CN)
+        add_test(NAME ui_settings_zh COMMAND quickclash --settings-ui-test --ui-layout-checks --probe-language=zh-CN)
+        add_test(NAME ui_settings_layout COMMAND quickclash --settings-ui-test --ui-layout-checks --probe-language=en-US)
         add_test(NAME ui_usage_notice COMMAND quickclash --usage-notice-test --probe-language=en-US)
         add_test(NAME ui_usage_notice_zh COMMAND quickclash --usage-notice-test --probe-language=zh-CN)
         set_tests_properties(ui_usage_notice ui_usage_notice_zh PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
             TIMEOUT 20)
-        set_tests_properties(ui_settings ui_settings_zh PROPERTIES
+        set_tests_properties(ui_settings ui_settings_zh ui_settings_layout PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign"
             TIMEOUT 45)
@@ -664,10 +672,10 @@ if(BUILD_TESTING)
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML"
             TIMEOUT 20)
-        set_tests_properties(ui_runtime_lists ui_runtime_lists_zh PROPERTIES
+        set_tests_properties(ui_runtime_lists ui_runtime_lists_zh ui_runtime_lists_layout PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Required property;Error loading QML;Unable to assign.*QColor"
-            TIMEOUT 15)
+            TIMEOUT 45)
         set_tests_properties(ui_responsive PROPERTIES
             ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_FORCE_STDERR_LOGGING=1"
             FAIL_REGULAR_EXPRESSION "ReferenceError;TypeError;binding loop;Binding loop;Error loading QML"
@@ -695,8 +703,11 @@ if(BUILD_TESTING)
             # Keep the UI probes independent of the caller's font environment.
             foreach(quickclash_ui_test IN ITEMS ui_prototype qml_smoke ui_keyboard
                     ui_accessibility ui_accessibility_zh ui_visual ui_responsive ui_runtime_lists
-                    ui_runtime_lists_zh ui_custom_groups ui_custom_groups_zh ui_subscriptions
-                    ui_subscriptions_zh ui_language ui_settings ui_settings_zh ui_usage_notice
+                    ui_accessibility_layout ui_accessibility_layout_zh ui_runtime_lists_zh
+                    ui_runtime_lists_layout ui_custom_groups ui_custom_groups_zh
+                    ui_custom_groups_layout ui_subscriptions
+                    ui_subscriptions_zh ui_subscription_layout ui_subscription_layout_zh
+                    ui_language ui_settings ui_settings_zh ui_settings_layout ui_usage_notice
                     ui_usage_notice_zh host_lifecycle)
                 get_test_property(${quickclash_ui_test} ENVIRONMENT quickclash_ui_environment)
                 list(APPEND quickclash_ui_environment "QT_QPA_FONTDIR=$ENV{SystemRoot}/Fonts")
@@ -712,27 +723,45 @@ if(BUILD_TESTING)
         target_link_libraries(core_isolation_probe PRIVATE userenv advapi32 ws2_32)
         quickclash_warnings(core_isolation_probe)
     endif()
-    # Daily CI keeps all fast tests, including UI lifecycle regressions. Slow
-    # integration tests and manual probes remain available in the full build.
+    # The full UI variants run the same behavior plus layout checks. Keep the
+    # shorter entries for daily/targeted use, but avoid executing them twice in full.
+    set(quickclash_full_replacements)
+    if(QUICKCLASH_BUILD_UI)
+        # --connection-rule executes the first section of ui_state_test only.
+        # The layout options below keep each complete behavior flow intact.
+        list(APPEND quickclash_full_replacements
+            "connection_rule|ui_state"
+            "ui_accessibility|ui_accessibility_layout"
+            "ui_accessibility_zh|ui_accessibility_layout_zh"
+            "ui_custom_groups|ui_custom_groups_layout"
+            "ui_runtime_lists|ui_runtime_lists_layout"
+            "ui_settings|ui_settings_layout")
+        foreach(quickclash_replacement IN LISTS quickclash_full_replacements)
+            string(REPLACE "|" ";" quickclash_pair "${quickclash_replacement}")
+            list(GET quickclash_pair 0 quickclash_short_test)
+            list(GET quickclash_pair 1 quickclash_full_test)
+            if(NOT TEST "${quickclash_short_test}" OR NOT TEST "${quickclash_full_test}")
+                message(FATAL_ERROR "Missing full-test replacement: ${quickclash_replacement}")
+            endif()
+            set_property(TEST "${quickclash_short_test}" APPEND PROPERTY LABELS full_redundant)
+        endforeach()
+        # ui_state is already in the daily scope and includes this short entry.
+        set_property(TEST connection_rule APPEND PROPERTY LABELS ci_slow)
+    endif()
+    # Keep long-running and geometry-heavy UI checks available in full/targeted
+    # validation while retaining behavior, accessibility and lifecycle checks daily.
+    if(QUICKCLASH_BUILD_UI)
+        set_tests_properties(ui_prototype ui_visual ui_settings_zh ui_runtime_lists_zh
+            ui_custom_groups_zh ui_subscription_layout ui_subscription_layout_zh
+            ui_accessibility_layout ui_accessibility_layout_zh ui_settings_layout
+            ui_runtime_lists_layout ui_custom_groups_layout
+            PROPERTIES LABELS ci_slow)
+    endif()
     if(QUICKCLASH_BUILD_UI AND WIN32)
-        # runtime_test is excluded from quickclash_ci_fast; every test that
-        # launches it must be excluded by the matching CTest label as well.
         set_tests_properties(runtime runtime_user_rules runtime_custom_groups runtime_proxy_latency
             runtime_config_editor runtime_backup runtime_provider runtime_subscription_download
             runtime_geo_update runtime_core_update runtime_publication recovery PROPERTIES LABELS ci_slow)
     endif()
-    set(quickclash_full_only_targets runtime_test runtime_publication_test recovery_test engine_startup_test
-        qt_cost_probe core_job_probe core_isolation_probe)
-    get_property(quickclash_directory_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
-    set(quickclash_fast_targets)
-    foreach(quickclash_target IN LISTS quickclash_directory_targets)
-        get_target_property(quickclash_target_type ${quickclash_target} TYPE)
-        if(quickclash_target_type STREQUAL "EXECUTABLE" AND
-            NOT quickclash_target IN_LIST quickclash_full_only_targets)
-            list(APPEND quickclash_fast_targets ${quickclash_target})
-        endif()
-    endforeach()
-    add_custom_target(quickclash_ci_fast DEPENDS ${quickclash_fast_targets})
 
     # Keep local test selection tied to the configured targets, including tests
     # sharing one executable. Selection must also work before the first build.
@@ -757,7 +786,16 @@ if(BUILD_TESTING)
     endforeach()
     string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}" test_targets "{}")
     string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}" slow_tests "[]")
+    string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}" full_replacements "{}")
+    foreach(quickclash_replacement IN LISTS quickclash_full_replacements)
+        string(REPLACE "|" ";" quickclash_pair "${quickclash_replacement}")
+        list(GET quickclash_pair 0 quickclash_short_test)
+        list(GET quickclash_pair 1 quickclash_full_test)
+        string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}"
+            full_replacements "${quickclash_short_test}" "\"${quickclash_full_test}\"")
+    endforeach()
     set(quickclash_slow_index 0)
+    set(quickclash_fast_targets ${quickclash_product_targets})
     get_property(quickclash_tests DIRECTORY PROPERTY TESTS)
     foreach(quickclash_test IN LISTS quickclash_tests)
         if(TARGET "${quickclash_test}_test")
@@ -782,7 +820,22 @@ if(BUILD_TESTING)
             string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}"
                 slow_tests ${quickclash_slow_index} "\"${quickclash_test}\"")
             math(EXPR quickclash_slow_index "${quickclash_slow_index} + 1")
+        else()
+            list(APPEND quickclash_fast_targets "${quickclash_test_target}")
         endif()
+    endforeach()
+    # Derive build dependencies from the same labels and target mapping as CTest.
+    # A new daily test must build its executable, and unused probes need not build.
+    list(REMOVE_DUPLICATES quickclash_fast_targets)
+    add_custom_target(quickclash_ci_fast)
+    add_dependencies(quickclash_ci_fast ${quickclash_fast_targets})
+    get_target_property(quickclash_fast_dependencies quickclash_ci_fast MANUALLY_ADDED_DEPENDENCIES)
+    string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}" fast_targets "[]")
+    set(quickclash_index 0)
+    foreach(quickclash_target IN LISTS quickclash_fast_dependencies)
+        string(JSON quickclash_test_manifest SET "${quickclash_test_manifest}"
+            fast_targets ${quickclash_index} "\"${quickclash_target}\"")
+        math(EXPR quickclash_index "${quickclash_index} + 1")
     endforeach()
     file(GENERATE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/quickclash_tests.json"
         CONTENT "${quickclash_test_manifest}\n")

@@ -45,29 +45,46 @@ jobs:
         shell: pwsh
         run: ./scripts/fetch_dependencies.ps1 -YamlOnly
       - name: Native build and QML checks
+        shell: bash
         run: |
-          cmake --preset dev
-          cmake --build --preset dev --parallel 3
-          cmake --build build/dev --target quickclash_qmllint
+          mkdir -p build/dev/logs
+          cmake --preset dev 2>&1 | tee build/dev/logs/configure.log
+          cmake --build --preset dev --parallel 3 2>&1 | tee build/dev/logs/build.log
+          cmake --build build/dev --target quickclash_qmllint 2>&1 | tee build/dev/logs/qmllint.log
+      - name: Verify native test selection
+        shell: pwsh
+        run: ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/dev/quickclash_tests.json
       - name: Native tests
         # Windows-specific core/lease tests are registered only on Windows by CMake.
         # Unsupported adapters and shared unit/UI contracts still run here.
-        run: ctest --preset dev --timeout 60 --output-junit build/dev/native_tests.xml
+        # The dev preset runs full UI variants in place of shorter duplicate entries.
+        shell: bash
+        run: ctest --preset dev --no-tests=error --timeout 60 --output-junit build/dev/native_tests.xml 2>&1 | tee build/dev/logs/ctest.log
       - name: Headless boundary
+        shell: bash
         run: |
-          cmake --preset headless
-          cmake --build --preset headless --parallel 3
-          ctest --preset headless --timeout 60 --output-junit build/headless/headless_tests.xml
+          mkdir -p build/headless/logs
+          cmake --preset headless 2>&1 | tee build/headless/logs/configure.log
+          cmake --build --preset headless --parallel 3 2>&1 | tee build/headless/logs/build.log
+          ctest --preset headless --no-tests=error --timeout 60 --output-junit build/headless/headless_tests.xml 2>&1 | tee build/headless/logs/ctest.log
+      - name: Verify headless test selection
+        shell: pwsh
+        run: ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/headless/quickclash_tests.json
       - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: platform_logs_${{ matrix.os }}
           retention-days: 14
           path: |
+            build/dev/logs/
+            build/dev/quickclash_tests.json
             build/dev/Testing/Temporary/
             build/dev/CMakeFiles/CMakeConfigureLog.yaml
+            build/headless/logs/
+            build/headless/quickclash_tests.json
             build/headless/Testing/Temporary/
             build/headless/CMakeFiles/CMakeConfigureLog.yaml
             build/dev/native_tests.xml
             build/headless/headless_tests.xml
+            build/script_tests/
             aqtinstall.log

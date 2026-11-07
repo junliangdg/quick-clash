@@ -229,7 +229,7 @@ bool checkVisibleFocusFrames(QQuickWindow* window) {
         previous->forceActiveFocus(Qt::OtherFocusReason);
     return checkScrollLayouts(window) && checkPageAlignment(window) && safe;
 }
-bool focusInScroll(QQuickItem* control) {
+bool revealInScroll(QQuickItem* control) {
     if (!control || !control->isVisible() || !control->isEnabled()) {
         std::fprintf(stderr, "Focus target unavailable: %s visible=%d enabled=%d\n",
                      control ? control->objectName().toUtf8().constData() : "null",
@@ -254,6 +254,11 @@ bool focusInScroll(QQuickItem* control) {
     }
     control->forceActiveFocus(Qt::TabFocusReason);
     QTest::qWait(20);
+    return control->hasActiveFocus();
+}
+bool focusInScroll(QQuickItem* control) {
+    if (!revealInScroll(control))
+        return false;
     // Resizing or changing text can leave a layout waiting for polish. Check the
     // geometry of a rendered frame, as checkVisibleFocusFrames does above.
     if (control->window()->grabWindow().isNull()) {
