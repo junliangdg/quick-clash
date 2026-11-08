@@ -21,6 +21,7 @@
 #include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QPair>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTimeZone>
@@ -927,6 +928,8 @@ int main(int argc, char* argv[]) {
                   std::holds_alternative<Error>(
                       quickclash::infra::configMetadata("proxies: []\n---\nproxies: []\n")),
               "metadata keeps duplicate-key and document rejection in skipped fields");
+        // Raw provider dependencies must pass the managed download/snapshot pipeline;
+        // this preflight rejection is unrelated to protocol support in the core.
         expectError(fixture("provider_unsupported.yaml"), "UnsupportedConfigFeature");
         const auto geo = quickclash::infra::preflightConfig(fixture("geo_supported.yaml"), {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(geo),
@@ -960,6 +963,23 @@ int main(int argc, char* argv[]) {
                   coreSemantic.contains("wireguard") && coreSemantic.contains("PROCESS-NAME") &&
                   coreSemantic.contains("quic://") && coreSemantic.contains("sniffer"),
               "core options survive preflight without client allowlists");
+        for (const auto& coreValueReplacement :
+             {qMakePair(QByteArray("type: anytls"), QByteArray("type: no_such_protocol")),
+              qMakePair(QByteArray("network: ws"), QByteArray("network: no_such_transport")),
+              qMakePair(QByteArray("type: select"), QByteArray("type: no_such_group")),
+              qMakePair(QByteArray("MATCH,Main"), QByteArray("NO-SUCH-RULE,value,Main")),
+              qMakePair(QByteArray("enhanced-mode: redir-host"),
+                        QByteArray("enhanced-mode: no_such_dns_mode"))}) {
+            check(coreBytes.contains(coreValueReplacement.first),
+                  "core delegation fixture matches");
+            auto unfamiliarSource = coreBytes;
+            unfamiliarSource.replace(coreValueReplacement.first, coreValueReplacement.second);
+            const auto delegated = quickclash::infra::preflightConfig(unfamiliarSource, {});
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(delegated) &&
+                      std::get<quickclash::infra::PreflightConfig>(delegated).semanticYaml.contains(
+                          coreValueReplacement.second),
+                  "client preflight preserves unfamiliar core values for official validation");
+        }
         const auto corePreview = quickclash::infra::redactedConfig(coreSemantic);
         check(!corePreview.contains("public_dummy") && !corePreview.contains("AQEBAQEBAQ") &&
                   !corePreview.contains("AgICAgICAg") && !corePreview.contains("127.0.0.1"),
@@ -1031,7 +1051,7 @@ int main(int argc, char* argv[]) {
         const auto advancedBytes = fixture("advanced_supported.yaml");
         const auto advanced = quickclash::infra::preflightConfig(advancedBytes, {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(advanced),
-              "TUIC v4/v5 and all three load-balance strategies accepted");
+              "TUIC and load-balance fields pass preflight for official validation");
         const auto advancedSemantic =
             std::get<quickclash::infra::PreflightConfig>(advanced).semanticYaml;
         const auto advancedSummary = quickclash::infra::configurationSummary(advancedSemantic);
@@ -1050,7 +1070,7 @@ int main(int argc, char* argv[]) {
               "TUIC authentication is redacted");
         const auto mainstream = quickclash::infra::preflightConfig(mainstreamBytes, {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(mainstream),
-              "mainstream protocols, transports and nested automatic groups accepted");
+              "protocol, transport and nested group fields pass preflight for official validation");
         const auto semantic = std::get<quickclash::infra::PreflightConfig>(mainstream).semanticYaml;
         const auto preview = quickclash::infra::redactedConfig(semantic);
         check(!preview.contains("public_dummy") && !preview.contains("AAAAAAAAAAAAAAAA") &&

@@ -1354,12 +1354,27 @@ int main(int argc, char** argv) {
     }
     if (!require(balancedCount == 3, "all load balancing strategies loaded", reopened))
         return 175;
-    for (const auto& entry :
-         reopened.snapshot().value("features").toObject().value("nodes").toArray())
-        if (!require(entry.toObject().value("type") == "tuic" &&
-                         entry.toObject().value("udp").toBool(),
-                     "TUIC native UDP capability projection", reopened))
-            return 176;
+    // The live directory also contains Mihomo's built-in leaves. Check both fixture
+    // identities explicitly so unrelated nodes are allowed and missing nodes fail.
+    if (!require(waitFor([&] {
+                     const auto features = reopened.snapshot().value("features").toObject();
+                     if (!features.contains("groupsStale") ||
+                         features.value("groupsStale").toBool())
+                         return false;
+                     QJsonObject nodes;
+                     for (const auto& entry : features.value("nodes").toArray()) {
+                         const auto node = entry.toObject();
+                         nodes.insert(node.value("name").toString(), node);
+                     }
+                     for (const auto* name : {"tuic_fixture", "tuic_token_fixture"}) {
+                         const auto node = nodes.value(name).toObject();
+                         if (node.value("type") != "tuic" || !node.value("udp").toBool())
+                             return false;
+                     }
+                     return true;
+                 }),
+                 "both TUIC fixtures project native UDP capability after live readback", reopened))
+        return 176;
     const auto advancedPid = reopened.snapshot().value("corePid");
     reopened.selectProxy(QStringLiteral("Balanced"), QStringLiteral("DIRECT"));
     if (!require(reopened.snapshot().value("error") == "ProxyGroupAutomatic" &&

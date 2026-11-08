@@ -284,7 +284,7 @@ int providerProbe() {
                "stop rejects late provider download"))
         return 13;
     // Trust the public loopback fixture only inside this test core's materialized session.
-    // Production preflight continues to reject tls/custom certificates; OS trust is untouched.
+    // TLS options belong to the official core; this test leaves OS trust untouched.
     bool trustFixture = true;
     QObject::connect(&runtime, &application::DesktopRuntime::changed,
                      [&](const QJsonObject& state) {

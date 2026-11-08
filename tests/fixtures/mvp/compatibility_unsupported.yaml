@@ -1,4 +1,5 @@
-# Synthetic unsupported features; diagnostics must not echo any of these private-looking values.
+# Synthetic invalid input for official core validation, not a client protocol denylist.
+# Diagnostics must not echo any of these private-looking values.
 proxies:
   - {name: secret_node_name, type: wireguard, server: private.example.invalid, port: 443, password: secret_credential}
   - {name: second_node, type: vless, server: private.example.invalid, port: 443,
