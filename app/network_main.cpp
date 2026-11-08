@@ -31,7 +31,12 @@ class Tunnel final : public QObject {
         remote_.setProxy(QNetworkProxy::NoProxy);
         deadline_.setSingleShot(true);
         deadline_.start(10000);
-        connect(&deadline_, &QTimer::timeout, this, &Tunnel::close);
+        connect(&deadline_, &QTimer::timeout, this, [this] {
+            if (connecting_)
+                reject();
+            else
+                close();
+        });
         connect(client_, &QTcpSocket::readyRead, this, [this] {
             if (connected_)
                 pump(*client_, remote_);
@@ -62,12 +67,33 @@ class Tunnel final : public QObject {
         });
         connect(&remote_, &QTcpSocket::errorOccurred, this,
                 [this](QAbstractSocket::SocketError error) {
-                    if (error != QAbstractSocket::RemoteHostClosedError)
+                    if (!connected_)
+                        reject(error);
+                    else if (error != QAbstractSocket::RemoteHostClosedError)
                         close();
                 });
     }
 
   private:
+    void reject(QAbstractSocket::SocketError error = QAbstractSocket::SocketTimeoutError) {
+        if (closing_)
+            return;
+        deadline_.stop();
+        disconnect(&remote_, nullptr, this, nullptr);
+        remote_.abort();
+        // Qt maps CONNECT 404/503 to target lookup/connection failures. A bare
+        // close instead looks like a failed proxy and may trigger tunnel retries.
+        const auto response = error == QAbstractSocket::HostNotFoundError
+                                  ? "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n"
+                                    "Connection: close\r\n\r\n"
+                                  : "HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n"
+                                    "Connection: close\r\n\r\n";
+        if (client_->write(response) < 0) {
+            close();
+            return;
+        }
+        client_->disconnectFromHost();
+    }
     void close() {
         if (closing_)
             return;

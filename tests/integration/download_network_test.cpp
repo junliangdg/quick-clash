@@ -197,6 +197,32 @@ int main(int argc, char** argv) {
     cancelled->deleteLater();
     if (!waitFor([&] { return !relay.running(); }, 4000))
         return 6;
+    QTcpServer closedEndpoint;
+    if (!closedEndpoint.listen(QHostAddress::LocalHost))
+        return 26;
+    const auto closedPort = closedEndpoint.serverPort();
+    closedEndpoint.close();
+    auto refusedRequest = request("/public-refused");
+    refusedRequest.setUrl(
+        QUrl(QStringLiteral("https://127.0.0.1:%1/public-refused").arg(closedPort)));
+    refusedRequest.setTransferTimeout(15000);
+    auto* refused = network.get(refusedRequest);
+    if (!waitFor([&] { return refused->isFinished(); }) ||
+        refused->error() != QNetworkReply::ConnectionRefusedError) {
+        std::fprintf(stderr, "direct target refusal error=%d\n",
+                     static_cast<int>(refused->error()));
+        return 27;
+    }
+    refused->deleteLater();
+    network.setProxy(
+        QNetworkProxy(QNetworkProxy::HttpProxy, QStringLiteral("127.0.0.1"), closedPort));
+    auto* unavailableProxy = network.get(request("/public-body"));
+    if (!waitFor([&] { return unavailableProxy->isFinished(); }) ||
+        unavailableProxy->error() != QNetworkReply::ProxyConnectionRefusedError)
+        return 28;
+    unavailableProxy->deleteLater();
+    if (!waitFor([&] { return !relay.running(); }, 4000))
+        return 29;
     quickclash::test::ConnectFixture proxy(origin.serverPort());
     if (!proxy.listen(QHostAddress::LocalHost))
         return 7;
