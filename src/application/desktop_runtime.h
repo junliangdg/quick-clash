@@ -61,6 +61,8 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void setMode(const QString& mode);
     void selectProxy(const QString& group, const QString& member);
     void setPorts(int mixed, int controller);
+    // Composition-only override for isolated integration hosts; production keeps the defaults.
+    void setDeferredApplyTiming(int pollMs, qint64 limitMs);
     void setTun(bool desired);
     void testWebsite(const QString& target, const QString& path = QStringLiteral("CurrentProxy"));
     void queryIp(const QString& family, const QUrl& source = {});
@@ -188,11 +190,19 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         bool validated = false;
         bool previewOnly = false;
         bool forceApply = false;
+        bool rulesComposed = false;
+        QJsonObject userRules;
         QString editorToken;
         QString customGroupToken;
     };
     void finishImport(const std::shared_ptr<ConfigTransaction>& context);
+    void applyUpdatedProfile(const QString& id, const std::shared_ptr<ConfigTransaction>& context);
+    void deferUpdatedProfile(const QString& id);
+    void checkDeferredApply();
+    void cancelDeferredApply(bool notify = true);
+    void recordUpdateOutcome(const QString& outcome, const QString& detail);
     [[nodiscard]] bool matchesRunningConfig(const QString& id, const QByteArray& semantic) const;
+    [[nodiscard]] bool coreArtifactVerified(const QString& path, const QString& id) const;
     void discardConfigTransaction();
     void applyProfile(const QString& id, bool startAfter);
     void launch();
@@ -394,6 +404,20 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool subscriptionCandidateSaved_ = false;
     bool subscriptionContentChanged_ = false;
     bool subscriptionWasPending_ = false;
+    QString subscriptionOutcome_;
+    QTimer deferredApplyTimer_;
+    QString deferredApplyId_;
+    QElapsedTimer deferredApplyClock_;
+    quint64 deferredApplyToken_ = 0;
+    int deferredApplyPollMs_ = 60 * 1000;
+    qint64 deferredApplyLimitMs_ = 30 * 60 * 1000;
+    struct VerifiedCoreArtifact {
+        QString path;
+        QString id;
+        qint64 size = 0;
+        qint64 modifiedMs = 0;
+    };
+    mutable VerifiedCoreArtifact verifiedCore_;
     bool shuttingDown_ = false;
     bool backgroundManaged_ = false;
     bool backgroundSuppressed_ = false;

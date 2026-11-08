@@ -2380,14 +2380,17 @@
   <context>
     <name>subscription_card</name>
     <message><source>Applying failed: %1</source><translation>应用失败：%1</translation></message>
-    <message><source>Applying an update may briefly interrupt connections.</source><translation>应用更新可能短暂中断连接。</translation></message>
+    <message><source>The core restarts only when the effective configuration changes; scheduled updates wait for idle connections.</source><translation>仅当有效配置变化时才会重启内核；定时更新会等待连接空闲后再应用。</translation></message>
     <message><source>Updating…</source><translation>正在更新…</translation></message>
     <message><source>New configuration saved; applying failed</source><translation>新配置已保存，但应用失败</translation></message>
     <message><source>Update failed; the previous configuration is kept</source><translation>更新失败；已保留之前的配置</translation></message>
     <message><source>New configuration downloaded; the previous version is in use</source><translation>新配置已下载，当前仍使用旧版本</translation></message>
+    <message><source>New configuration downloaded; applying waits for idle connections</source><translation>新配置已下载，等待连接空闲后应用</translation></message>
     <message><source>Updated; available when this subscription is selected</source><translation>已更新，使用此订阅时生效</translation></message>
     <message><source>Already up to date</source><translation>已是最新</translation></message>
     <message><source>Updated and applied</source><translation>已更新并应用</translation></message>
+    <message><source>Updated; equivalent configuration, core not restarted</source><translation>已更新；配置等效，内核未重启</translation></message>
+    <message><source>Updated and applied; core restarted</source><translation>已更新并应用；内核已重启</translation></message>
     <message><source>Updated</source><translation>已更新</translation></message>
     <message><source>A previously downloaded configuration is still waiting to be applied</source><translation>之前下载的配置仍待应用</translation></message>
     <message><source>A previously downloaded configuration is available when selected</source><translation>之前下载的配置将在选择此订阅时生效</translation></message>

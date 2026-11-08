@@ -5,6 +5,7 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QJsonDocument>
+#include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QThread>
 #include <cstdio>
@@ -393,6 +394,106 @@ int subscriptionDownloadProbe() {
                    profile().value("sourceHash") == originalHash,
                "restore confirmed forwarding after effective update"))
         return 56;
+    {
+        const auto outcome = [&] { return profile().value("lastUpdateOutcome").toString(); };
+        const auto deferred = [&] {
+            return runtime.snapshot().value("deferredApplyId").toString();
+        };
+        const auto hold = [&](QTcpSocket& socket) {
+            QByteArray reply;
+            const auto reader = QObject::connect(&socket, &QTcpSocket::readyRead, &socket,
+                                                 [&] { reply += socket.readAll(); });
+            socket.connectToHost(QHostAddress::LocalHost, static_cast<quint16>(mixed));
+            const bool connected =
+                waitFor([&] { return socket.state() == QAbstractSocket::ConnectedState; }, 5000);
+            if (connected)
+                socket.write("CONNECT 127.0.0.1:" + QByteArray::number(origin.serverPort()) +
+                             " HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+            const bool tunneled =
+                connected && waitFor([&] { return reply.contains(" 200 "); }, 5000);
+            QObject::disconnect(reader);
+            return tunneled;
+        };
+        const auto pause = [&](int milliseconds) {
+            QElapsedTimer watch;
+            watch.start();
+            waitFor([&] { return watch.elapsed() >= milliseconds; }, milliseconds + 1000);
+        };
+        origin.entityTags.remove("/subscription");
+        origin.lastModified.remove("/subscription");
+        runtime.configureSubscription(id, 0, true);
+        runtime.setDeferredApplyTiming(200, 60000);
+        QTcpSocket held;
+        if (!check(hold(held), "active connection established through the owned mixed port"))
+            return 57;
+        const auto busyPid = runtime.snapshot().value("corePid");
+        const auto busyEpoch = runtime.snapshot().value("epoch");
+        origin.subscription.replace("MATCH,upstream", "MATCH,DIRECT");
+        runtime.updateProfile(id);
+        if (!check(done() && error().isEmpty() && !deferred().isEmpty() &&
+                       profile().value("pendingApply").toBool() && outcome() == "Pending" &&
+                       runtime.snapshot().value("corePid") == busyPid &&
+                       runtime.snapshot().value("epoch") == busyEpoch,
+                   "scheduled update with active connections is saved and deferred"))
+            return 58;
+        pause(700);
+        if (!check(!deferred().isEmpty() && profile().value("pendingApply").toBool() &&
+                       runtime.snapshot().value("epoch") == busyEpoch,
+                   "deferred apply keeps waiting while connections stay active"))
+            return 59;
+        held.abort();
+        if (!check(waitFor([&] {
+                       return deferred().isEmpty() && !runtime.snapshot().value("busy").toBool() &&
+                              !profile().value("pendingApply").toBool() &&
+                              runtime.snapshot().value("ready").toBool();
+                   }) &&
+                       error().isEmpty() && runtime.snapshot().value("epoch") != busyEpoch &&
+                       outcome() == "Restarted",
+                   "idle connections let the deferred update apply with one restart"))
+            return 60;
+        const auto settledPid = runtime.snapshot().value("corePid");
+        const auto settledEpoch = runtime.snapshot().value("epoch");
+        origin.subscription += "# equivalent revision\n";
+        runtime.updateProfile(id);
+        if (!check(done() && error().isEmpty() && outcome() == "Reused" &&
+                       !profile().value("pendingApply").toBool() &&
+                       runtime.snapshot().value("corePid") == settledPid &&
+                       runtime.snapshot().value("epoch") == settledEpoch,
+                   "equivalent revision reports reuse without restarting the core"))
+            return 61;
+        runtime.updateProfile(id);
+        if (!check(done() && error().isEmpty() && outcome() == "Unchanged" &&
+                       runtime.snapshot().value("epoch") == settledEpoch,
+                   "identical content reports unchanged"))
+            return 62;
+        runtime.setDeferredApplyTiming(200, 600);
+        QTcpSocket stubborn;
+        if (!check(hold(stubborn), "second active connection established"))
+            return 63;
+        origin.subscription = initialBody;
+        runtime.updateProfile(id);
+        if (!check(done() && error().isEmpty() && !deferred().isEmpty() &&
+                       runtime.snapshot().value("epoch") == settledEpoch,
+                   "second effective change is deferred"))
+            return 64;
+        if (!check(waitFor([&] {
+                       return deferred().isEmpty() && !runtime.snapshot().value("busy").toBool() &&
+                              !profile().value("pendingApply").toBool() &&
+                              runtime.snapshot().value("ready").toBool();
+                   }) &&
+                       runtime.snapshot().value("epoch") != settledEpoch,
+                   "deferral limit applies the update despite a persistent connection"))
+            return 65;
+        stubborn.abort();
+        runtime.configureSubscription(id, 0, false);
+        origin.entityTags.insert("/subscription", "\"public-v1\"");
+        origin.lastModified.insert("/subscription", "Wed, 28 Oct 2026 01:00:00 GMT");
+        runtime.updateProfile(id, true);
+        if (!check(done() && error().isEmpty() && profile().value("sourceHash") == originalHash &&
+                       runtime.snapshot().value("ready").toBool(),
+                   "deferral scenario restores the confirmed source"))
+            return 66;
+    }
     const auto pid = runtime.snapshot().value("corePid");
     runtime.setSubscriptionRoute(id, "RunningProxy");
     runtime.changeProfileSource(id, viaProxy, {});

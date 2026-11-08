@@ -421,6 +421,42 @@ int userRulesProbe() {
                        waitFor([&] { return view.value("proxy") == "Two"; }),
                    "subscription binding repair applies updated profile"))
             return 36;
+        const auto readySnapshot = runtime.snapshot();
+        int validations = 0;
+        bool validating = false;
+        const auto countedDone = [&] {
+            return waitFor([&] {
+                const auto current = runtime.snapshot();
+                const bool active =
+                    current.value("configLifecycle").toObject().value("validationActive").toBool();
+                if (active && !validating)
+                    ++validations;
+                validating = active;
+                return !current.value("busy").toBool();
+            });
+        };
+        origin.subscription = source("Two") + "# comment-only revision\n";
+        runtime.updateProfile(id, true);
+        const bool commentApplied =
+            countedDone() && runtime.snapshot().value("error").toString().isEmpty();
+        if (!check(
+                commentApplied && validations == 0 &&
+                    runtime.snapshot().value("corePid") == readySnapshot.value("corePid") &&
+                    runtime.snapshot().value("epoch") == readySnapshot.value("epoch"),
+                "comment-only update with user rules reuses the running core without validation"))
+            return 82;
+        auto changed = source("Two");
+        changed.replace("proxies: [DIRECT]", "proxies: [DIRECT, REJECT]");
+        origin.subscription = changed;
+        validations = 0;
+        runtime.updateProfile(id, true);
+        const bool changeApplied =
+            countedDone() && runtime.snapshot().value("error").toString().isEmpty();
+        if (!check(changeApplied && validations == 1 &&
+                       runtime.snapshot().value("ready").toBool() &&
+                       runtime.snapshot().value("epoch") != readySnapshot.value("epoch"),
+                   "effective update with user rules validates once and applies"))
+            return 83;
         runtime.stop();
     }
     {

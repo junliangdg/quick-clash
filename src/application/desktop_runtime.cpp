@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "domain/connection_snapshot.h"
 #include "domain/subscription_usage.h"
 #include "infra/config/config_overlay.h"
 #include "infra/config/custom_groups.h"
@@ -40,6 +41,14 @@ QByteArray newSecret() {
         }
     }
     return bytes.toHex();
+}
+bool hasActiveConnections(const domain::Result<QJsonObject>& response) {
+    const auto* value = std::get_if<QJsonObject>(&response);
+    if (!value)
+        return false;
+    const auto parsed = domain::connectionSnapshot(*value, {}, {}, 0);
+    const auto* entries = std::get_if<QJsonArray>(&parsed);
+    return entries && !entries->isEmpty();
 }
 } // namespace
 DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services, QObject* parent,
@@ -129,6 +138,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         }
         scheduleSubscriptions();
     });
+    deferredApplyTimer_.setSingleShot(true);
+    connect(&deferredApplyTimer_, &QTimer::timeout, this, [this] { checkDeferredApply(); });
     validationDeadline_.setSingleShot(true);
     validationDeadline_.setInterval(10000);
     recoveryTimer_.setSingleShot(true);
@@ -244,6 +255,7 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         publish();
     });
     connect(&engine_, &infra::EngineSession::stopped, this, [this](bool unexpected) {
+        cancelDeferredApply(false);
         effectivePreferences_ = {};
         effectiveProfileId_.clear();
         sessionProfileId_.clear();
@@ -719,6 +731,7 @@ QJsonObject DesktopRuntime::controlState() const {
         {QStringLiteral("status"), status_},
         {QStringLiteral("busy"), busy_},
         {QStringLiteral("updatingSubscriptionId"), updatingSubscription_},
+        {QStringLiteral("deferredApplyId"), deferredApplyId_},
         {QStringLiteral("selectingProxy"), !pendingGroup_.isEmpty() && !restoringNodes_},
         {QStringLiteral("ready"), engine_.ready()},
         {QStringLiteral("backgroundManaged"), backgroundManaged_},
@@ -995,6 +1008,7 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
     const bool saved = std::exchange(subscriptionCandidateSaved_, false);
     const bool changed = std::exchange(subscriptionContentChanged_, false);
     const bool wasPending = std::exchange(subscriptionWasPending_, false);
+    const auto outcome = std::exchange(subscriptionOutcome_, {});
     subscriptionApplyNow_ = false;
     auto catalog = profiles_;
     for (qsizetype i = 0; i < catalog.size(); ++i) {
@@ -1016,6 +1030,16 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
                                                                  : lastError_);
         item.insert(QStringLiteral("lastUpdateSaved"), saved);
         item.insert(QStringLiteral("lastUpdateChanged"), changed || wasPending);
+        if (success)
+            item.insert(
+                QStringLiteral("lastUpdateOutcome"),
+                !outcome.isEmpty() ? outcome
+                : item.value(QStringLiteral("pendingApply")).toBool()
+                    ? (id == selectedId_ ? QStringLiteral("Pending") : QStringLiteral("Saved"))
+                : (changed || wasPending) ? QStringLiteral("Applied")
+                                          : QStringLiteral("Unchanged"));
+        else
+            item.remove(QStringLiteral("lastUpdateOutcome"));
         item.insert(QStringLiteral("lastAttemptAt"), clock_().toString(Qt::ISODate));
         item.insert(QStringLiteral("updateFailures"), failures);
         item.insert(
@@ -1034,16 +1058,122 @@ void DesktopRuntime::completeSubscriptionUpdate(const QString& result) {
 }
 void DesktopRuntime::completeSubscriptionApply() {
     const auto id = std::exchange(applyingSubscriptionRetry_, {});
+    const auto outcome = std::exchange(subscriptionOutcome_, {});
     auto catalog = profiles_;
     for (qsizetype i = 0; i < catalog.size(); ++i) {
         auto item = catalog[i].toObject();
         if (item.value(QStringLiteral("id")) != id)
             continue;
         item.insert(QStringLiteral("lastApplyError"), lastError_);
+        if (lastError_.isEmpty())
+            item.insert(QStringLiteral("lastUpdateOutcome"),
+                        outcome.isEmpty() ? QStringLiteral("Applied") : outcome);
         catalog[i] = item;
         (void)saveCatalog(catalog);
         break;
     }
+}
+void DesktopRuntime::recordUpdateOutcome(const QString& outcome, const QString& detail) {
+    if (updatingSubscription_.isEmpty() && applyingSubscriptionRetry_.isEmpty())
+        return;
+    subscriptionOutcome_ = outcome;
+    appendLog(QStringLiteral("App"), QStringLiteral("info"), detail);
+}
+void DesktopRuntime::cancelDeferredApply(bool notify) {
+    deferredApplyTimer_.stop();
+    ++deferredApplyToken_;
+    if (!std::exchange(deferredApplyId_, {}).isEmpty() && notify)
+        publish();
+}
+void DesktopRuntime::deferUpdatedProfile(const QString& id) {
+    if (deferredApplyId_ != id)
+        deferredApplyClock_.start();
+    deferredApplyId_ = id;
+    ++deferredApplyToken_;
+    deferredApplyTimer_.start(deferredApplyPollMs_);
+}
+void DesktopRuntime::setDeferredApplyTiming(int pollMs, qint64 limitMs) {
+    deferredApplyPollMs_ = std::max(50, pollMs);
+    deferredApplyLimitMs_ = std::max<qint64>(0, limitMs);
+}
+void DesktopRuntime::applyUpdatedProfile(const QString& id,
+                                         const std::shared_ptr<ConfigTransaction>& context) {
+    const bool scheduled =
+        updatingSubscription_ == id && !subscriptionApplyNow_ && !(context && context->forceApply);
+    if (!scheduled || !engine_.ready() || id != selectedId_ ||
+        (context && matchesRunningConfig(id, context->semantic))) {
+        applyProfile(id, engine_.ready());
+        return;
+    }
+    if (!context) {
+        busy_ = true;
+        ++operationGeneration_;
+        publish();
+    }
+    const auto generation = operationGeneration_;
+    const auto weak = std::weak_ptr<ConfigTransaction>(context);
+    const bool tracked = static_cast<bool>(context);
+    engine_.api("GET", "/connections", {},
+                [this, id, generation, weak, tracked](domain::Result<QJsonObject> result) {
+                    if (generation != operationGeneration_)
+                        return;
+                    if (tracked) {
+                        const auto live = weak.lock();
+                        if (!live || live != configTransaction_)
+                            return;
+                    }
+                    if (!busy_) {
+                        if (tracked)
+                            discardConfigTransaction();
+                        return;
+                    }
+                    if (!hasActiveConnections(result)) {
+                        applyProfile(id, engine_.ready());
+                        return;
+                    }
+                    discardConfigTransaction();
+                    busy_ = false;
+                    recordUpdateOutcome(QStringLiteral("Pending"),
+                                        QStringLiteral("Subscription update saved; applying is "
+                                                       "postponed until connections are idle"));
+                    deferUpdatedProfile(id);
+                    publish();
+                });
+}
+void DesktopRuntime::checkDeferredApply() {
+    const auto id = deferredApplyId_;
+    if (id.isEmpty())
+        return;
+    if (shuttingDown_ || store_.readOnly() || id != selectedId_ || !engine_.ready() ||
+        !profile(id).value(QStringLiteral("pendingApply")).toBool()) {
+        cancelDeferredApply();
+        return;
+    }
+    if (busy_ || recoveryTimer_.isActive() || repository_.recoveryRequired()) {
+        deferredApplyTimer_.start(5000);
+        return;
+    }
+    const auto token = deferredApplyToken_;
+    const auto epoch = epoch_;
+    engine_.api("GET", "/connections", {},
+                [this, id, token, epoch](domain::Result<QJsonObject> result) {
+                    if (token != deferredApplyToken_ || id != deferredApplyId_ || epoch != epoch_)
+                        return;
+                    if (busy_) {
+                        deferredApplyTimer_.start(5000);
+                        return;
+                    }
+                    if (!deferredApplyClock_.hasExpired(deferredApplyLimitMs_) &&
+                        hasActiveConnections(result)) {
+                        deferredApplyTimer_.start(deferredApplyPollMs_);
+                        return;
+                    }
+                    cancelDeferredApply(false);
+                    applyingSubscriptionRetry_ = id;
+                    subscriptionOutcome_.clear();
+                    lastError_.clear();
+                    applyProfile(id, engine_.ready());
+                });
 }
 void DesktopRuntime::error(const QString& code) {
     if (!busy_) {
@@ -1202,6 +1332,8 @@ void DesktopRuntime::updateProfile(const QString& id, bool applyNow) {
     subscriptionCandidateSaved_ = false;
     subscriptionContentChanged_ = false;
     subscriptionWasPending_ = item.value(QStringLiteral("pendingApply")).toBool();
+    subscriptionOutcome_.clear();
+    cancelDeferredApply(false);
     lastError_.clear();
     const auto secret = credentials_->read(item.value(QStringLiteral("secretRef")).toString());
     if (const auto* failure = std::get_if<domain::Error>(&secret)) {
@@ -1241,6 +1373,8 @@ void DesktopRuntime::changeProfileSource(const QString& id, const QString& url,
     subscriptionCandidateSaved_ = false;
     subscriptionContentChanged_ = false;
     subscriptionWasPending_ = item.value(QStringLiteral("pendingApply")).toBool();
+    subscriptionOutcome_.clear();
+    cancelDeferredApply(false);
     lastError_.clear();
     download(url, item.value(QStringLiteral("name")).toString(), id, document.object());
 }
@@ -1401,7 +1535,20 @@ void DesktopRuntime::importBytes(QByteArray bytes, const QString& name, const QS
         configError(*failure);
         return;
     }
-    auto preflight = infra::preflightConfig(std::get<QByteArray>(composed), preferences());
+    auto candidate = std::get<QByteArray>(composed);
+    if (!context->previewOnly) {
+        // Validate the same effective configuration that applyProfile will install. A rule
+        // binding failure is reported by the apply stage so the candidate remains saved.
+        auto rules = userRuleBook();
+        const auto withRules = infra::composeUserRules(candidate, rules, context->profileId);
+        if (const auto* ruled = std::get_if<QByteArray>(&withRules)) {
+            candidate = *ruled;
+            context->rulesComposed = true;
+            context->userRules = std::move(rules);
+        }
+    }
+    auto preflight = infra::preflightConfig(candidate, preferences());
+    candidate = {};
     bytes = {}; // Persisted raw/snapshot input does not cross the asynchronous validation boundary.
     if (const auto* failure = std::get_if<domain::Error>(&preflight)) {
         configError(*failure);
@@ -1542,7 +1689,7 @@ void DesktopRuntime::finishImport(const std::shared_ptr<ConfigTransaction>& cont
         configIssues_ = {};
         scheduleSubscriptions();
         if (activate) {
-            applyProfile(id, engine_.ready());
+            applyUpdatedProfile(id, context);
             return;
         }
         configTransaction_.reset();
@@ -1564,10 +1711,12 @@ void DesktopRuntime::selectProfile(const QString& id) {
     backgroundSuppressed_ = false;
     recoveryFailures_ = 0;
     recoveryTimer_.stop();
+    cancelDeferredApply(false);
     const auto item = profile(id);
     if (item.value(QStringLiteral("pendingApply")).toBool() &&
         !item.value(QStringLiteral("secretRef")).toString().isEmpty()) {
         applyingSubscriptionRetry_ = id;
+        subscriptionOutcome_.clear();
         lastError_.clear();
     }
     applyProfile(id, engine_.ready());
@@ -1589,6 +1738,8 @@ void DesktopRuntime::renameProfile(const QString& id, const QString& name) {
     }
 }
 void DesktopRuntime::deleteProfile(const QString& id) {
+    if (deferredApplyId_ == id)
+        cancelDeferredApply();
     if (!store_.readOnly() && busy_ && updatingSubscription_ == id && downloadReply_ &&
         downloadReply_->manager() == &subscriptionNetwork_) {
         ++operationGeneration_;
@@ -1674,11 +1825,25 @@ bool DesktopRuntime::matchesRunningConfig(const QString& id, const QByteArray& s
     // Reuse only the exact confirmed template and launch preferences. In particular,
     // identical YAML alone cannot authorize reusing a different core, Geo or TUN session.
     return selected.value(QStringLiteral("profileId")) == id && hash(semantic) == expected &&
-           platform::verifyCoreArtifact(
+           coreArtifactVerified(
                coreExecutable(),
                runtimePreferences_.value(QStringLiteral("coreArtifactId")).toString()) &&
            std::holds_alternative<std::monostate>(store_.verifyBytes(
                selected.value(QStringLiteral("artifactRef")).toString(), expected));
+}
+bool DesktopRuntime::coreArtifactVerified(const QString& path, const QString& id) const {
+    const QFileInfo info(path);
+    const VerifiedCoreArtifact current{path, id, info.size(),
+                                       info.lastModified().toMSecsSinceEpoch()};
+    if (!path.isEmpty() && verifiedCore_.path == current.path && verifiedCore_.id == current.id &&
+        verifiedCore_.size == current.size && verifiedCore_.modifiedMs == current.modifiedMs)
+        return true;
+    if (!platform::verifyCoreArtifact(path, id)) {
+        verifiedCore_ = {};
+        return false;
+    }
+    verifiedCore_ = current;
+    return true;
 }
 void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     backgroundSuppressed_ = false;
@@ -1709,7 +1874,7 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
     const bool trusted = context && context->validated &&
                          context->generation == operationGeneration_ && context->profileId == id &&
                          context->preferences == runtimePreferences_ && !adjustSelected &&
-                         userRuleBook().isEmpty() &&
+                         context->rulesComposed && context->userRules == currentRules &&
                          context->imported.value(QStringLiteral("sourceRef")) ==
                              item.value(QStringLiteral("sourceRef")) &&
                          context->imported.value(QStringLiteral("sourceHash")) ==
@@ -1921,6 +2086,10 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
         }
         proxyDesired_ = previouslyProxied_;
         if (matchesRunningConfig(id, semantic)) {
+            recordUpdateOutcome(QStringLiteral("Reused"),
+                                QStringLiteral("Subscription update applied; the effective "
+                                               "configuration is equivalent, so the core was not "
+                                               "restarted"));
             unchangedConfigApply_ = true;
             discardConfigTransaction();
             confirmed();
@@ -1970,6 +2139,9 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             failedApply(failure->code);
             return;
         }
+        recordUpdateOutcome(QStringLiteral("Restarted"),
+                            QStringLiteral("Subscription update applied; the core is restarting "
+                                           "with the new effective configuration"));
         const auto stopped = engine_.stop();
         if (const auto* failure = std::get_if<domain::Error>(&stopped)) {
             failedApply(failure->code);
@@ -2585,6 +2757,8 @@ void DesktopRuntime::stop(domain::StopReason reason) {
     }
     // Internal stop is also used for deleting the selected profile and test teardown.
     backgroundSuppressed_ = true;
+    cancelDeferredApply(false);
+    subscriptionOutcome_.clear();
     if (!updatingSubscription_.isEmpty())
         completeSubscriptionUpdate(QStringLiteral("Cancelled"));
     stopFailure_.clear();

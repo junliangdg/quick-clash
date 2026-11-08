@@ -398,9 +398,13 @@ void DesktopRuntime::finishSubscription(const std::shared_ptr<SubscriptionDownlo
             if (context->id == selectedId_ &&
                 previous.value(QStringLiteral("pendingApply")).toBool() &&
                 (subscriptionApplyNow_ || previous.value(QStringLiteral("autoApply")).toBool())) {
-                applyProfile(context->id, engine_.ready());
+                applyUpdatedProfile(context->id, nullptr);
                 return;
             }
+            if (!previous.value(QStringLiteral("pendingApply")).toBool())
+                recordUpdateOutcome(
+                    QStringLiteral("Unchanged"),
+                    QStringLiteral("Subscription update checked; the content is unchanged"));
             lastError_.clear();
             publish();
         }

@@ -112,6 +112,7 @@ bool ProfileModel::apply(const QJsonArray& profiles) {
                                   {"autoApply", Schedule},
                                   {"nextUpdateAt", Schedule},
                                   {"lastUpdateResult", Result},
+                                  {"lastUpdateOutcome", Result},
                                   {"pendingApply", Result},
                                   {"secretRef", Source},
                                   {"history", History}})
