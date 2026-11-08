@@ -19,6 +19,10 @@ class IDesktopProcess : public QObject {
     [[nodiscard]] virtual QJsonObject exitDiagnostics() const {
         return {};
     }
+    // Resolve a child-created local pipe from the parent's namespace.
+    [[nodiscard]] virtual QString localPipePath(const QString& path) const {
+        return path;
+    }
     [[nodiscard]] virtual bool running() const = 0;
     [[nodiscard]] virtual quint32 pid() const = 0;
     [[nodiscard]] virtual QJsonObject memory() const = 0;

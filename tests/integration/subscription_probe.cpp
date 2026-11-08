@@ -6,6 +6,7 @@
 #include <QJsonDocument>
 #include <QNetworkProxy>
 #include <QNetworkReply>
+#include <QSet>
 #include <QSslSocket>
 #include <QTcpServer>
 #include <QThread>
@@ -34,8 +35,16 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
     const auto finish = [&](const char* stage, bool success) {
         result.insert(QStringLiteral("stage"), QString::fromLatin1(stage));
         result.insert(QStringLiteral("success"), success);
-        result.insert(QStringLiteral("errorPresent"),
-                      !runtime.snapshot().value("error").toString().isEmpty());
+        const auto error = runtime.snapshot().value("error").toString();
+        result.insert(QStringLiteral("errorPresent"), !error.isEmpty());
+        if (!error.isEmpty()) {
+            const QStringList downloadErrors{QStringLiteral("SubscriptionAuthenticationFailed"),
+                                             QStringLiteral("SubscriptionDownloadFailed"),
+                                             QStringLiteral("SubscriptionRedirectBlocked"),
+                                             QStringLiteral("SubscriptionTooLarge")};
+            result.insert(QStringLiteral("failureClass"),
+                          downloadErrors.contains(error) ? error : QStringLiteral("Other"));
+        }
         result.insert(QStringLiteral("issueCount"),
                       static_cast<int>(runtime.snapshot().value("configIssues").toArray().size()));
         runtime.stop();
@@ -48,7 +57,12 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
     runtime.setPorts(mixed, controller);
     std::string source;
     std::getline(std::cin, source);
-    runtime.addSubscription(QString::fromStdString(source), QStringLiteral("Private probe"));
+    const auto sourceUrl = QUrl(QString::fromStdString(source));
+    if (QCoreApplication::arguments().contains(QStringLiteral("--subscription-node-probe")) &&
+        sourceUrl.isLocalFile())
+        runtime.importFile(sourceUrl.toString(), QStringLiteral("Private probe"));
+    else
+        runtime.addSubscription(sourceUrl.toString(), QStringLiteral("Private probe"));
     if (!wait([&] { return !runtime.snapshot().value("busy").toBool(); }, 45000) ||
         runtime.snapshot().value("profiles").toArray().size() != 1)
         return finish("import", false);
@@ -102,6 +116,75 @@ int subscriptionProbe(application::DesktopRuntime& runtime, infra::JsonStore& st
                    !runtime.snapshot().value("busy").toBool();
         }))
         return finish("startup_settled", false);
+    if (QCoreApplication::arguments().contains(QStringLiteral("--subscription-node-probe"))) {
+        runtime.setDemands({QStringLiteral("proxies")});
+        runtime.featureCommand("refresh_groups", {});
+        if (!wait([&] {
+                return !runtime.snapshot().value("groups").toArray().isEmpty() &&
+                       !runtime.snapshot()
+                            .value("features")
+                            .toObject()
+                            .value("nodes")
+                            .toArray()
+                            .isEmpty();
+            }))
+            return finish("node_projection", false);
+        const auto coreNodes = readApi("/proxies").value("proxies").toObject();
+        const auto visible =
+            runtime.snapshot().value("features").toObject().value("nodes").toArray();
+        QSet<QString> visibleNames;
+        for (const auto& value : visible)
+            visibleNames.insert(value.toObject().value("name").toString());
+        QSet<QString> importedNames;
+        for (const auto& node : root["proxies"])
+            importedNames.insert(QString::fromStdString(node["name"].as<std::string>()));
+        QJsonObject coreTypes, missingTypes, representatives;
+        for (auto it = coreNodes.begin(); it != coreNodes.end(); ++it) {
+            const auto node = it.value().toObject();
+            if (node.contains("all") || !importedNames.contains(it.key()))
+                continue;
+            const auto type = node.value("type").toString();
+            coreTypes.insert(type, coreTypes.value(type).toInt() + 1);
+            if (!visibleNames.contains(it.key()))
+                missingTypes.insert(type, missingTypes.value(type).toInt() + 1);
+            if (!representatives.contains(type) && representatives.size() < 6)
+                representatives.insert(type, it.key());
+        }
+        QJsonObject probeStates;
+        for (auto it = representatives.begin(); it != representatives.end(); ++it) {
+            const auto prior = runtime.snapshot().value("features").toObject().value("delayTest");
+            runtime.featureCommand("delay", {it.value().toString()});
+            auto progress = runtime.snapshot().value("features").toObject().value("delayTest");
+            if (prior == progress) {
+                probeStates.insert(it.key(), "NotAdmitted");
+                continue;
+            }
+            if (!wait([&] {
+                    return runtime.snapshot()
+                               .value("features")
+                               .toObject()
+                               .value("delayTest")
+                               .toObject()
+                               .value("state") == "Completed";
+                })) {
+                runtime.featureCommand("cancel_delays", {});
+                probeStates.insert(it.key(), "ProbeIncomplete");
+                continue;
+            }
+            const auto latest = runtime.snapshot()
+                                    .value("delay_details")
+                                    .toObject()
+                                    .value(it.value().toString())
+                                    .toObject()
+                                    .value("latest")
+                                    .toObject();
+            probeStates.insert(it.key(), latest.value("state"));
+        }
+        result.insert("core_types", coreTypes);
+        result.insert("missing_projected_types", missingTypes);
+        result.insert("representative_delay_states", probeStates);
+        return finish("node_projection_and_delay", true);
+    }
     runtime.setMode(QStringLiteral("global"));
     if (!wait([&] { return !runtime.snapshot().value("busy").toBool(); }) ||
         runtime.snapshot().value("preferences").toObject().value("mode") !=

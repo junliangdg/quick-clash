@@ -730,7 +730,9 @@ void EngineSession::refreshGroups() {
                             const auto entries = response->value("providers").toObject();
                             for (auto it = entries.begin(); it != entries.end(); ++it) {
                                 const auto provider = it.value().toObject();
-                                if (provider.value("vehicleType") != "HTTP")
+                                if (provider.value("vehicleType") != "HTTP" &&
+                                    provider.value("vehicleType") != "File" &&
+                                    provider.value("vehicleType") != "Inline")
                                     continue;
                                 QJsonArray names;
                                 for (const auto& value : provider.value("proxies").toArray()) {

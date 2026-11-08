@@ -314,9 +314,11 @@ void DesktopRuntime::previewBackup(const QString& url) {
                 return;
             }
             if (!isSnapshot) {
-                const auto requests = infra::providerRequests(decoded.decoded);
+                const auto normalized = infra::coreSubscriptionConfig(decoded.decoded);
+                const auto requests = infra::providerRequests(normalized);
                 if (!std::holds_alternative<QJsonArray>(requests) ||
-                    (snapshot && std::get<QJsonArray>(requests).isEmpty())) {
+                    (snapshot && normalized == decoded.decoded &&
+                     std::get<QJsonArray>(requests).isEmpty())) {
                     error(QStringLiteral("InvalidBackup"));
                     return;
                 }

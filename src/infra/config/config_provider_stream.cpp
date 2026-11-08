@@ -5,6 +5,7 @@
 #include <QStringList>
 #include <map>
 #include <memory>
+#include <set>
 #include <stdexcept>
 #include <yaml-cpp/yaml.h>
 
@@ -83,7 +84,7 @@ std::size_t visitRules(ScanBudget& budget, const RuleProvider& provider,
             total += line.size();
             require(total <= kProviderLimit, "ProviderLimitExceeded");
             const auto value = QString::fromUtf8(line).trimmed();
-            if (!value.isEmpty() && !value.startsWith('#'))
+            if (!value.isEmpty() && !value.startsWith('#') && !value.startsWith("//"))
                 require(accept(value.toStdString()), "DataWriteFailed");
         }
         const auto* disk = qobject_cast<QFileDevice*>(&file);
@@ -121,6 +122,7 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
         fields = {}; // Release serialized source fields before importing provider objects.
         std::map<std::string, std::vector<std::string>> proxyNames;
         std::map<std::string, RuleProvider> rules;
+        std::set<std::string> inlineRules;
         qint64 providerBytes = 0;
         std::size_t providerCount = 0;
         for (const auto* kind : {"proxy-providers", "rule-providers"}) {
@@ -130,13 +132,19 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
                 require(++providerCount <= 32, "ProviderLimitExceeded");
                 const auto name = entry.first.as<std::string>();
                 const auto key = QString::fromLatin1(kind) + ':' + QString::fromStdString(name);
+                const auto value = entry.second;
+                if (value["x-quickclash-body"] ||
+                    (value["type"] && value["type"].as<std::string>() == "inline")) {
+                    if (std::string(kind) == "rule-providers")
+                        inlineRules.insert(name);
+                    continue; // The official core consumes inline providers without a download.
+                }
                 auto* file = payloads.value(key, nullptr);
                 require(file && file->isOpen() && !file->isSequential(), "ProviderSnapshotMissing");
                 require(file->size() >= 0 && file->size() <= kProviderLimit,
                         "ProviderLimitExceeded");
                 providerBytes += file->size();
                 require(providerBytes <= kSourceLimit, "ProviderLimitExceeded");
-                const auto value = entry.second;
                 const auto format = value["format"] ? value["format"].as<std::string>() : "yaml";
                 const auto behavior =
                     value["behavior"] ? value["behavior"].as<std::string>() : "classical";
@@ -169,7 +177,15 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
                 }
                 require(events <= 100000, "ConfigLimitExceeded");
             }
-            root.remove(kind);
+            std::vector<std::string> materialized;
+            for (const auto& entry : providers)
+                if (!entry.second["x-quickclash-body"] &&
+                    (!entry.second["type"] || entry.second["type"].as<std::string>() != "inline"))
+                    materialized.push_back(entry.first.as<std::string>());
+            for (const auto& name : materialized)
+                root[kind].remove(name);
+            if (root[kind].size() == 0)
+                root.remove(kind);
         }
         std::size_t members = 0;
         for (auto group : root["proxy-groups"]) {
@@ -178,11 +194,15 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
             members += group["proxies"].size();
             require(group["proxies"].size() <= 5000 && members <= 100000, "ProviderLimitExceeded");
             if (group["use"]) {
-                require(!group["filter"] && !group["exclude-filter"], "InvalidProviderConfig");
                 require(group["use"].IsSequence() && group["use"].size() <= 32,
                         "InvalidProviderConfig");
+                YAML::Node retained(YAML::NodeType::Sequence);
                 for (const auto& reference : group["use"]) {
                     const auto name = reference.as<std::string>();
+                    if (root["proxy-providers"] && root["proxy-providers"][name]) {
+                        retained.push_back(name);
+                        continue;
+                    }
                     require(proxyNames.contains(name), "ProviderSnapshotMissing");
                     for (const auto& member : proxyNames.at(name)) {
                         structuredBytes += static_cast<qint64>(member.size() * 6 + 32);
@@ -192,7 +212,10 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
                         group["proxies"].push_back(member);
                     }
                 }
-                group.remove("use");
+                if (retained.size())
+                    group["use"] = retained;
+                else
+                    group.remove("use");
             }
         }
         root.remove("rules");
@@ -231,6 +254,10 @@ domain::CommandResult expandProviderFiles(QIODevice& input,
                 require(parts.size() == 3 || (parts.size() == 4 && parts[3] == "no-resolve"),
                         "InvalidProviderConfig");
                 const auto name = parts[1].toStdString();
+                // Inline resources remain in the emitted header for the official core.
+                // They have no downloaded snapshot to flatten here.
+                if (inlineRules.contains(name))
+                    return emitRule(value);
                 require(rules.contains(name), "ProviderSnapshotMissing");
                 (void)visitRules(budget, rules.at(name), [&](const std::string& item) {
                     auto rule = item;

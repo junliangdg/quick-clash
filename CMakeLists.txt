@@ -126,6 +126,7 @@ target_link_libraries(quickclash_download PUBLIC quickclash_platform Qt6::Networ
 add_dependencies(quickclash_download quickclash_network)
 quickclash_warnings(quickclash_download)
 add_library(quickclash_engine
+    src/infra/core/pipe_http.cpp src/infra/core/pipe_http.h
     src/infra/core/core_health.cpp src/infra/core/core_health.h
     src/infra/core/listener_ports.cpp src/infra/core/listener_ports.h
     src/infra/core/proxy_catalog.h
@@ -144,7 +145,6 @@ endif()
 quickclash_warnings(quickclash_engine)
 if(WIN32)
     add_executable(quickclash_service app/service_main.cpp
-        src/infra/core/pipe_http.cpp src/infra/core/pipe_http.h
         src/platform/windows/service_host.cpp src/platform/windows/service_host.h)
     set_target_properties(quickclash_service PROPERTIES AUTOMOC ON)
     target_link_libraries(quickclash_service PRIVATE quickclash_engine quickclash_config yaml-cpp::yaml-cpp iphlpapi advapi32 psapi)
@@ -427,6 +427,7 @@ if(BUILD_TESTING)
                 tests/integration/core_update_probe.cpp tests/integration/core_update_probe.h
                 tests/integration/subscription_download_probe.cpp tests/integration/subscription_download_probe.h
                 tests/integration/subscription_probe.cpp tests/integration/subscription_probe.h
+                tests/integration/core_compatibility_probe.cpp tests/integration/core_compatibility_probe.h
                 tests/integration/subscription_memory_probe.cpp tests/integration/subscription_memory_probe.h
                 tests/integration/native_proxy_client.cpp tests/integration/native_proxy_client.h
                 tests/integration/network_fixture.cpp tests/integration/network_fixture.h)
@@ -455,6 +456,8 @@ if(BUILD_TESTING)
             set_tests_properties(runtime_backup PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime_config_editor PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_subscription_download COMMAND runtime_test --subscription-download-test)
+            add_test(NAME runtime_core_compatibility COMMAND runtime_test --core-compatibility-test)
+            set_tests_properties(runtime_core_compatibility PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_executable(download_network_test tests/integration/download_network_test.cpp
                 tests/integration/network_fixture.cpp tests/integration/network_fixture.h)
             target_include_directories(download_network_test PRIVATE tests/integration)
@@ -483,8 +486,7 @@ if(BUILD_TESTING)
         set_tests_properties(settings_session PROPERTIES TIMEOUT 15)
         if(WIN32)
             add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
-            add_executable(service_core_pipe_test tests/integration/service_core_pipe_test.cpp
-                src/infra/core/pipe_http.cpp src/infra/core/pipe_http.h)
+            add_executable(service_core_pipe_test tests/integration/service_core_pipe_test.cpp)
             target_link_libraries(service_core_pipe_test PRIVATE quickclash_engine)
             quickclash_warnings(service_core_pipe_test)
             add_test(NAME service_core_pipe COMMAND service_core_pipe_test)
@@ -779,7 +781,7 @@ if(BUILD_TESTING)
     endif()
     if(QUICKCLASH_BUILD_UI AND WIN32)
         set_tests_properties(runtime runtime_user_rules runtime_custom_groups runtime_proxy_latency
-            runtime_config_editor runtime_backup runtime_provider runtime_subscription_download
+            runtime_config_editor runtime_backup runtime_provider runtime_subscription_download runtime_core_compatibility
             runtime_geo_update runtime_core_update runtime_publication recovery PROPERTIES LABELS ci_slow)
     endif()
 

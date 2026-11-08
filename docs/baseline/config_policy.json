@@ -1,25 +1,35 @@
 {
-  "schema_version": 1,
-  "phase": "P3-19",
-  "status": "Managed provider snapshot/runtime modes, Geo and internal DNS; full G2/G3 and installed-service integration pending",
+  "schema_version": 2,
+  "phase": "core-authoritative",
+  "status": "Selected official Mihomo defines configuration semantics; client owns host settings, bounded resources and transactional application",
   "core_tag": "v1.19.33",
   "subscription_updates": {
     "new_subscription_interval_minutes": 360,
     "new_subscription_auto_apply": true,
     "legacy_default": "manual updates and manual apply",
-    "interval_bounds_minutes": [15, 10080],
+    "interval_bounds_minutes": [
+      15,
+      10080
+    ],
     "concurrency": 1,
     "route": "Direct by default; explicit RunningProxy or Auto; Auto retries one direct network failure through the ready owned core, never TLS/auth/content failures",
-    "redirects": "at most 5 HTTPS hops; reject downgrade, login details, fragments and loops; drop custom source headers across origins; no cookies",
+    "redirects": "at most 5 HTTP/HTTPS hops; reject downgrade, login details, fragments and loops; drop custom source headers across origins; no cookies",
     "deadline": "15 seconds per transfer, 20 seconds total across redirects and fallback; aggregate decoded response bodies at most 16 MiB",
     "conditional_cache": "ETag and Last-Modified in DPAPI envelope bound to source URL/headers and sourceHash; send only to matching final URL; 304 requires verified local raw source or one unconditional refetch",
-    "network_backoff_minutes": [5, 10, 20, 40, 60],
+    "network_backoff_minutes": [
+      5,
+      10,
+      20,
+      40,
+      60
+    ],
     "other_failure_backoff": "at least 60 minutes and no shorter than configured interval",
     "activation": "changed selected profile with autoApply uses confirmed transaction and compensation; stopped updates never start core",
     "unchanged": "refresh metadata without core restart unless pending candidate awaits apply",
     "selection_identity": "profileId, group policy HMAC without members, member HMAC and membership/capability readback"
   },
   "limits": {
+    "scope": "node/group/rule counts apply to parsed static entries and structured fallback; opaque native provider bodies use byte budgets",
     "uncompressed_bytes": 16777216,
     "yaml_depth": 32,
     "yaml_events": 100000,
@@ -28,179 +38,22 @@
     "rules": 20000
   },
   "proxies": {
-    "types": [
-      "http",
-      "socks5",
-      "ss",
-      "hysteria2",
-      "trojan",
-      "vless",
-      "vmess",
-      "tuic"
-    ],
-    "schema": "src/infra/config/config_schema.cpp; per-protocol fields, required credentials, types and bounds",
-    "common": [
-      "name",
-      "type",
-      "server",
-      "port",
-      "udp",
-      "tfo",
-      "mptcp",
-      "ip-version"
-    ],
-    "http_socks5": [
-      "username",
-      "password",
-      "tls",
-      "sni",
-      "skip-cert-verify"
-    ],
-    "ss": [
-      "password",
-      "cipher"
-    ],
-    "tuic": [
-      "uuid", "password", "token", "sni", "alpn", "disable-sni", "reduce-rtt",
-      "request-timeout", "udp-relay-mode", "congestion-controller", "heartbeat-interval",
-      "skip-cert-verify", "max-udp-relay-packet-size", "fast-open", "max-open-streams"
-    ],
-    "tuic_constraints": {
-      "authentication": "exactly one: nonempty token (v4) OR valid UUID and nonempty password (v5)",
-      "udp": "native capability always true; explicit false rejected because pinned core ignores it",
-      "udp_relay_mode": ["native", "quic"],
-      "congestion_controller": ["cubic", "new_reno", "bbr"],
-      "positive_integers": "request-timeout and heartbeat-interval in milliseconds, max-udp-relay-packet-size in bytes, max-open-streams count; 1..1000000",
-      "alpn": "at most 16 nonempty entries, each at most 64 bytes",
-      "reference": "https://github.com/MetaCubeX/mihomo/blob/v1.19.33/adapter/outbound/tuic.go"
-    },
-    "hysteria2": [
-      "password",
-      "sni",
-      "skip-cert-verify",
-      "alpn",
-      "up",
-      "down",
-      "obfs",
-      "obfs-password",
-      "ports",
-      "mport (normalized to ports)",
-      "hop-interval",
-      "fingerprint"
-    ],
-    "trojan": [
-      "password",
-      "sni",
-      "tls",
-      "skip-cert-verify",
-      "alpn",
-      "client-fingerprint",
-      "network",
-      "ws-opts",
-      "grpc-opts",
-      "fingerprint"
-    ],
-    "vless_vmess": [
-      "uuid",
-      "servername",
-      "tls",
-      "skip-cert-verify",
-      "alpn",
-      "client-fingerprint",
-      "network",
-      "ws-opts",
-      "grpc-opts",
-      "packet-encoding",
-      "fingerprint"
-    ],
-    "vless_only": [
-      "flow",
-      "reality-opts",
-      "encryption"
-    ],
+    "validation": "All protocols, transports, credentials and nested options are interpreted by the selected official core; no duplicate client protocol allowlist",
+    "projection": "bounded scalar name/type for static entries",
     "compatibility": {
-      "ip_version": ["dual", "ipv4", "ipv6", "ipv4-prefer", "ipv6-prefer"],
-      "vless_encryption": "scalar <=4096 bytes; pinned Mihomo validates its value; redacted in previews",
-      "proxy_vendor_extensions": "inline and managed provider snapshot proxy x-[a-z0-9-]+ scalar keys <=128 bytes and values <=4096 bytes are omitted from effective config and disclosed by generic notice; raw source retained",
-      "geox_url": "removed from effective config; managed Geo resources remain authoritative; disclose possible rule differences"
-    },
-    "vmess_only": [
-      "alterId",
-      "cipher"
-    ],
-    "transports": [
-      "tcp",
-      "ws",
-      "grpc"
-    ],
-    "ws_opts": [
-      "path",
-      "headers.Host",
-      "max-early-data",
-      "early-data-header-name"
-    ],
-    "grpc_opts": [
-      "grpc-service-name"
-    ],
-    "reality_opts": [
-      "public-key",
-      "short-id"
-    ],
-    "external_files": false
+      "hysteria2_mport": "normalize to ports; explicit ports wins",
+      "proxy_vendor_extensions": "bounded scalar x- metadata omitted from effective nodes and disclosed; source retained",
+      "geox_url": "removed; managed Geo remains authoritative"
+    }
   },
   "groups": {
-    "types": [
-      "select",
-      "url-test",
-      "fallback",
-      "load-balance"
-    ],
-    "common": [
-      "name",
-      "type",
-      "proxies",
-      "use (managed runtime provider names)"
-    ],
-    "automatic": [
-      "url",
-      "interval",
-      "timeout",
-      "lazy",
-      "expected-status"
-    ],
-    "url_test_only": [
-      "tolerance"
-    ],
-    "load_balance_only": {
-      "strategy": ["consistent-hashing", "round-robin", "sticky-sessions"],
-      "default": "consistent-hashing",
-      "current": "no single member for the group; individual connections retain their own chain"
-    },
-    "max_reference_depth": 16,
-    "reject_cycles_missing_members_duplicates": true,
-    "manual_selection": "Selector only; URLTest/Fallback display core-confirmed current member; LoadBalance exposes members without a single current member; explicit refresh, no client health-check loop"
+    "validation": "selected official core validates group types/options/references; no duplicate client allowlist",
+    "manual_selection": "Selector only; automatic groups use live core readback; load balance has no fabricated current node"
   },
-  "rules": [
-    "DOMAIN",
-    "DOMAIN-SUFFIX",
-    "DOMAIN-KEYWORD",
-    "IP-CIDR",
-    "IP-CIDR6",
-    "MATCH",
-    "GEOIP",
-    "GEOSITE",
-    "RULE-SET (managed runtime references or expanded snapshot)"
-  ],
-  "passthrough": [
-    "proxies",
-    "proxy-groups",
-    "rules",
-    "log-level",
-    "ipv6",
-    "unified-delay",
-    "tcp-concurrent",
-    "dns (except listen)"
-  ],
+  "rules": {
+    "validation": "all core-supported rule types/options and sub-rules; client bounds scalar size/count, core validates semantics/references"
+  },
+  "passthrough": "Preserve core configuration options except application-owned host settings and managed resource paths",
   "managed": {
     "mixed-port": 7890,
     "port": 0,
@@ -226,43 +79,28 @@
     "profile": {
       "store-selected": false,
       "store-fake-ip": false
-    }
+    },
+    "external-controller-tls": "removed",
+    "external-controller-unix": "removed",
+    "external-controller-pipe": "removed before application/service materialization",
+    "external-controller-cors": "removed",
+    "external-doh-server": "removed",
+    "listeners": "removed",
+    "tunnels": "removed",
+    "authentication": "removed",
+    "iptables": "removed",
+    "ntp.write-to-system": false
   },
   "rejected": [
-    "file/inline/MRS providers and unmanaged provider paths",
-    "DNS hijack",
-    "YAML aliases",
-    "multi-document YAML",
-    "external certificates",
-    "all unclassified keys including nested keys"
+    "duplicate YAML keys",
+    "multiple YAML documents",
+    "cyclic or over-budget alias expansion",
+    "unmanaged provider paths and missing external resources",
+    "invalid configuration or provider bodies rejected by official core"
   ],
   "dns": {
-    "path": "Mihomo internal DNS, fake-ip/redir-host/normal; no external listener or OS DNS change",
-    "fields": [
-      "enable",
-      "listen (overridden empty)",
-      "enhanced-mode",
-      "nameserver",
-      "fallback",
-      "default-nameserver",
-      "ipv6",
-      "fake-ip-range (198.18/15 bounded)",
-      "fake-ip-filter",
-      "use-hosts",
-      "respect-rules",
-      "proxy-server-nameserver",
-      "fallback-filter",
-      "nameserver-policy",
-      "direct-nameserver",
-      "direct-nameserver-follow-policy",
-      "fake-ip-filter-mode",
-      "cache-algorithm",
-      "prefer-h3",
-      "use-system-hosts"
-    ],
-    "resolvers": "udp/tcp/tls/https, 1..256 entries per list; IP literal bootstrap; reject local files, userinfo, fragments, loopback/unspecified/IPv4-mapped loopback/localhost and scope identifiers",
-    "respect_rules": "requires non-empty proxy-server-nameserver",
-    "validation": "official isolated -t plus Ready; controlled internal DNS policy/filter/cache validation tracked in P3-08; external listener and OS DNS hijack tracked in P3-04"
+    "validation": "selected official core; preserve options including resolver protocols, policy/filter/cache settings",
+    "managed": "listen empty; absent DNS disabled; application DNS mode override retained; no subscription-controlled OS listener"
   },
   "geo": {
     "supported": true,
@@ -278,17 +116,19 @@
     "next_task": "installed-service/TUN resource integration P3-25"
   },
   "providers": {
-    "default_mode": "snapshot; explicit per-profile runtime opt-in downloads and validates all resources before the normal apply transaction",
-    "accepted": "HTTP type over HTTPS without userinfo/fragment; proxy YAML; rule YAML/text with classical/domain/ipcidr; use and RULE-SET references must resolve",
-    "snapshot_download": "application writer; no redirects; 10 seconds transfer/15 seconds total; 64 KiB chunks; 32 resources, 4 MiB each, 16 MiB total; immutable source/body SHA-256 binding",
+    "default_mode": "snapshot for simple standard YAML/text; automatically retain runtime semantics for filters/overrides/complex dependencies/file/MRS/native proxy bodies",
+    "accepted": "inline, explicit HTTP/HTTPS, local file copied under user context; rules YAML/text/MRS and native core-supported proxy bodies",
+    "snapshot_download": "application writer; at most 5 safe HTTP/HTTPS redirects, reject HTTPS downgrade/loops and drop custom headers across origins; 10 seconds transfer/15 seconds total; 64 KiB chunks; 32 resources, 4 MiB each, 16 MiB total; immutable source/body SHA-256 binding",
     "snapshot_refresh": "download selected resource only; verified cache for the rest; missing or corrupt cache requires full update; failed candidate preserves old state",
-    "runtime_config": "application generated cache identity from kind/name/URL/format/behavior; source path ignored; checked import fallback payload embedded; interval default 0, allowed 0..604800 seconds; size-limit 4194304",
+    "runtime_config": "generated paths from kind/name/source/format/behavior; structured fallback for standard YAML/text, otherwise exact bounded bytes in Base64 metadata and seeded generated cache",
     "runtime_writer": "core only while running; application/service removes inactive or oversized generated files only while core stopped; refuse links, directories and unknown entries; at most 32 files/128 MiB body cache",
     "runtime_network": "pinned core TLS/redirect/parser behavior; YAML rules require standard multiline payload; malformed individual rules can be ignored by core; read back actual ruleCount",
     "runtime_refresh": "fixed PUT provider endpoint; service accepts only active allowlisted kind/name, no URL/path/extra fields; no core restart or snapshot mutation; timeout outcome uncertain, no automatic retry",
     "selection": "provider-only nodes and static/dynamic name collisions are unverified; explicit live selection allowed, never persist or automatically restore; failed provider readback cannot authorize restore",
-    "history_backup": "history restores logical configuration/import fallback, not a frozen later runtime cache; both backup scopes export immutable import fallback, source scope also retains raw YAML/overlay; restore in snapshot mode",
-    "service_validation": "fixed command boundary tested; actual installed service and TUN integration tracked separately in P3-25"
+    "history_backup": "immutable import fallback only; standard sources can flatten, native bodies remain managed offline file providers; no live cache or remote fetch",
+    "service_validation": "fixed command boundary tested; actual installed service and TUN integration tracked separately in P3-25",
+    "body_validation": "official -t plus offline AppContainer file-provider loading and fixed provider PUT for opaque native bodies; no data listener/healthcheck/system changes",
+    "file_paths": "relative to explicitly imported local file; remote source has no implicit base directory; service consumes only bounded copied bytes and generated paths"
   },
   "errors": [
     "InvalidYaml",
@@ -304,13 +144,7 @@
   "diagnostics": {
     "max_issues": 32,
     "codes": [
-      "UnsupportedProtocol",
-      "UnsupportedTransport",
-      "UnsupportedGroup",
-      "UnsupportedRule",
-      "UnsupportedDns",
       "UnsupportedResource",
-      "UnsupportedField",
       "InvalidConfigField"
     ],
     "privacy": "fixed feature vocabulary, structural index paths, phase only; never arbitrary YAML keys, names, URLs or values; English and Chinese presentation"
@@ -322,5 +156,10 @@
     "isolated official core -t",
     "transactional apply in P2"
   ],
-  "parser": "yaml-cpp 0.9.0; preserved original bytes stored separately in P2; no comment round trip guarantee"
+  "parser": "yaml-cpp 0.9.0; single document, duplicate keys rejected; bounded anchors/aliases/merge expansion; original bytes stored separately",
+  "subscription_formats": [
+    "Mihomo YAML/JSON",
+    "URI node list parsed by official core",
+    "Base64 node list parsed by official core"
+  ]
 }

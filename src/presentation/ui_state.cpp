@@ -745,12 +745,12 @@ QString UiState::errorText(const QString& customError) const {
     if (code == QStringLiteral("EmptySubscription"))
         return tr("The subscription returned no content. Check the URL or account status.");
     if (code == QStringLiteral("UnsupportedSubscriptionFormat"))
-        return tr("The server did not return a Mihomo YAML profile. Use a standard "
-                  "subscription URL; Base64 and share links are not supported yet.");
+        return tr("The response is not a Mihomo configuration or a supported URI/Base64 node list. "
+                  "Check the subscription URL and account status.");
     if (code == QStringLiteral("UnsupportedConfigFeature"))
-        return tr("This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, "
-                  "Hysteria2, Trojan, VLESS, VMess, TUIC and select/url-test/fallback/load-balance "
-                  "groups are supported. Check the feature details for unsupported fields.");
+        return tr("The profile could not pass the managed resource checks. Protocols and "
+                  "configuration options are validated by the selected Mihomo core. Check the "
+                  "issue details.");
     if (code == QStringLiteral("GeoResourceIntegrityFailed"))
         return tr("The bundled Geo data is missing or damaged. Restore the complete application "
                   "package.");
@@ -789,8 +789,8 @@ QString UiState::errorText(const QString& customError) const {
         code == QStringLiteral("ProviderHttpsRequired") ||
         code == QStringLiteral("UnsupportedProviderField") ||
         code == QStringLiteral("UnsupportedProviderFormat"))
-        return tr("Use at most 32 HTTPS providers, 4 MiB each and 16 MiB total, with supported "
-                  "YAML or text payloads.");
+        return tr("Use at most 32 HTTP/HTTPS, file or inline providers. Downloaded resources are "
+                  "limited to 4 MiB each and 16 MiB total; Mihomo validates their content.");
     if (code == QStringLiteral("ProxyGroupAutomatic"))
         return tr("Mihomo manages this group's current node automatically.");
     if (code == QStringLiteral("SubscriptionTooLarge"))
@@ -814,8 +814,8 @@ QString UiState::errorText(const QString& customError) const {
         return tr(
             "The subscription server denied access. Check the URL, account or request headers.");
     if (code == QStringLiteral("HttpsSubscriptionRequired"))
-        return tr(
-            "Enter a valid HTTPS subscription URL without embedded login details or a fragment.");
+        return tr("Enter a valid HTTP/HTTPS subscription URL without embedded login details or a "
+                  "fragment.");
     if (code == QStringLiteral("InvalidDelayTarget"))
         return tr("Enter a valid HTTPS node delay target without login details or a fragment.");
     if (code == QStringLiteral("InvalidNetworkSettings"))

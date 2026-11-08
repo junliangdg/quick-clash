@@ -174,10 +174,23 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
         QString id;
         QJsonObject metadata;
         quint64 generation = 0;
+        QElapsedTimer downloadTimer;
+        QSet<QUrl> redirects;
     };
     void fetchProvider();
+    void downloadProvider(const std::shared_ptr<ProviderImport>& context, const QJsonObject& entry,
+                          const QUrl& url, bool headersAllowed = true);
     void refreshSnapshotProvider(const QString& kind, const QString& name);
     void validate(const QByteArray& semantic, std::function<void(bool)> completion);
+    void validateProviderBodies(const QByteArray& semantic, std::function<void(bool)> completion);
+    void probeProviderBody();
+    struct ProviderBodyValidation {
+        QString pipe;
+        QList<QByteArray> targets;
+        qsizetype index = 0;
+        std::function<void(bool)> completion;
+    };
+    std::shared_ptr<ProviderBodyValidation> providerBodyValidation_;
     // Trust is worker-private, tied to one operation, exact persisted candidate and preferences.
     struct ConfigTransaction {
         quint64 generation = 0;

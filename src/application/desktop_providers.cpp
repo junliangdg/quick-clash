@@ -1,6 +1,7 @@
 #include "application/desktop_runtime.h"
 #include "infra/io/bounded_read.h"
 #include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -12,6 +13,30 @@ void DesktopRuntime::resolveImport(QByteArray bytes, const QString& name, const 
                                    const QString& id, const QJsonObject& metadata) {
     if (profiles_.size() >= 100 && id.isEmpty()) {
         error(QStringLiteral("ProfileLimitExceeded"));
+        return;
+    }
+    const auto normalized = infra::coreSubscriptionConfig(bytes);
+    if (normalized != bytes) {
+        const auto profileId =
+            id.isEmpty() ? QUuid::createUuid().toString(QUuid::WithoutBraces) : id;
+        const auto reference =
+            QStringLiteral("data/profiles/%1/%2.yaml")
+                .arg(profileId, QUuid::createUuid().toString(QUuid::WithoutBraces));
+        auto candidates = std::make_shared<ConfigCandidates>(store_);
+        const auto saved = store_.writeBytes(reference, bytes, true);
+        if (const auto* failure = std::get_if<domain::Error>(&saved)) {
+            error(failure->code);
+            return;
+        }
+        candidates->references.append(reference);
+        auto details = metadata;
+        details.insert("providerMode", "runtime");
+        importBytes(normalized, name, secretRef, profileId,
+                    {{"sourceRef", reference},
+                     {"sourceHash",
+                      QString::fromLatin1(
+                          QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex())}},
+                    details, std::move(candidates));
         return;
     }
     const auto result = infra::providerRequests(bytes);
@@ -39,7 +64,6 @@ void DesktopRuntime::resolveImport(QByteArray bytes, const QString& name, const 
         QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
     providerImport_->candidates = std::make_shared<ConfigCandidates>(store_);
     const auto saved = store_.writeBytes(providerImport_->sourceRef, bytes, true);
-    bytes = {};
     if (const auto* failure = std::get_if<domain::Error>(&saved)) {
         providerImport_.reset();
         busy_ = false;
@@ -58,6 +82,9 @@ void DesktopRuntime::resolveImport(QByteArray bytes, const QString& name, const 
                  profile(id).value(QStringLiteral("providerMode")) == QStringLiteral("runtime"))
             ? QStringLiteral("runtime")
             : QStringLiteral("snapshot"));
+    if (infra::requiresRuntimeProviders(bytes))
+        providerImport_->metadata.insert(QStringLiteral("providerMode"), QStringLiteral("runtime"));
+    bytes = {};
     providerImport_->refreshKey = metadata.value(QStringLiteral("_providerRefreshKey")).toString();
     providerImport_->cachedResources =
         profile(id).value(QStringLiteral("providerResources")).toArray();
@@ -75,6 +102,8 @@ void DesktopRuntime::fetchProvider() {
         error(code);
     };
     if (context->index == context->requests.size()) {
+        if (infra::providerPayloadsRequireRuntime(context->stage.devices()))
+            context->metadata.insert(QStringLiteral("providerMode"), QStringLiteral("runtime"));
         auto temporary = store_.beginConfigTemporary();
         if (const auto* failure = std::get_if<domain::Error>(&temporary)) {
             fail(failure->code);
@@ -93,35 +122,14 @@ void DesktopRuntime::fetchProvider() {
             fail(QStringLiteral("DataReadFailed"));
             return;
         }
-        const auto expanded = infra::expandProviderFiles(source, context->stage.devices(), *output);
-        if (const auto* failure = std::get_if<domain::Error>(&expanded)) {
-            fail(failure->code);
-            return;
-        }
-        if (!output->flush() || !output->seek(0)) {
-            fail(QStringLiteral("DataReadFailed"));
-            return;
-        }
-        auto loaded = infra::readFileBounded(*output, 16 * 1024 * 1024);
-        if (!loaded.ok) {
-            fail(QStringLiteral("DataReadFailed"));
-            return;
-        }
-        source.close();
-        output.reset();
         auto details = context->metadata;
         const bool dynamic =
             details.value(QStringLiteral("providerMode")) == QStringLiteral("runtime");
+        QByteArray candidate;
         if (dynamic) {
-            // Validate the expanded dependencies before preserving the core's live references.
-            {
-                const auto expandedCheck = infra::preflightConfig(loaded.bytes, preferences());
-                if (const auto* failure = std::get_if<domain::Error>(&expandedCheck)) {
-                    fail(failure->code);
-                    return;
-                }
-            }
-            loaded.bytes = {};
+            // Native options can rename/filter nodes or refer to RULE-SET from DNS,
+            // sniffer and sub-rules. Validate this exact graph with the official core;
+            // a flattened intermediate can have different or missing references.
             const auto original = store_.readBytes(context->sourceRef);
             if (!std::holds_alternative<QByteArray>(original)) {
                 fail(QStringLiteral("DataReadFailed"));
@@ -133,8 +141,27 @@ void DesktopRuntime::fetchProvider() {
                 fail(failure->code);
                 return;
             }
-            loaded.bytes = std::move(std::get<QByteArray>(runtime));
+            candidate = std::move(std::get<QByteArray>(runtime));
+        } else {
+            const auto expanded =
+                infra::expandProviderFiles(source, context->stage.devices(), *output);
+            if (const auto* failure = std::get_if<domain::Error>(&expanded)) {
+                fail(failure->code);
+                return;
+            }
+            if (!output->flush() || !output->seek(0)) {
+                fail(QStringLiteral("DataReadFailed"));
+                return;
+            }
+            auto loaded = infra::readFileBounded(*output, 16 * 1024 * 1024);
+            if (!loaded.ok) {
+                fail(QStringLiteral("DataReadFailed"));
+                return;
+            }
+            candidate = std::move(loaded.bytes);
         }
+        source.close();
+        output.reset();
         const auto devices = context->stage.devices();
         QJsonArray summaries;
         for (const auto& value : context->requests) {
@@ -192,21 +219,22 @@ void DesktopRuntime::fetchProvider() {
                     if (cached.toObject().value("key") == entry.value("key"))
                         resource.insert("updatedAt", cached.toObject().value("updatedAt"));
             context->resources.append(resource);
-            summaries.append(
-                QJsonObject{{QStringLiteral("name"), entry.value(QStringLiteral("name"))},
-                            {QStringLiteral("kind"), entry.value(QStringLiteral("kind"))},
-                            {QStringLiteral("mode"),
-                             dynamic ? QStringLiteral("runtime") : QStringLiteral("snapshot")},
-                            {QStringLiteral("type"), QStringLiteral("HTTP")},
-                            {QStringLiteral("bytes"), resource.value("bytes")},
-                            {QStringLiteral("updatedAt"), resource.value("updatedAt")}});
+            summaries.append(QJsonObject{
+                {QStringLiteral("name"), entry.value(QStringLiteral("name"))},
+                {QStringLiteral("kind"), entry.value(QStringLiteral("kind"))},
+                {QStringLiteral("mode"),
+                 dynamic ? QStringLiteral("runtime") : QStringLiteral("snapshot")},
+                {QStringLiteral("type"),
+                 entry.value("type") == "file" ? QStringLiteral("File") : QStringLiteral("HTTP")},
+                {QStringLiteral("bytes"), resource.value("bytes")},
+                {QStringLiteral("updatedAt"), resource.value("updatedAt")}});
         }
         context->stage.cancel();
         details.insert(QStringLiteral("managedProviders"), summaries);
         details.insert(QStringLiteral("providerResources"), context->resources);
         providerImport_.reset();
         busy_ = false;
-        importBytes(std::move(loaded.bytes), context->name, context->secretRef, context->id,
+        importBytes(std::move(candidate), context->name, context->secretRef, context->id,
                     {{QStringLiteral("sourceRef"), context->sourceRef},
                      {QStringLiteral("sourceHash"), context->sourceHash}},
                     details, std::move(context->candidates));
@@ -216,6 +244,30 @@ void DesktopRuntime::fetchProvider() {
     const auto begun = context->stage.begin(entry.value(QStringLiteral("key")).toString());
     if (const auto* failure = std::get_if<domain::Error>(&begun)) {
         fail(failure->code);
+        return;
+    }
+    if (entry.value("type") == "file") {
+        auto path = entry.value("url").toString();
+        if (QDir::isRelativePath(path)) {
+            const auto base = context->metadata.value("_sourceDirectory").toString();
+            if (base.isEmpty()) {
+                fail(QStringLiteral("ProviderCacheUnavailable"));
+                return;
+            }
+            path = QDir(base).absoluteFilePath(path);
+        }
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly) ||
+            std::holds_alternative<domain::Error>(context->stage.consume(file)) ||
+            std::holds_alternative<domain::Error>(context->stage.finish())) {
+            fail(QStringLiteral("ProviderCacheUnavailable"));
+            return;
+        }
+        ++context->index;
+        QTimer::singleShot(0, this, [this, weak = std::weak_ptr<ProviderImport>(context)] {
+            if (weak.lock() == providerImport_)
+                fetchProvider();
+        });
         return;
     }
     if (!context->refreshKey.isEmpty() && entry.value("key") != context->refreshKey) {
@@ -249,11 +301,26 @@ void DesktopRuntime::fetchProvider() {
         });
         return;
     }
-    QNetworkRequest request(QUrl(entry.value(QStringLiteral("url")).toString()));
+    context->downloadTimer.start();
+    context->redirects.clear();
+    downloadProvider(context, entry, QUrl(entry.value("url").toString()));
+}
+void DesktopRuntime::downloadProvider(const std::shared_ptr<ProviderImport>& context,
+                                      const QJsonObject& entry, const QUrl& url,
+                                      bool headersAllowed) {
+    context->redirects.insert(url.adjusted(QUrl::NormalizePathSegments));
+    QNetworkRequest request(url);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
     request.setTransferTimeout(10000);
+    request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
+    request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
+    request.setAttribute(QNetworkRequest::AuthenticationReuseAttribute, QNetworkRequest::Manual);
     request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/0.1.0");
+    const auto headers = entry.value(QStringLiteral("headers")).toObject();
+    if (headersAllowed)
+        for (auto header = headers.begin(); header != headers.end(); ++header)
+            request.setRawHeader(header.key().toLatin1(), header.value().toString().toUtf8());
     auto* reply = directNetwork_.get(request);
     downloadReply_ = reply;
     reply->setReadBufferSize(infra::kReadChunkSize);
@@ -262,37 +329,60 @@ void DesktopRuntime::fetchProvider() {
         const auto context = weak.lock();
         if (!context || context != providerImport_ || context->generation != operationGeneration_)
             return;
+        if (reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200)
+            return;
         if (std::holds_alternative<domain::Error>(context->stage.consume(*reply)))
             reply->abort();
     });
     auto* deadline = new QTimer(reply);
     deadline->setSingleShot(true);
-    deadline->start(15000);
+    deadline->start(static_cast<int>(qMax<qint64>(1, 15000 - context->downloadTimer.elapsed())));
     connect(deadline, &QTimer::timeout, reply, &QNetworkReply::abort);
-    connect(reply, &QNetworkReply::finished, this, [this, reply, weak]() {
-        reply->deleteLater();
-        const auto context = weak.lock();
-        if (!context || context != providerImport_ || context->generation != operationGeneration_)
-            return;
-        downloadReply_.clear();
-        const auto consumed = context->stage.consume(*reply);
-        if (std::holds_alternative<domain::Error>(consumed) ||
-            reply->error() != QNetworkReply::NoError ||
-            reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200 ||
-            std::holds_alternative<domain::Error>(context->stage.finish())) {
-            context->stage.cancel();
-            providerImport_.reset();
-            busy_ = false;
-            error(QStringLiteral("ProviderDownloadFailed"));
-            return;
-        }
-        ++context->index;
-        // Let reply callbacks unwind before the next download/expansion stage.
-        QTimer::singleShot(0, this, [this, weak] {
-            if (weak.lock() == providerImport_)
-                fetchProvider();
+    connect(
+        reply, &QNetworkReply::finished, this, [this, reply, weak, entry, url, headersAllowed]() {
+            reply->deleteLater();
+            const auto context = weak.lock();
+            if (!context || context != providerImport_ ||
+                context->generation != operationGeneration_)
+                return;
+            downloadReply_.clear();
+            const auto status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            if (status == 301 || status == 302 || status == 303 || status == 307 || status == 308) {
+                const auto next = url.resolved(
+                    reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl());
+                if (reply->error() == QNetworkReply::NoError && next.isValid() &&
+                    (next.scheme() == "https" || next.scheme() == "http") &&
+                    (url.scheme() != "https" || next.scheme() == "https") &&
+                    !next.host().isEmpty() && next.userInfo().isEmpty() && !next.hasFragment() &&
+                    next.toString().size() <= 8192 && context->redirects.size() <= 5 &&
+                    !context->redirects.contains(next.adjusted(QUrl::NormalizePathSegments)) &&
+                    context->downloadTimer.elapsed() < 15000) {
+                    const bool sameOrigin = url.scheme() == next.scheme() &&
+                                            url.host() == next.host() &&
+                                            url.port(url.scheme() == "https" ? 443 : 80) ==
+                                                next.port(next.scheme() == "https" ? 443 : 80);
+                    downloadProvider(context, entry, next, headersAllowed && sameOrigin);
+                    return;
+                }
+            }
+            const auto consumed = context->stage.consume(*reply);
+            if (std::holds_alternative<domain::Error>(consumed) ||
+                reply->error() != QNetworkReply::NoError || status != 200 ||
+                context->downloadTimer.elapsed() >= 15000 ||
+                std::holds_alternative<domain::Error>(context->stage.finish())) {
+                context->stage.cancel();
+                providerImport_.reset();
+                busy_ = false;
+                error(QStringLiteral("ProviderDownloadFailed"));
+                return;
+            }
+            ++context->index;
+            // Let reply callbacks unwind before the next download stage.
+            QTimer::singleShot(0, this, [this, weak] {
+                if (weak.lock() == providerImport_)
+                    fetchProvider();
+            });
         });
-    });
 }
 void DesktopRuntime::refreshSnapshotProvider(const QString& kind, const QString& name) {
     const auto current = profile(selectedId_);

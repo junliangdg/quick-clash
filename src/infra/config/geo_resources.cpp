@@ -26,7 +26,7 @@ bool needed(const QByteArray& semantic) {
         if (!std::holds_alternative<ConfigMetadata>(metadata))
             return true;
         const auto& fields = std::get<ConfigMetadata>(metadata);
-        if (fields.geoRule)
+        if (fields.geoRule || semantic.contains("GEOIP,") || semantic.contains("GEOSITE,"))
             return true;
         const auto root = YAML::Load(fields.fieldsYaml.toStdString());
         if (root["rule-providers"] && root["rule-providers"].size() > 0)

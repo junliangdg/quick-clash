@@ -252,13 +252,13 @@
       <translation>订阅返回内容为空，请检查地址或账户状态。</translation>
     </message>
     <message>
-      <source>The server did not return a Mihomo YAML profile. Use a standard subscription URL; Base64 and share links are not supported yet.</source>
-      <translation>服务器未返回 Mihomo YAML 配置。请使用标准订阅地址；暂不支持 Base64 和节点分享链接。</translation>
+      <source>The response is not a Mihomo configuration or a supported URI/Base64 node list. Check the subscription URL and account status.</source>
+      <translation>响应不是 Mihomo 配置或受支持的 URI/Base64 节点列表，请检查订阅地址及账户状态。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="153" />
-      <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess, TUIC and select/url-test/fallback/load-balance groups are supported. Check the feature details for unsupported fields.</source>
-      <translation>此配置包含不支持的功能。已支持内嵌 HTTP、SOCKS5、Shadowsocks、Hysteria2、Trojan、VLESS、VMess、TUIC，以及 select/url-test/fallback/load-balance 代理组。请查看兼容性详情中的不支持字段。</translation>
+      <source>The profile could not pass the managed resource checks. Protocols and configuration options are validated by the selected Mihomo core. Check the issue details.</source>
+      <translation>配置未通过受管资源检查。协议和配置选项由所选 Mihomo 内核校验，请查看问题详情。</translation>
     </message>
     <message>
       <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. Bundled Geo rules and basic fake-ip DNS are supported. Providers and advanced DNS options require later development.</source>
@@ -300,8 +300,8 @@
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="176" />
-      <source>Enter a valid HTTPS subscription URL without embedded login details or a fragment.</source>
-      <translation>请输入有效的 HTTPS 订阅地址，地址中不能包含登录信息或片段标识。</translation>
+      <source>Enter a valid HTTP/HTTPS subscription URL without embedded login details or a fragment.</source>
+      <translation>请输入有效的 HTTP/HTTPS 订阅地址，地址中不能包含登录信息或片段标识。</translation>
     </message>
     <message>
       <source>Enter a valid HTTPS node delay target without login details or a fragment.</source>
@@ -1783,8 +1783,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="202" />
-      <source>HTTPS subscription</source>
-      <translation>HTTPS 订阅</translation>
+      <source>Subscription</source>
+      <translation>订阅</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="224" />
@@ -1807,8 +1807,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="19" />
-      <source>YAML profiles (*.yaml *.yml)</source>
-      <translation>YAML 配置 (*.yaml *.yml)</translation>
+      <source>Configurations and node lists (*.yaml *.yml *.json *.txt *.conf)</source>
+      <translation>配置和节点列表 (*.yaml *.yml *.json *.txt *.conf)</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="19" />
@@ -1826,8 +1826,8 @@
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="135" />
-      <source>HTTPS subscription URL</source>
-      <translation>HTTPS 订阅地址</translation>
+      <source>Subscription URL (HTTP/HTTPS)</source>
+      <translation>订阅地址（HTTP/HTTPS）</translation>
     </message>
     <message>
       <location filename="../../qml/features/subscriptions/subscriptions_page.qml" line="141" />
@@ -2077,7 +2077,7 @@
     <message><source>A saved provider resource is missing or damaged. Update the full subscription to repair it.</source><translation>保存的提供者资源缺失或损坏，请更新整个订阅以修复。</translation></message>
     <message><source>This provider uses core runtime mode. Refresh it from the providers page.</source><translation>该提供者采用内核运行时模式，请在提供者页面刷新。</translation></message>
     <message><source>The provider could not be downloaded or validated. The previous version is kept.</source><translation>提供者下载或校验失败，已保留原有版本。</translation></message>
-    <message><source>Use at most 32 HTTPS providers, 4 MiB each and 16 MiB total, with supported YAML or text payloads.</source><translation>最多使用 32 个 HTTPS 提供者，每项不超过 4 MiB、合计不超过 16 MiB，内容须为支持的 YAML 或文本格式。</translation></message>
+    <message><source>Use at most 32 HTTP/HTTPS, file or inline providers. Downloaded resources are limited to 4 MiB each and 16 MiB total; Mihomo validates their content.</source><translation>最多使用 32 个 HTTP/HTTPS、file 或 inline 提供者。下载资源每项限 4 MiB、合计限 16 MiB，内容由 Mihomo 校验。</translation></message>
     <message><source>The backup format, size or checksum is invalid. Existing profiles are preserved.</source><translation>备份格式、大小或摘要无效，已保留现有配置。</translation></message>
     <message><source>Preview this backup again before confirming the restore.</source><translation>请重新预览备份，再确认恢复。</translation></message>
     <message><source>Core validation failed. No profiles were restored.</source><translation>内核校验失败，未恢复任何配置。</translation></message>
@@ -2222,8 +2222,8 @@
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="153" />
-      <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess, TUIC and select/url-test/fallback/load-balance groups are supported. Check the feature details for unsupported fields.</source>
-      <translation>此配置包含不支持的功能。已支持内嵌 HTTP、SOCKS5、Shadowsocks、Hysteria2、Trojan、VLESS、VMess、TUIC，以及 select/url-test/fallback/load-balance 代理组。请查看兼容性详情中的不支持字段。</translation>
+      <source>The profile could not pass the managed resource checks. Protocols and configuration options are validated by the selected Mihomo core. Check the issue details.</source>
+      <translation>配置未通过受管资源检查。协议和配置选项由所选 Mihomo 内核校验，请查看问题详情。</translation>
     </message>
     <message>
       <source>This profile uses unsupported features. Inline HTTP, SOCKS5, Shadowsocks, Hysteria2, Trojan, VLESS, VMess and select/url-test/fallback groups are supported. Bundled Geo rules and basic fake-ip DNS are supported. Providers and advanced DNS options require later development.</source>
@@ -2266,8 +2266,8 @@
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="176" />
-      <source>Enter a valid HTTPS subscription URL without embedded login details or a fragment.</source>
-      <translation>请输入有效的 HTTPS 订阅地址，地址中不能包含登录信息或片段标识。</translation>
+      <source>Enter a valid HTTP/HTTPS subscription URL without embedded login details or a fragment.</source>
+      <translation>请输入有效的 HTTP/HTTPS 订阅地址，地址中不能包含登录信息或片段标识。</translation>
     </message>
     <message>
       <location filename="../../src/presentation/ui_state.cpp" line="185" />
@@ -2400,7 +2400,7 @@
     <message><source>Use this subscription</source><translation>使用此订阅</translation></message>
     <message><source>Selected</source><translation>已选中</translation></message>
     <message><source>Click to select</source><translation>点击选择</translation></message>
-    <message><source>HTTPS subscription</source><translation>HTTPS 订阅</translation></message>
+    <message><source>Subscription</source><translation>订阅</translation></message>
     <message><source>Local profile</source><translation>本地配置</translation></message>
     <message><source>Update failed; the working configuration is kept</source><translation>更新失败；保留当前可用配置</translation></message>
     <message><source>Changes waiting to be applied</source><translation>更改等待应用</translation></message>
@@ -3359,7 +3359,7 @@
   </context>
   <context>
     <name>subscriptions_page</name>
-    <message><source>No subscriptions yet. Add an HTTPS subscription or import a local file.</source><translation>暂无订阅。添加 HTTPS 订阅或导入本地文件。</translation></message>
+    <message><source>No subscriptions yet. Add a subscription URL or import a local file.</source><translation>暂无订阅。添加订阅地址或导入本地文件。</translation></message>
   </context>
   <context>
     <name>settings_page</name>

@@ -1,0 +1,101 @@
+# Public synthetic inputs. No usable endpoint, subscription URL or account credentials.
+proxies:
+  - name: anytls_fixture
+    type: anytls
+    server: 127.0.0.1
+    port: 19879
+    password: public_dummy_anytls_password
+    sni: proxy.example.invalid
+    skip-cert-verify: false
+    udp: true
+    idle-session-check-interval: 30
+    idle-session-timeout: 30
+    min-idle-session: 0
+    dialer-proxy: vless_fixture
+  - name: vless_fixture
+    type: vless
+    server: 127.0.0.1
+    port: 19880
+    uuid: 00000000-0000-4000-8000-000000000001
+    encryption: none
+    alterId: 0
+    cipher: auto
+    network: ws
+    ws-opts:
+      path: /public-fixture
+      headers: {Host: proxy.example.invalid, X-Public-Header: public_dummy_header}
+  - name: ssh_fixture
+    type: ssh
+    server: 127.0.0.1
+    port: 19881
+    username: public_dummy_user
+    password: public_dummy_ssh_password
+  - name: ssr_fixture
+    type: ssr
+    server: 127.0.0.1
+    port: 19882
+    cipher: aes-128-cfb
+    password: public_dummy_ssr_password
+    protocol: origin
+    obfs: plain
+  - name: snell_fixture
+    type: snell
+    server: 127.0.0.1
+    port: 19883
+    psk: public_dummy_snell_psk
+    version: 3
+  - name: hysteria_fixture
+    type: hysteria
+    server: 127.0.0.1
+    port: 19884
+    auth-str: public_dummy_hysteria_auth
+    up: 10
+    down: 10
+  - name: wireguard_fixture
+    type: wireguard
+    server: 127.0.0.1
+    port: 19885
+    ip: 172.16.0.2
+    private-key: AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=
+    public-key: AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=
+  - {name: direct_fixture, type: direct}
+  - {name: reject_fixture, type: reject}
+  - {name: dns_fixture, type: dns}
+proxy-providers:
+  inline_nodes:
+    type: inline
+    payload:
+      - {name: inline_anytls, type: anytls, server: 127.0.0.1, port: 19886,
+         password: public_dummy_inline_password}
+rule-providers:
+  inline_rules:
+    type: inline
+    behavior: classical
+    payload: ['DOMAIN,example.invalid']
+proxy-groups:
+  - name: Main
+    type: select
+    url: http://127.0.0.1:9/health
+    proxies: [DIRECT, anytls_fixture, vless_fixture, ssh_fixture, ssr_fixture,
+              snell_fixture, hysteria_fixture, wireguard_fixture, direct_fixture,
+              reject_fixture, dns_fixture]
+    icon: https://example.invalid/public-icon.png
+    use: [inline_nodes]
+rules:
+  - RULE-SET,inline_rules,DIRECT
+  - PROCESS-NAME,public_app.exe,DIRECT
+  - DST-PORT,123,DIRECT
+  - NETWORK,udp,DIRECT
+  - AND,((NETWORK,tcp),(DST-PORT,443)),Main
+  - MATCH,Main
+dns:
+  enable: true
+  enhanced-mode: redir-host
+  nameserver: [quic://1.1.1.1:853]
+  default-nameserver: [1.1.1.1]
+  fake-ip-range6: fc00::/18
+sniffer:
+  enable: true
+  sniff: {TLS: {ports: [443]}}
+hosts:
+  public-fixture.invalid: 127.0.0.1

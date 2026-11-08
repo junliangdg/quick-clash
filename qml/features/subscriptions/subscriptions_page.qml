@@ -309,7 +309,7 @@ ListView {
     FileDialog {
         id: fileDialog
         title: qsTr("Import Mihomo profile")
-        nameFilters: [qsTr("YAML profiles (*.yaml *.yml)"), qsTr("All files (*)")]
+        nameFilters: [qsTr("Configurations and node lists (*.yaml *.yml *.json *.txt *.conf)"), qsTr("All files (*)")]
         onAccepted: root.beginImport("import", [selectedFile.toString(), profileName.text])
     }
     ThemedDialog {
@@ -344,7 +344,7 @@ ListView {
                 spacing: 10
                 Label {
                     id: importUrlLabel
-                    text: qsTr("HTTPS subscription URL")
+                    text: qsTr("Subscription URL (HTTP/HTTPS)")
                     color: root.theme.text
                     Layout.fillWidth: true
                 }
@@ -352,8 +352,8 @@ ListView {
                     id: subscriptionUrl
                     theme: root.theme
                     objectName: "subscription_url"
-                    placeholderText: qsTr("HTTPS subscription URL")
-                    Accessible.name: qsTr("HTTPS subscription URL")
+                    placeholderText: qsTr("Subscription URL (HTTP/HTTPS)")
+                    Accessible.name: qsTr("Subscription URL (HTTP/HTTPS)")
                     // Qt suppresses the accessible name for password edits. Keep
                     // a non-secret description on all supported Qt versions.
                     Accessible.description: importUrlLabel.text
@@ -946,7 +946,7 @@ ListView {
         }
         Label {
             visible: !root.ui.profileModel.count
-            text: qsTr("No subscriptions yet. Add an HTTPS subscription or import a local file.")
+            text: qsTr("No subscriptions yet. Add a subscription URL or import a local file.")
             color: root.theme.muted
             Layout.fillWidth: true
         }

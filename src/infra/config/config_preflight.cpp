@@ -2,11 +2,14 @@
 #include "domain/proxy_latency.h"
 #include "infra/config/config_metadata.h"
 #include "infra/config/config_schema.h"
+#include "infra/io/bounded_read.h"
+#include <QFileDevice>
 #include <QJsonArray>
 #include <QMessageAuthenticationCode>
 #include <QSet>
 #include <QStringList>
 #include <algorithm>
+#include <cctype>
 #include <map>
 #include <set>
 #include <sstream>
@@ -31,7 +34,7 @@ void require(bool condition, const char* code = "InvalidConfig") {
         throw InvalidConfig{code};
     }
 }
-// Bound parser recursion and events before allocating the full Node graph. P2 rejects aliases.
+// Bound parser recursion and events before allocating the full Node graph.
 class ParseBudget final : public YAML::EventHandler {
   public:
     void OnDocumentStart(const YAML::Mark&) override {
@@ -42,7 +45,7 @@ class ParseBudget final : public YAML::EventHandler {
         count();
     }
     void OnAlias(const YAML::Mark&, YAML::anchor_t) override {
-        throw InvalidConfig{"UnsupportedConfigFeature"};
+        count(); // Metadata parsing expands aliases with a separate bounded tree walk.
     }
     void OnScalar(const YAML::Mark&, const std::string&, YAML::anchor_t,
                   const std::string&) override {
@@ -140,6 +143,8 @@ QString subscriptionPayloadError(const QByteArray& input) {
         content.remove(0, 3);
     if (content.trimmed().isEmpty())
         return QStringLiteral("EmptySubscription");
+    if (coreSubscriptionConfig(content) != content)
+        return {};
     try {
         const auto metadata = configMetadata(content);
         if (const auto* failure = std::get_if<domain::Error>(&metadata))
@@ -148,7 +153,9 @@ QString subscriptionPayloadError(const QByteArray& input) {
                        : failure->code;
         const auto& keys = std::get<ConfigMetadata>(metadata).keys;
         require(keys.contains(QStringLiteral("proxies")) ||
-                    keys.contains(QStringLiteral("proxy-providers")),
+                    keys.contains(QStringLiteral("proxy-providers")) ||
+                    keys.contains(QStringLiteral("proxy-groups")) ||
+                    keys.contains(QStringLiteral("rules")) || keys.contains(QStringLiteral("dns")),
                 "UnsupportedSubscriptionFormat");
         return {};
     } catch (const InvalidConfig& error) {
@@ -156,6 +163,44 @@ QString subscriptionPayloadError(const QByteArray& input) {
     } catch (const YAML::Exception&) {
         return QStringLiteral("UnsupportedSubscriptionFormat");
     }
+}
+QByteArray coreSubscriptionConfig(const QByteArray& input) {
+    // A complete mapping belongs to the configuration pipeline. Native node lists
+    // can contain comments or unrelated lines which the core itself skips.
+    if (std::holds_alternative<ConfigMetadata>(configMetadata(input)))
+        return input;
+    auto decoded = input.trimmed();
+    if (!decoded.contains("://")) {
+        auto compact = decoded;
+        compact.replace("\r", "");
+        compact.replace("\n", "");
+        compact.replace('-', '+');
+        compact.replace('_', '/');
+        const auto base64 =
+            QByteArray::fromBase64Encoding(compact, QByteArray::AbortOnBase64DecodingErrors);
+        if (!base64)
+            return input;
+        decoded = base64.decoded.trimmed();
+    }
+    // URI schemes, credentials and line handling belong to the official parser.
+    if (!decoded.contains("://"))
+        return input;
+    YAML::Node root(YAML::NodeType::Map);
+    auto provider = root["proxy-providers"]["imported"];
+    provider["type"] = "file";
+    provider["x-quickclash-source"] = "imported-subscription";
+    provider["path"] =
+        runtimeProviderPath("proxy-providers", "imported", "imported-subscription", "yaml", {})
+            .toStdString();
+    provider["size-limit"] = 4 * 1024 * 1024;
+    provider["x-quickclash-body"] = input.toBase64().toStdString();
+    YAML::Node group(YAML::NodeType::Map);
+    group["name"] = "QuickClash";
+    group["type"] = "select";
+    group["use"].push_back("imported");
+    root["proxy-groups"].push_back(group);
+    root["rules"].push_back("MATCH,QuickClash");
+    return serializeYaml(root);
 }
 
 domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
@@ -177,6 +222,9 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         std::size_t budget = 100000;
         inspectTree(root, 0, budget);
         PreflightConfig output;
+        for (const auto* field : {"proxies", "proxy-groups", "rules"})
+            if (!root[field])
+                root[field] = YAML::Node(YAML::NodeType::Sequence);
         // The application owns Geo resources. Never forward a subscription's download URLs
         // to the core, including when it could otherwise update resources on its own.
         if (root["geox-url"]) {
@@ -197,12 +245,41 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         const auto validated = validateConfigSchema(root, &fields.rules);
         if (const auto* failure = std::get_if<domain::Error>(&validated))
             return *failure;
-        const std::vector<std::string> managed{
-            "mixed-port",       "port",        "socks-port",      "redir-port",
-            "tproxy-port",      "allow-lan",   "bind-address",    "external-controller",
-            "secret",           "external-ui", "external-ui-url", "tun",
-            "profile",          "mode",        "geodata-mode",    "geo-auto-update",
-            "find-process-mode"};
+        const std::vector<std::string> managed{"mixed-port",
+                                               "port",
+                                               "socks-port",
+                                               "redir-port",
+                                               "tproxy-port",
+                                               "allow-lan",
+                                               "bind-address",
+                                               "external-controller",
+                                               "secret",
+                                               "external-ui",
+                                               "external-ui-url",
+                                               "tun",
+                                               "profile",
+                                               "mode",
+                                               "geodata-mode",
+                                               "geo-auto-update",
+                                               "find-process-mode",
+                                               "external-controller-tls",
+                                               "external-controller-unix",
+                                               "external-controller-pipe",
+                                               "external-controller-cors",
+                                               "external-doh-server",
+                                               "external-ui-name",
+                                               "listeners",
+                                               "tunnels",
+                                               "authentication",
+                                               "skip-auth-prefixes",
+                                               "lan-allowed-ips",
+                                               "lan-disallowed-ips",
+                                               "inbound-tfo",
+                                               "inbound-mptcp",
+                                               "ss-config",
+                                               "vmess-config",
+                                               "tuic-server",
+                                               "iptables"};
         for (const auto& key : managed) {
             if (root[key]) {
                 output.overriddenFields.push_back(QString::fromStdString(key));
@@ -216,6 +293,10 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         root["mode"] = preferences.mode == domain::ProxyMode::Global   ? "global"
                        : preferences.mode == domain::ProxyMode::Direct ? "direct"
                                                                        : "rule";
+        if (root["ntp"] && root["ntp"].IsMap()) {
+            root["ntp"]["write-to-system"] = false;
+            output.overriddenFields.push_back(QStringLiteral("ntp.write-to-system"));
+        }
         // DNS remains internal to Mihomo; this slice does not expose an OS DNS listener.
         if (root["dns"]) {
             if (root["dns"]["listen"])
@@ -239,9 +320,11 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
                 root["dns"]["default-nameserver"].push_back("1.1.1.1");
         }
         // Some subscription generators emit the legacy mport alias. Normalize it to
-        // Mihomo's actual ports option, and reject conflicting values in the schema.
+        // Mihomo's actual ports option. Explicit ports keep precedence.
         for (auto proxy : root["proxies"]) {
-            if (proxy["mport"]) {
+            if ((proxy["type"].as<std::string>() == "hysteria2" ||
+                 proxy["type"].as<std::string>() == "hy2") &&
+                proxy["mport"] && proxy["mport"].IsScalar()) {
                 if (!proxy["ports"] || proxy["ports"].Scalar().empty())
                     proxy["ports"] = proxy["mport"].Scalar();
                 proxy.remove("mport");
@@ -453,26 +536,33 @@ QJsonObject outboundSummary(const QJsonArray& groups, const QString& defaultPoli
 QString redactedConfig(const QByteArray& semantic) {
     try {
         auto root = YAML::Load(semantic.toStdString());
+        // New core fields may contain arbitrary credentials. Only expose fixed summary
+        // sections; redact values recursively by replacing entire unclassified subtrees.
+        for (auto entry : root) {
+            const auto key = entry.first.as<std::string>();
+            if (key != "proxies" && key != "proxy-groups" && key != "rules" &&
+                key != "proxy-providers" && key != "rule-providers")
+                root[key] = "[redacted]";
+        }
         root.remove("secret");
         for (auto proxy : root["proxies"]) {
             for (auto entry : proxy) {
                 const auto key = entry.first.as<std::string>();
-                if (key != "name" && key != "type" && key != "port" && key != "cipher")
+                if (key != "name" && key != "type")
                     proxy[key] = "[redacted]";
             }
         }
         for (const auto* kind : {"proxy-providers", "rule-providers"})
             for (auto entry : root[kind]) {
                 auto provider = entry.second;
-                provider["url"] = "[redacted]";
-                provider.remove("path");
-                provider.remove("payload");
-                if (provider["health-check"])
-                    provider["health-check"] = "[redacted]";
+                provider = "[redacted]";
             }
         for (auto group : root["proxy-groups"])
-            if (group["url"])
-                group["url"] = "[redacted]";
+            for (auto entry : group) {
+                const auto key = entry.first.as<std::string>();
+                if (key != "name" && key != "type" && key != "proxies" && key != "use")
+                    group[key] = "[redacted]";
+            }
         if (root["dns"])
             root["dns"] = "[redacted]";
         const auto bytes = serializeYaml(root);
@@ -486,6 +576,71 @@ QString redactedConfig(const QByteArray& semantic) {
     }
 }
 
+bool requiresRuntimeProviders(const QByteArray& input) {
+    const auto parsed = configMetadata(input, true);
+    const auto* fields = std::get_if<ConfigMetadata>(&parsed);
+    if (!fields)
+        return false;
+    try {
+        const auto root = YAML::Load(fields->fieldsYaml.toStdString());
+        const std::set<std::string> snapshotFields{
+            "type", "url", "path", "interval", "health-check", "behavior", "format", "size-limit"};
+        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
+            const auto providers = root[kind];
+            if (!providers)
+                continue;
+            for (const auto& provider : providers) {
+                if (provider.second["type"] && provider.second["type"].as<std::string>() == "file")
+                    return true;
+                if (provider.second["format"] &&
+                    provider.second["format"].as<std::string>() == "mrs")
+                    return true;
+                for (const auto& field : provider.second)
+                    if (!snapshotFields.contains(field.first.as<std::string>()))
+                        return true;
+            }
+        }
+        const auto groups = root["proxy-groups"];
+        if (groups)
+            for (const auto& group : groups)
+                if (group["filter"] || group["exclude-filter"] || group["include-all"] ||
+                    group["include-all-providers"] || group["include-all-proxies"])
+                    return true;
+        // References can occur in nested logical rules, DNS and sub-rules. Keep the
+        // native provider graph whenever flattening would need another core parser.
+        if (root["sub-rules"] || root["dns"] || root["sniffer"])
+            return true;
+        for (const auto& rule : fields->rules)
+            if (rule.find("RULE-SET,") != std::string::npos && !rule.starts_with("RULE-SET,"))
+                return true;
+    } catch (const YAML::Exception&) {
+        return false;
+    }
+    return false;
+}
+bool providerPayloadsRequireRuntime(const QHash<QString, QIODevice*>& payloads) {
+    for (auto it = payloads.begin(); it != payloads.end(); ++it) {
+        if (!it.key().startsWith("proxy-providers:"))
+            continue;
+        auto* file = qobject_cast<QFileDevice*>(it.value());
+        if (!file || !file->seek(0))
+            return true;
+        const auto loaded = readFileBounded(*file, 4 * 1024 * 1024);
+        if (!loaded.ok)
+            return true;
+        const auto parsed = configMetadata(loaded.bytes);
+        if (!std::holds_alternative<ConfigMetadata>(parsed))
+            return true;
+        try {
+            const auto root = YAML::Load(std::get<ConfigMetadata>(parsed).fieldsYaml.toStdString());
+            if (!root["proxies"] || !root["proxies"].IsSequence())
+                return true;
+        } catch (const YAML::Exception&) {
+            return true;
+        }
+    }
+    return false;
+}
 domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
     try {
         const auto metadata = configMetadata(input);
@@ -502,33 +657,67 @@ domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
             for (const auto& entry : providers) {
                 require(entry.first.IsScalar() && entry.first.Scalar().size() <= 512);
                 const auto value = entry.second;
-                require(value.IsMap() && value["type"] && value["type"].as<std::string>() == "http",
-                        "ProviderHttpsRequired");
-                const std::set<std::string> allowed{"type",     "url",          "path",
-                                                    "interval", "health-check", "behavior",
-                                                    "format",   "size-limit"};
-                for (const auto& field : value)
-                    require(allowed.contains(field.first.as<std::string>()),
-                            "UnsupportedProviderField");
-                const auto urlText = QString::fromStdString(value["url"].as<std::string>());
+                require(value.IsMap() && value["type"], "ProviderHttpsRequired");
+                if (value["x-quickclash-body"])
+                    continue; // Hash-derived paths and bounded bytes are checked in preflight.
+                if (value["type"].as<std::string>() == "inline") {
+                    require(value["payload"].IsSequence(), "InvalidProviderPayload");
+                    continue;
+                }
+                const auto type = value["type"].as<std::string>();
+                require(type == "http" || type == "file", "InvalidProviderConfig");
+                const auto urlText = QString::fromStdString(
+                    value[type == "file" ? "path" : "url"].as<std::string>());
                 const QUrl url(urlText);
-                require(urlText.size() <= 8192 && url.isValid() && url.scheme() == "https" &&
-                            !url.host().isEmpty() && url.userInfo().isEmpty() && !url.hasFragment(),
-                        "ProviderHttpsRequired");
+                require(
+                    urlText.size() <= 8192 &&
+                        (type == "file" ||
+                         (url.isValid() && (url.scheme() == "https" || url.scheme() == "http") &&
+                          !url.host().isEmpty() && url.userInfo().isEmpty() && !url.hasFragment())),
+                    "InvalidProviderConfig");
                 const auto format = value["format"] ? value["format"].as<std::string>() : "yaml";
-                require(format == "yaml" ||
-                            (std::string(kind) == "rule-providers" && format == "text"),
+                require(format == "yaml" || (std::string(kind) == "rule-providers" &&
+                                             (format == "text" || format == "mrs")),
                         "UnsupportedProviderFormat");
                 const auto behavior =
                     value["behavior"] ? value["behavior"].as<std::string>() : "classical";
                 require(behavior == "classical" || behavior == "domain" || behavior == "ipcidr",
                         "UnsupportedProviderFormat");
+                QJsonObject headers;
+                if (value["header"] && value["header"].IsMap())
+                    for (const auto& header : value["header"]) {
+                        const auto name = header.first.as<std::string>();
+                        require(name.size() <= 128 && header.second.IsSequence(),
+                                "InvalidProviderConfig");
+                        QStringList values;
+                        for (const auto& item : header.second) {
+                            require(item.IsScalar() && item.Scalar().size() <= 4096,
+                                    "InvalidProviderConfig");
+                            const auto text = QString::fromStdString(item.Scalar());
+                            require(!text.contains('\r') && !text.contains('\n'),
+                                    "InvalidProviderConfig");
+                            values.append(text);
+                        }
+                        require(!name.empty() &&
+                                    std::all_of(
+                                        name.begin(), name.end(),
+                                        [](unsigned char c) {
+                                            return std::isalnum(c) ||
+                                                   QByteArrayView("!#$%&'*+-.^_`|~").contains(c);
+                                        }),
+                                "InvalidProviderConfig");
+                        headers.insert(QString::fromStdString(name), values.join(", "));
+                    }
                 requests.append(QJsonObject{
                     {QStringLiteral("key"), QString::fromLatin1(kind) + ':' +
                                                 QString::fromStdString(entry.first.Scalar())},
                     {QStringLiteral("name"), QString::fromStdString(entry.first.Scalar())},
                     {QStringLiteral("kind"), QString::fromLatin1(kind)},
-                    {QStringLiteral("url"), urlText}});
+                    {QStringLiteral("type"), QString::fromStdString(type)},
+                    {QStringLiteral("url"), urlText},
+                    {QStringLiteral("format"), QString::fromStdString(format)},
+                    {QStringLiteral("behavior"), QString::fromStdString(behavior)},
+                    {QStringLiteral("headers"), headers}});
             }
         }
         require(requests.size() <= 32, "ProviderLimitExceeded");

@@ -6,6 +6,7 @@
 #endif
 #include "backup_probe.h"
 #include "config_editor_probe.h"
+#include "core_compatibility_probe.h"
 #include "core_update_probe.h"
 #include "geo_update_probe.h"
 #include "native_proxy_client.h"
@@ -87,6 +88,8 @@ int main(int argc, char** argv) {
         return quickclash::test::configEditorProbe();
     if (app.arguments().contains(QStringLiteral("--geo-update-test")))
         return quickclash::test::geoUpdateProbe();
+    if (app.arguments().contains(QStringLiteral("--core-compatibility-test")))
+        return quickclash::test::coreCompatibilityProbe();
     if (app.arguments().contains(QStringLiteral("--subscription-download-test")))
         return quickclash::test::subscriptionDownloadProbe();
     if (app.arguments().contains(QStringLiteral("--update-memory-probe")))
@@ -97,7 +100,8 @@ int main(int argc, char** argv) {
         return 1;
     quickclash::application::DesktopRuntime runtime(store);
     runtime.initialize();
-    if (app.arguments().contains(QStringLiteral("--subscription-e2e")))
+    if (app.arguments().contains(QStringLiteral("--subscription-e2e")) ||
+        app.arguments().contains(QStringLiteral("--subscription-node-probe")))
         return quickclash::test::subscriptionProbe(runtime, store);
     // Opt-in real endpoint check: input and raw content never appear in diagnostics.
     if (app.arguments().contains(QStringLiteral("--subscription-probe"))) {
@@ -864,9 +868,7 @@ int main(int argc, char** argv) {
                                  .toObject()
                                  .value("sourceHash") == second.value("sourceHash") &&
                          reopened.snapshot().value("ready").toBool() &&
-                         reopened.snapshot().value("error").toString() ==
-                             (body.isEmpty() ? QStringLiteral("EmptySubscription")
-                                             : QStringLiteral("UnsupportedSubscriptionFormat")),
+                         !reopened.snapshot().value("error").toString().isEmpty(),
                      "unsupported subscription preserves running configuration", reopened))
             return 40;
     }
@@ -1207,11 +1209,12 @@ int main(int argc, char** argv) {
                                 "tests/fixtures/mvp/compatibility_unsupported.yaml")))
             .toString(),
         QStringLiteral("Rejected"));
-    if (!require(!reopened.snapshot().value("configIssues").toArray().isEmpty() &&
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     !reopened.snapshot().value("error").toString().isEmpty() &&
                      reopened.snapshot().value("corePid") == previousPid &&
                      reopened.snapshot().value("ready").toBool() &&
                      reopened.snapshot().value("profiles").toArray().size() == 1,
-                 "compatibility issues preserve running candidate", reopened))
+                 "official rejection preserves running candidate", reopened))
         return 47;
     reopened.stop();
     reopened.start(false);

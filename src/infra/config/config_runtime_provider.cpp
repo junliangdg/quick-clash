@@ -4,6 +4,7 @@
 
 #include <QCryptographicHash>
 #include <QFileDevice>
+#include <QUrl>
 #include <yaml-cpp/yaml.h>
 
 namespace quickclash::infra {
@@ -16,6 +17,52 @@ domain::Error providerError(const char* code) {
     return error;
 }
 } // namespace
+
+domain::Result<ProviderValidation> providerValidationConfig(const QByteArray& semantic,
+                                                            const QString& pipe) {
+    try {
+        auto root = YAML::Load(semantic.toStdString());
+        ProviderValidation result;
+        for (const auto* kind : {"proxy-providers", "rule-providers"}) {
+            auto providers = root[kind];
+            if (!providers)
+                continue;
+            for (auto entry : providers) {
+                auto value = entry.second;
+                if (value["x-quickclash-body"]) {
+                    value["type"] = "file";
+                    value.remove("url");
+                    value.remove("interval");
+                    result.targets.append(
+                        QByteArray("/providers/") +
+                        (std::string(kind) == "proxy-providers" ? "proxies/" : "rules/") +
+                        QUrl::toPercentEncoding(QString::fromStdString(entry.first.Scalar())));
+                }
+                if (value["health-check"])
+                    value["health-check"]["enable"] = false;
+            }
+        }
+        if (result.targets.isEmpty())
+            return result;
+        // The second offline check only loads managed bodies. No data listener,
+        // resource download, health check, DNS listener or host setting is enabled.
+        root["mixed-port"] = 0;
+        root["external-controller"] = "";
+        root["external-controller-pipe"] = pipe.toStdString();
+        root["dns"]["enable"] = false;
+        root["ntp"]["enable"] = false;
+        root["sniffer"]["enable"] = false;
+        root["find-process-mode"] = "off";
+        YAML::Emitter output;
+        output << root;
+        if (!output.good() || output.size() > 16 * 1024 * 1024)
+            return providerError("ProviderLimitExceeded");
+        result.config = QByteArray(output.c_str(), static_cast<qsizetype>(output.size()));
+        return result;
+    } catch (const YAML::Exception&) {
+        return providerError("InvalidProviderPayload");
+    }
+}
 
 QString runtimeProviderPath(const QString& kind, const QString& name, const QString& url,
                             const QString& format, const QString& behavior) {
@@ -33,6 +80,7 @@ domain::Result<QByteArray> runtimeProviderConfig(const QByteArray& input,
     const auto requests = providerRequests(input);
     if (const auto* error = std::get_if<domain::Error>(&requests))
         return *error;
+    const bool nativeGraph = requiresRuntimeProviders(input);
     const auto invalid = []() -> domain::Result<QByteArray> {
         domain::Error error;
         error.code = QStringLiteral("InvalidProviderPayload");
@@ -62,8 +110,15 @@ domain::Result<QByteArray> runtimeProviderConfig(const QByteArray& input,
             if (!loaded.ok || total > 16 * 1024 * 1024)
                 return invalid();
             auto provider = root[kind.toStdString()][name.toStdString()];
-            YAML::Node payload;
             const auto format = provider["format"] ? provider["format"].as<std::string>() : "yaml";
+            // Preserve exactly the downloaded bytes. Only the official core interprets
+            // MRS, YAML/text rules and URI/Base64 proxy subscriptions.
+            provider.remove("payload");
+            provider["x-quickclash-body"] = loaded.bytes.toBase64().toStdString();
+            provider["x-quickclash-source"] = request.value("url").toString().toStdString();
+            // Retain the existing readable fallback for standard YAML/text sources.
+            // Opaque native formats instead use the exact managed bytes above.
+            YAML::Node payload;
             if (format == "text") {
                 payload = YAML::Node(YAML::NodeType::Sequence);
                 for (auto line : loaded.bytes.split('\n')) {
@@ -71,18 +126,19 @@ domain::Result<QByteArray> runtimeProviderConfig(const QByteArray& input,
                     if (!line.isEmpty() && !line.startsWith('#') && !line.startsWith("//"))
                         payload.push_back(line.toStdString());
                 }
-            } else {
+            } else if (format == "yaml") {
                 const auto parsed = configMetadata(loaded.bytes, true);
-                if (!std::holds_alternative<ConfigMetadata>(parsed))
-                    return invalid();
-                const auto document =
-                    YAML::Load(std::get<ConfigMetadata>(parsed).fieldsYaml.toStdString());
-                payload =
-                    document[kind == QStringLiteral("proxy-providers") ? "proxies" : "payload"];
+                if (const auto* document = std::get_if<ConfigMetadata>(&parsed)) {
+                    const auto content = YAML::Load(document->fieldsYaml.toStdString());
+                    if (content.IsMap())
+                        payload = content[kind == "proxy-providers" ? "proxies" : "payload"];
+                }
             }
-            if (!payload.IsSequence())
-                return invalid();
-            provider["payload"] = payload;
+            if (payload.IsSequence() && request.value("type") != "file" && !nativeGraph) {
+                provider["payload"] = payload;
+                provider.remove("x-quickclash-body");
+                provider.remove("x-quickclash-source");
+            }
             if (kind == QStringLiteral("rule-providers") && !provider["behavior"])
                 provider["behavior"] = "classical";
             // A new source/format/behavior gets a distinct cache, including across profiles.
@@ -132,6 +188,16 @@ domain::Result<QByteArray> offlineProviderConfig(const QByteArray& input) {
         for (const auto* kind : {"proxy-providers", "rule-providers"})
             for (auto entry : root[kind]) {
                 auto provider = entry.second;
+                if (provider["type"] && provider["type"].as<std::string>() == "inline")
+                    continue;
+                if (provider["x-quickclash-body"]) {
+                    // Native resources keep their exact immutable import bytes offline.
+                    // File vehicles cannot fetch, and are seeded only at generated paths.
+                    provider["type"] = "file";
+                    provider.remove("url");
+                    provider.remove("interval");
+                    continue;
+                }
                 if (!provider["payload"].IsSequence())
                     return providerError("ProviderCacheUnavailable");
                 YAML::Node document(YAML::NodeType::Map);
@@ -150,8 +216,14 @@ domain::Result<QByteArray> offlineProviderConfig(const QByteArray& input) {
                     provider["format"] = "yaml";
                 provider.remove("payload");
             }
-        if (payloads.isEmpty())
-            return input;
+        if (payloads.isEmpty()) {
+            YAML::Emitter output;
+            root["rules"] = fields.rules;
+            output << root;
+            if (!output.good() || output.size() > 16 * 1024 * 1024)
+                return providerError("ProviderLimitExceeded");
+            return QByteArray(output.c_str(), static_cast<qsizetype>(output.size()));
+        }
         YAML::Emitter source;
         root.remove("rules");
         source << root;

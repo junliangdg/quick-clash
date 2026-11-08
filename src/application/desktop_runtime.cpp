@@ -4,6 +4,7 @@
 #include "infra/config/config_overlay.h"
 #include "infra/config/custom_groups.h"
 #include "infra/config/geo_resources.h"
+#include "infra/core/pipe_http.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
 #include "infra/storage/storage_maintenance.h"
@@ -342,16 +343,20 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
             QJsonArray liveNodes;
             for (auto it = objects.begin(); it != objects.end(); ++it) {
                 const auto node = it.value().toObject();
+                // Core descriptors distinguish groups by their member array. Protocol
+                // names are open-ended and must not gate display or delay requests.
+                if (node.contains(QStringLiteral("all")) || it.key() == QStringLiteral("DIRECT") ||
+                    it.key() == QStringLiteral("REJECT") ||
+                    it.key() == QStringLiteral("COMPATIBLE"))
+                    continue;
                 auto type = node.value(QStringLiteral("type")).toString().toLower();
+                if (type.isEmpty())
+                    continue;
                 if (type == QStringLiteral("shadowsocks"))
                     type = QStringLiteral("ss");
-                if (type == QStringLiteral("http") || type == QStringLiteral("socks5") ||
-                    type == QStringLiteral("ss") || type == QStringLiteral("hysteria2") ||
-                    type == QStringLiteral("trojan") || type == QStringLiteral("vless") ||
-                    type == QStringLiteral("vmess") || type == QStringLiteral("tuic"))
-                    liveNodes.append(QJsonObject{{QStringLiteral("name"), it.key()},
-                                                 {QStringLiteral("type"), type},
-                                                 {QStringLiteral("udp"), node.value("udp")}});
+                liveNodes.append(QJsonObject{{QStringLiteral("name"), it.key()},
+                                             {QStringLiteral("type"), type},
+                                             {QStringLiteral("udp"), node.value("udp")}});
             }
             featureState_.insert(QStringLiteral("nodes"), liveNodes);
             const auto now = clock_();
@@ -1311,7 +1316,8 @@ void DesktopRuntime::importFile(const QString& url, const QString& name) {
         return;
     }
     resolveImport(std::move(loaded.bytes),
-                  name.isEmpty() ? QFileInfo(file).completeBaseName() : name, {});
+                  name.isEmpty() ? QFileInfo(file).completeBaseName() : name, {}, {},
+                  {{QStringLiteral("_sourceDirectory"), QFileInfo(file).absolutePath()}});
 }
 void DesktopRuntime::addSubscription(const QString& url, const QString& name,
                                      const QString& route) {
@@ -1427,6 +1433,19 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         }
     }
     config.close();
+    {
+        infra::JsonStore validationStore(staging_->path());
+        const auto opened = validationStore.open();
+        const auto seeded = std::holds_alternative<domain::Error>(opened)
+                                ? opened
+                                : infra::prepareRuntimeProviderCache(semantic, validationStore, {});
+        if (const auto* failure = std::get_if<domain::Error>(&seeded)) {
+            staging_.reset();
+            error(failure->code);
+            completion(false);
+            return;
+        }
+    }
     const auto resources = infra::prepareGeoResources(
         semantic, staging_->path(),
         runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root());
@@ -1436,7 +1455,13 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         completion(false);
         return;
     }
-    validationCompletion_ = std::move(completion);
+    validationCompletion_ = [this, semantic,
+                             completion = std::move(completion)](bool valid) mutable {
+        if (valid)
+            validateProviderBodies(semantic, std::move(completion));
+        else
+            completion(false);
+    };
     const auto launched =
         validator_->start(copied,
                           {QStringLiteral("-t"), QStringLiteral("-f"), config.fileName(),
@@ -1451,6 +1476,95 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         return;
     }
     validationDeadline_.start();
+}
+void DesktopRuntime::validateProviderBodies(const QByteArray& semantic,
+                                            std::function<void(bool)> completion) {
+    const auto pipe = QStringLiteral("\\\\.\\pipe\\LOCAL\\QuickClash.Validate.") +
+                      QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const auto parsed = infra::providerValidationConfig(semantic, pipe);
+    const auto* validation = std::get_if<infra::ProviderValidation>(&parsed);
+    if (!validation) {
+        completion(false);
+        return;
+    }
+    if (validation->targets.isEmpty()) {
+        completion(true);
+        return;
+    }
+    const auto parent = store_.path(QStringLiteral("cache/validation"));
+    if (!std::holds_alternative<QString>(parent)) {
+        completion(false);
+        return;
+    }
+    staging_ = std::make_unique<QTemporaryDir>(std::get<QString>(parent) + "/body_XXXXXX");
+    const auto executable = staging_->filePath(platformInfo_.coreFileName);
+    const auto config = staging_->filePath(QStringLiteral("config.yaml"));
+    infra::JsonStore isolated(staging_->path());
+    const auto opened = isolated.open();
+    if (!staging_->isValid() || std::holds_alternative<domain::Error>(opened) ||
+        !QFile::copy(coreExecutable(), executable) ||
+        std::holds_alternative<domain::Error>(
+            isolated.writeBytes("config.yaml", validation->config)) ||
+        std::holds_alternative<domain::Error>(
+            infra::prepareRuntimeProviderCache(semantic, isolated, {})) ||
+        std::holds_alternative<domain::Error>(infra::prepareGeoResources(
+            semantic, staging_->path(), runtimePreferences_.value("geoSnapshot").toObject(),
+            store_.root()))) {
+        staging_.reset();
+        completion(false);
+        return;
+    }
+    auto context = std::make_shared<ProviderBodyValidation>();
+    context->pipe = pipe;
+    context->targets = validation->targets;
+    context->completion = std::move(completion);
+    providerBodyValidation_ = context;
+    validationCompletion_ = [this, context](bool) {
+        providerBodyValidation_.reset();
+        context->completion(false);
+    };
+    const auto launched = validator_->start(executable, {"-f", config, "-d", staging_->path()},
+                                            staging_->path(), true);
+    if (std::holds_alternative<domain::Error>(launched)) {
+        auto callback = std::move(validationCompletion_);
+        if (!validator_->running())
+            staging_.reset();
+        callback(false);
+        return;
+    }
+    context->pipe = validator_->localPipePath(pipe);
+    validationDeadline_.start();
+    QTimer::singleShot(100, this, &DesktopRuntime::probeProviderBody);
+}
+void DesktopRuntime::probeProviderBody() {
+    const auto context = providerBodyValidation_;
+    if (!context || !validationCompletion_)
+        return;
+    infra::pipeHttp(this, context->pipe, "PUT", context->targets[context->index], {},
+                    [this, context](domain::Result<QJsonObject> result) {
+                        if (providerBodyValidation_ != context || !validationCompletion_)
+                            return;
+                        if (const auto* failure = std::get_if<domain::Error>(&result)) {
+                            if (failure->code == "CoreResponseInvalid" ||
+                                failure->code == "CoreRequestTimeout" ||
+                                failure->code == "CoreTargetNotFound") {
+                                // Mihomo can open its controller before registering the
+                                // configured providers. Keep readiness retries inside
+                                // the existing overall validation deadline.
+                                QTimer::singleShot(100, this, &DesktopRuntime::probeProviderBody);
+                                return;
+                            }
+                        } else if (++context->index < context->targets.size()) {
+                            probeProviderBody();
+                            return;
+                        }
+                        const bool valid = std::holds_alternative<QJsonObject>(result);
+                        providerBodyValidation_.reset();
+                        validationCompletion_ = {};
+                        const auto stopped = stopValidation();
+                        context->completion(valid &&
+                                            !std::holds_alternative<domain::Error>(stopped));
+                    });
 }
 DesktopRuntime::ConfigCandidates::~ConfigCandidates() {
     for (const auto& reference : references) {
@@ -3137,6 +3251,7 @@ void DesktopRuntime::restorePreferences() {
 domain::CommandResult DesktopRuntime::stopValidation() {
     validationDeadline_.stop();
     validationCompletion_ = {};
+    providerBodyValidation_.reset();
     const auto stopped = validator_->stop();
     if (!validator_->running())
         staging_.reset();

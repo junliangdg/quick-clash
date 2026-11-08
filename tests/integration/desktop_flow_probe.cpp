@@ -235,7 +235,7 @@ bool desktopFlowProbe(ApplicationHost& host, bool reopen, QJsonObject& result) {
         auto* nameField = item(host, "import_profile_name");
         if (!check(nameField, "import name field exists"))
             return false;
-        item(host, "subscription_url")->setProperty("text", "http://invalid.example/");
+        item(host, "subscription_url")->setProperty("text", "ftp://invalid.example/");
         nameField->setProperty("text", "GUI HTTPS fixture");
         if (!check(
                 click(host, "add_subscription") && waitFor([&] {

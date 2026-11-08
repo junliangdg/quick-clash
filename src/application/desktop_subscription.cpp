@@ -8,6 +8,8 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QUrl>
+#include <algorithm>
+#include <cctype>
 #include <utility>
 
 namespace quickclash::application {
@@ -81,7 +83,8 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
     }
     const auto normalizedUrl = url.trimmed();
     const QUrl source(normalizedUrl);
-    if (!source.isValid() || source.scheme() != QStringLiteral("https") ||
+    if (!source.isValid() ||
+        (source.scheme() != QStringLiteral("https") && source.scheme() != QStringLiteral("http")) ||
         source.host().isEmpty() || !source.userInfo().isEmpty() || source.hasFragment() ||
         url.size() > 8192) {
         error(QStringLiteral("HttpsSubscriptionRequired"));
@@ -105,8 +108,13 @@ void DesktopRuntime::download(const QString& url, const QString& name, const QSt
     }
     for (auto it = headers.begin(); it != headers.end(); ++it) {
         const auto key = it.key().toLower();
-        if ((key != QStringLiteral("authorization") && key != QStringLiteral("user-agent") &&
-             key != QStringLiteral("accept")) ||
+        const auto token = key.toLatin1();
+        if (token.isEmpty() || token.size() > 128 || QString::fromLatin1(token) != key ||
+            !std::all_of(token.cbegin(), token.cend(),
+                         [](unsigned char c) {
+                             return std::isalnum(c) ||
+                                    QByteArrayView("!#$%&'*+-.^_`|~").contains(c);
+                         }) ||
             !it.value().isString() || it.value().toString().size() > 4096 ||
             it.value().toString().contains(QLatin1Char('\r')) ||
             it.value().toString().contains(QLatin1Char('\n'))) {
@@ -234,8 +242,11 @@ void DesktopRuntime::requestSubscription(const std::shared_ptr<SubscriptionDownl
                 const auto next = url.resolved(
                     reply->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl());
                 if (!readOk || reply->error() != QNetworkReply::NoError || !next.isValid() ||
-                    next.scheme() != QStringLiteral("https") || next.host().isEmpty() ||
-                    !next.userInfo().isEmpty() || next.hasFragment() ||
+                    (next.scheme() != QStringLiteral("https") &&
+                     next.scheme() != QStringLiteral("http")) ||
+                    (url.scheme() == QStringLiteral("https") &&
+                     next.scheme() != QStringLiteral("https")) ||
+                    next.host().isEmpty() || !next.userInfo().isEmpty() || next.hasFragment() ||
                     next.toString().size() > 8192 || context->redirects >= 5 ||
                     context->visited.contains(next.adjusted(QUrl::NormalizePathSegments))) {
                     fail(QStringLiteral("SubscriptionRedirectBlocked"));

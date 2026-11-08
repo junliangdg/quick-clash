@@ -21,6 +21,7 @@ class OwnedProcess final : public application::IDesktopProcess {
                                               const QProcessEnvironment& environment);
     domain::CommandResult stop() override;
     [[nodiscard]] QJsonObject exitDiagnostics() const override;
+    [[nodiscard]] QString localPipePath(const QString& path) const override;
     [[nodiscard]] bool running() const override;
     [[nodiscard]] quint32 pid() const override;
     [[nodiscard]] QJsonObject memory() const override;

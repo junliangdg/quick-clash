@@ -13,6 +13,7 @@
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
 #include "infra/core/provider_command.h"
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -711,10 +712,12 @@ int main(int argc, char* argv[]) {
                   .isEmpty(),
               "UTF-8 BOM subscription recognized");
         check(subscriptionPayloadError(" \n") == "EmptySubscription", "empty subscription");
-        for (const auto& body : {"<html>Login required</html>", "c3M6Ly9wdWJsaWM=",
-                                 "ss://public-fixture", "{\"error\":\"expired\"}"})
+        for (const auto& body : {"<html>Login required</html>", "{\"error\":\"expired\"}"})
             check(subscriptionPayloadError(body) == "UnsupportedSubscriptionFormat",
                   "non-configuration content rejected clearly");
+        check(subscriptionPayloadError("ss://public-fixture").isEmpty() &&
+                  subscriptionPayloadError("c3M6Ly9wdWJsaWM=").isEmpty(),
+              "URI and Base64 node subscriptions reach the official provider parser");
         check(subscriptionPayloadError("proxies: []\nproxies: []") == "DuplicateConfigKey",
               "format detection preserves duplicate-key rejection");
         const ConfigHistory history;
@@ -874,23 +877,15 @@ int main(int argc, char* argv[]) {
                   std::get<QByteArray>(session).contains("secret:") &&
                   std::get<QByteArray>(session).contains("find-process-mode: always"),
               "session includes secret and process lookup");
-        for (const auto* mode : {"always", "strict", "off"}) {
+        for (const auto* mode : {"always", "strict", "off", "future-core-value"}) {
             const auto processSource =
                 fixture("inline_valid.yaml") + "\nfind-process-mode: " + mode;
             const auto prepared = quickclash::infra::preflightConfig(processSource, {});
-            check(std::holds_alternative<quickclash::infra::PreflightConfig>(prepared),
-                  "valid subscription process modes accepted");
-            const auto& value = std::get<quickclash::infra::PreflightConfig>(prepared);
-            check(std::find(value.overriddenFields.begin(), value.overriddenFields.end(),
-                            QStringLiteral("find-process-mode")) != value.overriddenFields.end() &&
-                      !value.semanticYaml.contains("find-process-mode") &&
-                      std::get<QByteArray>(
-                          quickclash::infra::materializeSession(value, QByteArray(64, 'a')))
-                          .contains("find-process-mode: always"),
-                  "process lookup is managed without changing the source");
+            check(std::holds_alternative<quickclash::infra::PreflightConfig>(prepared) &&
+                      !std::get<quickclash::infra::PreflightConfig>(prepared).semanticYaml.contains(
+                          "find-process-mode"),
+                  "application-owned fields are overridden before core validation");
         }
-        expectError(fixture("inline_valid.yaml") + "\nfind-process-mode: invalid\n",
-                    "InvalidConfigField");
         check(std::holds_alternative<Error>(quickclash::infra::materializeSession(config, "weak")),
               "weak secret rejected");
         const auto flowInput = quickclash::infra::preflightConfig(
@@ -930,10 +925,8 @@ int main(int argc, char* argv[]) {
         check(std::holds_alternative<Error>(quickclash::infra::configMetadata(
                   "proxies: []\nignored: {nested: 1, nested: 2}\n")) &&
                   std::holds_alternative<Error>(
-                      quickclash::infra::configMetadata("proxies: []\n---\nproxies: []\n")) &&
-                  std::holds_alternative<Error>(quickclash::infra::configMetadata(
-                      "proxies: []\nignored: &a [one]\nother: *a\n")),
-              "metadata keeps duplicate, document and alias rejection in skipped fields");
+                      quickclash::infra::configMetadata("proxies: []\n---\nproxies: []\n")),
+              "metadata keeps duplicate-key and document rejection in skipped fields");
         expectError(fixture("provider_unsupported.yaml"), "UnsupportedConfigFeature");
         const auto geo = quickclash::infra::preflightConfig(fixture("geo_supported.yaml"), {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(geo),
@@ -957,41 +950,61 @@ int main(int argc, char* argv[]) {
             {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(emptyFlow),
               "empty VLESS flow imposes no TCP TLS requirement");
-        auto invalidDns = fixture("dns_supported.yaml");
-        invalidDns.replace("https://dns.example.invalid/dns-query", "file:///private/resolver");
-        expectError(invalidDns, "InvalidConfigField");
-        for (const auto* resolver :
-             {"https://127.0.0.1/dns-query", "tcp://[::ffff:127.0.0.1]:53", "udp://0.0.0.0:53",
-              "udp://[0:0:0:0:0:0:0:1]:53", "tls://[::ffff:7f00:1]:853", "udp://[::ffff:0:0]:53",
-              "https://local.localhost/dns-query", "udp://[::]:53"}) {
-            auto loopback = fixture("dns_supported.yaml");
-            loopback.replace("https://dns.example.invalid/dns-query",
-                             QByteArray("'") + resolver + '\'');
-            expectError(loopback, "InvalidConfigField");
-        }
-        invalidDns = fixture("dns_supported.yaml");
-        invalidDns.replace("198.18.0.1/16", "10.0.0.1/8");
-        expectError(invalidDns, "InvalidConfigField");
-        for (const auto* range :
-             {"198.18.999.1/16", "198.19.0.1/14", "198.18.0.1/31", "::ffff:198.18.0.1/112"}) {
-            auto invalid = fixture("dns_supported.yaml");
-            invalid.replace("198.18.0.1/16", range);
-            expectError(invalid, "InvalidConfigField");
-        }
-        for (const auto* range : {"198.18.0.1/15", "198.19.255.252/30"}) {
-            auto validRange = fixture("dns_supported.yaml");
-            validRange.replace("198.18.0.1/16", range);
-            check(std::holds_alternative<quickclash::infra::PreflightConfig>(
-                      quickclash::infra::preflightConfig(validRange, {})),
-                  "valid bounded fake-ip subnet");
-        }
-        invalidDns = fixture("dns_supported.yaml");
-        invalidDns.replace("default-nameserver: [1.1.1.1]",
-                           "default-nameserver: [https://needs-bootstrap.invalid/dns-query]");
-        expectError(invalidDns, "InvalidConfigField");
-        invalidDns = fixture("dns_supported.yaml");
-        invalidDns.replace("nameserver: [https://dns.example.invalid/dns-query]", "nameserver: []");
-        expectError(invalidDns, "InvalidConfigField");
+        const auto coreBytes = fixture("core_compatible.yaml");
+        const auto coreCompatible = quickclash::infra::preflightConfig(coreBytes, {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(coreCompatible),
+              "protocol/transport/group/rule/DNS options are delegated to official core");
+        const auto coreSemantic =
+            std::get<quickclash::infra::PreflightConfig>(coreCompatible).semanticYaml;
+        check(coreSemantic.contains("anytls") && coreSemantic.contains("alterId") &&
+                  coreSemantic.contains("wireguard") && coreSemantic.contains("PROCESS-NAME") &&
+                  coreSemantic.contains("quic://") && coreSemantic.contains("sniffer"),
+              "core options survive preflight without client allowlists");
+        const auto corePreview = quickclash::infra::redactedConfig(coreSemantic);
+        check(!corePreview.contains("public_dummy") && !corePreview.contains("AQEBAQEBAQ") &&
+                  !corePreview.contains("AgICAgICAg") && !corePreview.contains("127.0.0.1"),
+              "new protocol credentials and unclassified subtrees remain redacted");
+        const auto aliasSource =
+            QByteArray("defaults: &node {type: anytls, server: 127.0.0.1, port: 443, "
+                       "password: public_dummy}\nproxies: [{<<: *node, name: merged}]\n"
+                       "proxy-groups: [{name: Main, type: select, proxies: [merged]}]\n"
+                       "rules: ['MATCH,Main']\n");
+        const auto aliases = quickclash::infra::preflightConfig(aliasSource, {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(aliases) &&
+                  std::get<quickclash::infra::PreflightConfig>(aliases).semanticYaml.contains(
+                      "anytls"),
+              "YAML aliases and merge defaults expand with bounded lifetime");
+        expectError("proxies: &nodes [*nodes]", "ConfigLimitExceeded");
+        QByteArray aliasedRules =
+            "rules: ['DOMAIN,one.invalid,DIRECT', &final 'MATCH,DIRECT', *final]\n";
+        QBuffer aliasInput(&aliasedRules);
+        check(aliasInput.open(QIODevice::ReadOnly), "open alias rule input");
+        std::vector<std::string> emittedRules;
+        const auto aliasScan = quickclash::infra::scanConfigScalars(
+            aliasInput, "rules",
+            [&](const auto& rule) {
+                emittedRules.push_back(rule);
+                return true;
+            },
+            16 * 1024 * 1024);
+        check(std::holds_alternative<quickclash::infra::ConfigMetadata>(aliasScan) &&
+                  emittedRules == std::vector<std::string>{"DOMAIN,one.invalid,DIRECT",
+                                                           "MATCH,DIRECT", "MATCH,DIRECT"},
+              "alias normalization publishes each rule once");
+        const auto managed = quickclash::infra::preflightConfig(
+            coreBytes + "\nlisteners: [{name: public, type: mixed, port: 18080}]\n"
+                        "external-controller-pipe: public_pipe\n"
+                        "external-controller-tls: '0.0.0.0:18081'\n"
+                        "tun: {enable: true, dns-hijack: ['any:53'], device: public_tun}\n"
+                        "ntp: {enable: false, write-to-system: true}\n",
+            {});
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(managed),
+              "managed listener and TUN inputs import without taking control");
+        const auto managedYaml = std::get<quickclash::infra::PreflightConfig>(managed).semanticYaml;
+        check(!managedYaml.contains("listeners:") && !managedYaml.contains("public_pipe") &&
+                  !managedYaml.contains("public_tun") && !managedYaml.contains("dns-hijack") &&
+                  managedYaml.contains("write-to-system: false"),
+              "import cannot create extra listeners or change managed TUN/system clock");
         for (const auto& mode : {QStringLiteral("fake-ip"), QStringLiteral("redir-host")}) {
             quickclash::domain::RuntimePreferences dnsPreferences;
             dnsPreferences.dnsMode = mode;
@@ -1008,8 +1021,10 @@ int main(int argc, char* argv[]) {
         }
         expectError(fixture("invalid.yaml"), "InvalidYaml");
         expectError("proxies: []\nproxies: []", "DuplicateConfigKey");
-        expectError("external-controller-pipe: arbitrary", "UnsupportedConfigFeature");
-        expectError("proxies: &nodes []\nproxy-groups: *nodes", "UnsupportedConfigFeature");
+        check(
+            std::holds_alternative<quickclash::infra::PreflightConfig>(
+                quickclash::infra::preflightConfig("proxies: &nodes []\nproxy-groups: *nodes", {})),
+            "ordinary YAML anchors accepted");
         expectError(QByteArray(40, '[') + "0" + QByteArray(40, ']'), "ConfigLimitExceeded");
         expectError(QByteArray(16 * 1024 * 1024 + 1, ' '), "ConfigLimitExceeded");
         const auto mainstreamBytes = fixture("mainstream_valid.yaml");
@@ -1033,40 +1048,6 @@ int main(int argc, char* argv[]) {
                   !advancedPreview.contains("public_fixture_token") &&
                   !advancedPreview.contains("00000000-0000"),
               "TUIC authentication is redacted");
-        for (const auto& advancedReplacement :
-             {qMakePair(QByteArray("uuid: 00000000-0000-4000-8000-000000000001"),
-                        QByteArray("uuid: invalid")),
-              qMakePair(QByteArray("password: public_fixture_password"),
-                        QByteArray("password: ''")),
-              qMakePair(QByteArray("token: public_fixture_token"), QByteArray("token: ''")),
-              qMakePair(QByteArray("password: public_fixture_password"),
-                        QByteArray("token: public_fixture_token")),
-              qMakePair(QByteArray("uuid: 00000000-0000-4000-8000-000000000001"),
-                        QByteArray("token: public_fixture_token")),
-              qMakePair(QByteArray("congestion-controller: bbr"),
-                        QByteArray("congestion-controller: invalid")),
-              qMakePair(QByteArray("udp-relay-mode: native"),
-                        QByteArray("udp-relay-mode: invalid")),
-              qMakePair(QByteArray("udp: true"), QByteArray("udp: false")),
-              qMakePair(QByteArray("strategy: consistent-hashing"),
-                        QByteArray("strategy: invalid")),
-              qMakePair(QByteArray("port: 19877"), QByteArray("port: 0"))}) {
-            auto invalid = advancedBytes;
-            invalid.replace(advancedReplacement.first, advancedReplacement.second);
-            expectError(invalid, "InvalidConfigField");
-        }
-        for (const auto* field : {"request-timeout", "heartbeat-interval",
-                                  "max-udp-relay-packet-size", "max-open-streams"}) {
-            auto invalid = QString::fromUtf8(advancedBytes);
-            invalid.replace(QRegularExpression(QString::fromLatin1(field) + ": [0-9]+"),
-                            QString::fromLatin1(field) + ": 0");
-            expectError(invalid.toUtf8(), "InvalidConfigField");
-        }
-        for (const auto* field : {"disable-sni", "reduce-rtt", "fast-open", "skip-cert-verify"}) {
-            auto invalid = advancedBytes;
-            invalid.replace(QByteArray(field) + ": false", QByteArray(field) + ": [false]");
-            expectError(invalid, "InvalidConfigField");
-        }
         const auto mainstream = quickclash::infra::preflightConfig(mainstreamBytes, {});
         check(std::holds_alternative<quickclash::infra::PreflightConfig>(mainstream),
               "mainstream protocols, transports and nested automatic groups accepted");
@@ -1103,87 +1084,34 @@ int main(int argc, char* argv[]) {
                             QStringLiteral("proxies.<extension>")) !=
                       compatibleConfig.overriddenFields.end(),
               "managed Geo and ignored metadata reported");
-        auto invalidExtension = compatibleSource;
-        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
-                                 "x-vendor-node-id: {path: /private}");
-        expectError(invalidExtension, "UnsupportedConfigFeature");
-        invalidExtension = compatibleSource;
-        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
-                                 QByteArray("x-vendor-node-id: ") + QByteArray(4097, 'x'));
-        expectError(invalidExtension, "UnsupportedConfigFeature");
-        invalidExtension = compatibleSource;
-        invalidExtension.replace("x-vendor-node-id: public_dummy_metadata",
-                                 "x-Vendor: public_dummy_metadata");
-        expectError(invalidExtension, "UnsupportedConfigFeature");
-        auto invalidCommon = mainstreamBytes;
-        invalidCommon.replace("ip-version: dual", "ip-version: unsupported");
-        expectError(invalidCommon, "InvalidConfigField");
-        invalidCommon = mainstreamBytes;
-        invalidCommon.replace("tfo: false", "tfo: [false]");
-        expectError(invalidCommon, "InvalidConfigField");
-        invalidCommon = mainstreamBytes;
-        invalidCommon.replace("encryption: none", "encryption: [none]");
-        expectError(invalidCommon, "InvalidConfigField");
+        auto futureOption = compatibleSource;
+        futureOption.replace("x-vendor-node-id: public_dummy_metadata",
+                             "future-option: {nested: public_dummy_metadata}");
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(
+                  quickclash::infra::preflightConfig(futureOption, {})),
+              "new core options are not rejected by a stale client schema");
         const QByteArray identityKey(32, 'k');
         auto changed = semantic;
         changed.replace("public_dummy_password", "changed_dummy_password");
         check(quickclash::infra::nodeIdentities(semantic, identityKey).value("hy2_fixture") !=
                   quickclash::infra::nodeIdentities(changed, identityKey).value("hy2_fixture"),
               "protocol credential change invalidates saved identity");
-        changed = mainstreamBytes;
-        changed.replace("port: 443", "port: 70000");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("tls: true", "tls: [true]");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("00000000-0000-4000-8000-000000000001", "not-a-uuid");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("short-id: 0123456789abcdef", "short-id: xyz");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("headers: {Host: proxy.example.invalid}",
-                        "headers: {secret_credential: value}");
-        expectError(changed, "UnsupportedConfigFeature");
-        changed = mainstreamBytes;
-        changed.replace("proxies: [DIRECT, REJECT]", "proxies: [primary_fixture]");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("proxies: [DIRECT, REJECT]", "proxies: [missing_fixture]");
-        expectError(changed, "InvalidConfigField");
-        changed = mainstreamBytes;
-        changed.replace("interval: 86400", "interval: 0");
-        expectError(changed, "InvalidConfigField");
-        const auto incompatible =
-            quickclash::infra::preflightConfig(fixture("compatibility_unsupported.yaml"), {});
-        check(std::holds_alternative<Error>(incompatible), "unsupported fixture rejected");
-        const auto failure = std::get<Error>(incompatible);
-        std::set<QString> categories;
-        QString safeDetail;
-        for (const auto& issue : failure.configIssues) {
-            categories.insert(issue.code);
-            safeDetail += issue.path + issue.feature + issue.phase;
-        }
-        for (const auto* kind :
-             {"UnsupportedProtocol", "UnsupportedTransport", "UnsupportedGroup", "UnsupportedRule",
-              "UnsupportedDns", "UnsupportedResource", "UnsupportedField"})
-            check(categories.contains(QString::fromLatin1(kind)),
-                  "all compatibility categories reported together");
-        check(!safeDetail.contains("secret_") && !safeDetail.contains("private.") &&
-                  !safeDetail.contains("token=") && failure.configIssues.size() <= 32,
-              "diagnostics expose fixed vocabulary and structural indexes only");
-        QByteArray manyIssues = "proxies: []\nproxy-groups: []\nrules: [\n";
-        for (int index = 0; index < 100; ++index)
-            manyIssues += "  'RULE-SET,fixture,DIRECT',\n";
-        manyIssues += "]\n";
-        const auto bounded = quickclash::infra::preflightConfig(manyIssues, {});
+        const auto malformed = quickclash::infra::preflightConfig(
+            "proxies: [{name: [private_secret], type: anytls}]\n", {});
+        check(std::holds_alternative<Error>(malformed) &&
+                  !std::get<Error>(malformed).configIssues.empty() &&
+                  !std::get<Error>(malformed).configIssues.front().path.contains("private_secret"),
+              "projection failures expose structural paths only");
+        QByteArray pendingProviders = "proxies: []\nproxy-groups: []\nrule-providers:\n";
+        for (int index = 0; index < 32; ++index)
+            pendingProviders +=
+                "  private_provider_" + QByteArray::number(index) + ": {type: http}\n";
+        const auto bounded = quickclash::infra::preflightConfig(pendingProviders, {});
         check(std::holds_alternative<Error>(bounded) &&
-                  std::get<Error>(bounded).configIssues.size() <= 32 &&
-                  !std::get<Error>(bounded).configIssues.empty() &&
-                  std::get<Error>(bounded).configIssues.front().occurrences == 100 &&
-                  std::get<Error>(bounded).configIssues.front().path.contains("[*]"),
-              "repeated compatibility issues are aggregated and bounded");
+                  std::get<Error>(bounded).configIssues.size() == 1 &&
+                  std::get<Error>(bounded).configIssues.front().occurrences == 32 &&
+                  !std::get<Error>(bounded).configIssues.front().path.contains("private_provider"),
+              "resource diagnostics remain bounded and do not expose provider names");
         const QByteArray providerConfig =
             "proxy-providers: {remote: {type: http, url: 'https://example.invalid/proxies', path: "
             "'../escape'}}\n"
@@ -1195,6 +1123,10 @@ int main(int argc, char* argv[]) {
         check(std::holds_alternative<QJsonArray>(requests) &&
                   std::get<QJsonArray>(requests).size() == 2,
               "managed providers discovered without accepting source paths");
+        auto implicitMembers = providerConfig;
+        implicitMembers.replace("use: [remote]", "include-all-proxies: true");
+        check(quickclash::infra::requiresRuntimeProviders(implicitMembers),
+              "implicit group membership retains native provider semantics");
         const auto expanded = quickclash::infra::expandProviders(
             providerConfig,
             {{QStringLiteral("proxy-providers:remote"),
@@ -1241,11 +1173,14 @@ int main(int argc, char* argv[]) {
         auto invalidProviderExtension = runtimeProvider;
         invalidProviderExtension.replace("x-vendor-id: public_dummy",
                                          "x-vendor-id: {path: /private}");
-        expectError(invalidProviderExtension, "UnsupportedConfigFeature");
+        check(std::holds_alternative<quickclash::infra::PreflightConfig>(
+                  quickclash::infra::preflightConfig(invalidProviderExtension, {})),
+              "managed provider nodes use the same core-delegated schema");
         auto insecureProvider = providerConfig;
         insecureProvider.replace("https://", "http://");
-        check(std::holds_alternative<Error>(quickclash::infra::providerRequests(insecureProvider)),
-              "insecure provider rejected");
+        check(std::holds_alternative<QJsonArray>(
+                  quickclash::infra::providerRequests(insecureProvider)),
+              "explicit HTTP provider accepted without automatic TLS downgrade");
         check(std::holds_alternative<Error>(quickclash::infra::expandProviders(providerConfig, {})),
               "missing provider cannot silently drop rules");
         const QSet<QString> allowedProviders{"proxies:node/a?b", "rules:domains"};

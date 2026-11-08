@@ -89,7 +89,7 @@ FlatTile {
                     wrapMode: Text.WordWrap
                 }
                 Label {
-                    text: root.profile.secretRef ? qsTr("HTTPS subscription") : qsTr("Local profile")
+                    text: root.profile.secretRef ? qsTr("Subscription") : qsTr("Local profile")
                     color: root.theme.muted
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap

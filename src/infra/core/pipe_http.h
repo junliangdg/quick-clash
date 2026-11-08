@@ -5,7 +5,7 @@
 #include <functional>
 
 namespace quickclash::infra {
-// Only the LocalSystem service uses this transport to the System-only Mihomo pipe.
+// Local transport for the service controller and isolated provider validation.
 void pipeHttp(QObject* context, const QString& pipe, const QByteArray& method,
               const QByteArray& path, const QJsonObject& body,
               std::function<void(domain::Result<QJsonObject>)> handler);
