@@ -1,6 +1,6 @@
 # QuickClash C++ 与源码规范
 
-应用显示名称为 **QuickClash**；仓库和 checkout 目录名约定为 `quick-clash`，本机目标工作路径为 `D:/repos/quick-clash`，实际迁移状态见 [迁移记录](../progress/reports/windows_validation.md#工程与内核)。CMake project、程序文件基础名、命名空间与内部产品 ID 使用 `quickclash`；连字符只用于仓库目录，不用作 C++ 标识符。组织域名/签名发布者待真实信息固定，不虚构包标识；首次实现数据路径前统一设置应用名，发行后变更须设计迁移。
+应用显示名称为 **QuickClash**；仓库和 checkout 目录名约定为 `quick-clash`。CMake project、程序文件基础名、命名空间与内部产品 ID 使用 `quickclash`；连字符只用于仓库目录，不用作 C++ 标识符。组织域名/签名发布者待真实信息固定，不虚构包标识；首次实现数据路径前统一设置应用名，发行后变更须设计迁移。
 
 本文是 QuickClash 的实现约定，采用 C++20、C++ Core Guidelines 中的 RAII/所有权/类型安全实践及 Qt 的对象/线程规则；不盲目启用所有现代语法或所有 clang-tidy 规则。设计文档中的概念接口以 [03](../design/03-数据模型与接口契约.md) 为行为契约，真实命名遵守本文件。
 

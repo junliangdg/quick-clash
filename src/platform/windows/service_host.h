@@ -15,21 +15,32 @@
 #include <QPointer>
 #include <QSet>
 #include <QTimer>
+#include <memory>
+
+class QWinEventNotifier;
 
 namespace quickclash::platform {
 class ServiceHost final : public QObject {
     Q_OBJECT
   public:
     explicit ServiceHost(QObject* parent = nullptr);
+    ~ServiceHost() override;
     [[nodiscard]] bool listen();
     void shutdown();
+  signals:
+    void exitRequested();
 
   private:
     friend class ServiceReloadProbe;
+    struct CloseClientProcess {
+        void operator()(void* process) const;
+    };
     enum class TunObservation { On, Missing, Unknown };
 
     [[nodiscard]] bool authenticated(QLocalSocket* socket, QString* failure = nullptr,
-                                     QString* image = nullptr);
+                                     QString* image = nullptr, ProcessIdentity* identity = nullptr);
+    [[nodiscard]] bool bindClientProcess(ProcessIdentity identity);
+    void exitWhenClean(int attempt = 0);
     [[nodiscard]] bool loadTrustedClientRoot();
     void receive(QLocalSocket* socket);
     void dispatch(QLocalSocket* socket, const QString& id, const QString& action,
@@ -63,6 +74,11 @@ class ServiceHost final : public QObject {
     OwnedProcess core_;
     OwnedProcess validator_;
     QTimer heartbeat_;
+    QTimer idleExit_;
+    std::unique_ptr<void, CloseClientProcess> clientProcess_;
+    std::unique_ptr<QWinEventNotifier> clientExit_;
+    ProcessIdentity clientIdentity_;
+    bool exiting_ = false;
     QElapsedTimer lastHeartbeat_;
     QElapsedTimer tick_;
     QElapsedTimer requestWindow_;

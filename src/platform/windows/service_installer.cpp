@@ -437,17 +437,17 @@ void configure(const ServiceSetupRequest& request, SetupLog& log) {
         writeTrustedRoot(trusted.root, log);
         if (service) {
             require(ChangeServiceConfigW(service.get(), SERVICE_WIN32_OWN_PROCESS,
-                                         SERVICE_AUTO_START, SERVICE_ERROR_NORMAL, command.c_str(),
-                                         nullptr, nullptr, nullptr, L"LocalSystem", nullptr,
-                                         kServiceDisplay),
+                                         SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
+                                         command.c_str(), nullptr, nullptr, nullptr, L"LocalSystem",
+                                         nullptr, kServiceDisplay),
                     QStringLiteral("Cannot update portable service registration."));
             servicePermissions(service.get());
             startService(service.get(), log);
         } else {
-            ScmHandle fresh(
-                CreateServiceW(scm.get(), kServiceName, kServiceDisplay, SERVICE_ALL_ACCESS,
-                               SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START, SERVICE_ERROR_NORMAL,
-                               command.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr));
+            ScmHandle fresh(CreateServiceW(
+                scm.get(), kServiceName, kServiceDisplay, SERVICE_ALL_ACCESS,
+                SERVICE_WIN32_OWN_PROCESS, SERVICE_DEMAND_START, SERVICE_ERROR_NORMAL,
+                command.c_str(), nullptr, nullptr, nullptr, nullptr, nullptr));
             require(static_cast<bool>(fresh),
                     QStringLiteral("Cannot register the portable service."));
             created = true;
@@ -483,7 +483,7 @@ void configure(const ServiceSetupRequest& request, SetupLog& log) {
         throw;
     }
     log.line(QStringLiteral(
-        "Automatic service registered directly in the portable folder; no payload copied."));
+        "On-demand service registered directly in the portable folder; no payload copied."));
     removeLegacyPayload(trusted.root, log);
 }
 

@@ -96,6 +96,37 @@ int main(int argc, char** argv) {
         return quickclash::test::subscriptionValidationFailureProbe();
     if (app.arguments().contains(QStringLiteral("--update-memory-probe")))
         return quickclash::test::subscriptionMemoryProbe();
+    // Application exit ends the current session without changing either saved TUN choice.
+    // Keep the store isolated and empty so this check never requests service authorization.
+    for (const bool desired : {false, true}) {
+        QTemporaryDir intentDirectory;
+        quickclash::infra::JsonStore intentStore(intentDirectory.path());
+        if (!std::holds_alternative<std::monostate>(intentStore.open()))
+            return 198;
+        auto preferences = quickclash::infra::SettingsRepository::runtimeDefaults();
+        preferences.insert("tunDesired", desired);
+        if (!std::holds_alternative<std::monostate>(
+                intentStore.write("config/runtime_defaults.json", preferences)))
+            return 199;
+        const auto before = intentStore.readBytes("config/runtime_defaults.json");
+        if (!std::holds_alternative<QByteArray>(before))
+            return 202;
+        {
+            quickclash::application::DesktopRuntime exiting(intentStore);
+            exiting.initialize();
+            exiting.stop(quickclash::domain::StopReason::AppExit);
+            if (exiting.snapshot().value("preferences").toObject().value("tunDesired") != desired)
+                return 200;
+        }
+        quickclash::application::DesktopRuntime reopenedIntent(intentStore);
+        reopenedIntent.initialize();
+        const auto after = intentStore.readBytes("config/runtime_defaults.json");
+        if (reopenedIntent.snapshot().value("preferences").toObject().value("tunDesired") !=
+                desired ||
+            !std::holds_alternative<QByteArray>(after) ||
+            std::get<QByteArray>(after) != std::get<QByteArray>(before))
+            return 201;
+    }
     QTemporaryDir directory;
     quickclash::infra::JsonStore store(directory.path());
     if (std::holds_alternative<quickclash::domain::Error>(store.open()))

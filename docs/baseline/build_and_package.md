@@ -30,7 +30,7 @@ Windows 配置校验直接调用已验证的受管 Mihomo 程序，以独立普�
 
 在仓库根目录执行：
 
-仓库目录统一为 `quick-clash`，实际工作路径为 `D:/repos/quick-clash`，[目录迁移](../progress/reports/windows_validation.md#工程与内核)及会话写权限更新已完成。移动源码目录后，旧 CMake/Ninja 生成文件含原绝对路径，不能直接复用；保留旧 `build/` 作为历史资料，使用全新目录，例如 `-BuildDirectory build/windows_x64`、`-BuildDirectory build/headless_x64 -Headless`。脚本和 presets 均从当前仓库位置求路径，下载缓存 `.cache/` 可继续按摘要校验使用。
+仓库目录约定为 `quick-clash`，可放在本机合适的位置。移动源码目录后，旧 CMake/Ninja 生成文件含原绝对路径，不能直接复用；保留所需历史资料，使用全新构建目录，例如 `-BuildDirectory build/windows_x64`、`-BuildDirectory build/headless_x64 -Headless`。脚本和 presets 均从当前仓库位置求路径，下载缓存 `.cache/` 可继续按摘要校验使用。
 
     pwsh -NoProfile -File scripts/fetch_dependencies.ps1
     pwsh -NoProfile -File scripts/build_windows.ps1 -QtRoot C:/Qt/6.9.0/msvc2022_64 -Full -Fresh
@@ -85,7 +85,7 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 
 `-Test`、`-BuildOnly`、`-Fast`、`-Full`互斥。CMake配置生成`quickclash_tests.json`，记录当前配置的CTest名称、对应构建目标、快速构建实际依赖与完整测试替代关系；定向入口先验证名称，再构建产品和被选测试的目标，只运行确切匹配的测试，共用测试程序不会扩大运行范围。拼错、当前配置不支持的测试或空测试范围直接失败；显式选择的慢测试不受`ci_slow`排除。`-Headless`默认只跑`contracts`，不引入UI。`ctest --preset dev`同样执行去重后的完整套件；已用IDE构建对应目标时可用`ctest --test-dir build/dev -R '^(ui_state|qml_smoke)$' --output-on-failure --no-tests=error`定向运行，包括短入口。
 
-Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当前构建目录的服务正在运行并锁定 EXE，先关闭 TUN、正常退出客户端，再停止已注册的 QuickClashService 后重新构建并恢复服务；不要忽略服务链接失败而交付单独重建的客户端，否则本地载荷仍缺少新协议能力，重启服务也无法修复。
+Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当前构建目录的服务正在运行并锁定 EXE，正常退出客户端，等待服务进程退出后重新构建；旧版服务仍驻留时手动停止已注册的 QuickClashService 并确认退出。无需先关闭 TUN 开关，退出保留偏好，下次启动按需恢复服务。不要忽略服务链接失败而交付单独重建的客户端，否则本地载荷仍缺少新协议能力，重启服务也无法修复。
 
 选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品；配置后可加`-ConfiguredManifest build/dev/quickclash_tests.json`核对实际CMake注册、构建依赖与CI分组，无UI配置则传`build/headless/quickclash_tests.json`。Windows完整工作流和Linux/macOS手动工作流均核对各自UI/headless清单；跨平台构建、QML lint与CTest输出保留到artifact，CTest使用`--no-tests=error`，构建日志的`tee`管道使用显式`bash`的失败传播。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
 
@@ -101,7 +101,7 @@ Windows验证runner复用已装工具/依赖；验证与打包在同一PowerShel
 
 Release资产为`quickclash_windows_x64.zip`及`.zip.sha256`，清单记录版本/commit/构建标志/摘要/签名状态。测试exe、QtTest、源码/头文件、静态库、符号、构建与测试日志均拒绝进入dist；Actions日志artifact单独保存。当前为未签名便携包，自动发布不等于干净机器/TUN或应用内自动更新验收通过。
 
-ZIP解压目录是程序、服务、核心和随包Geo的唯一发行来源。首次TUN请求UAC，SCM直接注册bin/quickclash_service.exe并设为自动启动；不在Program Files复制运行文件。后续重开/同目录更新免UAC；更新服务文件前先停止服务，移动目录须再次授权。ProgramData仅保留授权、私有会话及清理日志。
+ZIP解压目录是程序、服务、核心和随包Geo的唯一发行来源。首次TUN请求UAC，SCM直接注册bin/quickclash_service.exe并设为按需启动；不在Program Files复制运行文件。服务绑定已认证GUI进程，GUI实际退出后清理并退出，注册及授权保留；新服务运行时将已授权旧自动启动注册迁移为按需启动。下次手动启动或登录自启按保存的TUN偏好恢复，后续重开/同目录更新免UAC。更新前退出GUI并确认服务进程已退出，旧版仍驻留时手动停服；移动目录须再次授权。ProgramData仅保留授权、私有会话及清理日志。
 
 本地核对命令（首次先完整获取依赖）：`cmake --preset release`、`cmake --build --preset release --parallel 4`、`pwsh -NoProfile -File scripts/package_release_windows.ps1 -Version continuous`。已有dist不覆盖，复核时显式选择新的`-Destination`。历史`package_windows.ps1`是本地验证包入口，不能作为自动发行入口。
 

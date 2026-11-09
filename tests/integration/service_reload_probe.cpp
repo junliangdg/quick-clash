@@ -8,6 +8,7 @@
 #include <QJsonDocument>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QProcess>
 #include <QTcpServer>
 #include <QTemporaryDir>
 #include <QThread>
@@ -170,8 +171,64 @@ class ServiceReloadProbe final {
         if (host.core_.running() || !host.configClean_ ||
             !std::get<QStringList>(host.store_.files("session/revisions")).isEmpty())
             return 32;
+        // Closing the session / turning TUN off must not forget which application owns
+        // the service. A subsequent process exit must still release the service and core.
+        QProcess application;
+        application.start(QCoreApplication::applicationFilePath(), {"--service-lifetime-child"});
+        if (!application.waitForStarted(3000))
+            return 38;
+        const auto identity = processIdentity(static_cast<quint32>(application.processId()));
+        if (!host.bindClientProcess(identity) || !host.bindClientProcess(identity) ||
+            host.bindClientProcess({identity.pid, identity.created + 1}))
+            return 39;
+        int exits = 0;
+        QObject::connect(&host, &ServiceHost::exitRequested, &host, [&] { ++exits; });
+        host.stop();
+        QCoreApplication::processEvents();
+        if (exits || !host.clientProcess_ || !host.clientExit_)
+            return 40;
+        if (!std::holds_alternative<std::monostate>(
+                host.store_.writeBytes("session/config.yaml", yaml)) ||
+            !std::holds_alternative<std::monostate>(host.core_.start(
+                qEnvironmentVariable("QUICKCLASH_TEST_CORE"),
+                {"-d", host.directory_, "-f", temporary.filePath("session/config.yaml")},
+                host.directory_, false)))
+            return 41;
+        // A console-only QCoreApplication does not handle QProcess::terminate's WM_CLOSE.
+        // Kill the owned fixture to exercise actual process death, including a GUI crash.
+        application.kill();
+        if (!wait([&] { return exits == 1 && !host.core_.running(); }) || !host.configClean_ ||
+            QFile::exists(temporary.filePath("session/config.yaml")) ||
+            host.bindClientProcess(identity))
+            return 42;
+        // Failed cleanup retains its recovery evidence even when the service must exit.
+        ServiceHost uncertain;
+        uncertain.store_ = infra::JsonStore(temporary.filePath("uncertain"));
+        if (!std::holds_alternative<std::monostate>(uncertain.store_.open()) ||
+            !std::holds_alternative<std::monostate>(
+                uncertain.store_.write("tun_session.json", {{"epoch", "unconfirmed"}})))
+            return 43;
+        uncertain.tunRecord_ = {{"epoch", "unconfirmed"}};
+        uncertain.tunJournalFailed_ = true;
+        int uncertainExits = 0;
+        QObject::connect(&uncertain, &ServiceHost::exitRequested, &uncertain,
+                         [&] { ++uncertainExits; });
+        uncertain.exitWhenClean(20);
+        if (uncertainExits != 1 || uncertain.tunRecord_.isEmpty() ||
+            !QFile::exists(temporary.filePath("uncertain/tun_session.json")))
+            return 44;
+        ServiceHost idle;
+        idle.store_ = infra::JsonStore(temporary.filePath("idle"));
+        if (!std::holds_alternative<std::monostate>(idle.store_.open()))
+            return 45;
+        bool idleExited = false;
+        QObject::connect(&idle, &ServiceHost::exitRequested, &idle, [&] { idleExited = true; });
+        idle.idleExit_.start(10);
+        if (!wait([&] { return idleExited; }))
+            return 46;
         std::cout << "Service fixed reload: same PID, preflight, occupied-port recovery and "
-                     "bounded cache passed\n";
+                     "bounded cache; client lifetime, idle exit and retained recovery journal "
+                     "passed\n";
         return 0;
     }
 };

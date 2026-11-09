@@ -22,6 +22,7 @@
 #include <QStandardPaths>
 #include <QTcpServer>
 #include <QUrl>
+#include <QWinEventNotifier>
 #include <utility>
 #include <yaml-cpp/yaml.h>
 // clang-format off
@@ -136,6 +137,10 @@ ServiceHost::ServiceHost(QObject* parent)
     corePath_ = portableCorePath(installation());
     directory_ = store_.root() + QStringLiteral("/session");
     configPath_ = directory_ + QStringLiteral("/config.yaml");
+    // A service started by setup must not remain resident if the GUI never connects.
+    idleExit_.setSingleShot(true);
+    idleExit_.setInterval(15000);
+    connect(&idleExit_, &QTimer::timeout, this, [this] { exitWhenClean(); });
     heartbeat_.setInterval(1000);
     connect(&heartbeat_, &QTimer::timeout, this, [this] {
         // A long scheduler gap includes suspend. Give the client a fresh handshake window.
@@ -200,6 +205,56 @@ ServiceHost::ServiceHost(QObject* parent)
         traffic_.close("ServiceCoreNotReady");
     });
 }
+ServiceHost::~ServiceHost() {
+    // Socket children may emit disconnected while server_ is destroyed, after the maps
+    // and owned-process members have already gone away.
+    server_.disconnect(this);
+    for (auto* socket : buffers_.keys())
+        socket->disconnect(this);
+}
+void ServiceHost::CloseClientProcess::operator()(void* process) const {
+    CloseHandle(process);
+}
+bool ServiceHost::bindClientProcess(ProcessIdentity identity) {
+    if (exiting_ || !identity.pid || !identity.created)
+        return false;
+    if (clientProcess_)
+        return clientIdentity_.pid == identity.pid && clientIdentity_.created == identity.created &&
+               WaitForSingleObject(clientProcess_.get(), 0) == WAIT_TIMEOUT;
+    std::unique_ptr<void, CloseClientProcess> process(
+        OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, identity.pid));
+    FILETIME created{}, exited{}, kernel{}, user{};
+    if (!process || !GetProcessTimes(process.get(), &created, &exited, &kernel, &user) ||
+        ((quint64{created.dwHighDateTime} << 32) | created.dwLowDateTime) != identity.created ||
+        WaitForSingleObject(process.get(), 0) != WAIT_TIMEOUT)
+        return false;
+    clientIdentity_ = identity;
+    clientProcess_ = std::move(process);
+    clientExit_ = std::make_unique<QWinEventNotifier>(clientProcess_.get());
+    connect(clientExit_.get(), &QWinEventNotifier::activated, this, [this] {
+        clientExit_->setEnabled(false);
+        exitWhenClean();
+    });
+    idleExit_.stop();
+    return true;
+}
+void ServiceHost::exitWhenClean(int attempt) {
+    if (!exiting_) {
+        exiting_ = true;
+        idleExit_.stop();
+        heartbeat_.stop();
+        server_.close();
+        stop("ClientExit");
+    }
+    if ((!core_.running() && !validator_.running() && configClean_ && tunClean()) ||
+        attempt >= 20) {
+        // Failed cleanup retains its journal/configuration for the next startup. Never keep
+        // an ownerless privileged process resident indefinitely or claim that it is clean.
+        emit exitRequested();
+        return;
+    }
+    QTimer::singleShot(100, this, [this, attempt] { exitWhenClean(attempt + 1); });
+}
 bool ServiceHost::listen() {
     // First UAC explicitly trusts the portable executable tree. Only authorization and
     // private session state require a protected system directory.
@@ -260,6 +315,7 @@ bool ServiceHost::listen() {
         return false;
     tick_.start();
     heartbeat_.start();
+    idleExit_.start();
     return true;
 }
 bool ServiceHost::loadTrustedClientRoot() {
@@ -276,7 +332,8 @@ bool ServiceHost::loadTrustedClientRoot() {
     trustedClient_ = *loaded;
     return true;
 }
-bool ServiceHost::authenticated(QLocalSocket* socket, QString* failure, QString* image) {
+bool ServiceHost::authenticated(QLocalSocket* socket, QString* failure, QString* image,
+                                ProcessIdentity* identityResult) {
     const auto reject = [failure](const char* code) {
         if (failure)
             *failure = QString::fromLatin1(code);
@@ -331,9 +388,13 @@ bool ServiceHost::authenticated(QLocalSocket* socket, QString* failure, QString*
     identities_.insert(socket, identity);
     if (image)
         *image = *trusted;
+    if (identityResult)
+        *identityResult = {pid, (quint64{created.dwHighDateTime} << 32) | created.dwLowDateTime};
     return true;
 }
 void ServiceHost::receive(QLocalSocket* socket) {
+    if (exiting_)
+        return;
     if (rejections_.contains(socket)) {
         auto& rejectionBuffer = buffers_[socket];
         if (!infra::appendAvailable(*socket, rejectionBuffer, infra::kServiceHandshakeMaxBytes)) {
@@ -356,7 +417,8 @@ void ServiceHost::receive(QLocalSocket* socket) {
         return;
     }
     QString image;
-    if (!authenticated(socket, nullptr, &image) || images_.value(socket) != image) {
+    ProcessIdentity identity;
+    if (!authenticated(socket, nullptr, &image, &identity) || images_.value(socket) != image) {
         socket->abort();
         return;
     }
@@ -384,6 +446,10 @@ void ServiceHost::receive(QLocalSocket* socket) {
         if (action == QStringLiteral("hello") && !sessions_.contains(socket) &&
             request.value(QStringLiteral("payload")).toObject().isEmpty() &&
             request.value(QStringLiteral("sessionId")).toString().isEmpty()) {
+            if (!bindClientProcess(identity)) {
+                answer(socket, id, failure("ServiceSessionBusy"));
+                continue;
+            }
             const auto session = QUuid::createUuid().toString(QUuid::WithoutBraces);
             sessions_.insert(socket, session);
             socket->setReadBufferSize(infra::kReadChunkSize);

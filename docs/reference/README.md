@@ -35,16 +35,18 @@ pwsh -NoProfile -File scripts/check_progress.ps1
 pwsh -NoProfile -File scripts/check_source_layout.ps1
 ~~~
 
-图像可使用既有测试构建的隔离 `--visual-test --reference-only --probe-language=en-US --visual-output=<build下目录>` 入口生成，中文使用 `--probe-language=zh-CN`。`--reference-only`仅导出宽窗明暗首页和深色窄窗三张代表图，不执行完整视觉回归矩阵；核看各轮 `light_home.png`、`dark_home.png`、`dark_home_360.png` 及 `captures.json` 后，只精选 README 所需图复制到本目录。完整输出留在忽略的 build 下，禁止使用真实用户订阅或凭据截图。图像仅反映记录的渲染环境，不能替代原生 GPU、系统集成或资源验收。
+文档截图优先使用产品默认的原生 Qt Quick RHI/GPU 路径，保留本机实际 DPI。可使用既有测试构建的隔离 `--visual-test --reference-only --probe-language=en-US --visual-output=<build下目录>` 入口生成，中文使用 `--probe-language=zh-CN`。`--reference-only`仅导出宽窗明暗首页和深色窄窗三张代表图，不执行完整视觉回归矩阵；核看各轮 `light_home.png`、`dark_home.png`、`dark_home_360.png` 及 `captures.json` 后，只精选 README 所需图复制到本目录。完整输出留在忽略的 build 下，禁止使用真实用户订阅或凭据截图。图像仅反映记录的渲染环境，不代替完整 GPU 兼容性、系统集成或资源验收。
 
-Windows离屏导图须设置 `QT_QPA_PLATFORM=offscreen`、`QT_QUICK_BACKEND=software`、`QT_QPA_FONTDIR=C:/Windows/Fonts` 和 `QT_SCALE_FACTOR=1`，字体仅从本机已安装目录读取，不复制入库。进程成功退出不代表文字已经正确渲染；替换素材前须人工核看字体、布局和侧栏状态。
+Windows 原生导图前清除本次进程继承的 `QT_QPA_PLATFORM`、`QT_QUICK_BACKEND`、`QSG_RHI_BACKEND`、`QSG_RHI_PREFER_SOFTWARE_RENDERER`、`QT_D3D_ADAPTER_INDEX`、`QSG_RENDER_LOOP`、`QT_D3D_MAX_FRAME_LATENCY`、`QT_D3D_NO_FLIP`、`QT_QPA_FONTDIR` 和 `QT_SCALE_FACTOR` 等诊断覆盖；使用 `Remove-Item Env:<变量名> -ErrorAction SilentlyContinue` 真正移除变量，勿设为空字符串。可用 `QSG_INFO=1` 记录实际后端、选用适配器和渲染循环；当前 Windows 应用默认 RHI/Direct3D 11、basic 循环，必须核对 `captures.json` 中窗口已暴露、`graphicsApi=4`，并检查日志确认硬件适配器和 `Prefer software device: 0`。记录 Qt 版本、DPR、逻辑尺寸、图片像素尺寸与源程序摘要；不同 DPI 不要求 PNG 像素尺寸相同，不对图片缩放或补锐。
+
+无原生图形环境时仍可用 `QT_QPA_PLATFORM=offscreen`、`QT_QUICK_BACKEND=software`、`QT_QPA_FONTDIR=C:/Windows/Fonts` 和 `QT_SCALE_FACTOR=1` 做离屏诊断，单独标注来源与适用范围。字体只从本机已安装目录读取，不复制入库。无论使用哪条路径，进程成功退出都不代表文字或布局正确；替换素材前须人工核看字体、布局和侧栏状态。
 
 ## 当前素材来源
 
-- 同步日期：2026-11-08；对照当前工作区的 `qml/features`、`qml/components` 与设计正文，包含尚未提交的界面改动。
-- 六张 PNG 来自同一 `0.1.0` 开发构建，Qt 6.12.0、DPR 1，offscreen/software 隔离视觉探针生成，无真实业务或网络接管。宽窗为 1000×640，窄窗为 360×640 逻辑像素；均只展示首页顶部视口，下方卡片需滚动查看。窄窗是桌面布局，不表示移动平台已实现。
+- 同步日期：2026-11-09；使用当前 `build/dev/quickclash.exe` 既有测试构建，未修改产品代码或重新构建。
+- 六张 PNG 来自同一 `0.1.0` 开发构建，Qt 6.12.0、Windows 原生窗口、RHI/Direct3D 11、应用默认 basic 渲染循环，日志确认选择 NVIDIA GeForce RTX 4070 Ti 硬件适配器。DPR 为 1.25；宽窗为 1000×640 逻辑像素、1250×800 图片像素，窄窗为 360×640 逻辑像素、450×800 图片像素，保留原始截图字节。均只展示首页顶部视口，下方卡片需滚动查看；使用隔离合成数据，无真实业务或网络接管。窄窗是桌面布局，不表示移动平台已实现。
 - 英文图使用 `en-US` 界面；订阅、策略组和节点名称来自合成用户数据，不随界面语言翻译。中文图使用 `zh-CN` 界面。
-- 六张图原始截图源程序 SHA-256 为 `f819920dc863aaab8f60af9f74d196697789c4b4524dbd736cb0a0aa4f63169f`。2026-11-08 用 SHA-256 为 `6065445e9f9e6e2636c963e986b0059a036ebbc0fe750fea3d9f155950d8d1e3` 的新构建在相同离屏条件重新生成，六张图逐像素相同，故保留原文件；新图位于忽略的 `build/navigation_selected_bold_20261108/zh/` 与 `en/`。当前15px侧栏主导航请求普通500、选中700；本机离屏字体把原选中600和新选中700显示为相同字形，原生窗口效果可能不同。
+- 源程序 SHA-256 为 `e735d04476a3df861cb4281acd6ef26b897d70d9038e67c0e0fc909e11985be8`。两种语言各三张截图探针退出码均为 0，逐张核看文字、主题、导航和窄窗布局。原始截图、`captures.json`、后端日志与 `provenance.json` 留在忽略的 `build/reference_rhi_20261109/native/`；首轮因空环境变量覆盖而使用 threaded 循环的图片未采用。此前 2026-11-07/08 的 offscreen/software 图已被本轮替换，其像素和字体显示结论仅适用于旧素材。
 - HTML 按相同页面结构独立编排，所有交互只改变当前文档；网页重新打开后回到英文初始样例，不持久化语言或表单。
 
 预览使用公开假数据和本地交互。节点、域名、用量、时间及测试结果均为演示；不访问网络，不读取用户配置，不修改系统代理/端口/文件，不作为产品默认值、真实功能或资源验收证据。复制按钮仅显示反馈，不改写系统剪贴板。预览默认浅色，产品默认跟随系统，两者用途不同。

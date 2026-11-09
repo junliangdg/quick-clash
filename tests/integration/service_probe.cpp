@@ -1685,6 +1685,132 @@ int serviceProbe() {
         return 1;
     infra::ServiceClient client;
     QJsonObject evidence;
+    if (mode == QStringLiteral("process_exit") || mode == QStringLiteral("process_crash")) {
+        const auto initial = command(client, QStringLiteral("status"));
+        const auto started = command(client, QStringLiteral("start"), startPayload());
+        const auto stopped = command(client, QStringLiteral("stop"));
+        client.close();
+        QElapsedTimer grace;
+        grace.start();
+        const bool alive =
+            waitFor([&] { return grace.elapsed() >= 300; }) &&
+            platform::installedServiceRegistration(0) == platform::ServiceRegistration::Verified;
+        const auto clean = command(client, QStringLiteral("status"));
+        const auto restarted = command(client, QStringLiteral("start"), startPayload());
+        const auto ready = command(client, QStringLiteral("status"));
+        const bool passed = initial.value("clean").toBool() && started.value("pid").toInt() > 0 &&
+                            stopped.value("stopped").toBool() && alive &&
+                            clean.value("clean").toBool() && restarted.value("pid").toInt() > 0 &&
+                            ready.value("ready").toBool() && !ready.value("tun").toBool();
+        evidence = {{"initial", initial},        {"started", started},
+                    {"stopped", stopped},        {"serviceAliveAfterSessionClose", alive},
+                    {"reconnectedClean", clean}, {"startedBeforeExit", restarted},
+                    {"readyBeforeExit", ready},  {"passed", passed}};
+        if (!saveEvidence(output, evidence))
+            return 2;
+        // The external driver terminates only this fixture PID while its SYSTEM core runs.
+        if (passed && mode == QStringLiteral("process_crash")) {
+            QElapsedTimer holding;
+            holding.start();
+            (void)waitFor([&] { return holding.elapsed() >= 15000; });
+            return 3;
+        }
+        return passed ? 0 : 3;
+    }
+    // Run successive processes against the same explicitly isolated store. A driver waits
+    // for the service image to exit between phases; no real subscription or UAC is involved.
+    if (mode.startsWith(QStringLiteral("lifetime_"))) {
+        if (mode != QStringLiteral("lifetime_enable") &&
+            mode != QStringLiteral("lifetime_restore") &&
+            mode != QStringLiteral("lifetime_disable") && mode != QStringLiteral("lifetime_off"))
+            return 4;
+        const QFileInfo root(source);
+        if (!root.isAbsolute() || !root.isDir() || root.isSymLink() ||
+            !QFile::exists(root.absoluteFilePath() + QStringLiteral("/.quickclash_lifetime_probe")))
+            return 4;
+        infra::JsonStore store(root.absoluteFilePath());
+        if (!std::holds_alternative<std::monostate>(store.open()))
+            return 5;
+        const auto registration = platform::installedServiceRegistration(0);
+        evidence.insert("serviceInitiallyStopped",
+                        registration == platform::ServiceRegistration::Stopped);
+        auto runtime = std::make_unique<application::DesktopRuntime>(store);
+        runtime->initialize();
+        const auto ready = [&](bool tun) {
+            return waitFor(
+                [&] {
+                    const auto state = runtime->snapshot();
+                    return state.value("ready").toBool() && !state.value("busy").toBool() &&
+                           (state.value("tunState") == QStringLiteral("On")) == tun &&
+                           state.value("coreExecutionMode") == (tun ? "Service" : "Local");
+                },
+                25000);
+        };
+        bool passed = false;
+        if (mode == QStringLiteral("lifetime_enable")) {
+            QTcpServer mixed, controller;
+            if (!mixed.listen(QHostAddress::LocalHost) ||
+                !controller.listen(QHostAddress::LocalHost))
+                return 6;
+            runtime->setPorts(mixed.serverPort(), controller.serverPort());
+            mixed.close();
+            controller.close();
+            const auto fixture = store.path("data/lifetime.yaml");
+            if (const auto* path = std::get_if<QString>(&fixture);
+                path && std::holds_alternative<std::monostate>(store.writeBytes(
+                            "data/lifetime.yaml",
+                            "proxies: []\nproxy-groups: []\nrules: ['MATCH,DIRECT']\n"))) {
+                runtime->importFile(QUrl::fromLocalFile(*path).toString(), "TUN lifetime fixture");
+                passed = waitFor([&] { return !runtime->snapshot().value("busy").toBool(); }) &&
+                         runtime->snapshot().value("profiles").toArray().size() == 1;
+                runtime->enableBackgroundManagement();
+                passed = passed && ready(false);
+                if (passed) {
+                    runtime->setTun(true);
+                    passed = ready(true);
+                }
+            }
+        } else {
+            const bool expectedTun = mode != QStringLiteral("lifetime_off");
+            evidence.insert(
+                "savedTunBefore",
+                runtime->snapshot().value("preferences").toObject().value("tunDesired"));
+            runtime->enableBackgroundManagement();
+            passed = ready(expectedTun);
+            if (mode == QStringLiteral("lifetime_disable") && passed) {
+                runtime->setTun(false);
+                passed = ready(false);
+            }
+        }
+        evidence.insert("state", runtime->snapshot());
+        const bool expectedSaved =
+            mode != QStringLiteral("lifetime_disable") && mode != QStringLiteral("lifetime_off");
+        const auto saved =
+            runtime->snapshot().value("preferences").toObject().value("tunDesired").toBool();
+        passed = passed && saved == expectedSaved;
+        const auto preferences = runtime->snapshot().value("preferences");
+        runtime->stop(domain::StopReason::AppExit);
+        evidence.insert("exitPreservedPreferences",
+                        runtime->snapshot().value("preferences") == preferences);
+        passed = passed && runtime->snapshot().value("preferences") == preferences;
+        runtime.reset();
+        // Leave the process alive briefly after the pipe closes: the service must still
+        // follow the application process rather than treating every session close as exit.
+        if (mode != QStringLiteral("lifetime_off")) {
+            QElapsedTimer grace;
+            grace.start();
+            const bool alive = waitFor([&] { return grace.elapsed() >= 300; }) &&
+                               platform::installedServiceRegistration(0) ==
+                                   platform::ServiceRegistration::Verified;
+            evidence.insert("serviceAliveUntilProcessExit", alive);
+            passed = passed && alive;
+        } else
+            passed =
+                passed && registration == platform::ServiceRegistration::Stopped &&
+                platform::installedServiceRegistration(0) == platform::ServiceRegistration::Stopped;
+        evidence.insert("passed", passed);
+        return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
+    }
     if (mode == QStringLiteral("handshake")) {
         QLocalSocket socket;
         socket.connectToServer(QStringLiteral("QuickClash.Service.v1"));
@@ -1940,10 +2066,11 @@ int serviceProbe() {
         evidence.insert(QStringLiteral("passed"), disconnected && clean);
         return saveEvidence(output, evidence) ? (disconnected && clean ? 0 : 3) : 2;
     }
-    bool passed = protocolProbe(evidence);
+    // Establish the on-demand service before testing raw protocol peers.
     const auto initial = command(client, QStringLiteral("status"));
     evidence.insert(QStringLiteral("initial"), initial);
-    passed &= initial.value(QStringLiteral("clean")).toBool();
+    client.close();
+    bool passed = initial.value(QStringLiteral("clean")).toBool() && protocolProbe(evidence);
     if (initial.value(QStringLiteral("clean")).toBool()) {
         const auto unknown = command(client, QStringLiteral("execute"),
                                      {{QStringLiteral("path"), QStringLiteral("evil.exe")}});
@@ -1951,9 +2078,9 @@ int serviceProbe() {
                         unknown.contains(QStringLiteral("error")));
         passed &= unknown.contains(QStringLiteral("error"));
         auto dangerous = startPayload();
-        const QByteArray unsafeYaml = "proxies: []\nproxy-groups: []\nrules: ['MATCH,DIRECT']\n"
-                                      "external-controller-pipe: arbitrary\n";
-        dangerous.insert(QStringLiteral("yaml"), QString::fromLatin1(unsafeYaml.toBase64()));
+        // Managed YAML controller fields are stripped and recomposed by preflight.
+        // An arbitrary executable/path in the fixed IPC payload must be rejected.
+        dangerous.insert(QStringLiteral("path"), QStringLiteral("arbitrary"));
         const auto rejected = command(client, QStringLiteral("start"), dangerous);
         evidence.insert(QStringLiteral("dangerousConfigRejected"), rejected);
         passed &= rejected.contains(QStringLiteral("error"));

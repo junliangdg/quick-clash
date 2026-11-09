@@ -37,6 +37,8 @@ int freePort() {
 int serviceReloadProbe();
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--service-lifetime-child")))
+        return app.exec();
     const auto core = qEnvironmentVariable("QUICKCLASH_TEST_CORE");
     if (core.isEmpty() || !QFile::exists(core))
         return 1;
