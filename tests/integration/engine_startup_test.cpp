@@ -2,6 +2,7 @@
 #include "infra/core/engine_session.h"
 #include "infra/core/listener_ports.h"
 #include "infra/storage/json_store.h"
+#include "listener_fixture.h"
 #include "platform/desktop_services.h"
 #include "platform/windows/owned_process.h"
 #include <QFile>
@@ -10,6 +11,7 @@
 #include <QTcpServer>
 #include <QTemporaryDir>
 #include <QTest>
+#include <QUdpSocket>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
@@ -55,8 +57,7 @@ class DelayedProcess final : public quickclash::application::IDesktopProcess {
     mutable int checks = 0;
 };
 quint16 freePort() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 class EngineStartupTest final : public QObject {
@@ -168,12 +169,15 @@ class EngineStartupTest final : public QObject {
     void startup_data() {
         QTest::addColumn<int>("delay");
         QTest::addColumn<bool>("succeeds");
-        QTest::newRow("listeners_start_after_controller") << 4 << true;
-        QTest::newRow("unowned_listeners_never_ready") << 100000 << false;
+        QTest::addColumn<bool>("udpBlocked");
+        QTest::newRow("listeners_start_after_controller") << 4 << true << false;
+        QTest::newRow("unowned_listeners_never_ready") << 100000 << false << false;
+        QTest::newRow("mixed_udp_occupied") << 0 << false << true;
     }
     void startup() {
         QFETCH(int, delay);
         QFETCH(bool, succeeds);
+        QFETCH(bool, udpBlocked);
         QTemporaryDir directory;
         QVERIFY(directory.isValid());
         quickclash::domain::RuntimePreferences preferences;
@@ -200,6 +204,16 @@ class EngineStartupTest final : public QObject {
         quickclash::infra::EngineSession engine(std::move(process), nullptr);
         QSignalSpy ready(&engine, &quickclash::infra::EngineSession::becameReady);
         QSignalSpy failed(&engine, &quickclash::infra::EngineSession::failed);
+        QUdpSocket occupied;
+        if (udpBlocked)
+            QVERIFY(occupied.bind(QHostAddress::LocalHost, preferences.mixedPort,
+                                  QAbstractSocket::DontShareAddress));
+        if (udpBlocked) {
+            const auto suggestion = quickclash::infra::suggestListenerPorts(
+                preferences.mixedPort, preferences.controllerPort);
+            QVERIFY(!suggestion.isEmpty());
+            QVERIFY(suggestion.value("mixedPort").toInt() != preferences.mixedPort);
+        }
         engine.start(QStringLiteral(QUICKCLASH_SOURCE_DIR "/.cache/mihomo/mihomo.exe"), config,
                      directory.path(), secret, preferences.mixedPort, preferences.controllerPort,
                      QStringLiteral("rule"));
@@ -211,7 +225,11 @@ class EngineStartupTest final : public QObject {
             QVERIFY(observed->checks > delay);
         } else {
             QVERIFY(ready.isEmpty());
-            QCOMPARE(failed.first().first().toString(), QStringLiteral("CoreListenersNotOwned"));
+            QCOMPARE(failed.first().first().toString(),
+                     udpBlocked ? QStringLiteral("CoreListenerAddressInUse")
+                                : QStringLiteral("CoreListenersNotOwned"));
+            if (udpBlocked)
+                QCOMPARE(observed->starts, 0);
             QVERIFY(!engine.running());
         }
         engine.stop();

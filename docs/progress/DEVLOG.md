@@ -2,6 +2,14 @@
 
 状态以 [TASKS](TASKS.md) 和 [CHECKLISTS](CHECKLISTS.md) 为准。本文件按日期/会话追加，说明变化和下一步，不重复整张台账。时间/版本未知时如实写明。
 
+## 2026-11-09 / Actions 监听端口、Geo 校验与 QML 警告
+
+- 用户日志显示Windows构建成功，QML lint输出17条警告/2条未使用导入提示，CTest54/62 Pass（457.17秒），八项失败后退出8；警告不是本次作业退出的直接原因。本机以CI同版Qt6.9.0/MSVC及官方冻结内核复查，首轮9项中7项Pass，复现Geo损坏候选未保留原会话及恢复诊断断言失败；原始输出 `build/ci_qt69_repro/logs/20261109T134529380Z_613781e6a7f6439097c90027e1c9004f/`。远端端口失败未全部复现，不将其统一认定为某一种占用。
+- 受控UDP独占复现表明，原mixed预检只核对TCP，内核启动后约10秒才报 `CoreListenersNotOwned`；`udp_before.txt`/`udp_before.log`保留修复前结果。现普通启动、服务启动/换端口重载及端口建议同时检查TCP/UDP；冲突时不启动新进程或改写既有会话。共享测试夹具选择20000—48999内双传输空闲端口，减少释放候选后被测试网络请求用作动态源端口的竞争；预检不等于端口预留，最终仍核对owned监听。新增启动、普通重载及服务处理器回归覆盖UDP冲突、PID/epoch/偏好保留。
+- Geo原用例的损坏正文会进入应用阶段并改变会话：只关闭定时更新仍允许内核回退下载替换暂存文件。受管语义配置现将geoip/geosite/mmdb/asn四项来源设空，使官方校验针对暂存字节失败，保留旧资源和会话；原更新成功、取消、损坏失败和回退用例通过。恢复测试旧 `code=42` 断言与实际 `coreExitCode=42;` 不一致，现精确核对实际退出码字段。中途契约测试尝试直接引用YAML头导致目标缺依赖而编译失败，已移除该依赖，使用现有语义输出断言并构建通过。
+- QML模型基类元数据通过 `QtQml.Models` 显式依赖补齐；列表回调改为有类型方法，拖动点和Loader项补类型，删除两处未使用导入和重复Refresh翻译，未放宽检查。Windows增量构建及最终19/19定向测试Pass（370.42秒），包括原八项失败、contracts、兼容/更新、自建组、服务、启动与受影响QML代表入口，日志 `build/ci_qt69_repro/logs/20261109T140631392Z_9c6c334332534837a3911525629d4f25/`。最后补服务换端口UDP预检及重复翻译清理后，增量构建、QML lint及service_core_pipe/localization/qml_smoke 3/3 Pass（9.14秒），日志 `build/ci_qt69_repro/logs/20261109T141502505Z_f272bea733c647678036fb789d86f832/`；QML lint零警告/提示、翻译生成无重复项警告。
+- 本机构建配置仍会扫描其他旧Qt部署目录并输出Imagine/DelayButton解析噪声，另有可选WrapVulkanHeaders缺失提示；它们未出现在本次用户提供的失败片段，不将其算作本次qmllint结果，也不扩展清理其他任务的构建目录。离屏探针字体/窗口提示保留其环境限制。初次沙箱Ninja停滞后仅停止本轮已核对身份的构建进程，获准在正常Windows权限下继续；并行连接页工作区改动保留。设计生成与一致性、进度、布局、平台边界、C++格式及差异检查Pass；原始输出均在忽略目录，无新增报告或原始日志入库。未提交、推送或触发远端Actions，未运行全量/headless、真实SCM/TUN及其他平台；下一步推送后核对完整工作流，远端专项保持进行中。
+
 ## 2026-11-09 / TUN 启动读回失败与 Windows 栈选择
 
 - 先前第三方 Meta 接口持有默认路由时正确返回 `ServiceTunRouteConflict`，服务保持 clean。用户关闭 Meta 后，用最小无节点配置仍复现 `ServiceTunReadbackFailed`：自有适配器已 Up，GUID/LUID、IPv4 默认路由和 DNS 可见，owned mixed 监听正确，但 `/configs` 返回 `enable=false`、设备名空；日志停在默认接口监测后，没有 `Tun adapter listening`。延长总启动期至30秒仍未就绪，保留失败证据 `without_meta_tun_identity.json`、`extended_tun_identity.json`，不以延长等待作为修复。

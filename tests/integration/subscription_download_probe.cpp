@@ -1,5 +1,6 @@
 #include "subscription_download_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include "platform/desktop_services.h"
 #include <QCoreApplication>
@@ -29,8 +30,7 @@ bool waitFor(const std::function<bool()>& condition, int limit = 25000) {
     return condition();
 }
 int port() {
-    QTcpServer listener;
-    return listener.listen(QHostAddress::LocalHost) ? listener.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 // Exercise the real validation timer and transaction recovery with deterministic
 // process outcomes. Actual official-core success is covered by subscriptionDownloadProbe.

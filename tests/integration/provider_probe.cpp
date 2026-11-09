@@ -1,6 +1,7 @@
 #include "provider_probe.h"
 #include "application/desktop_runtime.h"
 #include "infra/storage/runtime_provider_cache.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -28,8 +29,7 @@ bool waitFor(const std::function<bool()>& condition) {
     return condition();
 }
 int port() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int providerProbe() {

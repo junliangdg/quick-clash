@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.24)
-project(quickclash VERSION 0.1.0 LANGUAGES CXX)
+project(quickclash VERSION 0.1.1 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -33,6 +33,7 @@ add_library(quickclash_domain src/domain/contracts.h src/domain/json_lookup.h sr
     src/domain/subscription_name.cpp src/domain/subscription_name.h
     src/domain/connection_snapshot.cpp src/domain/connection_snapshot.h)
 target_include_directories(quickclash_domain PUBLIC src)
+target_compile_definitions(quickclash_domain PUBLIC QUICKCLASH_VERSION="${PROJECT_VERSION}")
 target_sources(quickclash_domain PRIVATE src/domain/resource_snapshot.cpp src/domain/resource_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/rule_snapshot.cpp src/domain/rule_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/support_report.cpp src/domain/support_report.h)
@@ -212,7 +213,6 @@ if(QUICKCLASH_BUILD_UI)
         add_dependencies(quickclash quickclash_service quickclash_network)
     endif()
     target_sources(quickclash PRIVATE src/presentation/critical_alerts.cpp src/presentation/critical_alerts.h)
-    target_compile_definitions(quickclash PRIVATE QUICKCLASH_VERSION="${PROJECT_VERSION}")
     target_link_libraries(quickclash PRIVATE Qt6::Quick Qt6::QuickControls2 Qt6::Widgets Qt6::Network Qt6::Svg quickclash_application quickclash_runtime quickclash_localization)
     qt_add_resources(quickclash quickclash_navigation_icons
         PREFIX /icons/navigation BASE resources/icons/navigation
@@ -330,6 +330,7 @@ if(QUICKCLASH_BUILD_UI)
     endforeach()
     qt_add_qml_module(quickclash URI QuickClash.Ui VERSION 1.0
         RESOURCE_PREFIX /qt/qml
+        DEPENDENCIES QtQml.Models
         QML_FILES ${QUICKCLASH_QML_FILES}
         SOURCES src/presentation/ui_state.cpp src/presentation/ui_state.h
                 src/presentation/settings_session.cpp src/presentation/settings_session.h

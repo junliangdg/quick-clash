@@ -19,6 +19,7 @@ Item {
     property string selectedEpoch: ""
     property string selectedId: ""
     property var selectedEntry: ({})
+    readonly property var selectedMetadata: selectedEntry.metadata || ({})
     property bool selectedEnded: false
     property string selectedSample: ""
     property bool rawVisible: false
@@ -70,6 +71,9 @@ Item {
         const m = entry.metadata || {};
         return (m.process || qsTr("Process unavailable")) + (m.network ? " · " + m.network.toUpperCase() : "");
     }
+    function targetSupportingText(entry): string {
+        return (format.usesSniffedHost(entry) ? qsTr("Sniffed") + " · " : "") + processText(entry);
+    }
     function totalText(entry): string {
         return qsTr("Down %1 · Up %2").arg(format.bytes(entry.download, false)).arg(format.bytes(entry.upload, false));
     }
@@ -77,7 +81,7 @@ Item {
         return ((entry.rule || "") + (entry.rulePayload ? " · " + entry.rulePayload : "")) || "—";
     }
     function describe(entry): string {
-        return format.target(entry) + " · " + processText(entry) + "\n" + format.chain(entry) + " · " + ruleText(entry) + "\n" + qsTr("Download") + " " + rateText(entry.downloadRate) + " · " + qsTr("Upload") + " " + rateText(entry.uploadRate) + "\n" + totalText(entry);
+        return format.target(entry) + " · " + targetSupportingText(entry) + "\n" + format.chain(entry) + " · " + ruleText(entry) + "\n" + qsTr("Download") + " " + rateText(entry.downloadRate) + " · " + qsTr("Upload") + " " + rateText(entry.uploadRate) + "\n" + totalText(entry);
     }
     function cellText(entry, index): string {
         switch (index) {
@@ -268,10 +272,10 @@ Item {
             columns: root.columns
             rowHeight: root.theme.scaledSize(48)
             minimumWidth: root.theme.scaledSize(680)
-            cellText: root.cellText
-            supportingText: function (entry, index) { return index === 0 ? root.processText(entry) : ""; }
-            cellColor: root.cellColor
-            describe: root.describe
+            function cellText(entry: var, index: int): string { return root.cellText(entry, index); }
+            function supportingText(entry: var, index: int): string { return index === 0 ? root.targetSupportingText(entry) : ""; }
+            function cellColor(entry: var, index: int): color { return root.cellColor(entry, index); }
+            function describe(entry: var): string { return root.describe(entry); }
             actionText: ""
             selectedKey: root.selectedKey
             emptyText: !root.runtime.ready ? qsTr("Start the core to view connections") : root.telemetry.connectionsPaused || root.telemetry.connectionsStale ? qsTr("Connection data is unavailable or stale") : !root.telemetry.connectionSample ? qsTr("Loading connections…") : root.ui.liveConnections.query ? qsTr("No matching connections") : qsTr("No active connections")
@@ -295,118 +299,187 @@ Item {
             root.selectedEntry = ({});
             root.rawVisible = false;
         }
-        ColumnLayout {
-            anchors.fill: parent
-            spacing: 8
-            GridLayout {
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 16
-                rowSpacing: 6
-                Label { text: qsTr("Target"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: format.target(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
+        contentItem: ThemedScrollView {
+            objectName: "connection_details_scroll"
+            theme: root.theme
+            form: detailsForm
+            ColumnLayout {
+                id: detailsForm
+                spacing: 8
+                GridLayout {
                     Layout.fillWidth: true
-                    elide: Text.ElideRight
+                    columns: 2
+                    columnSpacing: 16
+                    rowSpacing: 6
+                    Label { text: qsTr("Target"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize; Layout.alignment: Qt.AlignTop }
+                    Label {
+                        objectName: "connection_target"
+                        text: format.target(root.selectedEntry)
+                        textFormat: Text.PlainText
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Label {
+                        text: qsTr("Target domain")
+                        visible: !!root.selectedMetadata.host
+                        color: root.theme.muted
+                        font.pixelSize: root.theme.supportingSize
+                        Layout.alignment: Qt.AlignTop
+                    }
+                    Label {
+                        objectName: "connection_target_domain"
+                        text: root.selectedMetadata.host || ""
+                        visible: !!root.selectedMetadata.host
+                        textFormat: Text.PlainText
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Label {
+                        text: qsTr("Sniffed domain")
+                        visible: !!root.selectedMetadata.sniffHost
+                        color: root.theme.muted
+                        font.pixelSize: root.theme.supportingSize
+                        Layout.alignment: Qt.AlignTop
+                    }
+                    Label {
+                        objectName: "connection_sniffed_domain"
+                        text: root.selectedMetadata.sniffHost || ""
+                        visible: !!root.selectedMetadata.sniffHost
+                        textFormat: Text.PlainText
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Label {
+                        text: qsTr("Target IP")
+                        visible: !!root.selectedMetadata.destinationIP
+                        color: root.theme.muted
+                        font.pixelSize: root.theme.supportingSize
+                        Layout.alignment: Qt.AlignTop
+                    }
+                    Label {
+                        objectName: "connection_target_ip"
+                        text: root.selectedMetadata.destinationIP || ""
+                        visible: !!root.selectedMetadata.destinationIP
+                        textFormat: Text.PlainText
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Label { text: qsTr("Process"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: root.processText(root.selectedEntry)
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label { text: qsTr("Chain"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: format.chain(root.selectedEntry)
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        wrapMode: Text.WrapAnywhere
+                    }
+                    Label { text: qsTr("Rule"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: root.ruleText(root.selectedEntry)
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label { text: qsTr("Rate"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: qsTr("Download %1 · Upload %2").arg(root.rateText(root.selectedEntry.downloadRate)).arg(root.rateText(root.selectedEntry.uploadRate))
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label { text: qsTr("Transferred"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: root.totalText(root.selectedEntry)
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
+                    Label { text: qsTr("Duration"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
+                    Label {
+                        text: root.durationText(root.selectedEntry)
+                        color: root.theme.text
+                        font.pixelSize: root.theme.bodySize
+                        Layout.fillWidth: true
+                        elide: Text.ElideRight
+                    }
                 }
-                Label { text: qsTr("Process"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
                 Label {
-                    text: root.processText(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
+                    objectName: "connection_domain_unavailable"
                     Layout.fillWidth: true
-                    elide: Text.ElideRight
+                    visible: !!root.selectedEntry.id && !root.selectedMetadata.host && !root.selectedMetadata.sniffHost
+                    text: qsTr("No domain available")
+                    color: root.theme.muted
+                    font.pixelSize: root.theme.supportingSize
+                    wrapMode: Text.WordWrap
                 }
-                Label { text: qsTr("Chain"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: format.chain(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
-                    Layout.fillWidth: true
-                    wrapMode: Text.WrapAnywhere
-                }
-                Label { text: qsTr("Rule"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: root.ruleText(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-                Label { text: qsTr("Rate"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: qsTr("Download %1 · Upload %2").arg(root.rateText(root.selectedEntry.downloadRate)).arg(root.rateText(root.selectedEntry.uploadRate))
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-                Label { text: qsTr("Transferred"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: root.totalText(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-                Label { text: qsTr("Duration"); color: root.theme.muted; font.pixelSize: root.theme.supportingSize }
-                Label {
-                    text: root.durationText(root.selectedEntry)
-                    color: root.theme.text
-                    font.pixelSize: root.theme.bodySize
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-            }
-            ThemedCheckBox {
-                theme: root.theme
-                text: qsTr("Raw JSON")
-                checked: root.rawVisible
-                onToggled: root.rawVisible = checked
-            }
-            ThemedScrollView {
-                theme: root.theme
-                form: rawJson
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                visible: root.rawVisible
-                ThemedTextArea {
-                    id: rawJson
+                ThemedCheckBox {
+                    objectName: "connection_raw_toggle"
                     theme: root.theme
+                    text: qsTr("Raw JSON")
+                    checked: root.rawVisible
+                    onToggled: root.rawVisible = checked
+                }
+                ThemedTextArea {
+                    objectName: "connection_raw_json"
+                    theme: root.theme
+                    Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    visible: root.rawVisible
                     Accessible.name: details.title
-                    text: JSON.stringify(root.selectedEntry, null, 2)
+                    text: root.rawVisible ? JSON.stringify(root.selectedEntry, null, 2) : ""
                     readOnly: true
                     selectByMouse: true
                     wrapMode: TextEdit.WrapAnywhere
                     color: root.theme.text
                     font.pixelSize: root.theme.supportingSize
                 }
-            }
-            Label {
-                Layout.fillWidth: true
-                visible: root.ruleError.length > 0
-                text: root.ruleError
-                wrapMode: Text.WordWrap
-                color: root.theme.warning
-            }
-            ActionButton {
-                objectName: "connection_create_rule"
-                theme: root.theme
-                text: qsTr("Create rule…")
-                enabled: !root.selectedEnded && !!root.runtime.ready && !!root.runtime.selectedId && !root.runtime.busy && !root.runtime.readOnly
-                onClicked: {
-                    const error = root.ui.beginConnectionRule(root.selectedEpoch, root.selectedId);
-                    if (error)
-                        root.ruleError = error;
+                Label {
+                    Layout.fillWidth: true
+                    visible: root.ruleError.length > 0
+                    text: root.ruleError
+                    wrapMode: Text.WordWrap
+                    color: root.theme.warning
                 }
-            }
-            ActionButton {
-                theme: root.theme
-                text: qsTr("Close connection")
-                enabled: !root.selectedEnded && !!root.runtime.ready && !root.closeState.closeRunning
-                onClicked: root.ui.runtimeCommand("close_connection", [root.selectedEpoch, root.selectedId])
+                ActionButton {
+                    objectName: "connection_create_rule"
+                    theme: root.theme
+                    text: qsTr("Create rule…")
+                    enabled: !root.selectedEnded && !!root.runtime.ready && !!root.runtime.selectedId && !root.runtime.busy && !root.runtime.readOnly
+                    onClicked: {
+                        const error = root.ui.beginConnectionRule(root.selectedEpoch, root.selectedId);
+                        if (error)
+                            root.ruleError = error;
+                    }
+                }
+                ActionButton {
+                    objectName: "connection_close"
+                    theme: root.theme
+                    text: qsTr("Close connection")
+                    enabled: !root.selectedEnded && !!root.runtime.ready && !root.closeState.closeRunning
+                    onClicked: root.ui.runtimeCommand("close_connection", [root.selectedEpoch, root.selectedId])
+                }
             }
         }
     }

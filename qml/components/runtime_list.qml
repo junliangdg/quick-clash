@@ -8,10 +8,10 @@ Item {
     required property ThemeTokens theme
     required property RuntimeListModel listModel
     property var columns: []
-    property var cellText: function(entry, column) { return ""; }
-    property var supportingText: function(entry, column) { return ""; }
-    property var describe: function(entry) { return JSON.stringify(entry); }
-    property var cellColor: function(entry, column) { return root.theme.text; }
+    function cellText(entry: var, column: int): string { return ""; }
+    function supportingText(entry: var, column: int): string { return ""; }
+    function describe(entry: var): string { return JSON.stringify(entry); }
+    function cellColor(entry: var, column: int): color { return root.theme.text; }
     property int minimumWidth: theme.scaledSize(700)
     property int rowHeight: theme.rowHeight
     property string actionText: qsTr("Details")

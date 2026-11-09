@@ -1,5 +1,6 @@
 #include "geo_update_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -22,8 +23,7 @@ bool waitFor(const std::function<bool()>& predicate, int limit = 20000) {
     return predicate();
 }
 int port() {
-    QTcpServer listener;
-    return listener.listen(QHostAddress::LocalHost) ? listener.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int geoUpdateProbe() {

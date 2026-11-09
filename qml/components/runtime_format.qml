@@ -15,8 +15,14 @@ QtObject {
     }
     function target(entry): string {
         const m = entry.metadata || {};
-        const host = m.host || m.destinationIP || "—";
-        return host + (m.destinationPort ? ":" + m.destinationPort : "");
+        const host = m.host || m.sniffHost || m.destinationIP || "—";
+        if (!m.destinationPort)
+            return host;
+        return (host.indexOf(":") >= 0 && host[0] !== "[" ? "[" + host + "]" : host) + ":" + m.destinationPort;
+    }
+    function usesSniffedHost(entry): bool {
+        const m = entry.metadata || {};
+        return !m.host && !!m.sniffHost;
     }
     function process(entry): string {
         const m = entry.metadata || {};

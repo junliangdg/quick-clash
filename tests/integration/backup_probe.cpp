@@ -1,5 +1,6 @@
 #include "backup_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #ifdef Q_OS_WIN
 #include "platform/process_memory.h"
@@ -28,8 +29,7 @@ QString digest(const QByteArray& bytes) {
     return QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex());
 }
 int port() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int backupProbe() {

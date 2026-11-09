@@ -1090,10 +1090,11 @@ int main(int argc, char* argv[]) {
         check(compatibleSource.contains("x-vendor-node-id") &&
                   compatibleSource.contains("geox-url"),
               "raw source retained");
-        check(!compatibleYaml.contains("geox-url") &&
+        check(compatibleYaml.contains("geox-url:") &&
+                  !compatibleYaml.contains("example.invalid/geo") &&
                   !compatibleYaml.contains("x-vendor-node-id") &&
                   !compatibleYaml.contains("public_dummy_metadata"),
-              "managed Geo and metadata not forwarded");
+              "core Geo downloads disabled and subscription Geo URLs and metadata not forwarded");
         check(compatibleYaml.contains("encryption") && compatibleYaml.contains("ip-version"),
               "core protocol options retained");
         check(std::find(compatibleConfig.overriddenFields.begin(),

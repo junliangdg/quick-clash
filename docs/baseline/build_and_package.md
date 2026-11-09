@@ -4,6 +4,8 @@
 
 ## 依赖与构建
 
+应用版本统一由根 `CMakeLists.txt` 的 `project(quickclash VERSION ...)` 定义，经 `quickclash_domain` 的公开编译定义 `QUICKCLASH_VERSION` 传递给应用和运行时；界面、支持报告、备份元数据及下载请求的 User-Agent 共用该值。升级应用版本只修改此处，不改写历史证据中的版本。
+
 Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件、插件及其依赖部署到构建输出目录；服务链接后也复制其运行DLL，使SCM的SYSTEM环境无需开发Qt PATH。CMake生成相对路径qt6.conf，优先于Qt自动生成的构建qt.conf，避免仅复制QtCore后丢失QML/TLS路径。修改Qt套件须使用新的构建目录；构建目录仍不是发行包，独立便携包须使用下述部署脚本，安装只生成匹配bin/qml/plugins布局的qt.conf，不携带开发qt6.conf。
 
 客户端还依赖共享的外部 TCP 传输程序 `quickclash_network`，随产品构建并安装到 `bin/`（Windows 为 `quickclash_network.exe`）；发行和服务包清单要求包含该文件并核对摘要，本地更新应使用同次构建的完整目录。`BUILD_TESTING=OFF` 仍须部署该运行依赖；订阅桌面内存探针仅在 `BUILD_TESTING=ON` 时链接，关闭测试的发行程序不链接该探针及 QtTest。

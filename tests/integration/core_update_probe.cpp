@@ -1,5 +1,6 @@
 #include "core_update_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include "platform/core_artifacts.h"
 #include "platform/desktop_services.h"
@@ -35,8 +36,7 @@ application::DesktopServices services(infra::JsonStore& store, const QString& co
             source};
 }
 int port() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int coreUpdateProbe() {

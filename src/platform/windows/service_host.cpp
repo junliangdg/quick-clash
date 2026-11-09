@@ -861,10 +861,8 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
     expectedCoreVersion_ = coreArtifact(artifactId).value(QStringLiteral("version")).toString();
     observedCoreVersion_.clear();
     const auto semantic = std::get<infra::PreflightConfig>(checked).semanticYaml;
-    QTcpServer listener;
-    if (!listener.listen(QHostAddress::LocalHost, pref.mixedPort)) {
-        const auto issue =
-            infra::listenerPortIssue(listener, pref.mixedPort, QStringLiteral("mixed"));
+    const auto issue = infra::listenerPortIssue(pref.mixedPort, QStringLiteral("mixed"));
+    if (!issue.isEmpty()) {
         auto error = infra::storageError(
             issue.value(QStringLiteral("code")).toString().toLatin1().constData());
         error.redactedDetail =
@@ -872,7 +870,6 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         answer(socket, id, error);
         return;
     }
-    listener.close();
     if (tun) {
         const auto prepared = prepareTun();
         if (const auto* error = std::get_if<domain::Error>(&prepared)) {
@@ -1088,6 +1085,16 @@ void ServiceHost::reload(QLocalSocket* socket, const QString& id, const QJsonObj
     if (const auto* error = std::get_if<domain::Error>(&checked)) {
         answer(socket, id, *error);
         return;
+    }
+    if (port != mixedPort_) {
+        const auto issue = infra::listenerPortIssue(static_cast<quint16>(port), "mixed");
+        if (!issue.isEmpty()) {
+            auto error = infra::storageError(issue.value("code").toString().toLatin1().constData());
+            error.redactedDetail =
+                QString::fromUtf8(QJsonDocument(issue).toJson(QJsonDocument::Compact));
+            answer(socket, id, error);
+            return;
+        }
     }
     auto semantic = std::get<infra::PreflightConfig>(checked).semanticYaml;
     const auto openSource = [this, socket](QFile& source) {

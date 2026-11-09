@@ -1,5 +1,6 @@
 #include "config_editor_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -20,8 +21,7 @@ bool waitFor(const std::function<bool()>& condition) {
     return condition();
 }
 int port() {
-    QTcpServer listener;
-    return listener.listen(QHostAddress::LocalHost) ? listener.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int configEditorProbe() {

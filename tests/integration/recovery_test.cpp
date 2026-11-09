@@ -1,4 +1,5 @@
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "platform/windows/system_proxy.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -46,8 +47,7 @@ bool check(bool condition, const char* message) {
     return condition;
 }
 int freePort() {
-    QTcpServer socket;
-    return socket.listen(QHostAddress::LocalHost) ? socket.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 QJsonObject originalSettings() {
     return {{QStringLiteral("flags"), 13},
@@ -375,7 +375,7 @@ bool networkAndConflict() {
     for (const auto& value : runtime.snapshot().value("errors").toArray()) {
         const auto entry = value.toObject();
         diagnosed |= entry.value("code") == "CoreExited" &&
-                     entry.value("detail").toString().contains("code=42");
+                     entry.value("detail").toString().contains("coreExitCode=42;");
     }
     if (!check(diagnosed, "ordinary core crash records its actual exit code"))
         return false;

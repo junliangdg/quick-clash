@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "custom_groups_probe.h"
+#include "listener_fixture.h"
 #include "user_rules_probe.h"
 #ifdef Q_OS_WIN
 #include "platform/windows/system_proxy.h"
@@ -59,10 +60,7 @@ bool waitFor(const std::function<bool()>& condition, int limit = 15000) {
     return condition();
 }
 int port() {
-    QTcpServer server;
-    if (!server.listen(QHostAddress::LocalHost))
-        return 0;
-    return server.serverPort();
+    return quickclash::test::availableListenerPort();
 }
 bool require(bool value, const char* message, quickclash::application::DesktopRuntime& runtime) {
     if (!value)
@@ -973,6 +971,22 @@ int main(int argc, char** argv) {
                  "mixed port migration restores the original port without restart", reopened))
         return 151;
     // Occupied candidate port must restore the previous confirmed session and preferences.
+    QUdpSocket occupiedUdp;
+    const auto blockedMixed = port();
+    if (!occupiedUdp.bind(QHostAddress::LocalHost, blockedMixed, QAbstractSocket::DontShareAddress))
+        return 176;
+    reopened.setPorts(blockedMixed, controller);
+    if (!require(
+            waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
+                reopened.snapshot().value("ready").toBool() &&
+                reopened.snapshot().value("corePid") == migrationPid &&
+                reopened.snapshot().value("epoch") == migrationEpoch &&
+                reopened.snapshot().value("preferences").toObject().value("mixedPort").toInt() ==
+                    mixed &&
+                reopened.snapshot().value("error") == "CoreListenerAddressInUse",
+            "occupied UDP port preserves the running core and preferences", reopened))
+        return 177;
+    occupiedUdp.close();
     QTcpServer occupied;
     if (!occupied.listen(QHostAddress::LocalHost))
         return 21;

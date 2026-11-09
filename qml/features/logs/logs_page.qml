@@ -277,9 +277,9 @@ Item {
             columns: root.columns
             rowHeight: root.theme.rowHeight
             minimumWidth: root.theme.scaledSize(620)
-            cellText: root.cellText
-            cellColor: root.cellColor
-            describe: root.describe
+            function cellText(entry: var, index: int): string { return root.cellText(entry, index); }
+            function cellColor(entry: var, index: int): color { return root.cellColor(entry, index); }
+            function describe(entry: var): string { return root.describe(entry); }
             expandable: true
             actionText: ""
             followTail: follow.checked && !root.paused

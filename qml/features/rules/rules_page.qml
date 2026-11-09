@@ -282,9 +282,9 @@ Item {
             columns: section.currentIndex === 0 ? root.ruleColumns : root.providerColumns
             rowHeight: root.theme.rowHeight
             minimumWidth: root.theme.scaledSize(section.currentIndex === 0 ? 720 : 900)
-            cellText: root.cellText
-            cellColor: root.rowColor
-            describe: root.describeEntry
+            function cellText(entry: var, index: int): string { return root.cellText(entry, index); }
+            function cellColor(entry: var, index: int): color { return root.rowColor(entry, index); }
+            function describe(entry: var): string { return root.describeEntry(entry); }
             expandable: section.currentIndex === 0
             activateRow: section.currentIndex === 0
             showRowDescription: section.currentIndex === 1

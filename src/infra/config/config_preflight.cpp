@@ -333,6 +333,10 @@ domain::Result<PreflightConfig> preflightConfig(const QByteArray& input,
         root["geodata-mode"] = true;
         root["tun"]["enable"] = false;
         root["geo-auto-update"] = false;
+        // Disabling scheduled updates does not disable Mihomo's invalid/missing-file
+        // download fallback. Empty URLs keep official validation on our staged bytes.
+        for (const auto* resource : {"geoip", "geosite", "mmdb", "asn"})
+            root["geox-url"][resource] = "";
         root["profile"]["store-selected"] = false;
         root["profile"]["store-fake-ip"] = false;
         root.SetStyle(YAML::EmitterStyle::Block);

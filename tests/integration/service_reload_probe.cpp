@@ -12,6 +12,7 @@
 #include <QTcpServer>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QUdpSocket>
 #include <QUuid>
 #include <iostream>
 
@@ -125,6 +126,14 @@ class ServiceReloadProbe final {
         if (!reload(migration).contains("error") || reload(payload).contains("error") ||
             host.core_.pid() != pid || !host.core_.ownsListener(port))
             return 31;
+        QUdpSocket occupiedUdp;
+        if (!occupiedUdp.bind(QHostAddress::LocalHost, 0, QAbstractSocket::DontShareAddress))
+            return 42;
+        migration.insert("mixedPort", occupiedUdp.localPort());
+        const auto udpRejected = reload(migration);
+        if (udpRejected.value("error") != "CoreListenerAddressInUse" || host.core_.pid() != pid ||
+            !host.core_.ownsListener(port) || host.busy_)
+            return 43;
         // A failed start must return bounded diagnostics before the follow-up stop,
         // including output from a service-terminated core (no finished signal).
         host.failStart(peer.get(), QString::number(++request), "ServiceTunReadbackFailed",

@@ -169,7 +169,7 @@ void DesktopRuntime::requestSubscription(const std::shared_ptr<SubscriptionDownl
             : QNetworkProxy(QNetworkProxy::NoProxy));
     subscriptionNetwork_.clearAccessCache();
     QNetworkRequest request(url);
-    request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/0.1.0");
+    request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/" QUICKCLASH_VERSION);
     request.setRawHeader("Accept", "application/yaml, text/yaml, text/plain;q=0.9, */*;q=0.1");
     if (context->authorization)
         for (auto it = context->headers.begin(); it != context->headers.end(); ++it)

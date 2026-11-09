@@ -157,7 +157,7 @@ void DesktopRuntime::backupProfiles(bool originals) {
                         {"schemaVersion", hasUserRules      ? 4
                                           : hasCustomGroups ? 3
                                                             : 2},
-                        {"applicationVersion", "0.1.0"},
+                        {"applicationVersion", QUICKCLASH_VERSION},
                         {"containsCredentials", true},
                         {"scope", originals ? "source" : "offline"},
                         {"profiles", entries}};

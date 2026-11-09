@@ -996,7 +996,7 @@ ListView {
             active: !!cardRow.second.id
             visible: active
             width: cardRow.cardWidth
-            height: item ? item.implicitHeight : 0
+            height: (item as Item)?.implicitHeight ?? 0
             sourceComponent: SubscriptionCard {
                 ui: root.ui
                 theme: root.theme
@@ -1010,7 +1010,7 @@ ListView {
             active: !!cardRow.third.id
             visible: active
             width: cardRow.cardWidth
-            height: item ? item.implicitHeight : 0
+            height: (item as Item)?.implicitHeight ?? 0
             sourceComponent: SubscriptionCard {
                 ui: root.ui
                 theme: root.theme

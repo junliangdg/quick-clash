@@ -1,5 +1,6 @@
 #include "custom_groups_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -23,8 +24,7 @@ bool waitFor(const std::function<bool()>& condition, int limit = 20000) {
     return condition();
 }
 int port() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 class LocalProxy final : public QTcpServer {
   public:

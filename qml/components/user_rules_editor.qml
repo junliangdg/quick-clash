@@ -205,7 +205,7 @@ Item {
     function move(index, direction): void {
         moveTo(index, index + direction);
     }
-    function dragTo(handle, point): void {
+    function dragTo(handle: Item, point: point): void {
         if (draggingIndex < 0)
             return;
         const location = handle.mapToItem(list, point.x, point.y);

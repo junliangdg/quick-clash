@@ -1,5 +1,6 @@
 #include "proxy_latency_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QElapsedTimer>
@@ -25,8 +26,7 @@ bool wait(const std::function<bool()>& condition) {
     return condition();
 }
 int freePort() {
-    QTcpServer server;
-    return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int proxyLatencyProbe() {

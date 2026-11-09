@@ -47,7 +47,7 @@ QJsonObject supportReport(const QJsonObject& runtime) {
     return {
         {"schemaVersion", 1},
         {"application", "QuickClash"},
-        {"version", "0.1.0"},
+        {"version", QUICKCLASH_VERSION},
         {"coreVersion", "v1.19.33"},
         {"platform", platform},
         {"architecture", choice(QSysInfo::currentCpuArchitecture(), {"x86_64", "arm64", "i386"})},

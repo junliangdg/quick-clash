@@ -53,6 +53,8 @@ Uncertain 同时体现在 Operation/EngineStatus 的 certainty 中，状态图�
 
 ## 3. 启动流程
 
+监听预检对 mixed 端口同时核对 TCP 与 UDP 可绑定，controller 核对 TCP；端口建议采用相同规则。预检释放后仍以实际启动后的 owned 监听及认证读回为准，不把预检成功当作端口预留。
+
 1. 获取会话变更许可，核对当前无本应用已有会话。
 2. 读取已验证配置 artifact，确认路径、权限、端口和内核版本；运行配置测试。
 3. 创建 epoch 与会话记录，生成高熵控制器 secret，将不可变 RuntimeConfig 模板物化为该 epoch/revision 的受限 SessionConfig 后执行；模板本身不得直接传给内核。独立校验使用一次性临时 secret，正式启动不修改已提交模板；同 epoch 重载复用本次认证，新 epoch 必须换 secret。控制器绑定策略在锁定版本上验证；不可从订阅继承对外控制器监听。

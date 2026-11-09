@@ -1,5 +1,6 @@
 #include "core_compatibility_probe.h"
 #include "application/desktop_runtime.h"
+#include "listener_fixture.h"
 #include "network_fixture.h"
 #include "platform/core_artifacts.h"
 #include <QCoreApplication>
@@ -25,8 +26,7 @@ bool waitFor(const std::function<bool()>& done) {
     return done();
 }
 int port() {
-    QTcpServer listener;
-    return listener.listen(QHostAddress::LocalHost) ? listener.serverPort() : 0;
+    return quickclash::test::availableListenerPort();
 }
 } // namespace
 int coreCompatibilityProbe() {

@@ -319,6 +319,11 @@
   </context>
   <context>
     <name>connections_page</name>
+    <message><source>Sniffed</source><translation>嗅探</translation></message>
+    <message><source>Target domain</source><translation>目标域名</translation></message>
+    <message><source>Sniffed domain</source><translation>嗅探域名</translation></message>
+    <message><source>Target IP</source><translation>目标 IP</translation></message>
+    <message><source>No domain available</source><translation>未获取到域名</translation></message>
     <message><source>Unavailable</source><translation>不可用</translation></message>
     <message><source>%1 s</source><translation>%1 秒</translation></message>
     <message><source>Connection data is too large or invalid; updates paused</source><translation>连接数据过大或无效，已暂停更新</translation></message>
@@ -921,10 +926,6 @@
     <message>
       <source>Group members may be out of date</source>
       <translation>组成员可能已过期</translation>
-    </message>
-    <message>
-      <source>Refresh</source>
-      <translation>刷新</translation>
     </message>
       <message>
       <source>New strategy group</source>

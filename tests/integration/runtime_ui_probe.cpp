@@ -17,6 +17,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <utility>
 
 namespace quickclash {
 namespace {
@@ -229,6 +230,160 @@ bool checkCustomRuleRow(ApplicationHost& host) {
     }
     return true;
 }
+
+bool checkConnectionTargets(ApplicationHost& host, bool layoutChecks, const QString& capturePath) {
+    auto& ui = host.state();
+    auto* page = host.window()->findChild<QObject*>("connections_page");
+    auto* details = host.window()->findChild<QObject*>("connection_details");
+    const auto item = [&](const char* name) {
+        return host.window()->findChild<QQuickItem*>(QString::fromLatin1(name));
+    };
+    if (!page || !details)
+        return false;
+    const QString sniffed = QCoreApplication::translate("connections_page", "Sniffed");
+    const QString longDomain =
+        QString(60, 'a') + '.' + QString(60, 'b') + '.' + QString(60, 'c') + ".example.test";
+    struct TargetCase {
+        QJsonObject metadata;
+        QString target;
+        bool sniffed;
+    };
+    const QList<TargetCase> cases{
+        {{{"host", "target.example"}, {"destinationPort", "443"}}, "target.example:443", false},
+        {{{"host", ""},
+          {"sniffHost", "sniffed.example"},
+          {"destinationIP", "192.0.2.42"},
+          {"destinationPort", "443"}},
+         "sniffed.example:443",
+         true},
+        {{{"host", "original.example"},
+          {"sniffHost", "different.example"},
+          {"destinationIP", "192.0.2.43"},
+          {"destinationPort", "443"}},
+         "original.example:443",
+         false},
+        {{{"destinationIP", "192.0.2.44"}, {"destinationPort", "80"}}, "192.0.2.44:80", false},
+        {{{"destinationIP", "2001:db8::42"}, {"destinationPort", "443"}},
+         "[2001:db8::42]:443",
+         false},
+        {{}, QString::fromUtf8("—"), false},
+        {{{"host", longDomain},
+          {"sniffHost", "different." + longDomain},
+          {"destinationIP", "2001:db8::44"},
+          {"destinationPort", "8443"}},
+         longDomain + ":8443",
+         false}};
+    const auto originalSize = host.window()->size();
+    for (const auto& fixture : cases) {
+        auto connection = entry("target-fixture", {});
+        connection.insert("metadata", fixture.metadata);
+        ui.applyData({1,
+                      "fixture",
+                      {{"connections", QJsonArray{connection}}},
+                      ui.dataDemands().generations});
+        QString target;
+        QString supporting;
+        QString description;
+        const QVariant argument = connection.toVariantMap();
+        if (!QMetaObject::invokeMethod(page, "cellText", Q_RETURN_ARG(QString, target),
+                                       Q_ARG(QVariant, argument), Q_ARG(QVariant, 0)) ||
+            !QMetaObject::invokeMethod(page, "targetSupportingText",
+                                       Q_RETURN_ARG(QString, supporting),
+                                       Q_ARG(QVariant, argument)) ||
+            !QMetaObject::invokeMethod(page, "describe", Q_RETURN_ARG(QString, description),
+                                       Q_ARG(QVariant, argument)) ||
+            target != fixture.target || supporting.startsWith(sniffed) != fixture.sniffed ||
+            (fixture.sniffed && !description.contains(sniffed)) ||
+            !QMetaObject::invokeMethod(page, "showDetails", Q_ARG(QVariant, argument))) {
+            qWarning() << "Connection target presentation failed:" << fixture.metadata << target
+                       << supporting;
+            return false;
+        }
+        QTest::qWait(30);
+        auto* targetLabel = item("connection_target");
+        auto* noDomain = item("connection_domain_unavailable");
+        if (!targetLabel || targetLabel->property("text") != fixture.target || !noDomain ||
+            noDomain->isVisible() != (fixture.metadata.value("host").toString().isEmpty() &&
+                                      fixture.metadata.value("sniffHost").toString().isEmpty()))
+            return false;
+        for (const auto& [name, field] : {std::pair{"connection_target_domain", "host"},
+                                          std::pair{"connection_sniffed_domain", "sniffHost"},
+                                          std::pair{"connection_target_ip", "destinationIP"}}) {
+            auto* label = item(name);
+            if (!label ||
+                label->isVisible() != !fixture.metadata.value(field).toString().isEmpty() ||
+                label->property("text") != fixture.metadata.value(field).toString())
+                return false;
+        }
+        if (fixture.sniffed) {
+            ui.liveConnections()->setQuery("sniffed.example");
+            if (!waitForFilter(ui.liveConnections(), "sniffed.example", 1))
+                return false;
+            ui.liveConnections()->setQuery({});
+        }
+        if (fixture.metadata.value("host") == longDomain) {
+            const QList<QSize> sizes =
+                layoutChecks ? QList<QSize>{{1200, 800}, {360, 480}} : QList<QSize>{originalSize};
+            for (const auto& size : sizes) {
+                host.resizeWindow(size);
+                QTest::qWait(60);
+                auto* scroll = item("connection_details_scroll");
+                auto* raw = item("connection_raw_json");
+                if (!scroll || !raw || !raw->property("text").toString().isEmpty())
+                    return false;
+                for (const auto* name : {"connection_target", "connection_target_domain",
+                                         "connection_sniffed_domain", "connection_target_ip"}) {
+                    auto* label = item(name);
+                    const auto bounds = label->mapRectToItem(scroll, label->boundingRect());
+                    if (label->width() <= 0 || label->height() + 0.5 < label->implicitHeight() ||
+                        bounds.left() < -0.5 || bounds.right() > scroll->width() + 0.5) {
+                        qWarning() << "Connection address clipped:" << name << size << bounds;
+                        return false;
+                    }
+                }
+                auto* flickable = scroll->property("contentItem").value<QObject*>();
+                auto* close = item("connection_close");
+                if (!flickable || !close)
+                    return false;
+                flickable->setProperty(
+                    "contentY", std::max(0.0, scroll->property("contentHeight").toReal() -
+                                                  scroll->property("availableHeight").toReal()));
+                QTest::qWait(20);
+                const auto closeBounds = close->mapRectToItem(scroll, close->boundingRect());
+                if (closeBounds.top() < -0.5 || closeBounds.bottom() > scroll->height() + 0.5)
+                    return false;
+                flickable->setProperty("contentY", 0);
+                if (!capturePath.isEmpty() &&
+                    !host.window()->grabWindow().save(
+                        QDir(capturePath)
+                            .filePath(
+                                QStringLiteral("connection_targets_%1.png").arg(size.width()))))
+                    return false;
+                if (!page->setProperty("rawVisible", true) ||
+                    !raw->property("text").toString().contains("sniffHost"))
+                    return false;
+                QTest::qWait(30);
+                flickable->setProperty(
+                    "contentY", std::max(0.0, scroll->property("contentHeight").toReal() -
+                                                  scroll->property("availableHeight").toReal()));
+                QTest::qWait(20);
+                const auto expandedCloseBounds =
+                    close->mapRectToItem(scroll, close->boundingRect());
+                if (expandedCloseBounds.top() < -0.5 ||
+                    expandedCloseBounds.bottom() > scroll->height() + 0.5 ||
+                    !page->setProperty("rawVisible", false) ||
+                    !raw->property("text").toString().isEmpty())
+                    return false;
+            }
+            host.resizeWindow(originalSize);
+        }
+        QMetaObject::invokeMethod(details, "reject");
+        QTest::qWait(30);
+    }
+    std::puts(
+        "Connection target/domain/sniffed/IP, source marker, search and detail layout passed.");
+    return true;
+}
 } // namespace
 int runRuntimeListProbe(ApplicationHost& host) {
     const auto capturePath = qEnvironmentVariable("QUICKCLASH_RULE_LAYOUT_CAPTURE_DIR");
@@ -267,6 +422,12 @@ int runRuntimeListProbe(ApplicationHost& host) {
                                               {"path", "Direct"},
                                               {"mode", "rule"},
                                               {"finalOrigin", "https://fixture.example"}}}}}}});
+    if (QCoreApplication::arguments().contains(QStringLiteral("--connection-targets-only"))) {
+        if (!ui.navigate("connections"))
+            return 40;
+        QTest::qWait(60);
+        return checkConnectionTargets(host, true, capturePath) ? 0 : 300;
+    }
     if (!ui.navigate("tests"))
         return 230;
     QTest::qWait(60);
@@ -307,6 +468,8 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!ui.navigate("connections"))
         return 40;
     QTest::qWait(60);
+    if (!checkConnectionTargets(host, layoutChecks, capturePath))
+        return 300;
     const application::RuntimeUpdate oldConnections{
         1,
         "fixture",

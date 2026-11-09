@@ -12,6 +12,7 @@
 #include <QNetworkProxy>
 #include <QNetworkRequest>
 #include <QTcpServer>
+#include <QUdpSocket>
 #include <QUrl>
 #include <QUrlQuery>
 #include <utility>
@@ -266,8 +267,11 @@ void EngineSession::start(const QString& executable, const QString& config,
     {
         QTcpServer mixed;
         QTcpServer controller;
+        QUdpSocket udp;
         if (!mixed.listen(QHostAddress::LocalHost, mixedPort))
             listenerIssue_ = listenerPortIssue(mixed, mixedPort, QStringLiteral("mixed"));
+        else if (!udp.bind(QHostAddress::LocalHost, mixedPort, QAbstractSocket::DontShareAddress))
+            listenerIssue_ = listenerPortIssue(udp, mixedPort, QStringLiteral("mixed"));
         else if (!controller.listen(QHostAddress::LocalHost, controllerPort))
             listenerIssue_ =
                 listenerPortIssue(controller, controllerPort, QStringLiteral("controller"));

@@ -316,7 +316,7 @@ void DesktopRuntime::downloadProvider(const std::shared_ptr<ProviderImport>& con
     request.setAttribute(QNetworkRequest::CookieLoadControlAttribute, QNetworkRequest::Manual);
     request.setAttribute(QNetworkRequest::CookieSaveControlAttribute, QNetworkRequest::Manual);
     request.setAttribute(QNetworkRequest::AuthenticationReuseAttribute, QNetworkRequest::Manual);
-    request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/0.1.0");
+    request.setRawHeader("User-Agent", "clash.meta/1.19.33 QuickClash/" QUICKCLASH_VERSION);
     const auto headers = entry.value(QStringLiteral("headers")).toObject();
     if (headersAllowed)
         for (auto header = headers.begin(); header != headers.end(); ++header)
