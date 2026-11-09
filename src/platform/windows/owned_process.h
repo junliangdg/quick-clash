@@ -14,14 +14,13 @@ class OwnedProcess final : public application::IDesktopProcess {
     [[nodiscard]] domain::CommandResult start(const QString& executable,
                                               const QStringList& arguments,
                                               const QString& directory,
-                                              bool isolated = false) override;
+                                              bool validation = false) override;
     [[nodiscard]] domain::CommandResult start(const QString& executable,
                                               const QStringList& arguments,
-                                              const QString& directory, bool isolated,
+                                              const QString& directory, bool validation,
                                               const QProcessEnvironment& environment);
     domain::CommandResult stop() override;
     [[nodiscard]] QJsonObject exitDiagnostics() const override;
-    [[nodiscard]] QString localPipePath(const QString& path) const override;
     [[nodiscard]] bool running() const override;
     [[nodiscard]] quint32 pid() const override;
     [[nodiscard]] QJsonObject memory() const override;

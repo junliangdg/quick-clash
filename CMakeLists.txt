@@ -456,6 +456,8 @@ if(BUILD_TESTING)
             set_tests_properties(runtime_backup PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             set_tests_properties(runtime_config_editor PROPERTIES TIMEOUT 120 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_subscription_download COMMAND runtime_test --subscription-download-test)
+            add_test(NAME runtime_subscription_validation_failure COMMAND runtime_test --subscription-validation-failure-test)
+            set_tests_properties(runtime_subscription_validation_failure PROPERTIES TIMEOUT 30 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_test(NAME runtime_core_compatibility COMMAND runtime_test --core-compatibility-test)
             set_tests_properties(runtime_core_compatibility PROPERTIES TIMEOUT 150 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
             add_executable(download_network_test tests/integration/download_network_test.cpp
@@ -486,11 +488,15 @@ if(BUILD_TESTING)
         set_tests_properties(settings_session PROPERTIES TIMEOUT 15)
         if(WIN32)
             add_executable(engine_startup_test tests/integration/engine_startup_test.cpp)
-            add_executable(service_core_pipe_test tests/integration/service_core_pipe_test.cpp)
-            target_link_libraries(service_core_pipe_test PRIVATE quickclash_engine)
+            add_executable(service_core_pipe_test tests/integration/service_core_pipe_test.cpp
+                tests/integration/service_reload_probe.cpp
+                src/platform/windows/service_host.cpp src/platform/windows/service_host.h)
+            set_target_properties(service_core_pipe_test PROPERTIES AUTOMOC ON)
+            target_link_libraries(service_core_pipe_test PRIVATE quickclash_engine quickclash_config
+                yaml-cpp::yaml-cpp iphlpapi advapi32 psapi)
             quickclash_warnings(service_core_pipe_test)
             add_test(NAME service_core_pipe COMMAND service_core_pipe_test)
-            set_tests_properties(service_core_pipe PROPERTIES TIMEOUT 30
+            set_tests_properties(service_core_pipe PROPERTIES TIMEOUT 45
                 ENVIRONMENT "QUICKCLASH_TEST_CORE=${CMAKE_SOURCE_DIR}/.cache/mihomo/mihomo.exe")
             add_executable(startup_test tests/unit/startup_test.cpp)
             target_link_libraries(startup_test PRIVATE quickclash_platform)

@@ -8,6 +8,8 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 
 客户端还依赖共享的外部 TCP 传输程序 `quickclash_network`，随产品构建并安装到 `bin/`（Windows 为 `quickclash_network.exe`）；发行和服务包清单要求包含该文件并核对摘要，本地更新应使用同次构建的完整目录。`BUILD_TESTING=OFF` 仍须部署该运行依赖；订阅桌面内存探针仅在 `BUILD_TESTING=ON` 时链接，关闭测试的发行程序不链接该探针及 QtTest。
 
+Windows 配置校验直接调用已验证的受管 Mihomo 程序，以独立普通用户子进程及临时工作目录执行，Job负责退出回收，每阶段10秒超时。不创建AppContainer，不需要注册辅助程序；独立工作目录不提供OS权限或网络沙箱。
+
 - C++20；CMake ≥3.24，参考机 4.3.0；Ninja 1.12.1；项目要求 Qt ≥6.9，Windows CI 与启动回归固定 Qt 6.9.0，开发根目录可配置。
 - Windows 使用 MSVC 19.50.35727.0（Visual Studio 2026 18.4.1），SDK 10.0.26100.0。Qt 套件名为 msvc2022_64，该参考组合已完整链接/启动通过，不外推其他组合。
 - yaml-cpp 0.9.0 正式 release，版本、URL、SHA-256 统一读取 [release_matrix.json](release_matrix.json)。第三方只解到 build/_deps，不改上游 CMakeLists，不全局降低策略。
@@ -46,7 +48,7 @@ Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件
 
 Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-24.04/`linux_gcc_64`及macos-15/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；官方checkout/setup-python/cache及制品Actions使用Node24版本。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
-Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核、AppContainer或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
+Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
 仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
@@ -56,7 +58,7 @@ Windows CI在构建/测试前准备摘要锁定的YAML、Mihomo和Geo。普通�
 
 订阅布局使用独立的`ui_subscription_layout` / `ui_subscription_layout_zh`，保留长名称、长URL/请求头、版本下拉、360宽/21px字号及各焦点框边界；不放宽严格几何容差。`ui_accessibility_layout` / `_zh`覆盖八页面、设置和导入弹框；`ui_settings_layout`、`ui_runtime_lists_layout`、`ui_custom_groups_layout`为英文布局检查，原有对应`_zh`用例同时执行中文行为和布局。运行列表专项包括自定义规则弹窗的宽窄窗、大字号及焦点边界，日常继续检查规则与列表交互。布局矩阵按桌面、断点、窄窗/大字号挑选代表组合，视觉滚动条检查用不同主题分别覆盖宽窄窗，避免无意义的全排列；带输出目录的原生截图入口仍保留原完整截图组合。`ui_visual`与`ui_prototype`在完整或定向运行。日常UI为隔离离屏检查，真实读屏、物理触摸、GPU与其他平台仍按风险另验。
 
-`v*`标签或手动勾选`full_validation`时，同次Windows运行显式使用`-Full`，执行去重后的完整CTest、独立headless完整构建/测试和官方内核API/监听归属/Job/AppContainer探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。`ui_state`包含`connection_rule`，布局版以代表性组合覆盖对应业务流程，因此完整套件排除这6个已被覆盖的短入口；短入口仍供定向运行，除`connection_rule`外的短入口也在日常运行。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式用于版本发布、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；局部内核/恢复/存储修改先定向覆盖相关路径。快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
+`v*`标签或手动勾选`full_validation`时，同次Windows运行显式使用`-Full`，执行去重后的完整CTest、独立headless完整构建/测试和官方内核API/监听归属/Job探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。`ui_state`包含`connection_rule`，布局版以代表性组合覆盖对应业务流程，因此完整套件排除这6个已被覆盖的短入口；短入口仍供定向运行，除`connection_rule`外的短入口也在日常运行。工作流始终上传可用日志/JUnit及aqt安装日志14天。完整模式用于版本发布、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；局部内核/恢复/存储修改先定向覆盖相关路径。快速模式成功只证明该范围，不能当完整端到端或MVP验收。实际结果见[CI核验报告](../progress/reports/20261027_github_release.md#ci故障与修复)与DEVLOG，远端修订版仍须执行留证。
 
 ### 日常定向验证
 
@@ -113,7 +115,7 @@ Windows UI目标通过resources/quickclash.rc编译嵌入灵猫Q图标，资源�
 
 Windows 才构建 core_job_probe。probe_mihomo -ApiOnly 独立验证控制 API，显式跳过 OS 监听归属/Job，不能作为 P0-04 全部完成证据。完整 probe 需账户可读 TCP 归属；只管理本次创建进程，不修改系统代理。
 
-内核探针默认在 Git忽略的 `build/core_probe/<UTC 时间>_<运行 ID>/` 保存成功或失败记录；可用 `-EvidenceDirectory` 指定新的目录，已有目录拒绝使用，旧记录不覆盖。配置 `-t` 每次限时 10 秒，失败阶段、退出码/超时和清理结果写入 summary/日志。完整探针包含 PID 监听归属、Job 和零网络能力 AppContainer 正反例；隔离首先核对父进程可连接、自有子进程不能连接，使用相同官方程序字节。API-only 仍不能替代这些结果。原始输出不提交到reports，Actions日志artifact保留14天；长期证据按[留存规则](../progress/reports/README.md)精选。
+内核探针默认在 Git忽略的 `build/core_probe/<UTC 时间>_<运行 ID>/` 保存成功或失败记录；可用 `-EvidenceDirectory` 指定新的目录，已有目录拒绝使用，旧记录不覆盖。配置 `-t` 每次限时 10 秒，失败阶段、退出码/超时和清理结果写入 summary/日志。完整探针包含 PID 监听归属和Job回收；客户端校验使用同一官方程序、临时工作目录和独立用户进程。`-AppContainer` 仅显式启用历史零网络沙箱实验，不参与默认完整验证；其结果不代表当前客户端权限边界。API-only 不能替代监听归属和Job回收结果。原始输出不提交到reports，Actions日志artifact保留14天；长期证据按[留存规则](../progress/reports/README.md)精选。
 
 clang-format 21.1.2 处理自有 C++；clang-tidy 21.1.2 配置已可解析，完整分析尚未执行。QML 使用 Qt 6.9.0 qmlformat 和 qmllint target。编译/缓存/模块导出及 --smoke-test、无 UI 契约已经通过，P0-06/08 已关闭。
 

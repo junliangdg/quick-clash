@@ -121,13 +121,13 @@
     "snapshot_download": "application writer; at most 5 safe HTTP/HTTPS redirects, reject HTTPS downgrade/loops and drop custom headers across origins; 10 seconds transfer/15 seconds total; 64 KiB chunks; 32 resources, 4 MiB each, 16 MiB total; immutable source/body SHA-256 binding",
     "snapshot_refresh": "download selected resource only; verified cache for the rest; missing or corrupt cache requires full update; failed candidate preserves old state",
     "runtime_config": "generated paths from kind/name/source/format/behavior; structured fallback for standard YAML/text, otherwise exact bounded bytes in Base64 metadata and seeded generated cache",
-    "runtime_writer": "core only while running; application/service removes inactive or oversized generated files only while core stopped; refuse links, directories and unknown entries; at most 32 files/128 MiB body cache",
+    "runtime_writer": "core exclusively writes its active revision; stage separate candidate with matching HTTP cache; remove only inactive revisions after transaction; preserve last cache after normal stop; refuse links/unknown entries; each revision 32 files/128 MiB, ordinary active plus candidate, service active/previous plus candidate",
     "runtime_network": "pinned core TLS/redirect/parser behavior; YAML rules require standard multiline payload; malformed individual rules can be ignored by core; read back actual ruleCount",
     "runtime_refresh": "fixed PUT provider endpoint; service accepts only active allowlisted kind/name, no URL/path/extra fields; no core restart or snapshot mutation; timeout outcome uncertain, no automatic retry",
     "selection": "provider-only nodes and static/dynamic name collisions are unverified; explicit live selection allowed, never persist or automatically restore; failed provider readback cannot authorize restore",
     "history_backup": "immutable import fallback only; standard sources can flatten, native bodies remain managed offline file providers; no live cache or remote fetch",
     "service_validation": "fixed command boundary tested; actual installed service and TUN integration tracked separately in P3-25",
-    "body_validation": "official -t plus offline AppContainer file-provider loading and fixed provider PUT for opaque native bodies; no data listener/healthcheck/system changes",
+    "body_validation": "selected official core -t plus temporary user-process file-provider loading and fixed provider PUT for opaque native bodies; each phase 10-second deadline; no data listener/healthcheck/system changes; separate home and Job, no AppContainer or OS permission/network sandbox",
     "file_paths": "relative to explicitly imported local file; remote source has no implicit base directory; service consumes only bounded copied bytes and generated paths"
   },
   "errors": [
@@ -153,7 +153,7 @@
     "bounded preflight",
     "semantic immutable YAML",
     "per-session authenticated materialization",
-    "isolated official core -t",
+    "selected official core -t in a separate user process and temporary home, 10-second deadline",
     "transactional apply in P2"
   ],
   "parser": "yaml-cpp 0.9.0; single document, duplicate keys rejected; bounded anchors/aliases/merge expansion; original bytes stored separately",

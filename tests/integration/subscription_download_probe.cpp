@@ -1,6 +1,7 @@
 #include "subscription_download_probe.h"
 #include "application/desktop_runtime.h"
 #include "network_fixture.h"
+#include "platform/desktop_services.h"
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
@@ -8,6 +9,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 #include <QThread>
+#include <QTimer>
 #include <cstdio>
 #ifdef Q_OS_WIN
 #define WIN32_LEAN_AND_MEAN
@@ -30,7 +32,163 @@ int port() {
     QTcpServer listener;
     return listener.listen(QHostAddress::LocalHost) ? listener.serverPort() : 0;
 }
+// Exercise the real validation timer and transaction recovery with deterministic
+// process outcomes. Actual official-core success is covered by subscriptionDownloadProbe.
+class FixtureValidator final : public application::IDesktopProcess {
+  public:
+    bool reject = false;
+    bool stall = false;
+    int starts = 0;
+    domain::CommandResult start(const QString&, const QStringList&, const QString&,
+                                bool validation) override {
+        ++starts;
+        if (!validation)
+            return infra::storageError("FixtureValidationRequired");
+        if (reject)
+            return infra::storageError("CoreProcessFailed");
+        active_ = true;
+        const auto generation = ++generation_;
+        if (stall)
+            return std::monostate{};
+        QTimer::singleShot(0, this, [this, generation] {
+            if (active_ && generation == generation_) {
+                active_ = false;
+                emit finished(0);
+            }
+        });
+        return std::monostate{};
+    }
+    domain::CommandResult stop() override {
+        active_ = false;
+        ++generation_;
+        return std::monostate{};
+    }
+    bool running() const override {
+        return active_;
+    }
+    quint32 pid() const override {
+        return 0;
+    }
+    QJsonObject memory() const override {
+        return {};
+    }
+    bool ownsListener(quint16) const override {
+        return false;
+    }
+
+  private:
+    bool active_ = false;
+    quint64 generation_ = 0;
+};
 } // namespace
+int subscriptionValidationFailureProbe() {
+    QTemporaryDir directory;
+    infra::JsonStore store(directory.path());
+    if (!directory.isValid() || std::holds_alternative<domain::Error>(store.open()))
+        return 1;
+    auto validator = std::make_unique<FixtureValidator>();
+    auto* fixture = validator.get();
+    application::DesktopRuntime runtime(
+        store, {platform::makeCredentialStore(store), platform::desktopPlatformInfo(),
+                platform::makeDesktopResources(), platform::makeSystemProxyLease(store),
+                std::move(validator), platform::makeServiceSetup()});
+    runtime.initialize();
+    TlsFixture origin;
+    if (!origin.initialize())
+        return 2;
+    origin.subscription = "proxies: []\nproxy-groups: []\nrules: ['MATCH,DIRECT']\n";
+    const auto source =
+        QStringLiteral("https://127.0.0.1:%1/subscription").arg(origin.serverPort());
+    const auto done = [&] {
+        return waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }, 5000);
+    };
+    const auto error = [&] { return runtime.snapshot().value("error").toString(); };
+    const auto profile = [&] {
+        return runtime.snapshot().value("profiles").toArray().first().toObject();
+    };
+    const auto check = [&](bool good, const char* message) {
+        if (!good)
+            std::fprintf(stderr, "Subscription validation transaction: %s\n", message);
+        return good;
+    };
+    runtime.addSubscription(source, "Confirmed fixture");
+    if (!check(done() && error().isEmpty() &&
+                   runtime.snapshot().value("profiles").toArray().size() == 1,
+               "initial fixture import"))
+        return 3;
+    const auto original = profile();
+    const auto id = original.value("id").toString();
+    runtime.configureSubscription(id, 0, false);
+    const auto selected = runtime.snapshot().value("selectedId");
+    const auto generation = runtime.snapshot().value("selectionGeneration");
+    const auto preserved = [&] {
+        const auto state = runtime.snapshot();
+        const auto current = profile();
+        const auto bytes = store.readBytes(original.value("sourceRef").toString());
+        return state.value("profiles").toArray().size() == 1 &&
+               state.value("selectedId") == selected &&
+               state.value("selectionGeneration") == generation &&
+               !state.value("configLifecycle").toObject().value("validationActive").toBool() &&
+               !state.value("configLifecycle").toObject().value("semanticBytes").toInt() &&
+               current.value("secretRef") == original.value("secretRef") &&
+               current.value("sourceRef") == original.value("sourceRef") &&
+               current.value("sourceHash") == original.value("sourceHash") &&
+               std::holds_alternative<QByteArray>(bytes) &&
+               std::get<QByteArray>(bytes) == origin.subscription;
+    };
+    fixture->stall = true;
+    QElapsedTimer deadline;
+    deadline.start();
+    runtime.addSubscription(source, "Rejected fixture");
+    if (!check(waitFor([&] { return !runtime.snapshot().value("busy").toBool(); }, 15000) &&
+                   error() == "CoreConfigValidationTimeout" && deadline.elapsed() >= 9500 &&
+                   deadline.elapsed() < 13000 && !fixture->running() && preserved(),
+               "validation deadline stops process, releases busy and preserves confirmed data"))
+        return 4;
+    fixture->stall = false;
+    fixture->reject = true;
+    QString resultToken, resultError;
+    bool resultSaved = true;
+    QObject::connect(
+        &runtime, &application::DesktopRuntime::subscriptionSourceFinished, &runtime,
+        [&](const QString& item, const QString& token, bool saved, const QString& failure) {
+            if (item == id) {
+                resultToken = token;
+                resultSaved = saved;
+                resultError = failure;
+            }
+        });
+    const auto changedSource =
+        QStringLiteral("https://127.0.0.1:%1/changed").arg(origin.serverPort());
+    origin.payloads.insert("/changed", origin.subscription + "# changed fixture\n");
+    runtime.changeProfileSource(id, changedSource, {}, true, "rejected-source");
+    if (!check(done() && preserved() && resultToken == "rejected-source" && !resultSaved &&
+                   resultError == "CoreProcessFailed",
+               "failed source edit reports completion and preserves saved source"))
+        return 5;
+    QString savedUrl;
+    QObject::connect(&runtime, &application::DesktopRuntime::subscriptionUrlReady, &runtime,
+                     [&](const QString&, const QString&, const QString& url) { savedUrl = url; });
+    runtime.requestSubscriptionUrl(id, "read-after-failure");
+    if (!check(savedUrl == source, "failed edit preserves the stored URL"))
+        return 6;
+    fixture->reject = false;
+    runtime.changeProfileSource(id, changedSource, {}, true, "retried-source");
+    if (!check(done() && error().isEmpty() && resultToken == "retried-source" && resultSaved &&
+                   resultError.isEmpty() &&
+                   profile().value("sourceHash") != original.value("sourceHash"),
+               "retry source edit succeeds after a failed validator launch"))
+        return 7;
+    runtime.addSubscription(source, "Retried fixture");
+    if (!check(done() && error().isEmpty() && fixture->starts >= 5 &&
+                   runtime.snapshot().value("profiles").toArray().size() == 2 &&
+                   runtime.snapshot().value("selectedId") == selected,
+               "retry add succeeds and retains selection"))
+        return 8;
+    std::puts("Subscription validation failure preserves data, releases busy and permits retry; "
+              "validator success is injected for public fixtures");
+    return 0;
+}
 int subscriptionDownloadProbe() {
     QTemporaryDir directory;
     infra::JsonStore store(directory.path());
@@ -382,9 +540,10 @@ int subscriptionDownloadProbe() {
     origin.subscription.replace("MATCH,upstream", "MATCH,DIRECT");
     runtime.updateProfile(id, true);
     if (!check(done() && error().isEmpty() && runtime.snapshot().value("ready").toBool() &&
-                   runtime.snapshot().value("epoch") != initialSession.value("epoch") &&
+                   runtime.snapshot().value("epoch") == initialSession.value("epoch") &&
+                   runtime.snapshot().value("corePid") == initialSession.value("corePid") &&
                    !profile().value("pendingApply").toBool(),
-               "effective rule change still applies a new core session"))
+               "effective rule change reloads the existing core session"))
         return 55;
     origin.subscription = initialBody;
     origin.entityTags.insert("/subscription", "\"public-v1\"");
@@ -394,6 +553,43 @@ int subscriptionDownloadProbe() {
                    profile().value("sourceHash") == originalHash,
                "restore confirmed forwarding after effective update"))
         return 56;
+#ifdef Q_OS_WIN
+    manifestLock = INVALID_HANDLE_VALUE;
+    const auto reloadCommitFailure = QObject::connect(
+        &runtime, &application::DesktopRuntime::changed, &runtime, [&](const QJsonObject& state) {
+            if (state.value("status") == "RestoringSelections" &&
+                manifestLock == INVALID_HANDLE_VALUE) {
+                const auto path = store.root() + QStringLiteral("/data/runtime/current.json");
+                manifestLock = CreateFileW(reinterpret_cast<LPCWSTR>(path.utf16()), GENERIC_READ,
+                                           FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr,
+                                           OPEN_EXISTING, 0, nullptr);
+            }
+        });
+    const auto beforeReloadCommit = runtime.snapshot();
+    origin.entityTags["/subscription"] = "\"public-reload-commit\"";
+    origin.subscription.replace("MATCH,upstream", "MATCH,DIRECT");
+    runtime.updateProfile(id, true);
+    const bool recoveredCommit = done();
+    QObject::disconnect(reloadCommitFailure);
+    const bool reloadLocked = manifestLock != INVALID_HANDLE_VALUE;
+    if (reloadLocked)
+        CloseHandle(manifestLock);
+    if (!check(recoveredCommit && reloadLocked && !error().isEmpty() &&
+                   runtime.snapshot().value("ready").toBool() &&
+                   runtime.snapshot().value("corePid") == beforeReloadCommit.value("corePid") &&
+                   runtime.snapshot().value("epoch") == beforeReloadCommit.value("epoch") &&
+                   runtime.snapshot().value("selectionGeneration") ==
+                       beforeReloadCommit.value("selectionGeneration") &&
+                   profile().value("pendingApply").toBool(),
+               "failed reload commit restores confirmed config without replacing the process"))
+        return 71;
+    origin.subscription = initialBody;
+    origin.entityTags["/subscription"] = "\"public-after-reload-commit\"";
+    runtime.updateProfile(id, true);
+    if (!check(done() && error().isEmpty() && !profile().value("pendingApply").toBool(),
+               "retry after a reload commit failure"))
+        return 72;
+#endif
     {
         const auto outcome = [&] { return profile().value("lastUpdateOutcome").toString(); };
         const auto deferred = [&] {
@@ -447,9 +643,9 @@ int subscriptionDownloadProbe() {
                               !profile().value("pendingApply").toBool() &&
                               runtime.snapshot().value("ready").toBool();
                    }) &&
-                       error().isEmpty() && runtime.snapshot().value("epoch") != busyEpoch &&
-                       outcome() == "Restarted",
-                   "idle connections let the deferred update apply with one restart"))
+                       error().isEmpty() && runtime.snapshot().value("epoch") == busyEpoch &&
+                       runtime.snapshot().value("corePid") == busyPid && outcome() == "Reloaded",
+                   "idle connections let the deferred update reload in the same core process"))
             return 60;
         const auto settledPid = runtime.snapshot().value("corePid");
         const auto settledEpoch = runtime.snapshot().value("epoch");
@@ -481,7 +677,8 @@ int subscriptionDownloadProbe() {
                               !profile().value("pendingApply").toBool() &&
                               runtime.snapshot().value("ready").toBool();
                    }) &&
-                       runtime.snapshot().value("epoch") != settledEpoch,
+                       runtime.snapshot().value("epoch") == settledEpoch &&
+                       runtime.snapshot().value("corePid") == settledPid && outcome() == "Reloaded",
                    "deferral limit applies the update despite a persistent connection"))
             return 65;
         stubborn.abort();

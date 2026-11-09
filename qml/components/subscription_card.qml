@@ -104,7 +104,7 @@ FlatTile {
         Label {
             objectName: "subscription_update_status"
             visible: !!root.profile.secretRef
-            text: root.updating ? qsTr("Updating…") : root.updateFailed ? (root.profile.lastUpdateSaved ? qsTr("New configuration saved; applying failed") : qsTr("Update failed; the previous configuration is kept")) : root.profile.pendingApply ? (root.applyDeferred ? qsTr("New configuration downloaded; applying waits for idle connections") : root.selected ? qsTr("New configuration downloaded; the previous version is in use") : qsTr("Updated; available when this subscription is selected")) : root.profile.lastUpdateResult === "Updated" ? (root.profile.lastUpdateOutcome === "Unchanged" || root.profile.lastUpdateChanged === false ? qsTr("Already up to date") : root.profile.lastUpdateOutcome === "Reused" ? qsTr("Updated; equivalent configuration, core not restarted") : root.profile.lastUpdateOutcome === "Restarted" ? qsTr("Updated and applied; core restarted") : root.selected ? qsTr("Updated and applied") : qsTr("Updated")) : qsTr("Downloaded and validated")
+            text: root.updating ? qsTr("Updating…") : root.updateFailed ? (root.profile.lastUpdateSaved ? qsTr("New configuration saved; applying failed") : qsTr("Update failed; the previous configuration is kept")) : root.profile.pendingApply ? (root.applyDeferred ? qsTr("New configuration downloaded; applying waits for idle connections") : root.selected ? qsTr("New configuration downloaded; the previous version is in use") : qsTr("Updated; available when this subscription is selected")) : root.profile.lastUpdateResult === "Updated" ? (root.profile.lastUpdateOutcome === "Unchanged" || root.profile.lastUpdateChanged === false ? qsTr("Already up to date") : root.profile.lastUpdateOutcome === "Reused" ? qsTr("Updated; equivalent configuration, core not restarted") : root.profile.lastUpdateOutcome === "Reloaded" ? qsTr("Updated and applied; core not restarted") : root.profile.lastUpdateOutcome === "Restarted" ? qsTr("Updated and applied; core restarted") : root.selected ? qsTr("Updated and applied") : qsTr("Updated")) : qsTr("Downloaded and validated")
             color: root.updateFailed ? root.theme.error : root.profile.pendingApply && root.selected ? root.theme.warning : root.theme.text
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
@@ -142,7 +142,7 @@ FlatTile {
         }
         Label {
             visible: root.selected && !!root.ui.runtime.ready
-            text: qsTr("The core restarts only when the effective configuration changes; scheduled updates wait for idle connections.")
+            text: qsTr("Configuration updates use the running core when supported; scheduled updates wait for idle connections.")
             color: root.theme.muted
             font.pixelSize: root.theme.supportingSize
             Layout.fillWidth: true

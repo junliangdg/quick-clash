@@ -236,9 +236,10 @@ void ServiceClient::sendPendingCommands() {
     writeClock_.start();
     activity_.start();
     const auto id = message.value(QStringLiteral("requestId")).toString();
-    const auto timeout = message.value(QStringLiteral("action")) == QStringLiteral("delay")
-                             ? kDelayRequestTimeoutMs
-                             : kRequestTimeoutMs;
+    const auto timeout =
+        message.value(QStringLiteral("action")) == QStringLiteral("delay") ? kDelayRequestTimeoutMs
+        : message.value(QStringLiteral("action")) == QStringLiteral("reload") ? 20000
+                                                                              : kRequestTimeoutMs;
     QTimer::singleShot(timeout, this, [this, id] {
         auto handler = handlers_.take(id);
         if (handler)

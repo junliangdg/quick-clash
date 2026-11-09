@@ -60,6 +60,8 @@ class EngineSession final : public QObject {
     void setMode(const QString& mode);
     void changeMode(const QString& mode, std::function<void(bool)> completed);
     void reload(const QString& config);
+    void reload(const QString& config, const QString& expectedMode, quint16 mixedPort,
+                std::function<void(bool)> completed);
     void api(const QByteArray& method, const QByteArray& path, const QJsonObject& body,
              ApiHandler handler);
     void cancelQueuedDelays();
@@ -150,6 +152,7 @@ class EngineSession final : public QObject {
     quint16 mixedPort_ = 0;
     quint16 controllerPort_ = 0;
     quint64 generation_ = 0;
+    quint64 groupsRevision_ = 0;
     bool ready_ = false;
     bool probing_ = false;
     bool listenersPending_ = false;

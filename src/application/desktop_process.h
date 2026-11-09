@@ -10,18 +10,16 @@ class IDesktopProcess : public QObject {
     Q_OBJECT
   public:
     using QObject::QObject;
+    // Validation uses a separate owned process and explicit candidate settings;
+    // this flag does not request an OS permission sandbox.
     [[nodiscard]] virtual domain::CommandResult start(const QString& executable,
                                                       const QStringList& arguments,
                                                       const QString& directory,
-                                                      bool isolated = false) = 0;
+                                                      bool validation = false) = 0;
     // Failure preserves ownership; callers must not clean files or launch a replacement.
     virtual domain::CommandResult stop() = 0;
     [[nodiscard]] virtual QJsonObject exitDiagnostics() const {
         return {};
-    }
-    // Resolve a child-created local pipe from the parent's namespace.
-    [[nodiscard]] virtual QString localPipePath(const QString& path) const {
-        return path;
     }
     [[nodiscard]] virtual bool running() const = 0;
     [[nodiscard]] virtual quint32 pid() const = 0;

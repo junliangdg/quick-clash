@@ -219,6 +219,10 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     void discardConfigTransaction();
     void applyProfile(const QString& id, bool startAfter);
     void launch();
+    [[nodiscard]] bool canReloadConfig() const;
+    void reloadConfig(const QByteArray& semantic);
+    void failReload(const QString& code);
+    void updateSessionView(const QByteArray& semantic);
     void confirmed();
     void failedApply(const QString& code);
     void failModeChange(const QString& code);
@@ -514,6 +518,14 @@ class DesktopRuntime final : public QObject, public IProxyApplication {
     bool restartAttempt_ = false;
     bool modeOnlyApply_ = false;
     bool unchangedConfigApply_ = false;
+    bool reloadApply_ = false;
+    bool reloadSent_ = false;
+    bool reloadCompensating_ = false;
+    QString sessionConfigRef_;
+    QString sessionProviderRevision_;
+    QString previousProviderRevision_;
+    QString previousSessionConfigRef_;
+    QString previousSessionProfileId_;
     bool applyingConfirmedSource_ = false;
     bool persistedProxyIntent_ = false;
     std::optional<bool> previousProxyIntent_;

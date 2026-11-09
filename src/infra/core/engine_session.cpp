@@ -587,7 +587,8 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::ManualRedirectPolicy);
     const bool providerRefresh = method == "PUT" && path.startsWith("/providers/");
-    request.setTransferTimeout(providerRefresh ? 12000 : 3000);
+    const bool reload = method == "PUT" && path.startsWith("/configs");
+    request.setTransferTimeout(providerRefresh || reload ? 12000 : 3000);
     auto* reply = network_.sendCustomRequest(
         request, method,
         method == "GET" ? QByteArray{} : QJsonDocument(body).toJson(QJsonDocument::Compact));
@@ -604,7 +605,7 @@ void EngineSession::request(const QByteArray& method, const QByteArray& path,
     auto* timeout = new QTimer(reply);
     auto expired = std::make_shared<bool>(false);
     timeout->setSingleShot(true);
-    timeout->start(providerRefresh ? 12500 : 3500);
+    timeout->start(providerRefresh || reload ? 12500 : 3500);
     connect(timeout, &QTimer::timeout, reply, [reply, expired] {
         *expired = true;
         reply->abort();
@@ -704,83 +705,86 @@ void EngineSession::refreshGroups() {
     }
     groupsPending_ = true;
     const auto generation = generation_;
-    const auto finish = [this, generation] {
-        if (generation != generation_)
+    const auto revision = groupsRevision_;
+    const auto finish = [this, generation, revision] {
+        if (generation != generation_ || revision != groupsRevision_)
             return;
         groupsPending_ = false;
         if (std::exchange(groupsQueued_, false))
             refreshGroups();
     };
-    request("GET", "/proxies", {}, [this, generation, finish](domain::Result<QJsonObject> result) {
-        if (!ready_ || generation != generation_)
-            return;
-        if (const auto* value = std::get_if<QJsonObject>(&result)) {
-            auto objects = value->value(QStringLiteral("proxies")).toObject();
-            // /proxies omits provider-only nodes in the pinned core. Include their safe
-            // descriptors for capabilities and conservative identity handling.
-            request("GET", "/providers/proxies", {},
-                    [this, generation, finish,
-                     objects = std::move(objects)](domain::Result<QJsonObject> providers) mutable {
-                        if (!ready_ || generation != generation_)
-                            return;
-                        if (const auto* response = std::get_if<QJsonObject>(&providers)) {
-                            QJsonObject namesByProvider;
-                            int nameCount = 0;
-                            bool completeNames = true;
-                            const auto entries = response->value("providers").toObject();
-                            for (auto it = entries.begin(); it != entries.end(); ++it) {
-                                const auto provider = it.value().toObject();
-                                if (provider.value("vehicleType") != "HTTP" &&
-                                    provider.value("vehicleType") != "File" &&
-                                    provider.value("vehicleType") != "Inline")
-                                    continue;
-                                QJsonArray names;
-                                for (const auto& value : provider.value("proxies").toArray()) {
-                                    auto node = value.toObject();
-                                    const auto name = node.value("name").toString();
-                                    if (name.isEmpty())
+    request("GET", "/proxies", {},
+            [this, generation, revision, finish](domain::Result<QJsonObject> result) {
+                if (!ready_ || generation != generation_ || revision != groupsRevision_)
+                    return;
+                if (const auto* value = std::get_if<QJsonObject>(&result)) {
+                    auto objects = value->value(QStringLiteral("proxies")).toObject();
+                    // /proxies omits provider-only nodes in the pinned core. Include their safe
+                    // descriptors for capabilities and conservative identity handling.
+                    request(
+                        "GET", "/providers/proxies", {},
+                        [this, generation, revision, finish, objects = std::move(objects)](
+                            domain::Result<QJsonObject> providers) mutable {
+                            if (!ready_ || generation != generation_ || revision != groupsRevision_)
+                                return;
+                            if (const auto* response = std::get_if<QJsonObject>(&providers)) {
+                                QJsonObject namesByProvider;
+                                int nameCount = 0;
+                                bool completeNames = true;
+                                const auto entries = response->value("providers").toObject();
+                                for (auto it = entries.begin(); it != entries.end(); ++it) {
+                                    const auto provider = it.value().toObject();
+                                    if (provider.value("vehicleType") != "HTTP" &&
+                                        provider.value("vehicleType") != "File" &&
+                                        provider.value("vehicleType") != "Inline")
                                         continue;
-                                    if (objects.size() >= 5503) {
+                                    QJsonArray names;
+                                    for (const auto& value : provider.value("proxies").toArray()) {
+                                        auto node = value.toObject();
+                                        const auto name = node.value("name").toString();
+                                        if (name.isEmpty())
+                                            continue;
+                                        if (objects.size() >= 5503) {
+                                            completeNames = false;
+                                            continue;
+                                        }
+                                        if (name.size() <= 512 && nameCount < 5000) {
+                                            names.append(name);
+                                            ++nameCount;
+                                        } else {
+                                            completeNames = false;
+                                        }
+                                        node.insert("providerDynamic", true);
+                                        if (!objects.contains(name))
+                                            objects.insert(name, node);
+                                        else {
+                                            auto existing = objects.value(name).toObject();
+                                            existing.insert("providerDynamic", true);
+                                            objects.insert(name, existing);
+                                        }
+                                    }
+                                    if (namesByProvider.size() < 32)
+                                        namesByProvider.insert(it.key(), names);
+                                    else
                                         completeNames = false;
-                                        continue;
-                                    }
-                                    if (name.size() <= 512 && nameCount < 5000) {
-                                        names.append(name);
-                                        ++nameCount;
-                                    } else {
-                                        completeNames = false;
-                                    }
-                                    node.insert("providerDynamic", true);
-                                    if (!objects.contains(name))
-                                        objects.insert(name, node);
-                                    else {
-                                        auto existing = objects.value(name).toObject();
-                                        existing.insert("providerDynamic", true);
-                                        objects.insert(name, existing);
-                                    }
                                 }
-                                if (namesByProvider.size() < 32)
-                                    namesByProvider.insert(it.key(), names);
-                                else
-                                    completeNames = false;
+                                emit providerNodeNamesChanged(completeNames ? namesByProvider
+                                                                            : QJsonObject{});
+                            } else {
+                                // A partial read cannot prove static/dynamic name collisions safe
+                                // for restoring saved selections. Keep the previous confirmed view.
+                                emit groupsRefreshFailed(std::get<domain::Error>(providers).code);
+                                finish();
+                                return;
                             }
-                            emit providerNodeNamesChanged(completeNames ? namesByProvider
-                                                                        : QJsonObject{});
-                        } else {
-                            // A partial read cannot prove static/dynamic name collisions safe
-                            // for restoring saved selections. Keep the previous confirmed view.
-                            emit groupsRefreshFailed(std::get<domain::Error>(providers).code);
+                            emit groupsChanged(objects);
                             finish();
-                            return;
-                        }
-                        emit groupsChanged(objects);
-                        finish();
-                    });
-        } else {
-            emit groupsRefreshFailed(std::get<domain::Error>(result).code);
-            finish();
-        }
-    });
+                        });
+                } else {
+                    emit groupsRefreshFailed(std::get<domain::Error>(result).code);
+                    finish();
+                }
+            });
 }
 void EngineSession::select(const QString& group, const QString& member) {
     if (!ready_ || group.isEmpty() || member.isEmpty()) {
@@ -831,14 +835,68 @@ void EngineSession::changeMode(const QString& mode, std::function<void(bool)> co
         });
 }
 void EngineSession::reload(const QString& config) {
+    reload(config, expectedMode_, mixedPort_,
+           [this](bool success) { emit mutationFinished(QStringLiteral("reload"), success); });
+}
+void EngineSession::reload(const QString& config, const QString& expectedMode, quint16 mixedPort,
+                           std::function<void(bool)> completed) {
     if (!ready_) {
-        emit mutationFinished(QStringLiteral("reload"), false);
+        completed(false);
         return;
     }
-    request("PUT", "/configs", {{QStringLiteral("path"), config}},
-            [this](domain::Result<QJsonObject> result) {
-                emit mutationFinished(QStringLiteral("reload"),
-                                      std::holds_alternative<QJsonObject>(result));
-            });
+    QFile input(config);
+    if (!input.open(QIODevice::ReadOnly)) {
+        completed(false);
+        return;
+    }
+    auto loaded = readFileBounded(input, 16 * 1024 * 1024);
+    if (!loaded.ok) {
+        completed(false);
+        return;
+    }
+    // Reload preserves the process generation, but earlier group reads describe the old config.
+    ++groupsRevision_;
+    groupsPending_ = false;
+    groupsQueued_ = false;
+    const auto generation = generation_;
+    auto verify = [this, generation, expectedMode, mixedPort,
+                   completed = std::move(completed)](domain::Result<QJsonObject> result) {
+        if (generation != generation_ || !ready_)
+            return;
+        if (std::holds_alternative<domain::Error>(result)) {
+            completed(false);
+            return;
+        }
+        request("GET", "/configs", {},
+                [this, generation, expectedMode, mixedPort, completed](auto response) {
+                    if (generation != generation_ || !ready_)
+                        return;
+                    const auto* value = std::get_if<QJsonObject>(&response);
+                    const bool success =
+                        value && value->value("mode") == expectedMode &&
+                        value->value("mixed-port").toInt() == mixedPort &&
+                        !value->value("allow-lan").toBool(true) &&
+                        value->value("tun").toObject().value("enable").toBool() == serviceMode_ &&
+                        (serviceMode_ || process_->ownsListener(mixedPort));
+                    if (success) {
+                        expectedMode_ = expectedMode;
+                        mixedPort_ = mixedPort;
+                    }
+                    completed(success);
+                });
+    };
+    if (serviceMode_) {
+        service_.command("reload",
+                         {{"yaml", QString::fromLatin1(loaded.bytes.toBase64())},
+                          {"mixedPort", mixedPort},
+                          {"mode", expectedMode},
+                          {"dnsMode", "profile"},
+                          {"tun", true}},
+                         std::move(verify));
+    } else {
+        // Payload avoids granting the core broad access to paths outside its fixed home.
+        request("PUT", "/configs?force=true", {{"payload", QString::fromUtf8(loaded.bytes)}},
+                std::move(verify));
+    }
 }
 } // namespace quickclash::infra

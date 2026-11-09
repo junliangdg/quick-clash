@@ -454,7 +454,7 @@ int userRulesProbe() {
             countedDone() && runtime.snapshot().value("error").toString().isEmpty();
         if (!check(changeApplied && validations == 1 &&
                        runtime.snapshot().value("ready").toBool() &&
-                       runtime.snapshot().value("epoch") != readySnapshot.value("epoch"),
+                       runtime.snapshot().value("epoch") == readySnapshot.value("epoch"),
                    "effective update with user rules validates once and applies"))
             return 83;
         runtime.stop();

@@ -126,15 +126,19 @@ void SettingsService::command(const QString& name, const QStringList& arguments)
     QMetaObject::invokeMethod(worker_, [this, state, name, arguments] {
         if (!state->runtime) {
             emit failed(QStringLiteral("RuntimeUnavailable"));
+            if (name == QStringLiteral("import") || name == QStringLiteral("subscribe"))
+                emit subscriptionImportDispatched();
             return;
         }
         auto& runtime = *state->runtime;
         const auto argument = [&arguments](qsizetype index) { return arguments.value(index); };
         if (name == QStringLiteral("import")) {
             runtime.importFile(argument(0), argument(1));
+            emit subscriptionImportDispatched();
         } else if (name == QStringLiteral("subscribe")) {
             runtime.addSubscription(argument(0), argument(1),
                                     argument(2).isEmpty() ? QStringLiteral("Direct") : argument(2));
+            emit subscriptionImportDispatched();
         } else if (name == QStringLiteral("subscription_route")) {
             runtime.setSubscriptionRoute(argument(0), argument(1));
         } else if (name == QStringLiteral("update")) {

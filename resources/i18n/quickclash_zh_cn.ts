@@ -294,6 +294,10 @@
       <translation>无法下载订阅，请检查网络、HTTPS 证书及订阅有效性。</translation>
     </message>
     <message>
+      <source>Configuration validation timed out. Your existing configuration is unchanged. Check the subscription and try again.</source>
+      <translation>配置校验超时，原有配置未更改，请检查订阅后重试。</translation>
+    </message>
+    <message>
       <location filename="../../src/presentation/ui_state.cpp" line="173" />
       <source>The subscription server denied access. Check the URL, account or request headers.</source>
       <translation>订阅服务器拒绝访问，请检查地址、账户和请求头。</translation>
@@ -1079,7 +1083,7 @@
     <message><source>Refresh list</source><translation>刷新列表</translation></message>
     <message><source>Resource name or type</source><translation>资源名称或类型</translation></message>
     <message><source>Refresh list reads status only. Update downloads the selected proxy collection or rule set.</source><translation>“刷新列表”只读取状态；行尾“更新”下载所选代理集合或规则集。</translation></message>
-    <message><source>Snapshot updates follow auto-apply and may restart the core. Runtime updates take effect without restarting. Item counts may be unavailable.</source><translation>快照更新遵循自动应用设置，可能重启内核；运行时更新无需重启即可生效。部分资源不提供条目数。</translation></message>
+    <message><source>Snapshot updates follow auto-apply and reload the configuration. Runtime updates refresh the resource directly. Item counts may be unavailable.</source><translation>快照更新遵循自动应用设置并重载配置；运行时更新直接刷新资源。部分资源不提供条目数。</translation></message>
     <message><source>Start the core to view resource status</source><translation>启动内核后查看资源状态</translation></message>
     <message><source>No updatable resources</source><translation>暂无可更新的资源</translation></message>
     <message><source>Updating</source><translation>正在更新</translation></message>
@@ -1201,7 +1205,7 @@
     <message><source>Geo update cancelled</source><translation>Geo 更新已取消</translation></message>
     <message><source>Mode %1 · proxy port %2 · controller port %3 · DNS %4</source><translation>模式 %1 · 代理端口 %2 · 控制器端口 %3 · DNS %4</translation></message>
     <message><source>Apply network settings?</source><translation>应用网络设置？</translation></message>
-    <message><source>The core restarts once and active connections are interrupted. If applying fails, QuickClash restores the confirmed settings.</source><translation>内核将重启一次，现有连接会中断。如果应用失败，QuickClash 将恢复已确认的设置。</translation></message>
+    <message><source>Supported changes reload the running core. Changing the controller port restarts it. Active connections may be interrupted; failure restores the confirmed settings.</source><translation>支持的设置由运行中的内核重载，修改控制端口会重启内核。现有连接可能中断；应用失败会恢复已确认的设置。</translation></message>
     <message><source>These settings are saved for the next core session. They are not active while the core is stopped.</source><translation>设置将保存供下次内核运行使用。内核停止时，这些设置尚未生效。</translation></message>
     <message><source>Saved: %1</source><translation>已保存：%1</translation></message>
     <message><source>Active: %1</source><translation>当前生效：%1</translation></message>
@@ -2260,6 +2264,10 @@
       <translation>无法下载订阅，请检查网络、HTTPS 证书及订阅有效性。</translation>
     </message>
     <message>
+      <source>Configuration validation timed out. Your existing configuration is unchanged. Check the subscription and try again.</source>
+      <translation>配置校验超时，原有配置未更改，请检查订阅后重试。</translation>
+    </message>
+    <message>
       <location filename="../../src/presentation/ui_state.cpp" line="173" />
       <source>The subscription server denied access. Check the URL, account or request headers.</source>
       <translation>订阅服务器拒绝访问，请检查地址、账户和请求头。</translation>
@@ -2380,7 +2388,7 @@
   <context>
     <name>subscription_card</name>
     <message><source>Applying failed: %1</source><translation>应用失败：%1</translation></message>
-    <message><source>The core restarts only when the effective configuration changes; scheduled updates wait for idle connections.</source><translation>仅当有效配置变化时才会重启内核；定时更新会等待连接空闲后再应用。</translation></message>
+    <message><source>Configuration updates use the running core when supported; scheduled updates wait for idle connections.</source><translation>支持的配置更新由运行中的内核直接应用；定时更新会等待连接空闲后再应用。</translation></message>
     <message><source>Updating…</source><translation>正在更新…</translation></message>
     <message><source>New configuration saved; applying failed</source><translation>新配置已保存，但应用失败</translation></message>
     <message><source>Update failed; the previous configuration is kept</source><translation>更新失败；已保留之前的配置</translation></message>
@@ -2390,6 +2398,7 @@
     <message><source>Already up to date</source><translation>已是最新</translation></message>
     <message><source>Updated and applied</source><translation>已更新并应用</translation></message>
     <message><source>Updated; equivalent configuration, core not restarted</source><translation>已更新；配置等效，内核未重启</translation></message>
+    <message><source>Updated and applied; core not restarted</source><translation>已更新并应用；内核未重启</translation></message>
     <message><source>Updated and applied; core restarted</source><translation>已更新并应用；内核已重启</translation></message>
     <message><source>Updated</source><translation>已更新</translation></message>
     <message><source>A previously downloaded configuration is still waiting to be applied</source><translation>之前下载的配置仍待应用</translation></message>

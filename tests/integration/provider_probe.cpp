@@ -1,5 +1,6 @@
 #include "provider_probe.h"
 #include "application/desktop_runtime.h"
+#include "infra/storage/runtime_provider_cache.h"
 #include "network_fixture.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -36,6 +37,25 @@ int providerProbe() {
     infra::JsonStore store(directory.path());
     if (!std::holds_alternative<std::monostate>(store.open()))
         return 1;
+    // A core-owned HTTP cache refreshed after reload must survive the next normal start.
+    {
+        const auto file = QStringLiteral("providers/") + QString(64, 'a') + ".yaml";
+        const QByteArray semantic = "proxy-providers:\n  nodes:\n    type: http\n    url: "
+                                    "https://cache.invalid/nodes\n    path: " +
+                                    file.toUtf8() + "\n";
+        const auto staged =
+            infra::prepareRuntimeProviderRevision(semantic, store, "data/cache_probe", "ab12");
+        const QByteArray refreshed = "proxies: [{name: refreshed, type: direct}]\n";
+        if (!std::holds_alternative<QByteArray>(staged) ||
+            !std::holds_alternative<std::monostate>(
+                store.writeBytes("data/cache_probe/revisions/ab12/" + file, refreshed)) ||
+            !std::holds_alternative<std::monostate>(
+                infra::preserveRuntimeProviderCache(store, "data/cache_probe", "ab12")) ||
+            !std::holds_alternative<std::monostate>(
+                infra::collectRuntimeProviderRevisions(store, "data/cache_probe", {})) ||
+            std::get<QByteArray>(store.readBytes("data/cache_probe/" + file)) != refreshed)
+            return 50;
+    }
     application::DesktopRuntime runtime(store);
     runtime.initialize();
     auto mixed = port(), controller = port();
@@ -148,7 +168,7 @@ int providerProbe() {
     runtime.featureCommand("update_provider", {"proxy-providers", "nodes"});
     if (!check(done() && origin.requests == QJsonArray{"GET /nodes"} &&
                    runtime.snapshot().value("ready").toBool() &&
-                   runtime.snapshot().value("corePid") != firstPid,
+                   runtime.snapshot().value("corePid") == firstPid,
                "single resource fetch rebuilds and applies snapshot without fetching main or other "
                "resource"))
         return 8;

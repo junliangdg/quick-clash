@@ -92,6 +92,8 @@ int main(int argc, char** argv) {
         return quickclash::test::coreCompatibilityProbe();
     if (app.arguments().contains(QStringLiteral("--subscription-download-test")))
         return quickclash::test::subscriptionDownloadProbe();
+    if (app.arguments().contains(QStringLiteral("--subscription-validation-failure-test")))
+        return quickclash::test::subscriptionValidationFailureProbe();
     if (app.arguments().contains(QStringLiteral("--update-memory-probe")))
         return quickclash::test::subscriptionMemoryProbe();
     QTemporaryDir directory;
@@ -105,6 +107,30 @@ int main(int argc, char** argv) {
         return quickclash::test::subscriptionProbe(runtime, store);
     // Opt-in real endpoint check: input and raw content never appear in diagnostics.
     if (app.arguments().contains(QStringLiteral("--subscription-probe"))) {
+        QElapsedTimer elapsed;
+        elapsed.start();
+        const auto trace = [&] {
+            const auto state = runtime.snapshot();
+            std::cerr << QJsonDocument(
+                             QJsonObject{
+                                 {"elapsedMs", elapsed.elapsed()},
+                                 {"busy", state.value("busy")},
+                                 {"download",
+                                  state.value("features").toObject().value("subscriptionDownload")},
+                                 {"config", state.value("configLifecycle")},
+                                 {"error", state.value("error")}})
+                             .toJson(QJsonDocument::Compact)
+                             .constData()
+                      << std::endl;
+        };
+        QTimer heartbeat;
+        if (app.arguments().contains(QStringLiteral("--subscription-probe-trace"))) {
+            QObject::connect(&runtime, &quickclash::application::DesktopRuntime::changed, &runtime,
+                             trace);
+            QObject::connect(&heartbeat, &QTimer::timeout, &runtime, trace);
+            heartbeat.start(1000);
+            trace();
+        }
         std::string source;
         std::getline(std::cin, source);
         runtime.addSubscription(QString::fromStdString(source), QStringLiteral("Probe"));
@@ -626,7 +652,7 @@ int main(int argc, char** argv) {
             waitFor([&] {
                 const auto state = reopened.snapshot();
                 return !state.value("busy").toBool() && state.value("ready").toBool() &&
-                       state.value("corePid") != updatePid &&
+                       state.value("corePid") == updatePid &&
                        state.value("profiles").toArray()[1].toObject().value("lastUpdateResult") ==
                            "Updated";
             }) &&
@@ -727,26 +753,35 @@ int main(int argc, char** argv) {
         return 68;
     const auto validSubscription = origin.subscription;
     second = reopened.snapshot().value("profiles").toArray()[1].toObject();
-    // Fail only the candidate's listener, then let compensation restart the old session.
+    // Corrupt only the staged reload after validation: exercise the real core's
+    // rejection and compensation API while preserving the confirmed process.
     reopened.configureSubscription(subscriptionId, 0, true);
-    QTcpServer candidatePortBlocker;
     bool candidateBlocked = false;
+    auto beforeReloadFiles = std::get<QStringList>(store.files("data/sessions"));
+    const auto rejectReload = [&](const QJsonObject& state) {
+        if (state.value("status") != "Reloading" || candidateBlocked)
+            return;
+        const auto listed = store.files("data/sessions");
+        if (const auto* files = std::get_if<QStringList>(&listed))
+            for (const auto& file : *files)
+                if (!beforeReloadFiles.contains(file) && file.contains("/reload_")) {
+                    candidateBlocked = std::holds_alternative<std::monostate>(
+                        store.writeBytes(file, "proxies: [invalid]\n"));
+                    return;
+                }
+    };
+    const auto beforeRejectedPid = reopened.snapshot().value("corePid");
+    const auto beforeRejectedEpoch = reopened.snapshot().value("epoch");
     const auto beforeRejectedApply = reopened.snapshot().value("selectionGeneration");
-    const auto applyFailure =
-        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &app,
-                         [&](const QJsonObject& state) {
-                             if (state.value("status") == "Starting" && !candidateBlocked) {
-                                 candidateBlocked = candidatePortBlocker.listen(
-                                     QHostAddress::LocalHost, static_cast<quint16>(mixed));
-                             }
-                             if (candidateBlocked && !state.value("error").toString().isEmpty())
-                                 candidatePortBlocker.close();
-                         });
+    const auto applyFailure = QObject::connect(
+        &reopened, &quickclash::application::DesktopRuntime::changed, &app, rejectReload);
     origin.subscription.replace("name: added, type: http, server: 127.0.0.1, port: 1}",
                                 "name: added, type: http, server: 127.0.0.1, port: 2}");
     reopened.updateProfile(subscriptionId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
                      candidateBlocked && reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot().value("corePid") == beforeRejectedPid &&
+                     reopened.snapshot().value("epoch") == beforeRejectedEpoch &&
                      reopened.snapshot().value("selectionGeneration") == beforeRejectedApply &&
                      reopened.snapshot()
                              .value("profiles")
@@ -759,7 +794,8 @@ int main(int argc, char** argv) {
                          .toObject()
                          .value("pendingApply")
                          .toBool(),
-                 "automatic apply failure compensates to confirmed session", reopened))
+                 "rejected reload compensates to confirmed configuration in the same core",
+                 reopened))
         return 69;
     QObject::disconnect(applyFailure);
     reopened.updateProfile(subscriptionId, true);
@@ -788,15 +824,9 @@ int main(int argc, char** argv) {
                  "background policy still leaves a later candidate pending", reopened))
         return 172;
     candidateBlocked = false;
-    const auto retryFailure =
-        QObject::connect(&reopened, &quickclash::application::DesktopRuntime::changed, &app,
-                         [&](const QJsonObject& state) {
-                             if (state.value("status") == "Starting" && !candidateBlocked)
-                                 candidateBlocked = candidatePortBlocker.listen(
-                                     QHostAddress::LocalHost, static_cast<quint16>(mixed));
-                             if (candidateBlocked && !state.value("error").toString().isEmpty())
-                                 candidatePortBlocker.close();
-                         });
+    beforeReloadFiles = std::get<QStringList>(store.files("data/sessions"));
+    const auto retryFailure = QObject::connect(
+        &reopened, &quickclash::application::DesktopRuntime::changed, &app, rejectReload);
     reopened.selectProfile(subscriptionId);
     if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }, 20000) &&
                      candidateBlocked && reopened.snapshot().value("ready").toBool() &&
@@ -892,6 +922,25 @@ int main(int argc, char** argv) {
     if (!require(reopened.snapshot().value("profiles").toArray().size() == 1, "catalog management",
                  reopened))
         return 20;
+    const auto migrationPid = reopened.snapshot().value("corePid");
+    const auto migrationEpoch = reopened.snapshot().value("epoch");
+    const auto migratedMixed = port();
+    reopened.setPorts(migratedMixed, controller);
+    if (!require(
+            waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                reopened.snapshot().value("ready").toBool() &&
+                reopened.snapshot().value("corePid") == migrationPid &&
+                reopened.snapshot().value("epoch") == migrationEpoch &&
+                reopened.snapshot().value("preferences").toObject().value("mixedPort").toInt() ==
+                    migratedMixed,
+            "mixed port migration reuses the running core", reopened))
+        return 150;
+    reopened.setPorts(mixed, controller);
+    if (!require(waitFor([&] { return !reopened.snapshot().value("busy").toBool(); }) &&
+                     reopened.snapshot().value("ready").toBool() &&
+                     reopened.snapshot().value("corePid") == migrationPid,
+                 "mixed port migration restores the original port without restart", reopened))
+        return 151;
     // Occupied candidate port must restore the previous confirmed session and preferences.
     QTcpServer occupied;
     if (!occupied.listen(QHostAddress::LocalHost))
@@ -1266,9 +1315,11 @@ int main(int argc, char** argv) {
                  "DNS Geo Ready", reopened))
         return 56;
     const auto queryDns = [&](const QString& name) {
-        const auto epoch = reopened.snapshot().value("epoch").toString();
-        QFile session(
-            directory.filePath(QStringLiteral("data/sessions/%1/config.yaml").arg(epoch)));
+        const auto sessions = store.files("data/sessions");
+        const auto* files = std::get_if<QStringList>(&sessions);
+        if (!files || files->size() != 1)
+            return QByteArray{};
+        QFile session(std::get<QString>(store.path(files->first())));
         if (!session.open(QIODevice::ReadOnly))
             return QByteArray{};
         const auto config = YAML::Load(session.readAll().toStdString());
@@ -1636,7 +1687,7 @@ int main(int argc, char** argv) {
                      return !reopened.snapshot().value("busy").toBool() &&
                             reopened.snapshot().value("ready").toBool();
                  }) &&
-                     reopened.snapshot().value("corePid") != providerPid && configIdle() &&
+                     reopened.snapshot().value("corePid") == providerPid && configIdle() &&
                      stagingEmpty() &&
                      reopened.snapshot()
                              .value("profiles")

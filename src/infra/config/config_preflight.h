@@ -6,6 +6,8 @@
 #include <QJsonObject>
 
 namespace quickclash::infra {
+[[nodiscard]] domain::Result<QByteArray> sessionWithMode(const QByteArray& session,
+                                                         const QString& mode);
 struct PreflightConfig {
     QByteArray semanticYaml;
     std::vector<QString> overriddenFields;

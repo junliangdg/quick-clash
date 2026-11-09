@@ -1,6 +1,6 @@
 #Requires -Version 7.2
 [CmdletBinding()]
-param([string]$BuildDirectory = 'build/dev', [switch]$ApiOnly, [string]$EvidenceDirectory = '')
+param([string]$BuildDirectory = 'build/dev', [switch]$ApiOnly, [switch]$AppContainer, [string]$EvidenceDirectory = '')
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 . (Join-Path $PSScriptRoot 'native_process.ps1')
@@ -33,7 +33,7 @@ $summary = [ordered]@{
     scope = $(if ($ApiOnly) { 'API-only' } else { 'API, listener ownership and Job' })
     started_at_utc = [DateTime]::UtcNow.ToString('o')
     valid_exit = $null; invalid_exit = $null; validation_new_files = @()
-    listeners = 'NotRun'; job = 'NotRun'; network_isolation = 'NotRun'
+    listeners = 'NotRun'; job = 'NotRun'; network_isolation = 'NotRun (optional AppContainer experiment; not used by the client)'
     system_proxy = 'untouched'; geo = 'unsupported'
 }
 function Require($Condition, $Message) { if (-not $Condition) { throw $Message } }
@@ -121,7 +121,7 @@ rules:
     $invalidStep = Get-Content -LiteralPath "$invalidLog.json" -Raw | ConvertFrom-Json
     $summary.invalid_exit = $invalidStep.exit_code
     Require ($invalidStep.exit_code -eq 1) 'Invalid configuration must exit 1'
-    if (-not $ApiOnly) {
+    if ($AppContainer) {
         $stage = 'network_isolation'
         $isolationBinary = Join-Path ([IO.Path]::GetFullPath($BuildDirectory, $repoRoot)) 'core_isolation_probe.exe'
         Invoke-NativeStep -Executable $isolationBinary -Arguments @($core, $configPath, (Join-Path $runRoot 'isolated'), $evidenceRoot) -WorkingDirectory $runRoot -LogPath (Join-Path $evidenceRoot 'isolation.log') -TimeoutSeconds 40

@@ -147,7 +147,7 @@ int configEditorProbe() {
     if (!check(done() && profile().value("sourceHash") == newer &&
                    !profile().value("pendingApply").toBool() &&
                    runtime.snapshot().value("ready").toBool() &&
-                   runtime.snapshot().value("corePid") != originalPid,
+                   runtime.snapshot().value("corePid") == originalPid,
                "overlay applied without changing raw source"))
         return 16;
     const auto catalog = *std::get<std::optional<QJsonObject>>(store.read("data/catalog.json"));
@@ -197,20 +197,26 @@ int configEditorProbe() {
                "candidate failure preview completes"))
         return 27;
     const auto confirmed = runtime.snapshot().value("selectionGeneration");
-    QTcpServer blocker;
     bool blocked = false;
+    const auto failurePid = runtime.snapshot().value("corePid");
+    const auto beforeReloadFiles = std::get<QStringList>(store.files("data/sessions"));
     const auto failureConnection = QObject::connect(
         &runtime, &application::DesktopRuntime::changed, &runtime, [&](const QJsonObject& state) {
-            if (state.value("status") == "Starting" && !blocked)
-                blocked = blocker.listen(QHostAddress::LocalHost, mixed);
-            if (blocked && !state.value("error").toString().isEmpty())
-                blocker.close();
+            if (state.value("status") != "Reloading" || blocked)
+                return;
+            const auto files = store.files("data/sessions/" + state.value("epoch").toString());
+            if (const auto* listed = std::get_if<QStringList>(&files))
+                for (const auto& file : *listed)
+                    if (!beforeReloadFiles.contains(file) && file.contains("/reload_"))
+                        blocked = std::holds_alternative<std::monostate>(
+                            store.writeBytes(file, "proxies: [invalid]"));
         });
     runtime.featureCommand("editor_apply", {failureToken, failureDraft, "", "confirmed"});
     if (!check(done() && blocked && runtime.snapshot().value("ready").toBool() &&
                    runtime.snapshot().value("selectionGeneration") == confirmed &&
+                   runtime.snapshot().value("corePid") == failurePid &&
                    profile().value("pendingApply").toBool(),
-               "startup failure preserves confirmed selection and keeps candidate")) {
+               "reload failure preserves confirmed selection, process and candidate")) {
         std::fprintf(stderr,
                      "failure state blocked=%d ready=%d sameSelection=%d pending=%d error=%s\n",
                      blocked, runtime.snapshot().value("ready").toBool(),

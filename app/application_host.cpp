@@ -96,7 +96,7 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
             (void)showWindow();
             return;
         }
-        if (state_.settingsReady() && state_.unloadWhenHidden())
+        if (state_.settingsReady() && state_.unloadWhenHidden() && !state_.runtimeBusy())
             unloadWindow();
     });
     connect(&state_, &presentation::UiState::closeRequested, this, &ApplicationHost::hideWindow);
@@ -110,12 +110,14 @@ ApplicationHost::ApplicationHost(QString settingsFile, bool noTray, QObject* par
     connect(
         &state_, &presentation::UiState::unloadRequested, this,
         [this] {
-            if (recoverableFromTray()) {
+            if (recoverableFromTray() && !state_.runtimeBusy()) {
                 unloadWindow();
             }
         },
         Qt::QueuedConnection);
     connect(&state_, &presentation::UiState::hostChanged, this,
+            &ApplicationHost::updateDeferredUnload);
+    connect(&state_, &presentation::UiState::runtimeChanged, this,
             &ApplicationHost::updateDeferredUnload);
 }
 ApplicationHost::~ApplicationHost() {
@@ -524,8 +526,8 @@ void ApplicationHost::updateDeferredUnload() {
                         state_.hostState() == QStringLiteral("Hidden") && hiddenWindow();
     const bool trayAvailable = recoverableFromTray();
     const bool trayLost = hidden && state_.trayAvailable() && !trayAvailable;
-    const bool shouldUnload =
-        hidden && trayAvailable && state_.settingsReady() && state_.unloadWhenHidden();
+    const bool shouldUnload = hidden && trayAvailable && state_.settingsReady() &&
+                              state_.unloadWhenHidden() && !state_.runtimeBusy();
     deferredUnload_.update(trayLost || shouldUnload, static_cast<quint64>(generation_));
 }
 void ApplicationHost::unloadWindow() {

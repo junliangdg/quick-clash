@@ -34,8 +34,11 @@ ListView {
             editor.edit(profileId, layer);
     }
     function beginImport(command, arguments) {
+        if (importDialog.working)
+            return;
         importDialog.profileCount = ui.profileModel.count;
         importDialog.attempted = true;
+        importDialog.submitting = true;
         ui.runtimeCommand(command, arguments);
     }
     function finishImportIfSaved() {
@@ -224,10 +227,15 @@ ListView {
                 if (root.editingSource)
                     root.sourceRevealed = false;
                 root.clearSavedUrl();
-                importDialog.close();
+                if (!importDialog.working)
+                    importDialog.close();
             }
         }
         function onRuntimeChanged() {
+            root.finishImportIfSaved();
+        }
+        function onSubscriptionImportDispatched() {
+            importDialog.submitting = false;
             root.finishImportIfSaved();
         }
         function onProfilesChanged() {
@@ -289,7 +297,8 @@ ListView {
             if (editingSource)
                 sourceRevealed = false;
             clearSavedUrl();
-            importDialog.close();
+            if (!importDialog.working)
+                importDialog.close();
         }
     }
     Component.onDestruction: ui.setSubscriptionAddressDirty(false)
@@ -319,12 +328,15 @@ ListView {
         anchors.centerIn: parent
         theme: root.theme
         modal: true
+        closePolicy: working ? Popup.NoAutoClose : Popup.CloseOnEscape | Popup.CloseOnPressOutside
         title: qsTr("Add subscription")
         width: Math.min(520, Math.max(0, parent.width - 32))
         height: Math.min(importForm.implicitHeight + 2 * root.theme.focusMargin + header.implicitHeight + 2 * padding, parent.height - 32)
         initialFocusItem: subscriptionUrl
         property int profileCount: 0
         property bool attempted: false
+        property bool submitting: false
+        readonly property bool working: submitting || (attempted && !!root.ui.runtime.busy)
         // Import is serialized by the runtime and this modal owns the only add entry.
         readonly property bool saved: attempted && root.ui.profileModel.count > profileCount
         onClosed: {
@@ -333,6 +345,7 @@ ListView {
             importRoute.currentIndex = 0;
             profileCount = 0;
             attempted = false;
+            submitting = false;
         }
         contentItem: ThemedScrollView {
             id: importScroll
@@ -361,7 +374,7 @@ ListView {
                     Layout.fillWidth: true
                     echoMode: TextInput.PasswordEchoOnEdit
                     maximumLength: 8192
-                    enabled: !root.ui.runtime.busy
+                    enabled: !root.ui.runtime.busy && !importDialog.working
                 }
                 Label {
                     text: qsTr("Name (optional)")
@@ -376,7 +389,7 @@ ListView {
                     Accessible.name: qsTr("Name (optional)")
                     Layout.fillWidth: true
                     maximumLength: 80
-                    enabled: !root.ui.runtime.busy
+                    enabled: !root.ui.runtime.busy && !importDialog.working
                 }
                 Label {
                     text: qsTr("Download path")
@@ -388,7 +401,7 @@ ListView {
                     theme: root.theme
                     objectName: "subscription_import_route"
                     Layout.fillWidth: true
-                    enabled: !root.ui.runtime.busy
+                    enabled: !root.ui.runtime.busy && !importDialog.working
                     model: root.downloadRouteLabels
                     Accessible.name: qsTr("Download path")
                 }
@@ -401,7 +414,7 @@ ListView {
                 }
                 Label {
                     objectName: "subscription_import_error"
-                    visible: importDialog.attempted && !root.ui.runtime.busy && root.ui.runtimeError.length > 0
+                    visible: importDialog.attempted && !importDialog.working && root.ui.runtimeError.length > 0
                     text: importDialog.saved ? qsTr("Subscription was added, but the operation reported an error: %1").arg(root.ui.runtimeError) : root.ui.runtimeError
                     color: root.theme.error
                     wrapMode: Text.WordWrap
@@ -415,9 +428,9 @@ ListView {
                         width: Math.min(implicitWidth, parent.width)
                         objectName: "add_subscription"
                         theme: root.theme
-                        text: root.ui.runtime.busy && importDialog.attempted ? qsTr("Working…") : qsTr("Add subscription")
-                        pending: !!root.ui.runtime.busy && importDialog.attempted
-                        enabled: !root.ui.runtime.busy && root.ui.settingsReady && !root.ui.runtime.readOnly && !importDialog.saved && subscriptionUrl.text.trim().length > 0
+                        text: importDialog.working ? qsTr("Working…") : qsTr("Add subscription")
+                        pending: importDialog.working
+                        enabled: !root.ui.runtime.busy && !importDialog.working && root.ui.settingsReady && !root.ui.runtime.readOnly && !importDialog.saved && subscriptionUrl.text.trim().length > 0
                         prominent: true
                         onClicked: root.beginImport("subscribe", [subscriptionUrl.text, profileName.text, root.downloadRoutes[importRoute.currentIndex]])
                     }
@@ -426,7 +439,7 @@ ListView {
                         objectName: "import_local_file"
                         theme: root.theme
                         text: qsTr("Import file")
-                        enabled: !root.ui.runtime.busy && root.ui.settingsReady && !root.ui.runtime.readOnly && !importDialog.saved
+                        enabled: !root.ui.runtime.busy && !importDialog.working && root.ui.settingsReady && !root.ui.runtime.readOnly && !importDialog.saved
                         onClicked: fileDialog.open()
                     }
                     ActionButton {
@@ -434,6 +447,7 @@ ListView {
                         objectName: "cancel_subscription_import"
                         theme: root.theme
                         text: qsTr("Close")
+                        enabled: !importDialog.working
                         onClicked: importDialog.close()
                     }
                 }

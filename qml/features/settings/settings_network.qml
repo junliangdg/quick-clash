@@ -444,7 +444,7 @@ ColumnLayout {
                         mixedPort: root.pendingNetworkArgs[1],
                         controllerPort: root.pendingNetworkArgs[2],
                         dnsMode: root.pendingNetworkArgs[3]
-                    }) + "\n" + (root.ui.runtime.ready ? qsTranslate("settings_page", "The core restarts once and active connections are interrupted. If applying fails, QuickClash restores the confirmed settings.") : qsTranslate("settings_page", "These settings are saved for the next core session. They are not active while the core is stopped."))
+                    }) + "\n" + (root.ui.runtime.ready ? qsTranslate("settings_page", "Supported changes reload the running core. Changing the controller port restarts it. Active connections may be interrupted; failure restores the confirmed settings.") : qsTranslate("settings_page", "These settings are saved for the next core session. They are not active while the core is stopped."))
                 }
             }
             onAccepted: {

@@ -87,6 +87,9 @@ class UiState : public QObject {
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
     }
+    [[nodiscard]] bool runtimeBusy() const {
+        return subscriptionImportPending_ || runtime_.value(QStringLiteral("busy")).toBool();
+    }
     [[nodiscard]] QVariantMap settingsSession() const {
         return settingsSession_.snapshot();
     }
@@ -332,6 +335,7 @@ class UiState : public QObject {
         emit unloadRequested();
     }
   signals:
+    void subscriptionImportDispatched();
     void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
     void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
                                     const QString& errorCode);
@@ -404,6 +408,7 @@ class UiState : public QObject {
     bool uiVisible_ = false;
     bool subscriptionAddressDirty_ = false;
     bool subscriptionAddressSaving_ = false;
+    bool subscriptionImportPending_ = false;
     QString subscriptionAddressNavigation_;
     QVariantMap subscriptionAddressNavigationContext_;
     bool uiMinimized_ = false;

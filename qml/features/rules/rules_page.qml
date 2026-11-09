@@ -216,7 +216,7 @@ Item {
             objectName: "resource_updates_hint"
             visible: section.currentIndex === 1
             Layout.fillWidth: true
-            text: qsTr("Refresh list reads status only. Update downloads the selected proxy collection or rule set.") + "\n" + qsTr("Snapshot updates follow auto-apply and may restart the core. Runtime updates take effect without restarting. Item counts may be unavailable.")
+            text: qsTr("Refresh list reads status only. Update downloads the selected proxy collection or rule set.") + "\n" + qsTr("Snapshot updates follow auto-apply and reload the configuration. Runtime updates refresh the resource directly. Item counts may be unavailable.")
             color: root.theme.muted
             font.pixelSize: root.theme.supportingSize
             wrapMode: Text.WordWrap

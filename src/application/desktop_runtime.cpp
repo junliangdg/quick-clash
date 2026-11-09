@@ -4,6 +4,7 @@
 #include "infra/config/config_overlay.h"
 #include "infra/config/custom_groups.h"
 #include "infra/config/geo_resources.h"
+#include "infra/core/listener_ports.h"
 #include "infra/core/pipe_http.h"
 #include "infra/io/bounded_read.h"
 #include "infra/storage/runtime_provider_cache.h"
@@ -183,6 +184,8 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         const auto stopped = stopValidation();
         if (const auto* failure = std::get_if<domain::Error>(&stopped))
             error(failure->code);
+        else
+            error(QStringLiteral("CoreConfigValidationTimeout"));
         if (completion) {
             completion(false);
         }
@@ -191,8 +194,11 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
         validationDeadline_.stop();
         if (validationCompletion_) {
             auto completion = std::move(validationCompletion_);
-            staging_.reset();
+            if (code != 0)
+                staging_.reset();
             completion(code == 0);
+            if (!validationCompletion_ && !validator_->running())
+                staging_.reset();
         }
     });
     connect(&engine_, &infra::EngineSession::becameReady, this, [this](const QString& version) {
@@ -231,6 +237,10 @@ DesktopRuntime::DesktopRuntime(infra::JsonStore& store, DesktopServices services
     });
     connect(&engine_, &infra::EngineSession::groupsRefreshFailed, this,
             [this](const QString& code) {
+                if (reloadApply_ || (recovering_ && applying_)) {
+                    failedApply(code);
+                    return;
+                }
                 // A group read is observational. Keep the last confirmed membership visible
                 // while marking it stale instead of turning a transient API failure into a
                 // core error.
@@ -1418,14 +1428,12 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
         return;
     }
     QFile config(staging_->filePath(QStringLiteral("config.yaml")));
-    const auto copied = staging_->filePath(platformInfo_.coreFileName);
     {
         const auto materialized = infra::materializeSession({semantic, {}}, newSecret());
         if (!std::holds_alternative<QByteArray>(materialized) ||
             !config.open(QIODevice::WriteOnly) ||
             config.write(std::get<QByteArray>(materialized)) !=
-                std::get<QByteArray>(materialized).size() ||
-            !QFile::copy(coreExecutable(), copied)) {
+                std::get<QByteArray>(materialized).size()) {
             config.close();
             staging_.reset();
             completion(false);
@@ -1463,7 +1471,7 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
             completion(false);
     };
     const auto launched =
-        validator_->start(copied,
+        validator_->start(coreExecutable(),
                           {QStringLiteral("-t"), QStringLiteral("-f"), config.fileName(),
                            QStringLiteral("-d"), staging_->path()},
                           staging_->path(), true);
@@ -1479,7 +1487,7 @@ void DesktopRuntime::validate(const QByteArray& semantic, std::function<void(boo
 }
 void DesktopRuntime::validateProviderBodies(const QByteArray& semantic,
                                             std::function<void(bool)> completion) {
-    const auto pipe = QStringLiteral("\\\\.\\pipe\\LOCAL\\QuickClash.Validate.") +
+    const auto pipe = QStringLiteral("\\\\.\\pipe\\QuickClash.Validate.") +
                       QUuid::createUuid().toString(QUuid::WithoutBraces);
     const auto parsed = infra::providerValidationConfig(semantic, pipe);
     const auto* validation = std::get_if<infra::ProviderValidation>(&parsed);
@@ -1491,25 +1499,16 @@ void DesktopRuntime::validateProviderBodies(const QByteArray& semantic,
         completion(true);
         return;
     }
-    const auto parent = store_.path(QStringLiteral("cache/validation"));
-    if (!std::holds_alternative<QString>(parent)) {
+    if (!staging_ || !staging_->isValid()) {
         completion(false);
         return;
     }
-    staging_ = std::make_unique<QTemporaryDir>(std::get<QString>(parent) + "/body_XXXXXX");
-    const auto executable = staging_->filePath(platformInfo_.coreFileName);
     const auto config = staging_->filePath(QStringLiteral("config.yaml"));
     infra::JsonStore isolated(staging_->path());
     const auto opened = isolated.open();
     if (!staging_->isValid() || std::holds_alternative<domain::Error>(opened) ||
-        !QFile::copy(coreExecutable(), executable) ||
         std::holds_alternative<domain::Error>(
-            isolated.writeBytes("config.yaml", validation->config)) ||
-        std::holds_alternative<domain::Error>(
-            infra::prepareRuntimeProviderCache(semantic, isolated, {})) ||
-        std::holds_alternative<domain::Error>(infra::prepareGeoResources(
-            semantic, staging_->path(), runtimePreferences_.value("geoSnapshot").toObject(),
-            store_.root()))) {
+            isolated.writeBytes("config.yaml", validation->config))) {
         staging_.reset();
         completion(false);
         return;
@@ -1523,16 +1522,16 @@ void DesktopRuntime::validateProviderBodies(const QByteArray& semantic,
         providerBodyValidation_.reset();
         context->completion(false);
     };
-    const auto launched = validator_->start(executable, {"-f", config, "-d", staging_->path()},
-                                            staging_->path(), true);
+    const auto launched = validator_->start(
+        coreExecutable(), {"-f", config, "-d", staging_->path()}, staging_->path(), true);
     if (std::holds_alternative<domain::Error>(launched)) {
         auto callback = std::move(validationCompletion_);
         if (!validator_->running())
             staging_.reset();
+        error(std::get<domain::Error>(launched).code);
         callback(false);
         return;
     }
-    context->pipe = validator_->localPipePath(pipe);
     validationDeadline_.start();
     QTimer::singleShot(100, this, &DesktopRuntime::probeProviderBody);
 }
@@ -2220,17 +2219,47 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
             publish();
             if (generation != operationGeneration_ || !modeOnlyApply_)
                 return;
-            engine_.changeMode(runtimePreferences_.value(QStringLiteral("mode")).toString(),
-                               [this, generation](bool success) {
-                                   if (generation != operationGeneration_ || !modeOnlyApply_)
-                                       return;
-                                   if (!success) {
-                                       failedApply(QStringLiteral("CoreModeReadbackFailed"));
-                                       return;
-                                   }
-                                   sessionPreferences_ = runtimePreferences_;
-                                   confirmed();
-                               });
+            engine_.changeMode(
+                runtimePreferences_.value(QStringLiteral("mode")).toString(),
+                [this, generation](bool success) {
+                    if (generation != operationGeneration_ || !modeOnlyApply_)
+                        return;
+                    if (!success) {
+                        failedApply(QStringLiteral("CoreModeReadbackFailed"));
+                        return;
+                    }
+                    // Keep compensation bytes in sync with a mode-only PATCH.
+                    const auto loaded = store_.readBytes(sessionConfigRef_);
+                    if (const auto* bytes = std::get_if<QByteArray>(&loaded)) {
+                        const auto updated = infra::sessionWithMode(
+                            *bytes, runtimePreferences_.value("mode").toString());
+                        if (!std::holds_alternative<QByteArray>(updated)) {
+                            failedApply(QStringLiteral("SessionWriteFailed"));
+                            return;
+                        }
+                        const auto written =
+                            store_.writeBytes(sessionConfigRef_, std::get<QByteArray>(updated));
+                        if (const auto* failure = std::get_if<domain::Error>(&written)) {
+                            failedApply(failure->code);
+                            return;
+                        }
+                    } else {
+                        failedApply(QStringLiteral("SessionWriteFailed"));
+                        return;
+                    }
+                    sessionPreferences_ = runtimePreferences_;
+                    confirmed();
+                });
+            return;
+        }
+        if (canReloadConfig()) {
+            const auto staged = repository_.phase(QStringLiteral("CoreApplying"));
+            if (const auto* failure = std::get_if<domain::Error>(&staged)) {
+                unchangedConfigApply_ = true;
+                failedApply(failure->code);
+                return;
+            }
+            reloadConfig(semantic);
             return;
         }
         if (previouslyProxied_) {
@@ -2278,6 +2307,208 @@ void DesktopRuntime::applyProfile(const QString& id, bool startAfter) {
                  });
     else
         QTimer::singleShot(0, this, [commit = std::move(commit)]() mutable { commit(true); });
+}
+bool DesktopRuntime::canReloadConfig() const {
+    if (!engine_.ready() || engine_.cleanupUncertain() || recovering_ || tunPending_ ||
+        tunDisabling_ || sessionConfigRef_.isEmpty())
+        return false;
+    // These select the executable, process token, controller and Geo snapshot.
+    // Mihomo's /configs reload does not reconfigure its controller or reset Geo caches.
+    for (const auto* key : {"coreArtifactId", "tunDesired", "controllerPort", "geoSnapshot"})
+        if (sessionPreferences_.value(QLatin1String(key)) !=
+            runtimePreferences_.value(QLatin1String(key)))
+            return false;
+    return true;
+}
+void DesktopRuntime::updateSessionView(const QByteArray& semantic) {
+    auto key = credentials_->read(QStringLiteral("c137006a-58f4-4d6c-a795-b987e368c820"));
+    identities_ = std::holds_alternative<QByteArray>(key)
+                      ? infra::nodeIdentities(semantic, std::get<QByteArray>(key))
+                      : QJsonObject{};
+    const auto summary = infra::configurationSummary(semantic);
+    configuredGroups_ = summary.value(QStringLiteral("groups")).toArray();
+    defaultPolicy_ = summary.value(QStringLiteral("defaultPolicy")).toString();
+    featureState_.insert(QStringLiteral("nodes"), summary.value(QStringLiteral("nodes")));
+    restoringNodes_ = true;
+    restoredGroups_.clear();
+    cancelDelayTests();
+    resetConnectionClose();
+    loadedFeatures_.clear();
+    pendingFeatureRequests_.clear();
+    for (const auto* stream : {"connections", "rules", "providers"}) {
+        ++featureRequests_[QLatin1String(stream)];
+        releaseFeature(QLatin1String(stream));
+    }
+    rules_ = {};
+    providers_ = {};
+    providerDraft_ = {};
+    rulePageState_ = {};
+    providerPageState_ = {};
+    providerResults_ = {};
+    customGroupLiveProviders_ = {};
+}
+void DesktopRuntime::reloadConfig(const QByteArray& semantic) {
+    previousSessionConfigRef_ = sessionConfigRef_;
+    previousProviderRevision_ = sessionProviderRevision_;
+    previousSessionProfileId_ = sessionProfileId_;
+    reloadApply_ = true;
+    reloadSent_ = false;
+    reloadCompensating_ = false;
+    // Reuse the already prepared live Geo home; a new Geo requirement may need
+    // bundled files even when the selected snapshot itself has not changed.
+    const auto home = store_.path(QStringLiteral("data/core_state"));
+    if (!std::holds_alternative<QString>(home)) {
+        failReload(QStringLiteral("UnsafeDataPath"));
+        return;
+    }
+    const auto resources = infra::prepareGeoResources(
+        semantic, std::get<QString>(home),
+        runtimePreferences_.value(QStringLiteral("geoSnapshot")).toObject(), store_.root());
+    if (const auto* failure = std::get_if<domain::Error>(&resources)) {
+        failReload(failure->code);
+        return;
+    }
+    const auto revision = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    // The service stages its own cache after independently preflighting the template.
+    const auto prepared = engine_.usingService()
+                              ? domain::Result<QByteArray>(semantic)
+                              : infra::prepareRuntimeProviderRevision(
+                                    semantic, store_, QStringLiteral("data/core_state"), revision,
+                                    sessionProviderRevision_);
+    if (const auto* failure = std::get_if<domain::Error>(&prepared)) {
+        failReload(failure->code);
+        return;
+    }
+    const auto materialized =
+        infra::materializeSession({std::get<QByteArray>(prepared), {}}, secret_);
+    if (const auto* failure = std::get_if<domain::Error>(&materialized)) {
+        failReload(failure->code);
+        return;
+    }
+    const auto reference = QStringLiteral("data/sessions/%1/reload_%2.yaml").arg(epoch_, revision);
+    const auto written = store_.writeBytes(reference, std::get<QByteArray>(materialized), true);
+    const auto path = store_.path(reference);
+    if (const auto* failure = std::get_if<domain::Error>(&written)) {
+        failReload(failure->code);
+        return;
+    }
+    if (!std::holds_alternative<QString>(path)) {
+        failReload(QStringLiteral("SessionWriteFailed"));
+        return;
+    }
+    if (preferences().mixedPort != sessionPreferences_.value("mixedPort").toInt()) {
+        const auto issue =
+            infra::suggestListenerPorts(preferences().mixedPort, preferences().controllerPort);
+        if (issue.value("mixedPort").toInt() != preferences().mixedPort) {
+            failReload(QStringLiteral("CoreListenerAddressInUse"));
+            return;
+        }
+    }
+    status_ = QStringLiteral("Reloading");
+    publish();
+    const auto generation = operationGeneration_;
+    reloadSent_ = true;
+    engine_.reload(std::get<QString>(path), runtimePreferences_.value("mode").toString(),
+                   preferences().mixedPort, [this, generation, reference, revision](bool success) {
+                       if (generation != operationGeneration_ || !reloadApply_)
+                           return;
+                       if (!success) {
+                           failReload(QStringLiteral("CoreConfigReloadFailed"));
+                           return;
+                       }
+                       sessionConfigRef_ = reference;
+                       sessionProviderRevision_ = engine_.usingService() ? QString{} : revision;
+                       sessionPreferences_ = runtimePreferences_;
+                       sessionProfileId_ = applyingId_;
+                       effectivePreferences_ = sessionPreferences_;
+                       effectiveProfileId_ = sessionProfileId_;
+                       const auto selection = candidate_.value("selection").toObject();
+                       const auto loaded =
+                           store_.readBytes(selection.value("artifactRef").toString());
+                       if (const auto* failure = std::get_if<domain::Error>(&loaded)) {
+                           failReload(failure->code);
+                           return;
+                       }
+                       updateSessionView(std::get<QByteArray>(loaded));
+                       discardConfigTransaction();
+                       recordUpdateOutcome(
+                           QStringLiteral("Reloaded"),
+                           QStringLiteral("Subscription update applied through the running core; "
+                                          "the core process was not restarted"));
+                       status_ = QStringLiteral("RestoringSelections");
+                       publish();
+                       engine_.refreshGroups();
+                   });
+}
+void DesktopRuntime::failReload(const QString& code) {
+    if (!reloadApply_ || reloadCompensating_)
+        return;
+    if (!reloadSent_) {
+        reloadApply_ = false;
+        reloadCompensating_ = false;
+        unchangedConfigApply_ = true;
+        failedApply(code);
+        return;
+    }
+    reloadCompensating_ = true;
+    const auto operationId = repository_.pending().value("operationId").toString();
+    if (!operationId.isEmpty() &&
+        repository_.manifest().value("committedOperationId") == operationId) {
+        // The live candidate and durable manifest already agree; retain that commit.
+        reloadApply_ = false;
+        reloadCompensating_ = false;
+        unchangedConfigApply_ = true;
+        failedApply(code);
+        return;
+    }
+    const auto generation = operationGeneration_;
+    const auto oldPreferences = previousPreferences_;
+    const auto path = store_.path(previousSessionConfigRef_);
+    if (!std::holds_alternative<QString>(path)) {
+        reloadApply_ = false;
+        failedApply(code);
+        return;
+    }
+    engine_.reload(std::get<QString>(path), oldPreferences.value("mode").toString(),
+                   static_cast<quint16>(oldPreferences.value("mixedPort").toInt()),
+                   [this, generation, oldPreferences, code](bool restored) {
+                       if (generation != operationGeneration_ || !reloadApply_)
+                           return;
+                       reloadApply_ = false;
+                       reloadCompensating_ = false;
+                       if (!restored) {
+                           // A failed compensation is the point where replacing the process is
+                           // necessary.
+                           failedApply(code);
+                           return;
+                       }
+                       discardConfigTransaction();
+                       runtimePreferences_ = oldPreferences;
+                       sessionPreferences_ = oldPreferences;
+                       effectivePreferences_ = oldPreferences;
+                       sessionProfileId_ = previousSessionProfileId_;
+                       effectiveProfileId_ = sessionProfileId_;
+                       sessionConfigRef_ = previousSessionConfigRef_;
+                       sessionProviderRevision_ = previousProviderRevision_;
+                       previousPreferences_ = {};
+                       candidate_ = previous_;
+                       const auto selection = previous_.value("selection").toObject();
+                       const auto old = store_.readBytes(selection.value("artifactRef").toString());
+                       if (const auto* bytes = std::get_if<QByteArray>(&old))
+                           updateSessionView(*bytes);
+                       // A failed candidate may have changed selectors. Restore the old choices
+                       // through the same readback path before finishing the failed transaction.
+                       pendingGroup_.clear();
+                       pendingMember_.clear();
+                       restoredGroups_.clear();
+                       const auto previousSelection = previous_.value("selection").toObject();
+                       selectedId_ = previousSelection.value("profileId").toString();
+                       recovering_ = true;
+                       status_ = QStringLiteral("RestoringSelections");
+                       error(code);
+                       engine_.refreshGroups();
+                       publish();
+                   });
 }
 void DesktopRuntime::launch() {
     if (engine_.running() && !engine_.usingService()) {
@@ -2419,6 +2650,8 @@ void DesktopRuntime::launch() {
     status_ = QStringLiteral("Starting");
     sessionPreferences_ = runtimePreferences_;
     sessionProfileId_ = applyingId_.isEmpty() ? selectedId_ : applyingId_;
+    sessionConfigRef_ = reference;
+    sessionProviderRevision_.clear();
     publish();
     engine_.start(
         coreExecutable(), std::get<QString>(config), std::get<QString>(coreDirectory), secret_,
@@ -2494,6 +2727,7 @@ void DesktopRuntime::confirmed() {
         }
         publish();
         finishOperation(domain::OperationState::Failed, lastError_);
+        collectGarbage();
         return;
     }
     if (!applying_) {
@@ -2513,7 +2747,7 @@ void DesktopRuntime::confirmed() {
     }
     const auto committed = repository_.commit();
     if (const auto* failure = std::get_if<domain::Error>(&committed)) {
-        if (modeOnlyApply_ || unchangedConfigApply_) {
+        if (modeOnlyApply_ || unchangedConfigApply_ || reloadApply_) {
             failedApply(failure->code);
             return;
         }
@@ -2587,6 +2821,7 @@ void DesktopRuntime::confirmed() {
     previousPreferences_ = {};
     modeOnlyApply_ = false;
     unchangedConfigApply_ = false;
+    reloadApply_ = false;
     applyingConfirmedSource_ = false;
     applying_ = false;
     busy_ = false;
@@ -2608,6 +2843,11 @@ void DesktopRuntime::confirmed() {
     publish();
 }
 void DesktopRuntime::failedApply(const QString& code) {
+    if (reloadApply_ && engine_.ready()) {
+        failReload(code);
+        return;
+    }
+    reloadApply_ = false;
     if (unchangedConfigApply_ && engine_.ready()) {
         const auto operationId =
             repository_.pending().value(QStringLiteral("operationId")).toString();
@@ -2633,6 +2873,7 @@ void DesktopRuntime::failedApply(const QString& code) {
                                              : domain::OperationState::Failed,
                         failure ? failure->code : code);
         publish();
+        collectGarbage();
         return;
     }
     unchangedConfigApply_ = false;
@@ -2734,6 +2975,20 @@ void DesktopRuntime::failModeChange(const QString& code) {
                        [this, generation, oldPreferences, code](bool restored) {
                            if (generation != operationGeneration_ || !modeOnlyApply_)
                                return;
+                           if (restored) {
+                               const auto loaded = store_.readBytes(sessionConfigRef_);
+                               const auto* bytes = std::get_if<QByteArray>(&loaded);
+                               if (!bytes) {
+                                   restored = false;
+                               } else {
+                                   const auto updated = infra::sessionWithMode(
+                                       *bytes, oldPreferences.value("mode").toString());
+                                   const auto* value = std::get_if<QByteArray>(&updated);
+                                   restored =
+                                       value && std::holds_alternative<std::monostate>(
+                                                    store_.writeBytes(sessionConfigRef_, *value));
+                               }
+                           }
                            modeOnlyApply_ = false;
                            runtimePreferences_ = oldPreferences;
                            previousPreferences_ = {};
@@ -2838,6 +3093,7 @@ domain::CommandResult DesktopRuntime::saveProxyIntent(bool desired) {
     return result;
 }
 void DesktopRuntime::stop(domain::StopReason reason) {
+    reloadApply_ = false;
     modeOnlyApply_ = false;
     unchangedConfigApply_ = false;
     cancelCoreUpdate();
@@ -3060,15 +3316,29 @@ void DesktopRuntime::cleanupSession() {
     loadedFeatures_.clear();
     pendingFeatureRequests_.clear();
     if (!epoch_.isEmpty()) {
-        const auto removed =
-            store_.remove(QStringLiteral("data/sessions/%1/config.yaml").arg(epoch_));
-        if (const auto* failure = std::get_if<domain::Error>(&removed)) {
-            error(failure->code);
-        }
+        const auto listed = store_.files(QStringLiteral("data/sessions/%1").arg(epoch_));
+        if (const auto* files = std::get_if<QStringList>(&listed))
+            for (const auto& file : *files) {
+                const auto removed = store_.remove(file);
+                if (const auto* failure = std::get_if<domain::Error>(&removed))
+                    error(failure->code);
+            }
     }
+    const auto preserved =
+        infra::preserveRuntimeProviderCache(store_, "data/core_state", sessionProviderRevision_);
+    const auto collected =
+        std::holds_alternative<domain::Error>(preserved)
+            ? preserved
+            : infra::collectRuntimeProviderRevisions(store_, "data/core_state", {});
+    if (const auto* failure = std::get_if<domain::Error>(&collected))
+        error(failure->code);
     secret_.fill('\0');
     secret_.clear();
     epoch_.clear();
+    sessionConfigRef_.clear();
+    sessionProviderRevision_.clear();
+    previousSessionConfigRef_.clear();
+    previousProviderRevision_.clear();
 }
 void DesktopRuntime::collectGarbage() {
     if (store_.readOnly() || repository_.recoveryRequired() || applying_ || busy_ ||
@@ -3202,13 +3472,17 @@ void DesktopRuntime::collectGarbage() {
             else if (file.startsWith(QStringLiteral("data/profiles/")))
                 keep = sources.contains(file);
             else if (file.startsWith(QStringLiteral("data/sessions/")))
-                keep = !epoch_.isEmpty() && file.section(QLatin1Char('/'), 2, 2) == epoch_;
+                keep = file == sessionConfigRef_;
             if (!keep) {
                 const auto removed = store_.remove(file);
                 Q_UNUSED(removed)
             }
         }
     }
+    const auto collected = infra::collectRuntimeProviderRevisions(store_, "data/core_state",
+                                                                  {sessionProviderRevision_});
+    if (const auto* failure = std::get_if<domain::Error>(&collected))
+        error(failure->code);
     if (!busy_) {
         const auto blobs = store_.files(QStringLiteral("data/credentials"));
         if (const auto* files = std::get_if<QStringList>(&blobs)) {

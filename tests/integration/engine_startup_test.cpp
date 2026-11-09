@@ -10,6 +10,11 @@
 #include <QTcpServer>
 #include <QTemporaryDir>
 #include <QTest>
+#ifdef Q_OS_WIN
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#endif
 
 namespace {
 class DelayedProcess final : public quickclash::application::IDesktopProcess {
@@ -18,9 +23,9 @@ class DelayedProcess final : public quickclash::application::IDesktopProcess {
         connect(process.get(), &IDesktopProcess::finished, this, &IDesktopProcess::finished);
     }
     quickclash::domain::CommandResult start(const QString& executable, const QStringList& arguments,
-                                            const QString& directory, bool isolated) override {
+                                            const QString& directory, bool validation) override {
         ++starts;
-        return process->start(executable, arguments, directory, isolated);
+        return process->start(executable, arguments, directory, validation);
     }
     quickclash::domain::CommandResult stop() override {
         if (rejectStop && process->running())
@@ -57,6 +62,23 @@ quint16 freePort() {
 class EngineStartupTest final : public QObject {
     Q_OBJECT
   private slots:
+    void validationUsesOwnedUserProcess() {
+        QTemporaryDir directory;
+        auto environment = QProcessEnvironment::systemEnvironment();
+        environment.insert("SAFE_PATHS", directory.path());
+        environment.insert("SKIP_SAFE_PATH_CHECK", "true");
+        environment.insert("CLASH_CONFIG_STRING", "unrelated_candidate");
+        environment.insert("CLASH_POST_UP", "unrelated_hook");
+        quickclash::platform::OwnedProcess process;
+        QSignalSpy finished(&process, &quickclash::platform::OwnedProcess::finished);
+        QVERIFY(std::holds_alternative<std::monostate>(process.start(
+            QCoreApplication::applicationFilePath(), {QStringLiteral("--validation-child")},
+            directory.path(), true, environment)));
+        QTRY_COMPARE_WITH_TIMEOUT(finished.size(), 1, 5000);
+        QCOMPARE(finished.first().first().toInt(), 0);
+        QVERIFY(process.outputTail().contains("user_validation_child"));
+        QVERIFY(!process.running());
+    }
     void outputAndExit() {
         quickclash::platform::OwnedProcess process;
         QSignalSpy finished(&process, &quickclash::platform::OwnedProcess::finished);
@@ -199,6 +221,30 @@ class EngineStartupTest final : public QObject {
 };
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
+    if (app.arguments().contains(QStringLiteral("--validation-child"))) {
+        if (qEnvironmentVariableIsSet("SAFE_PATHS") ||
+            qEnvironmentVariableIsSet("SKIP_SAFE_PATH_CHECK") ||
+            qEnvironmentVariableIsSet("CLASH_CONFIG_STRING") ||
+            qEnvironmentVariableIsSet("CLASH_POST_UP") ||
+            qEnvironmentVariable("LISTEN_NAMEDPIPE_SDDL") != "D:P(A;;GA;;;SY)(A;;GA;;;OW)")
+            return 2;
+#ifdef Q_OS_WIN
+        HANDLE token = nullptr;
+        if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+            return 3;
+        DWORD appContainer = 1, bytes = 0;
+        const auto read = GetTokenInformation(token, TokenIsAppContainer, &appContainer,
+                                              sizeof(appContainer), &bytes);
+        CloseHandle(token);
+        if (!read || appContainer)
+            return 4;
+#endif
+        QFile output;
+        if (!output.open(stdout, QIODevice::WriteOnly))
+            return 5;
+        output.write("user_validation_child\n");
+        return 0;
+    }
     if (app.arguments().contains(QStringLiteral("--output-child"))) {
         QFile output;
         if (!output.open(stdout, QIODevice::WriteOnly))

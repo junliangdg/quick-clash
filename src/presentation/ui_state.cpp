@@ -39,6 +39,12 @@ UiState::UiState(QString settingsFile, QObject* parent, std::function<qint64()> 
         connect(settings_.get(), &infra::SettingsService::dataChanged, this, &UiState::applyData);
         connect(settings_.get(), &infra::SettingsService::subscriptionUrlReady, this,
                 &UiState::subscriptionUrlReady);
+        connect(settings_.get(), &infra::SettingsService::subscriptionImportDispatched, this,
+                [this] {
+                    subscriptionImportPending_ = false;
+                    emit subscriptionImportDispatched();
+                    emit runtimeChanged();
+                });
         connect(settings_.get(), &infra::SettingsService::subscriptionSourceFinished, this,
                 &UiState::subscriptionSourceFinished);
         connect(settings_.get(), &infra::SettingsService::operationCompleted, this,
@@ -810,6 +816,9 @@ QString UiState::errorText(const QString& customError) const {
     if (code == QStringLiteral("SubscriptionDownloadFailed"))
         return tr("Unable to download the subscription. Check the network, HTTPS certificate and "
                   "subscription validity.");
+    if (code == QStringLiteral("CoreConfigValidationTimeout"))
+        return tr("Configuration validation timed out. Your existing configuration is unchanged. "
+                  "Check the subscription and try again.");
     if (code == QStringLiteral("SubscriptionAuthenticationFailed"))
         return tr(
             "The subscription server denied access. Check the URL, account or request headers.");
@@ -1251,6 +1260,10 @@ void UiState::runtimeCommand(const QString& command, const QStringList& argument
             settings_->setDemands(dataDemands_);
     }
     if (settings_) {
+        if (command == QStringLiteral("subscribe") || command == QStringLiteral("import")) {
+            subscriptionImportPending_ = true;
+            emit runtimeChanged();
+        }
         settings_->command(command, arguments);
     }
 }

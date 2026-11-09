@@ -25,6 +25,7 @@ class ServiceHost final : public QObject {
     void shutdown();
 
   private:
+    friend class ServiceReloadProbe;
     enum class TunObservation { On, Missing, Unknown };
 
     [[nodiscard]] bool authenticated(QLocalSocket* socket, QString* failure = nullptr,
@@ -35,6 +36,7 @@ class ServiceHost final : public QObject {
                   const QJsonObject& payload);
     void answer(QLocalSocket* socket, const QString& id, domain::Result<QJsonObject> result);
     void start(QLocalSocket* socket, const QString& id, const QJsonObject& payload);
+    void reload(QLocalSocket* socket, const QString& id, const QJsonObject& payload);
     void probe(QLocalSocket* socket, const QString& id, int attempt);
     void api(QLocalSocket* socket, const QString& id, const QByteArray& method,
              const QByteArray& path, const QJsonObject& body = {});
@@ -83,7 +85,12 @@ class ServiceHost final : public QObject {
     int coreExitCode_ = 0;
     QDateTime coreExitedAt_;
     QJsonObject groups_;
+    quint64 configGeneration_ = 0;
     QJsonObject geoResources_;
+    QJsonObject geoSnapshot_;
+    QString geoStorageRoot_;
+    QString providerRevision_;
+    QString previousProviderRevision_;
     QSet<QString> providers_;
     bool providerRefreshPending_ = false;
     quint16 mixedPort_ = 0;

@@ -34,6 +34,7 @@ int freePort() {
     return server.listen(QHostAddress::LocalHost) ? server.serverPort() : 0;
 }
 } // namespace
+int serviceReloadProbe();
 int main(int argc, char** argv) {
     QCoreApplication app(argc, argv);
     const auto core = qEnvironmentVariable("QUICKCLASH_TEST_CORE");
@@ -191,5 +192,5 @@ int main(int argc, char** argv) {
         process.waitForFinished(3000);
     }
     std::cout << "Real Mihomo pipe: 1 Hz traffic and HTTP delay success/failure passed\n";
-    return 0;
+    return serviceReloadProbe();
 }

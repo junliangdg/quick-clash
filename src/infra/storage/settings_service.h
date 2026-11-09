@@ -17,6 +17,8 @@ class SettingsService final : public QObject {
     void setDemands(const application::RuntimeDemands& demands);
     void command(const QString& name, const QStringList& arguments = {});
   signals:
+    // Acknowledges the initial import call even when it republishes the same error.
+    void subscriptionImportDispatched();
     void subscriptionUrlReady(const QString& id, const QString& token, const QString& url);
     void subscriptionSourceFinished(const QString& id, const QString& token, bool saved,
                                     const QString& errorCode);

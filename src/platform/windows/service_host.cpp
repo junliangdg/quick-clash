@@ -247,7 +247,11 @@ bool ServiceHost::listen() {
     // Keep IPC available for diagnosis/retry while refusing a second uncertain session.
     (void)tunClean();
     const auto removed = store_.remove(QStringLiteral("session/config.yaml"));
-    configClean_ = !std::holds_alternative<domain::Error>(removed);
+    const auto reloadRemoved = store_.remove(QStringLiteral("session/reload.yaml"));
+    const auto collected = infra::collectRuntimeProviderRevisions(store_, "session", {});
+    configClean_ = !std::holds_alternative<domain::Error>(removed) &&
+                   !std::holds_alternative<domain::Error>(reloadRemoved) &&
+                   !std::holds_alternative<domain::Error>(collected);
     if (!configClean_)
         return false;
     server_.setSocketOptions(QLocalServer::UserAccessOption | QLocalServer::GroupAccessOption |
@@ -508,7 +512,7 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         api(socket, id, "GET", "/configs");
         return;
     }
-    if (action == QStringLiteral("mode") && ready_ &&
+    if (action == QStringLiteral("mode") && ready_ && !busy_ &&
         fixedFields(payload, {QStringLiteral("mode")}) &&
         QStringList{QStringLiteral("rule"), QStringLiteral("global"), QStringLiteral("direct")}
             .contains(payload.value(QStringLiteral("mode")).toString())) {
@@ -517,6 +521,10 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
     }
     if (action == QStringLiteral("start")) {
         start(socket, id, payload);
+        return;
+    }
+    if (action == QStringLiteral("reload")) {
+        reload(socket, id, payload);
         return;
     }
     if (action == QStringLiteral("stop") && payload.isEmpty()) {
@@ -700,16 +708,19 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
     if (action == QStringLiteral("groups")) {
         QPointer<QLocalSocket> peer(socket);
         const auto epoch = epoch_;
-        infra::pipeHttp(this, pipe_, "GET", "/proxies", {},
-                        [this, peer, id, epoch](domain::Result<QJsonObject> result) {
-                            if (epoch != epoch_ || !ready_)
-                                return;
-                            if (const auto* value = std::get_if<QJsonObject>(&result))
-                                groups_ = infra::proxySelectionCatalog(
-                                    value->value(QStringLiteral("proxies")).toObject());
-                            if (peer && owner_ == peer)
-                                answer(peer, id, std::move(result));
-                        });
+        const auto configGeneration = configGeneration_;
+        infra::pipeHttp(
+            this, pipe_, "GET", "/proxies", {},
+            [this, peer, id, epoch, configGeneration](domain::Result<QJsonObject> result) {
+                if (epoch != epoch_ || !ready_)
+                    return;
+                if (const auto* value = std::get_if<QJsonObject>(&result);
+                    value && configGeneration == configGeneration_)
+                    groups_ = infra::proxySelectionCatalog(
+                        value->value(QStringLiteral("proxies")).toObject());
+                if (peer && owner_ == peer)
+                    answer(peer, id, std::move(result));
+            });
         return;
     }
     const QHash<QString, QByteArray> reads{
@@ -894,6 +905,8 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         return;
     }
     geoResources_ = infra::geoResourceManifest(configBytes, snapshot);
+    geoSnapshot_ = snapshot;
+    geoStorageRoot_ = storageRoot;
     const auto providerCache =
         infra::prepareRuntimeProviderCache(configBytes, store_, QStringLiteral("session"));
     if (const auto* error = std::get_if<domain::Error>(&providerCache)) {
@@ -988,6 +1001,144 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
             answer(peer, id, failure("ServiceStartTimeout"));
         }
     });
+}
+void ServiceHost::reload(QLocalSocket* socket, const QString& id, const QJsonObject& payload) {
+    if (!ready_ || busy_ || !core_.running() || payload.size() != 5 ||
+        !fixedFields(payload, {"yaml", "mixedPort", "mode", "dnsMode", "tun"}) ||
+        !payload.value("tun").isBool() || payload.value("tun").toBool() != tunDesired_ ||
+        !payload.value("yaml").isString() ||
+        payload.value("yaml").toString().size() > 23 * 1024 * 1024) {
+        answer(socket, id, failure("ServiceConfigRejected"));
+        return;
+    }
+    const auto decoded = QByteArray::fromBase64Encoding(payload.value("yaml").toString().toLatin1(),
+                                                        QByteArray::AbortOnBase64DecodingErrors);
+    domain::RuntimePreferences preferences;
+    const auto port = payload.value("mixedPort").toInt();
+    const auto mode = payload.value("mode").toString();
+    if (!decoded || payload.value("mixedPort").toDouble() != port || port < 1024 || port > 65535 ||
+        !QStringList{"rule", "global", "direct"}.contains(mode)) {
+        answer(socket, id, failure("ServiceConfigRejected"));
+        return;
+    }
+    preferences.mixedPort = static_cast<quint16>(port);
+    preferences.controllerPort = port == 9090 ? 9091 : 9090;
+    preferences.mode = mode == "global"   ? domain::ProxyMode::Global
+                       : mode == "direct" ? domain::ProxyMode::Direct
+                                          : domain::ProxyMode::Rule;
+    preferences.dnsMode = payload.value("dnsMode").toString();
+    const auto checked = infra::preflightConfig(decoded.decoded, preferences);
+    if (const auto* error = std::get_if<domain::Error>(&checked)) {
+        answer(socket, id, *error);
+        return;
+    }
+    auto semantic = std::get<infra::PreflightConfig>(checked).semanticYaml;
+    const auto openSource = [this, socket](QFile& source) {
+        if (geoSnapshot_.isEmpty())
+            return source.open(QIODevice::ReadOnly);
+        if (!ImpersonateNamedPipeClient(reinterpret_cast<HANDLE>(socket->socketDescriptor())))
+            return false;
+        const bool opened = source.open(QIODevice::ReadOnly);
+        if (!RevertToSelf())
+            TerminateProcess(GetCurrentProcess(), ERROR_CANNOT_IMPERSONATE);
+        return opened;
+    };
+    const auto resources =
+        infra::prepareGeoResources(semantic, directory_, geoSnapshot_, geoStorageRoot_, openSource);
+    if (const auto* error = std::get_if<domain::Error>(&resources)) {
+        answer(socket, id, *error);
+        return;
+    }
+    const auto resourceManifest = infra::geoResourceManifest(semantic, geoSnapshot_);
+    const auto revision = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    const auto collected = infra::collectRuntimeProviderRevisions(
+        store_, "session", {providerRevision_, previousProviderRevision_});
+    if (const auto* error = std::get_if<domain::Error>(&collected)) {
+        answer(socket, id, *error);
+        return;
+    }
+    const auto staged = infra::prepareRuntimeProviderRevision(semantic, store_, "session", revision,
+                                                              providerRevision_);
+    if (const auto* error = std::get_if<domain::Error>(&staged)) {
+        answer(socket, id, *error);
+        return;
+    }
+    QSet<QString> providers;
+    QByteArray config;
+    try {
+        auto root = YAML::Load(std::get<QByteArray>(staged).toStdString());
+        for (const auto* kind : {"proxy-providers", "rule-providers"})
+            for (const auto& entry : root[kind])
+                providers.insert((std::string(kind) == "proxy-providers" ? "proxies:" : "rules:") +
+                                 QString::fromStdString(entry.first.as<std::string>()));
+        root.remove("external-controller");
+        root["external-controller-pipe"] =
+            QDir::toNativeSeparators(QStringLiteral("//./pipe/") + pipe_).toStdString();
+        root["find-process-mode"] = "always";
+        root["tun"]["enable"] = tunDesired_;
+        root["tun"]["device"] = tunName_.toStdString();
+        root["tun"]["stack"] = "mixed";
+        root["tun"]["auto-route"] = true;
+        root["tun"]["auto-detect-interface"] = true;
+        root["tun"]["dns-hijack"].push_back("any:53");
+        if (tunDesired_)
+            root["dns"]["enable"] = true;
+        if (tunDesired_ && !root["dns"]["nameserver"])
+            root["dns"]["nameserver"].push_back("https://1.1.1.1/dns-query");
+        YAML::Emitter output;
+        output << root;
+        if (!output.good()) {
+            answer(socket, id, failure("ServiceConfigRejected"));
+            return;
+        }
+        config = QByteArray(output.c_str(), static_cast<qsizetype>(output.size()));
+    } catch (const YAML::Exception&) {
+        answer(socket, id, failure("ServiceConfigRejected"));
+        return;
+    }
+    const auto saved = store_.writeBytes("session/reload.yaml", config);
+    if (const auto* error = std::get_if<domain::Error>(&saved)) {
+        answer(socket, id, *error);
+        return;
+    }
+    // Only the service-generated file is passed to SYSTEM's core; no caller path/endpoint.
+    busy_ = true;
+    ++configGeneration_;
+    previousProviderRevision_ = providerRevision_;
+    providerRevision_ = revision;
+    QPointer<QLocalSocket> peer(socket);
+    const auto epoch = epoch_;
+    infra::pipeHttp(
+        this, pipe_, "PUT", "/configs?force=true", {{"path", directory_ + "/reload.yaml"}},
+        [this, peer, id, epoch, port, mode, providers, resourceManifest](auto response) {
+            if (!peer || peer != owner_ || epoch != epoch_)
+                return;
+            if (const auto* error = std::get_if<domain::Error>(&response)) {
+                busy_ = false;
+                answer(peer, id, *error);
+                return;
+            }
+            infra::pipeHttp(
+                this, pipe_, "GET", "/configs", {},
+                [this, peer, id, epoch, port, mode, providers, resourceManifest](auto result) {
+                    if (!peer || peer != owner_ || epoch != epoch_)
+                        return;
+                    busy_ = false;
+                    const auto* value = std::get_if<QJsonObject>(&result);
+                    if (!value || value->value("mixed-port").toInt() != port ||
+                        value->value("mode") != mode || !core_.ownsListener(port) ||
+                        value->value("tun").toObject().value("enable").toBool() != tunDesired_ ||
+                        (tunDesired_ && !tunObserved())) {
+                        answer(peer, id, failure("ServiceReloadReadbackFailed"));
+                        return;
+                    }
+                    mixedPort_ = static_cast<quint16>(port);
+                    providers_ = providers;
+                    geoResources_ = resourceManifest;
+                    groups_ = {};
+                    answer(peer, id, QJsonObject{{"pid", static_cast<int>(core_.pid())}});
+                });
+        });
 }
 void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
     if (owner_ != socket || !busy_)
@@ -1195,7 +1346,17 @@ void ServiceHost::stop(const char* reason) {
     providers_.clear();
     providerRefreshPending_ = false;
     const auto removed = store_.remove(QStringLiteral("session/config.yaml"));
-    configClean_ = !std::holds_alternative<domain::Error>(removed);
+    const auto reloadRemoved = store_.remove(QStringLiteral("session/reload.yaml"));
+    const auto preserved =
+        infra::preserveRuntimeProviderCache(store_, "session", providerRevision_);
+    const auto collected = std::holds_alternative<domain::Error>(preserved)
+                               ? preserved
+                               : infra::collectRuntimeProviderRevisions(store_, "session", {});
+    providerRevision_.clear();
+    previousProviderRevision_.clear();
+    configClean_ = !std::holds_alternative<domain::Error>(removed) &&
+                   !std::holds_alternative<domain::Error>(reloadRemoved) &&
+                   !std::holds_alternative<domain::Error>(collected);
 }
 void ServiceHost::confirmStopped(QLocalSocket* socket, const QString& id, int attempt) {
     if (!socket || owner_ != socket)

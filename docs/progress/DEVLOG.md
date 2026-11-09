@@ -2,6 +2,12 @@
 
 状态以 [TASKS](TASKS.md) 和 [CHECKLISTS](CHECKLISTS.md) 为准。本文件按日期/会话追加，说明变化和下一步，不重复整张台账。时间/版本未知时如实写明。
 
+## 2026-11-09 / 订阅校验等待与内核热重载
+
+- 下载结束后的本机堆栈停在NtAlpcSendWaitReceivePort→RPC→firewallapi RPC_NetworkIsolationCreateAppContainer→USERENV CreateAppContainerProfile；同步注册尚未返回，所以原10秒校验定时器没有机会启动。未确认Windows底层阻塞根因，不更改防火墙或系统安全服务。生产改为当前已核验官方程序的独立Job/临时目录校验，移除程序副本、AppContainer注册与ACL授予；独立进程不构成OS权限或网络沙箱。桌面按当前用户，服务的独立预检仍随服务身份运行。
+- 按当前内核API接入同进程配置重载：事务先校验/写候选，普通模式payload、服务固定字节命令；读回关键设置及owned监听，再恢复可信选择并提交。失败以旧会话配置补偿，补偿失败才重建；模式PATCH同步补偿文件。重载保留PID/epoch，用独立配置代次拒绝旧查询。provider按新版本写候选，活动缓存仅由核心写，正常停止保存最后缓存；历史回退仍不保证重现远端动态内容。
+- 独立目录首轮16项14 Pass/2 Fail：编辑器仍在Starting占用端口而新流程不再Starting；下载等待上限仍断言epoch变化。修正为在Reloading破坏新候选及断言同PID/epoch。更早的5项失败还包括读取已回收的旧session路径、测试TLS证书只注入Starting、固定ETag触发304使故障注入未到达；均修正测试夹具并保留原日志。最终业务10/10与最后文案4/4 Pass，原生provider/MRS/URI/Base64官方内核兼容1/1 Pass（48.81秒）；真实授权地址最终临时导入完成约2.7秒，无错误。未声称真实SYSTEM/TUN热重载或长时通过。
+- 开发目录服务映像被本机SYSTEM服务占用，构建失败；只读核对其无运行内核/无TUN且clean，未强制修改SCM或安全设置，改用build/subscription_fix构建。原始堆栈、首轮失败、私有输入及最终探针仅留Git忽略的build/subscription_hang_20261109/和构建日志目录。Provider保留兼容与单项更新；是否继续简化用户模式选择属于后续产品取舍，本轮未删除功能。
 ## 2026-11-08 / 节点类型与测速运行时兼容遗漏
 
 - 此前去掉导入白名单后，`DesktopRuntime` 的实时节点投影仍只接受旧的八种协议；代理页类型与单节点/批量测速共用这个目录。新增合成回归在修复前以“all official core node types remain visible”失败，原始日志 `build/subscription_compat_20261108/nodes_baseline_build.log`；私有在线样本导入和启动成功，29个订阅节点中19个AnyTLS未投影，代表请求为NotAdmitted，VLESS代表请求当时为Success。探针早期还统计了内核内置Pass/PassRule/RejectDrop，后改为仅统计原订阅节点，不能把这些内置项计入29个订阅节点。

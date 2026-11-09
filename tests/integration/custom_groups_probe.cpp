@@ -205,23 +205,32 @@ int customGroupsProbe() {
         return 7;
     // Test-only trust for the public loopback certificate; never change OS trust or import
     // policy. Mirrors the existing provider probe's isolated materialized-session fixture.
-    QObject::connect(&runtime, &application::DesktopRuntime::changed,
-                     [&](const QJsonObject& state) {
-                         if (state.value("status") != "Starting")
-                             return;
-                         QFile config(directory.path() + "/data/sessions/" +
-                                      state.value("epoch").toString() + "/config.yaml");
-                         QFile cert("tests/fixtures/network/server_cert.pem");
-                         if (!config.open(QIODevice::ReadOnly) || !cert.open(QIODevice::ReadOnly))
-                             return;
-                         auto root = YAML::Load(config.readAll().toStdString());
-                         root["tls"]["custom-certifactes"].push_back(cert.readAll().toStdString());
-                         config.close();
-                         YAML::Emitter output;
-                         output << root;
-                         if (config.open(QIODevice::WriteOnly | QIODevice::Truncate))
-                             config.write(output.c_str(), static_cast<qint64>(output.size()));
-                     });
+    QObject::connect(
+        &runtime, &application::DesktopRuntime::changed, [&](const QJsonObject& state) {
+            if (state.value("status") != "Starting" && state.value("status") != "Reloading")
+                return;
+            const auto listed = store.files("data/sessions");
+            if (!std::holds_alternative<QStringList>(listed))
+                return;
+            const auto files = std::get<QStringList>(listed);
+            QString reference;
+            for (const auto& file : files)
+                if (reference.isEmpty() ||
+                    QFileInfo(directory.filePath(file)).lastModified() >
+                        QFileInfo(directory.filePath(reference)).lastModified())
+                    reference = file;
+            QFile config(directory.filePath(reference));
+            QFile cert("tests/fixtures/network/server_cert.pem");
+            if (!config.open(QIODevice::ReadOnly) || !cert.open(QIODevice::ReadOnly))
+                return;
+            auto root = YAML::Load(config.readAll().toStdString());
+            root["tls"]["custom-certifactes"].push_back(cert.readAll().toStdString());
+            config.close();
+            YAML::Emitter output;
+            output << root;
+            if (config.open(QIODevice::WriteOnly | QIODevice::Truncate))
+                config.write(output.c_str(), static_cast<qint64>(output.size()));
+        });
     runtime.start(false);
     if (!check(done() && runtime.snapshot().value("ready").toBool() &&
                    waitFor([&] { return a.requests > 0 && b.requests > 0; }),

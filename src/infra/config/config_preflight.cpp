@@ -728,6 +728,15 @@ domain::Result<QJsonArray> providerRequests(const QByteArray& input) {
         return inputError("InvalidProviderConfig");
     }
 }
+domain::Result<QByteArray> sessionWithMode(const QByteArray& session, const QString& mode) {
+    try {
+        auto root = YAML::Load(session.toStdString());
+        root["mode"] = mode.toStdString();
+        return serializeYaml(root);
+    } catch (const YAML::Exception&) {
+        return inputError("InvalidYaml");
+    }
+}
 domain::Result<QByteArray> materializeSession(const PreflightConfig& config,
                                               const QByteArray& secret) {
     if (secret.size() < 32 || secret.size() > 256) {

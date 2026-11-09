@@ -359,6 +359,7 @@ int main(int argc, char* argv[]) {
                                      "NoAvailableListenerPorts",
                                      "CoreStopFailed",
                                      "CoreStopTimeout",
+                                     "CoreConfigValidationTimeout",
                                      "CoreModeReadbackFailed",
                                      "CoreModeRecoveryRequired"}) {
                 errors.applyControl({{"publicationGeneration", "1"},

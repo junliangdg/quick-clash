@@ -2,7 +2,6 @@
 #include "domain/log_buffer.h"
 #include "infra/storage/json_store.h"
 #include "platform/desktop_services.h"
-#include <QDirIterator>
 #include <QTimer>
 #include <algorithm>
 #ifdef Q_OS_WIN
@@ -12,9 +11,6 @@
 #include <winsock2.h>
 #include <windows.h>
 #include <iphlpapi.h>
-#include <userenv.h>
-#include <aclapi.h>
-#include <sddl.h>
 // clang-format on
 #include <QWinEventNotifier>
 #endif
@@ -60,32 +56,6 @@ QString quote(const QString& value) {
     }
     return output + QString(slashes * 2, QLatin1Char('\\')) + QLatin1Char('"');
 }
-bool grant(const QString& path, PSID sid, DWORD access, bool revoke = false) {
-    EXPLICIT_ACCESSW entry{};
-    entry.grfAccessPermissions = access;
-    entry.grfAccessMode = revoke ? REVOKE_ACCESS : GRANT_ACCESS;
-    entry.grfInheritance = SUB_CONTAINERS_AND_OBJECTS_INHERIT;
-    entry.Trustee.TrusteeForm = TRUSTEE_IS_SID;
-    entry.Trustee.ptstrName = static_cast<LPWSTR>(sid);
-    PACL old = nullptr;
-    PSECURITY_DESCRIPTOR descriptor = nullptr;
-    const auto* name = reinterpret_cast<LPCWSTR>(path.utf16());
-    if (GetNamedSecurityInfoW(name, SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr,
-                              &old, nullptr, &descriptor) != ERROR_SUCCESS) {
-        return false;
-    }
-    PACL acl = nullptr;
-    const auto merged = SetEntriesInAclW(1, &entry, old, &acl);
-    LocalFree(descriptor);
-    if (merged != ERROR_SUCCESS) {
-        return false;
-    }
-    const auto result =
-        SetNamedSecurityInfoW(const_cast<LPWSTR>(name), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION,
-                              nullptr, nullptr, acl, nullptr);
-    LocalFree(acl);
-    return result == ERROR_SUCCESS;
-}
 } // namespace
 struct OwnedProcess::State {
     Handle job;
@@ -101,33 +71,16 @@ struct OwnedProcess::State {
     std::unique_ptr<QWinEventNotifier> outputNotifier;
     quint32 pid = 0;
     ProcessIdentity identity;
-    QString profile;
-    QString grantedDirectory;
-    QString grantedExecutable;
-    QStringList grantedResources;
-    PSID sid = nullptr;
     ~State() {
         processNotifier.reset();
         outputNotifier.reset();
-        // Kill before removing the temporary security profile.
+        // The Job owns the child and is also closed if the parent exits.
         job.reset();
         if (readPending) {
             (void)CancelIoEx(output.get(), &read);
             DWORD ignored = 0;
             // OVERLAPPED and its buffer must outlive cancellation completion.
             (void)GetOverlappedResult(output.get(), &read, &ignored, TRUE);
-        }
-        if (sid) {
-            for (const auto& path : grantedResources)
-                (void)grant(path, sid, 0, true);
-            if (!grantedDirectory.isEmpty())
-                (void)grant(grantedDirectory, sid, 0, true);
-            if (!grantedExecutable.isEmpty())
-                (void)grant(grantedExecutable, sid, 0, true);
-            FreeSid(sid);
-        }
-        if (!profile.isEmpty()) {
-            (void)DeleteAppContainerProfile(reinterpret_cast<LPCWSTR>(profile.utf16()));
         }
     }
 };
@@ -164,12 +117,12 @@ std::unique_ptr<application::IDesktopProcess> makeDesktopProcess() {
     return std::make_unique<OwnedProcess>();
 }
 domain::CommandResult OwnedProcess::start(const QString& executable, const QStringList& arguments,
-                                          const QString& directory, bool isolated) {
-    return start(executable, arguments, directory, isolated,
+                                          const QString& directory, bool validation) {
+    return start(executable, arguments, directory, validation,
                  QProcessEnvironment::systemEnvironment());
 }
 domain::CommandResult OwnedProcess::start(const QString& executable, const QStringList& arguments,
-                                          const QString& directory, bool isolated,
+                                          const QString& directory, bool validation,
                                           const QProcessEnvironment& environment) {
     if (running()) {
         return infra::storageError("CoreAlreadyRunning");
@@ -212,7 +165,7 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
         return infra::storageError("CorePipeFailed");
     }
     SIZE_T attributeBytes = 0;
-    const DWORD attributeCount = isolated ? 2 : 1;
+    const DWORD attributeCount = 1;
     (void)InitializeProcThreadAttributeList(nullptr, attributeCount, 0, &attributeBytes);
     QByteArray attributes(static_cast<qsizetype>(attributeBytes), Qt::Uninitialized);
     auto* list = reinterpret_cast<LPPROC_THREAD_ATTRIBUTE_LIST>(attributes.data());
@@ -225,54 +178,21 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
             DeleteProcThreadAttributeList(value);
         }
     } cleanup{list};
-    SECURITY_CAPABILITIES capabilities{};
     auto variablesEnvironment = environment;
-    if (isolated) {
-        state_->grantedDirectory = directory;
-        state_->grantedExecutable = executable;
-        state_->profile = QStringLiteral("QuickClash.Validate.") +
-                          QUuid::createUuid().toString(QUuid::WithoutBraces);
-        const auto* name = reinterpret_cast<LPCWSTR>(state_->profile.utf16());
-        if (FAILED(CreateAppContainerProfile(name, name, L"QuickClash offline validation", nullptr,
-                                             0, &state_->sid)) ||
-            !grant(directory, state_->sid, GENERIC_ALL) ||
-            !grant(executable, state_->sid, GENERIC_READ | GENERIC_EXECUTE)) {
-            state_ = std::make_unique<State>();
-            return infra::storageError("CoreValidationIsolationFailed");
-        }
-        capabilities.AppContainerSid = state_->sid;
-        // JsonStore protects each resource's DACL, so a grant on the staging root
-        // alone does not reach managed provider files/directories. Only grant the
-        // existing isolated tree; links must never widen this sandbox.
-        QDirIterator resources(
-            directory, QDir::AllEntries | QDir::NoDotAndDotDot | QDir::Hidden | QDir::System,
-            QDirIterator::Subdirectories);
-        while (resources.hasNext()) {
-            const auto path = resources.next();
-            if (resources.fileInfo().isSymLink() || resources.fileInfo().isJunction() ||
-                state_->grantedResources.size() >= 256 || !grant(path, state_->sid, GENERIC_ALL)) {
-                state_ = std::make_unique<State>();
-                return infra::storageError("CoreValidationIsolationFailed");
-            }
-            state_->grantedResources.append(path);
-        }
-        LPWSTR sidText = nullptr;
-        if (!ConvertSidToStringSidW(state_->sid, &sidText)) {
-            state_ = std::make_unique<State>();
-            return infra::storageError("CoreValidationIsolationFailed");
-        }
-        // The controller remains local to this zero-capability validation process.
-        // Mihomo's default System-only pipe ACL cannot be used by its AppContainer.
-        variablesEnvironment.insert(
-            QStringLiteral("LISTEN_NAMEDPIPE_SDDL"),
-            QStringLiteral("D:P(A;;GA;;;SY)(A;;GA;;;OW)(A;;GA;;;%1)S:(ML;;NW;;;LW)")
-                .arg(QString::fromWCharArray(sidText)));
-        LocalFree(sidText);
-        if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
-                                       &capabilities, sizeof(capabilities), nullptr, nullptr)) {
-            state_ = std::make_unique<State>();
-            return infra::storageError("CoreValidationIsolationFailed");
-        }
+    if (validation) {
+        // Explicit command-line/config values own validation. Environment
+        // overrides must not replace the candidate, enable controllers or run hooks.
+        for (const auto& name : variablesEnvironment.keys())
+            if (name.startsWith(QStringLiteral("CLASH_"), Qt::CaseInsensitive))
+                variablesEnvironment.remove(name);
+        // Keep Mihomo's own home-directory path checks even when the caller has
+        // configured broader access for an unrelated core process.
+        variablesEnvironment.remove(QStringLiteral("SAFE_PATHS"));
+        variablesEnvironment.remove(QStringLiteral("SKIP_SAFE_PATH_CHECK"));
+        // Provider validation uses a private pipe owned by this user. Normal
+        // service launches keep their explicitly supplied System-only ACL.
+        variablesEnvironment.insert(QStringLiteral("LISTEN_NAMEDPIPE_SDDL"),
+                                    QStringLiteral("D:P(A;;GA;;;SY)(A;;GA;;;OW)"));
     }
     HANDLE inherited[] = {writeHandle.get(), input.get()};
     if (!UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, inherited,
@@ -338,7 +258,7 @@ domain::CommandResult OwnedProcess::start(const QString& executable, const QStri
     Q_UNUSED(executable)
     Q_UNUSED(arguments)
     Q_UNUSED(directory)
-    Q_UNUSED(isolated)
+    Q_UNUSED(validation)
     Q_UNUSED(environment)
     return infra::storageError("CorePlatformUnsupported");
 #endif
@@ -444,25 +364,6 @@ QJsonObject OwnedProcess::exitDiagnostics() const {
     return {{QStringLiteral("coreExitCode"), static_cast<qint64>(static_cast<quint32>(exitCode_))},
             {QStringLiteral("coreExitedAt"), exitedAt_.toString(Qt::ISODateWithMs)},
             {QStringLiteral("coreStderr"), safe.value(QStringLiteral("message"))}};
-}
-QString OwnedProcess::localPipePath(const QString& path) const {
-#ifdef Q_OS_WIN
-    const auto prefix = QStringLiteral("\\\\.\\pipe\\LOCAL\\");
-    if (state_->sid && path.startsWith(prefix)) {
-        DWORD session = 0;
-        LPWSTR sidText = nullptr;
-        if (!ProcessIdToSessionId(state_->pid, &session) ||
-            !ConvertSidToStringSidW(state_->sid, &sidText))
-            return {};
-        const auto result =
-            QStringLiteral("\\\\.\\pipe\\Sessions\\%1\\AppContainerNamedObjects\\%2\\%3")
-                .arg(session)
-                .arg(QString::fromWCharArray(sidText), path.mid(prefix.size()));
-        LocalFree(sidText);
-        return result;
-    }
-#endif
-    return path;
 }
 bool OwnedProcess::ownsListener(quint16 port) const {
 #ifdef Q_OS_WIN

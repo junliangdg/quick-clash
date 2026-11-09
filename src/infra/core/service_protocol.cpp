@@ -147,6 +147,7 @@ QJsonObject ServiceProtocol::capabilities(const QString& serviceBuild) {
             {QStringLiteral("portableResources"), 1},
             {QStringLiteral("managedCoreArtifact"), 1},
             {QStringLiteral("modePatch"), 1},
+            {QStringLiteral("configReload"), 1},
             {QStringLiteral("trafficStream"), 1},
             {QStringLiteral("serviceBuild"), serviceBuild},
             {QStringLiteral("proxyRecovery"), QStringLiteral("NotAvailable")},

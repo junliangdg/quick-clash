@@ -274,8 +274,9 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     auto* importNameField = host.window()->findChild<QQuickItem*>("import_profile_name");
     auto* add = host.window()->findChild<QQuickItem*>("add_subscription");
     auto* importError = host.window()->findChild<QQuickItem*>("subscription_import_error");
+    auto* closeImport = host.window()->findChild<QQuickItem*>("cancel_subscription_import");
     if (!openImport || !importDialog || !url || !importNameField || !add || !importError ||
-        url->isVisible() || !click(host, openImport) ||
+        !closeImport || url->isVisible() || !click(host, openImport) ||
         !importDialog->property("visible").toBool() || !url->isVisible() || !url->hasActiveFocus())
         return 118;
     const auto importLabel = url->property("placeholderText").toString();
@@ -302,12 +303,27 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     const auto submitImport = [&] { return test::revealInScroll(add) && click(host, add); };
     if (!submitImport())
         return 119;
+    const auto checkWorkingModal = [&] {
+        if (!importDialog->property("modal").toBool() || add->isEnabled() ||
+            closeImport->isEnabled() || url->isEnabled())
+            return false;
+        // Real input must leave the active operation visible, including the gap
+        // before the worker's first busy publication.
+        QTest::mouseClick(host.window(), Qt::LeftButton, Qt::NoModifier, QPoint(5, 5));
+        QTest::keyClick(host.window(), Qt::Key_Escape);
+        QTest::qWait(30);
+        return importDialog->property("visible").toBool() &&
+               url->property("text") == "https://fixture.invalid/private-token";
+    };
+    if (!checkWorkingModal())
+        return 169;
     if (!checkUrlAccessibility(url, importLabel, true))
         return 164;
     ui.applyControl({{"publicationGeneration", "1"},
                      {"epoch", "fixture"},
                      {"selectedId", "p0"},
                      {"error", "HttpsSubscriptionRequired"}});
+    ui.subscriptionImportDispatched();
     QTest::qWait(20);
     if (!importDialog->property("visible").toBool() || !importError->isVisible() ||
         url->property("text") != "https://fixture.invalid/private-token" ||
@@ -323,12 +339,48 @@ int runSubscriptionUiProbe(ApplicationHost& host) {
     }
     if (!submitImport())
         return 121;
+    // An identical immediate failure may not produce runtimeChanged. The worker's
+    // dispatch acknowledgement still releases the pending submission state.
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"error", "HttpsSubscriptionRequired"}});
+    ui.subscriptionImportDispatched();
+    if (!add->isEnabled() || !closeImport->isEnabled())
+        return 172;
+    if (!submitImport())
+        return 121;
     ui.applyControl({{"publicationGeneration", "1"},
                      {"epoch", "fixture"},
                      {"selectedId", "p0"},
                      {"busy", true}});
-    if (add->isEnabled())
+    ui.subscriptionImportDispatched();
+    if (!checkWorkingModal())
         return 122;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"error", "CoreConfigValidationTimeout"}});
+    QTest::qWait(20);
+    if (!importDialog->property("visible").toBool() || !importError->isVisible() ||
+        importError->property("text") != ui.errorText("CoreConfigValidationTimeout") ||
+        !add->isEnabled() || !closeImport->isEnabled() || !url->isEnabled() ||
+        importNameField->property("text") != "Import fixture")
+        return 170;
+    // After failure the normal dismissal/reopen flow is available again.
+    QTest::keyClick(host.window(), Qt::Key_Escape);
+    if (!QTest::qWaitFor([&] { return !importDialog->property("visible").toBool(); }, 1000) ||
+        !click(host, openImport))
+        return 171;
+    url->setProperty("text", "https://fixture.invalid/private-token");
+    importNameField->setProperty("text", "Import fixture");
+    if (!submitImport())
+        return 121;
+    ui.applyControl({{"publicationGeneration", "1"},
+                     {"epoch", "fixture"},
+                     {"selectedId", "p0"},
+                     {"busy", true}});
+    ui.subscriptionImportDispatched();
     auto addedProfiles = profiles;
     addedProfiles.append(QJsonObject{{"id", "new_import"}, {"name", "New import"}});
     ui.applyData({1, "fixture", {{"profiles", addedProfiles}}});

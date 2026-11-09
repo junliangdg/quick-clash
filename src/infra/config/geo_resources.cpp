@@ -106,7 +106,17 @@ domain::CommandResult prepareGeoResources(const QByteArray& semantic, const QStr
             input.size() <= 0 || input.size() > 32 * 1024 * 1024)
             return failure();
         const auto expectedSize = input.size();
-        QSaveFile output(QDir(directory).filePath(QString::fromLatin1(asset.target)));
+        const auto target = QDir(directory).filePath(QString::fromLatin1(asset.target));
+        // The live home can be reused across API reloads. Verify an existing
+        // snapshot before skipping the write, never trust just size or mtime.
+        QFile existing(target);
+        QCryptographicHash existingHash(QCryptographicHash::Sha256);
+        if (existing.open(QIODevice::ReadOnly) && existing.size() == expectedSize &&
+            existingHash.addData(&existing) && existingHash.result().toHex() == expected) {
+            continue;
+        }
+        existing.close();
+        QSaveFile output(target);
         output.setDirectWriteFallback(false);
         if (!output.open(QIODevice::WriteOnly))
             return failure();
