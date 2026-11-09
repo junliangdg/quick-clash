@@ -1203,7 +1203,10 @@ void DesktopRuntime::error(const QString& code) {
         {QStringLiteral("code"), code}};
     // Keep the service-reported exit cause beside the code so a field report stays actionable.
     if ((code.startsWith(QStringLiteral("CoreExited")) ||
-         code == QStringLiteral("CoreReadyTimeout")) &&
+         code == QStringLiteral("CoreReadyTimeout") ||
+         code == QStringLiteral("ServiceTunReadbackFailed") ||
+         code == QStringLiteral("ServiceStartTimeout") ||
+         code == QStringLiteral("ServiceTimeout")) &&
         !coreExitDetail_.isEmpty())
         entry.insert(QStringLiteral("detail"), coreExitDetail_.left(2048));
     errors_.append(entry);
@@ -3023,11 +3026,10 @@ void DesktopRuntime::recordCoreExit() {
     const auto diagnostics = engine_.coreExitDiagnostics();
     if (diagnostics.isEmpty())
         return;
-    auto detail = QStringLiteral("Core exit diagnostics: code=%1, time=%2")
-                      .arg(diagnostics.value(QStringLiteral("coreExitCode")).toInteger())
-                      .arg(diagnostics.value(QStringLiteral("coreExitedAt")).toString());
-    for (const auto* key : {"stopReason", "stopDetail", "coreStderr"}) {
-        const auto value = diagnostics.value(QLatin1String(key)).toString();
+    auto detail = QStringLiteral("Core diagnostics");
+    for (const auto* key :
+         {"coreExitCode", "coreExitedAt", "stopReason", "stopDetail", "coreStderr"}) {
+        const auto value = diagnostics.value(QLatin1String(key)).toVariant().toString();
         if (!value.isEmpty())
             detail += QStringLiteral("; %1=%2").arg(QLatin1String(key), value);
     }

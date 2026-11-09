@@ -663,6 +663,10 @@ QString UiState::errorText(const QString& customError) const {
             .arg(runtime_.value(QStringLiteral("listenerIssue")).toMap().value("port").toInt());
     if (code == QStringLiteral("NoAvailableListenerPorts"))
         return tr("No available ports were found nearby. Enter different ports and retry.");
+    if (code == QStringLiteral("ServiceTunReadbackFailed") ||
+        code == QStringLiteral("ServiceStartTimeout"))
+        return tr("TUN startup could not be confirmed. Review the core startup details in Logs, "
+                  "then retry.");
     if (code == QStringLiteral("ServiceTunRouteConflict"))
         return tr("Another virtual adapter is handling default traffic. Turn off its VPN or TUN "
                   "mode before enabling QuickClash TUN, then retry.");

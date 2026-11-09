@@ -6,6 +6,7 @@
 
 namespace quickclash::infra {
 inline constexpr int kServiceHandshakeTimeoutMs = 3000;
+inline constexpr int kServiceStartTimeoutMs = 12000;
 inline constexpr qint64 kServiceHandshakeMaxBytes = 16 * 1024;
 inline constexpr int kServiceRateWindowMs = 1000;
 inline constexpr int kServiceRateLimit = 24;

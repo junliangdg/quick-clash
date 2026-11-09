@@ -237,6 +237,7 @@ void EngineSession::start(const QString& executable, const QString& config,
                 if (const auto* error = std::get_if<domain::Error>(&result)) {
                     listenerIssue_ =
                         QJsonDocument::fromJson(error->redactedDetail.toUtf8()).object();
+                    coreExitDiagnostics_ = interpretServiceStatus(listenerIssue_).exitDiagnostics;
                     fail(error->code);
                     return;
                 }
@@ -331,13 +332,24 @@ domain::CommandResult EngineSession::stopSession(bool preserveFailure) {
         };
         // Starting may have allocated a new epoch before its final response. Read the
         // authoritative state before stopping; never guess or reuse the previous epoch.
-        service_.command(QStringLiteral("status"), {},
-                         [this, completeStop](domain::Result<QJsonObject> state) {
-                             if (std::holds_alternative<domain::Error>(state))
-                                 completeStop(std::move(state));
-                             else
-                                 service_.command(QStringLiteral("stop"), {}, completeStop);
-                         });
+        service_.command(
+            QStringLiteral("status"), {},
+            [this, completeStop, preserveFailure](domain::Result<QJsonObject> state) {
+                if (std::holds_alternative<domain::Error>(state))
+                    completeStop(std::move(state));
+                else {
+                    if (preserveFailure &&
+                        (deferredFailure_ == QStringLiteral("ServiceTunReadbackFailed") ||
+                         deferredFailure_ == QStringLiteral("ServiceStartTimeout") ||
+                         deferredFailure_ == QStringLiteral("ServiceTimeout"))) {
+                        const auto diagnostics = interpretServiceStatus(state).exitDiagnostics;
+                        for (auto it = diagnostics.begin(); it != diagnostics.end(); ++it)
+                            if (!coreExitDiagnostics_.contains(it.key()))
+                                coreExitDiagnostics_.insert(it.key(), it.value());
+                    }
+                    service_.command(QStringLiteral("stop"), {}, completeStop);
+                }
+            });
     } else if (!serviceStopping_)
         service_.close();
     probing_ = false;

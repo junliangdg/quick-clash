@@ -37,6 +37,11 @@ int main(int argc, char* argv[]) {
             "complete QuickClash package.") !=
         "当前副本的客户端与服务文件不兼容。请使用同一版本的完整 QuickClash 程序包。")
         return 17;
+    if (QCoreApplication::translate("quickclash::presentation::UiState",
+                                    "TUN startup could not be confirmed. Review the core startup "
+                                    "details in Logs, then retry.") !=
+        "无法确认 TUN 启动成功。请在日志中查看内核启动详情后重试。")
+        return 18;
     if (QCoreApplication::translate("subscriptions_page", "Apply updates when selected") ==
             "Apply updates when selected" ||
         QCoreApplication::translate("proxies_page", "%1 members") == "%1 members")

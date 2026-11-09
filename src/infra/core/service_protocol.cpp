@@ -21,6 +21,22 @@ bool requestId(const QJsonValue& value) {
     const auto number = id.toULongLong(&ok);
     return ok && number > 0 && QString::number(number) == id;
 }
+bool startupDiagnostics(const QJsonObject& detail) {
+    const QHash<QString, qsizetype> limits{{QStringLiteral("stopReason"), 32},
+                                           {QStringLiteral("stopDetail"), 1024},
+                                           {QStringLiteral("coreStderr"), 2048},
+                                           {QStringLiteral("coreExitedAt"), 64}};
+    for (auto it = detail.begin(); it != detail.end(); ++it) {
+        if (it.key() == QStringLiteral("coreExitCode")) {
+            if (!it->isDouble() || it->toDouble() < 0 || it->toDouble() > 4294967295.0 ||
+                it->toDouble() != static_cast<double>(it->toInteger()))
+                return false;
+        } else if (!limits.contains(it.key()) || !it->isString() ||
+                   it->toString().size() > limits.value(it.key()))
+            return false;
+    }
+    return !detail.isEmpty();
+}
 } // namespace
 bool ServiceProtocol::validEnvelope(const QJsonObject& message) {
     const auto action = message.value(QStringLiteral("action"));
@@ -42,20 +58,27 @@ bool ServiceProtocol::validResponse(const QJsonObject& message) {
                               error ? QStringLiteral("error") : QStringLiteral("result")};
     if (error && message.contains(QStringLiteral("detail"))) {
         fields.append(QStringLiteral("detail"));
+        if (!message.value(QStringLiteral("detail")).isObject())
+            return false;
         const auto detail = message.value(QStringLiteral("detail")).toObject();
-        if (!exactFields(
-                detail, {QStringLiteral("code"), QStringLiteral("port"), QStringLiteral("role")}) ||
-            detail.value(QStringLiteral("code")) != message.value(QStringLiteral("error")) ||
-            !QStringList{QStringLiteral("CoreListenerAddressInUse"),
-                         QStringLiteral("CoreListenerAccessDenied"),
-                         QStringLiteral("CoreListenerPortUnavailable")}
-                 .contains(message.value(QStringLiteral("error")).toString()) ||
-            !QStringList{QStringLiteral("mixed"), QStringLiteral("controller")}.contains(
-                detail.value(QStringLiteral("role")).toString()) ||
-            detail.value(QStringLiteral("port")).toDouble() !=
-                detail.value(QStringLiteral("port")).toInt() ||
-            detail.value(QStringLiteral("port")).toInt() < 1024 ||
-            detail.value(QStringLiteral("port")).toInt() > 65535)
+        const auto code = message.value(QStringLiteral("error")).toString();
+        if (code == QStringLiteral("ServiceTunReadbackFailed") ||
+            code == QStringLiteral("ServiceStartTimeout")) {
+            if (!startupDiagnostics(detail))
+                return false;
+        } else if (!exactFields(detail, {QStringLiteral("code"), QStringLiteral("port"),
+                                         QStringLiteral("role")}) ||
+                   detail.value(QStringLiteral("code")) != message.value(QStringLiteral("error")) ||
+                   !QStringList{QStringLiteral("CoreListenerAddressInUse"),
+                                QStringLiteral("CoreListenerAccessDenied"),
+                                QStringLiteral("CoreListenerPortUnavailable")}
+                        .contains(message.value(QStringLiteral("error")).toString()) ||
+                   !QStringList{QStringLiteral("mixed"), QStringLiteral("controller")}.contains(
+                       detail.value(QStringLiteral("role")).toString()) ||
+                   detail.value(QStringLiteral("port")).toDouble() !=
+                       detail.value(QStringLiteral("port")).toInt() ||
+                   detail.value(QStringLiteral("port")).toInt() < 1024 ||
+                   detail.value(QStringLiteral("port")).toInt() > 65535)
             return false;
     }
     return exactFields(message, fields) && message.value(QStringLiteral("protocolVersion")) == 1 &&

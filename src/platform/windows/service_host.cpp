@@ -553,21 +553,9 @@ void ServiceHost::dispatch(QLocalSocket* socket, const QString& id, const QStrin
         }
         result.insert(QStringLiteral("tun"), tunState == QStringLiteral("On"));
         result.insert(QStringLiteral("tunState"), tunState);
-        if (!stopReason_.isEmpty())
-            result.insert(QStringLiteral("stopReason"), stopReason_);
-        if (!stopDetail_.isEmpty())
-            result.insert(QStringLiteral("stopDetail"), stopDetail_.left(1024));
-        if (coreExitKnown_) {
-            result.insert(QStringLiteral("coreExitCode"),
-                          static_cast<qint64>(static_cast<quint32>(coreExitCode_)));
-            result.insert(QStringLiteral("coreExitedAt"), coreExitedAt_.toString(Qt::ISODate));
-            const auto tail = QString::fromUtf8(core_.outputTail());
-            if (!tail.isEmpty()) {
-                const auto safe = domain::redactedLogEntry(0, {}, QStringLiteral("Core"),
-                                                           QStringLiteral("error"), tail, true);
-                result.insert(QStringLiteral("coreStderr"), safe.value(QStringLiteral("message")));
-            }
-        }
+        const auto diagnostics = coreDiagnostics();
+        for (auto it = diagnostics.begin(); it != diagnostics.end(); ++it)
+            result.insert(it.key(), it.value());
         answer(socket, id, result);
         return;
     }
@@ -844,7 +832,9 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         root["find-process-mode"] = "always";
         root["tun"]["enable"] = tun;
         root["tun"]["device"] = tunName_.toStdString();
-        root["tun"]["stack"] = "mixed";
+        // The mixed/system stacks synchronously configure the Windows firewall via COM.
+        // Keep TUN forwarding independent of that machine-specific service dependency.
+        root["tun"]["stack"] = "gvisor";
         root["tun"]["auto-route"] = true;
         root["tun"]["auto-detect-interface"] = true;
         root["tun"]["dns-hijack"].push_back("any:53");
@@ -915,6 +905,13 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
     }
     epoch_ = QUuid::createUuid().toString(QUuid::WithoutBraces);
     busy_ = true;
+    coreLaunched_ = false;
+    coreExitKnown_ = false;
+    coreExitCode_ = 0;
+    coreExitedAt_ = {};
+    stopReason_.clear();
+    stopDetail_.clear();
+    probeDetail_.clear();
     tunDesired_ = tun;
     mixedPort_ = pref.mixedPort;
     QPointer<QLocalSocket> peer(socket);
@@ -960,12 +957,6 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
                     return;
                 }
             }
-            coreExitKnown_ = false;
-            coreExitCode_ = 0;
-            coreExitedAt_ = {};
-            stopReason_.clear();
-            stopDetail_.clear();
-            probeDetail_.clear();
             const auto launched = core_.start(
                 corePath_, {QStringLiteral("-f"), configPath_, QStringLiteral("-d"), directory_},
                 directory_, false, environment);
@@ -974,6 +965,7 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
                 answer(peer, id, *error);
                 return;
             }
+            coreLaunched_ = true;
             if (tunDesired_) {
                 tunRecord_.insert(QStringLiteral("corePid"), static_cast<int>(core_.pid()));
                 if (std::holds_alternative<domain::Error>(
@@ -984,7 +976,7 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
                     return;
                 }
             }
-            probe(peer, id, 0);
+            probe(peer, id);
         });
     const auto validating = validator_.start(
         corePath_,
@@ -995,10 +987,9 @@ void ServiceHost::start(QLocalSocket* socket, const QString& id, const QJsonObje
         busy_ = false;
         answer(socket, id, *error);
     }
-    QTimer::singleShot(12000, this, [this, peer, id, epoch] {
+    QTimer::singleShot(infra::kServiceStartTimeoutMs, this, [this, peer, id, epoch] {
         if (peer == owner_ && epoch == epoch_ && busy_ && protocol_.pending(id)) {
-            stop("StartTimeout");
-            answer(peer, id, failure("ServiceStartTimeout"));
+            failStart(peer, id, "ServiceStartTimeout", "StartTimeout", probeDetail_);
         }
     });
 }
@@ -1077,7 +1068,7 @@ void ServiceHost::reload(QLocalSocket* socket, const QString& id, const QJsonObj
         root["find-process-mode"] = "always";
         root["tun"]["enable"] = tunDesired_;
         root["tun"]["device"] = tunName_.toStdString();
-        root["tun"]["stack"] = "mixed";
+        root["tun"]["stack"] = "gvisor";
         root["tun"]["auto-route"] = true;
         root["tun"]["auto-detect-interface"] = true;
         root["tun"]["dns-hijack"].push_back("any:53");
@@ -1140,44 +1131,79 @@ void ServiceHost::reload(QLocalSocket* socket, const QString& id, const QJsonObj
                 });
         });
 }
-void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
+QJsonObject ServiceHost::coreDiagnostics() const {
+    if (core_.running() && stopReason_.isEmpty() && !coreExitKnown_)
+        return {};
+    auto result = coreLaunched_ ? core_.exitDiagnostics() : QJsonObject{};
+    if (coreExitKnown_) {
+        result.insert(QStringLiteral("coreExitCode"),
+                      static_cast<qint64>(static_cast<quint32>(coreExitCode_)));
+        result.insert(QStringLiteral("coreExitedAt"), coreExitedAt_.toString(Qt::ISODate));
+    }
+    if (coreLaunched_ && !core_.outputTail().isEmpty()) {
+        const auto safe =
+            domain::redactedLogEntry(0, {}, QStringLiteral("Core"), QStringLiteral("error"),
+                                     QString::fromUtf8(core_.outputTail()), true);
+        result.insert(QStringLiteral("coreStderr"), safe.value(QStringLiteral("message")));
+    }
+    if (!stopReason_.isEmpty())
+        result.insert(QStringLiteral("stopReason"), stopReason_);
+    if (!stopDetail_.isEmpty())
+        result.insert(QStringLiteral("stopDetail"), stopDetail_.left(1024));
+    return result;
+}
+void ServiceHost::failStart(QLocalSocket* socket, const QString& id, const char* code,
+                            const char* reason, const QString& detail) {
+    stopDetail_ =
+        domain::redactedLogEntry(0, {}, QStringLiteral("Core"), QStringLiteral("error"), detail)
+            .value(QStringLiteral("message"))
+            .toString()
+            .left(1024);
+    stop(reason);
+    auto error = failure(code);
+    error.redactedDetail =
+        QString::fromUtf8(QJsonDocument(coreDiagnostics()).toJson(QJsonDocument::Compact));
+    answer(socket, id, error);
+}
+void ServiceHost::probe(QLocalSocket* socket, const QString& id) {
     if (owner_ != socket || !busy_)
         return;
     QPointer<QLocalSocket> peer(socket);
     const auto epoch = epoch_;
     if (observedCoreVersion_.isEmpty()) {
-        infra::pipeHttp(this, pipe_, "GET", "/version", {},
-                        [this, peer, id, attempt, epoch](domain::Result<QJsonObject> result) {
-                            if (!peer || owner_ != peer || !busy_ || epoch != epoch_)
-                                return;
-                            const auto* value = std::get_if<QJsonObject>(&result);
-                            if (value) {
-                                const auto version =
-                                    value->value(QStringLiteral("version")).toString();
-                                if (version != expectedCoreVersion_) {
-                                    stop("VersionMismatch");
-                                    answer(peer, id, failure("CoreVersionMismatch"));
-                                    return;
-                                }
-                                observedCoreVersion_ = version;
-                                probe(peer, id, attempt);
-                                return;
-                            }
-                            if (attempt >= 24 || !core_.running()) {
-                                stop("VersionUnavailable");
-                                answer(peer, id, failure("ServiceTunReadbackFailed"));
-                                return;
-                            }
-                            QTimer::singleShot(250, this, [this, peer, id, attempt, epoch] {
-                                if (peer && epoch == epoch_)
-                                    probe(peer, id, attempt + 1);
-                            });
-                        });
+        infra::pipeHttp(
+            this, pipe_, "GET", "/version", {},
+            [this, peer, id, epoch](domain::Result<QJsonObject> result) {
+                if (!peer || owner_ != peer || !busy_ || epoch != epoch_)
+                    return;
+                const auto* value = std::get_if<QJsonObject>(&result);
+                if (value) {
+                    const auto version = value->value(QStringLiteral("version")).toString();
+                    if (version != expectedCoreVersion_) {
+                        stop("VersionMismatch");
+                        answer(peer, id, failure("CoreVersionMismatch"));
+                        return;
+                    }
+                    observedCoreVersion_ = version;
+                    probe(peer, id);
+                    return;
+                }
+                if (!core_.running()) {
+                    failStart(
+                        peer, id, "ServiceTunReadbackFailed", "VersionUnavailable",
+                        QStringLiteral("version=%1").arg(std::get<domain::Error>(result).code));
+                    return;
+                }
+                QTimer::singleShot(250, this, [this, peer, id, epoch] {
+                    if (peer && epoch == epoch_)
+                        probe(peer, id);
+                });
+            });
         return;
     }
     infra::pipeHttp(
         this, pipe_, "GET", "/configs", {},
-        [this, peer, id, attempt, epoch](domain::Result<QJsonObject> result) {
+        [this, peer, id, epoch](domain::Result<QJsonObject> result) {
             if (!peer || owner_ != peer || !busy_ || epoch != epoch_)
                 return;
             const auto* value = std::get_if<QJsonObject>(&result);
@@ -1232,15 +1258,13 @@ void ServiceHost::probe(QLocalSocket* socket, const QString& id, int attempt) {
                 detail += QStringLiteral(" adapter(%1): %2").arg(tunName_, adapter);
             }
             probeDetail_ = detail.left(1024);
-            if (attempt >= 24 || !core_.running()) {
-                stopDetail_ = probeDetail_;
-                stop("ProbeFailed");
-                answer(peer, id, failure("ServiceTunReadbackFailed"));
+            if (!core_.running()) {
+                failStart(peer, id, "ServiceTunReadbackFailed", "ProbeFailed", probeDetail_);
                 return;
             }
-            QTimer::singleShot(250, this, [this, peer, id, attempt, epoch] {
+            QTimer::singleShot(250, this, [this, peer, id, epoch] {
                 if (peer && epoch == epoch_)
-                    probe(peer, id, attempt + 1);
+                    probe(peer, id);
             });
         });
 }
@@ -1324,7 +1348,7 @@ bool ServiceHost::tunClean() {
 }
 void ServiceHost::stop(const char* reason) {
     // A real core exit keeps its own reason even when the client asks for the follow-up stop.
-    if (reason && !coreExitKnown_)
+    if (reason && !coreExitKnown_ && (core_.running() || busy_ || stopReason_.isEmpty()))
         stopReason_ = QString::fromLatin1(reason);
     traffic_.close("ServiceStaleSession");
     delete logStream_.data();

@@ -153,6 +153,29 @@ int main(int argc, char** argv) {
     }
     if (!ServiceProtocol::validResponse(response))
         return 13;
+    {
+        auto startup = QJsonObject{{"protocolVersion", 1},
+                                   {"requestId", "1"},
+                                   {"error", "ServiceStartTimeout"},
+                                   {"detail", QJsonObject{{"stopReason", "StartTimeout"},
+                                                          {"stopDetail", "enable=0/1"},
+                                                          {"coreStderr", "TUN pending"},
+                                                          {"coreExitCode", qint64{3221225477}}}}};
+        if (!ServiceProtocol::validResponse(startup))
+            return 39;
+        const auto original = startup;
+        for (const auto& invalid :
+             {QJsonObject{{"path", "arbitrary"}}, QJsonObject{{"coreStderr", QString(2049, 'x')}},
+              QJsonObject{{"coreExitCode", -1}}, QJsonObject{{"stopDetail", true}}}) {
+            startup.insert("detail", invalid);
+            if (ServiceProtocol::validResponse(startup))
+                return 40;
+        }
+        startup = original;
+        startup.insert("error", "ServiceBusy");
+        if (ServiceProtocol::validResponse(startup))
+            return 41;
+    }
     response.insert(QStringLiteral("error"), QStringLiteral("error"));
     if (ServiceProtocol::validResponse(response))
         return 14;

@@ -2,6 +2,16 @@
 
 状态以 [TASKS](TASKS.md) 和 [CHECKLISTS](CHECKLISTS.md) 为准。本文件按日期/会话追加，说明变化和下一步，不重复整张台账。时间/版本未知时如实写明。
 
+## 2026-11-09 / TUN 启动读回失败与 Windows 栈选择
+
+- 先前第三方 Meta 接口持有默认路由时正确返回 `ServiceTunRouteConflict`，服务保持 clean。用户关闭 Meta 后，用最小无节点配置仍复现 `ServiceTunReadbackFailed`：自有适配器已 Up，GUID/LUID、IPv4 默认路由和 DNS 可见，owned mixed 监听正确，但 `/configs` 返回 `enable=false`、设备名空；日志停在默认接口监测后，没有 `Tun adapter listening`。延长总启动期至30秒仍未就绪，保留失败证据 `without_meta_tun_identity.json`、`extended_tun_identity.json`，不以延长等待作为修复。
+- 对同一冻结官方 Mihomo v1.19.33，仅把服务启动/重载的 TUN 栈从 mixed 改为 gvisor 后约1秒就绪，接口身份/路由/DNS、控制器读回同时通过。官方对应版本的 mihomo/sing-tun 源码显示 mixed 的系统 TCP 初始化同步进入 Windows 防火墙 COM 规则操作，gVisor 不走该系统栈入口；源码副本位于忽略目录。没有捕获 SYSTEM 内核线程栈，故仅归因至已对照的 mixed/system 初始化路径，不声称某个具体 COM 调用被直接证明卡死，也不修改防火墙/安全服务或官方内核。与前一个订阅导入的 AppContainer RPC 阻塞分别记录。
+- 服务校验和就绪使用12秒总截止，客户端加3秒收尾；移除固定24次的提前失败。启动失败返回停止原因、读回差异及有界脱敏输出，主动停止同样保留退出详情，后续 stop 不覆盖首次原因。协议新增诊断白名单校验，拒绝未知字段/超长/错误类型；正常运行 status 不附带输出，新一轮校验尚未启动内核时不带旧退出数据。首轮新增诊断曾被旧协议字段规则拒绝为 `ServiceProtocolMismatch`，修正白名单后单项服务协议回归通过，原始 `diagnostic_tun_identity.json` 保留，不能当作最初故障。
+- Windows Qt6.9/MSVC `build/dev` 增量构建与8/8定向 CTest Pass（221.70秒），日志 `build/dev/logs/20261109T101031534Z_1c64ec18bbff450da42b7945a69265cf/`；复核收窄错误详情附加范围并去掉废弃计数后3/3 Pass（29.55秒），日志 `20261109T102518444Z_912ef2d63766478daa3f367cf8d17b4d/`；最终诊断归属的服务处理器回归1/1 Pass（10.16秒），日志 `20261109T103243798Z_359e577cc0904b80993262e969166bed/`。处理器回归覆盖服务主动停止后的诊断、脱敏、首次原因保留及下一轮校验超时不继承旧输出。
+- 真实 SYSTEM 服务使用当前实际运行配置的私有隔离副本，启动、同 PID/epoch 配置重载且栈读回为 gvisor、停止清理均 Pass（`final_private_tun_reload.json`）。最终限定目标的本地受控节点普通→TUN→普通三段实际转发、测速、忙态反向操作拒绝及退出清理 Pass（`final_scoped_forward_busy.json`），1Hz 流量最大间隔997/1000/1003毫秒。普通权限客户端的三次故障注入均先核对注册服务、父 PID、路径和创建时间，仅终止本次 owned 内核；自动恢复两次、第三次回退普通代理并转发、显式重试 TUN 及最终 clean=true/coreRunning=false 均 Pass（`gvisor_recovery.json`）。
+- 最终诊断归属修订后的实机交付复核，首轮 TUN 成功启动且身份通过，但后续 `PUT /configs?force=true` 在12.5秒请求期限返回 `CoreRequestTimeout`，停止清理成功（`final_delivery_tun_reload.json`）。遵循日常停止规则只定向复跑一次，启动、同 PID/epoch 重载和清理全部 Pass（`final_delivery_tun_reload_retry.json`）。未定位该偶发重载超时的原因，不将它归为原 mixed 初始化故障或新诊断修订；保留为未关闭风险，不通过重复整套测试覆盖失败。
+- 全部原始日志、官方源码副本、失败证据与私有配置仅留 Git 忽略目录 `build/tun_readback_20261109/`，不打印或提交订阅凭据。服务注册仍指向同目录 `build/dev/quickclash_service.exe`，交付使用配套 `build/dev/quickclash.exe`。未测 gVisor/mixed 吞吐及内存对照、长时、其他机器/平台、真实换网/唤醒或完整发行范围；既有 P3 专项继续保留。
+
 ## 2026-11-09 / 订阅校验等待与内核热重载
 
 - 下载结束后的本机堆栈停在NtAlpcSendWaitReceivePort→RPC→firewallapi RPC_NetworkIsolationCreateAppContainer→USERENV CreateAppContainerProfile；同步注册尚未返回，所以原10秒校验定时器没有机会启动。未确认Windows底层阻塞根因，不更改防火墙或系统安全服务。生产改为当前已核验官方程序的独立Job/临时目录校验，移除程序副本、AppContainer注册与ACL授予；独立进程不构成OS权限或网络沙箱。桌面按当前用户，服务的独立预检仍随服务身份运行。

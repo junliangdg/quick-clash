@@ -1,4 +1,5 @@
 #include "infra/core/pipe_http.h"
+#include "infra/core/service_protocol.h"
 #include "platform/windows/service_host.h"
 #include <QCoreApplication>
 #include <QDir>
@@ -53,6 +54,7 @@ class ServiceReloadProbe final {
                 {"-d", host.directory_, "-f", temporary.filePath("session/config.yaml")},
                 host.directory_, false)))
             return 22;
+        host.coreLaunched_ = true;
         bool ready = false;
         bool pending = false;
         if (!wait([&] {
@@ -122,7 +124,48 @@ class ServiceReloadProbe final {
         if (!reload(migration).contains("error") || reload(payload).contains("error") ||
             host.core_.pid() != pid || !host.core_.ownsListener(port))
             return 31;
+        // A failed start must return bounded diagnostics before the follow-up stop,
+        // including output from a service-terminated core (no finished signal).
+        host.failStart(peer.get(), QString::number(++request), "ServiceTunReadbackFailed",
+                       "ProbeFailed", "port mismatch password=do_not_retain");
+        QByteArray failureBytes;
+        if (!wait([&] {
+                failureBytes += client.readAll();
+                return failureBytes.contains('\n');
+            }))
+            return 33;
+        const auto failure =
+            QJsonDocument::fromJson(failureBytes.left(failureBytes.indexOf('\n'))).object();
+        const auto detail = failure.value("detail").toObject();
+        if (!infra::ServiceProtocol::validResponse(failure) ||
+            failure.value("error") != "ServiceTunReadbackFailed" ||
+            detail.value("stopReason") != "ProbeFailed" ||
+            !detail.value("stopDetail").toString().contains("port mismatch") ||
+            failureBytes.contains("do_not_retain") ||
+            detail.value("coreStderr").toString().isEmpty() || !detail.contains("coreExitCode"))
+            return 34;
         host.stop();
+        if (host.coreDiagnostics().value("stopReason") != "ProbeFailed")
+            return 35;
+        // The next validation can time out before launching a new core. Its error must
+        // not inherit the previous process's output or exit code.
+        host.coreLaunched_ = false;
+        host.busy_ = true;
+        host.failStart(peer.get(), QString::number(++request), "ServiceStartTimeout",
+                       "StartTimeout", {});
+        failureBytes.clear();
+        if (!wait([&] {
+                failureBytes += client.readAll();
+                return failureBytes.contains('\n');
+            }))
+            return 36;
+        const auto validationFailure =
+            QJsonDocument::fromJson(failureBytes.left(failureBytes.indexOf('\n'))).object();
+        const auto validationDetail = validationFailure.value("detail").toObject();
+        if (!infra::ServiceProtocol::validResponse(validationFailure) ||
+            validationDetail.value("stopReason") != "StartTimeout" ||
+            validationDetail.contains("coreStderr") || validationDetail.contains("coreExitCode"))
+            return 37;
         host.owner_.clear();
         if (host.core_.running() || !host.configClean_ ||
             !std::get<QStringList>(host.store_.files("session/revisions")).isEmpty())

@@ -2488,6 +2488,7 @@
     <message><source>Local TCP port %1 is already in use. Choose available ports in Settings or close the conflicting application, then retry.</source><translation>本地 TCP 端口 %1 已被占用。请在设置中选择可用端口，或关闭冲突程序后重试。</translation></message>
     <message><source>Windows denied binding local TCP port %1. Check system restrictions or choose available ports in Settings, then retry.</source><translation>Windows 拒绝绑定本地 TCP 端口 %1。请检查系统限制，或在设置中选择可用端口后重试。</translation></message>
     <message><source>No available ports were found nearby. Enter different ports and retry.</source><translation>未在附近找到可用端口。请输入其他端口后重试。</translation></message>
+    <message><source>TUN startup could not be confirmed. Review the core startup details in Logs, then retry.</source><translation>无法确认 TUN 启动成功。请在日志中查看内核启动详情后重试。</translation></message>
     <message><source>Another virtual adapter is handling default traffic. Turn off its VPN or TUN mode before enabling QuickClash TUN, then retry.</source><translation>其他虚拟网卡正在接管默认流量。请先关闭对应的 VPN 或 TUN 模式，再重试启用 QuickClash TUN。</translation></message>
     <message><source>No unused TUN adapter name was found. Review virtual adapters and retry.</source><translation>未找到空闲的 TUN 网卡名称。请检查虚拟网卡后重试。</translation></message>
     <message><source>Windows network state could not be verified. Keep the current mode and retry.</source><translation>无法核实 Windows 网络状态。请保留当前模式并重试。</translation></message>

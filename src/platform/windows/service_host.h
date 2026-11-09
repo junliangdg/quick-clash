@@ -37,7 +37,10 @@ class ServiceHost final : public QObject {
     void answer(QLocalSocket* socket, const QString& id, domain::Result<QJsonObject> result);
     void start(QLocalSocket* socket, const QString& id, const QJsonObject& payload);
     void reload(QLocalSocket* socket, const QString& id, const QJsonObject& payload);
-    void probe(QLocalSocket* socket, const QString& id, int attempt);
+    void probe(QLocalSocket* socket, const QString& id);
+    [[nodiscard]] QJsonObject coreDiagnostics() const;
+    void failStart(QLocalSocket* socket, const QString& id, const char* code, const char* reason,
+                   const QString& detail);
     void api(QLocalSocket* socket, const QString& id, const QByteArray& method,
              const QByteArray& path, const QJsonObject& body = {});
     void requestTraffic(QLocalSocket* socket, const QString& id);
@@ -81,6 +84,7 @@ class ServiceHost final : public QObject {
     QString stopDetail_;
     QString probeDetail_;
     QString buildId_;
+    bool coreLaunched_ = false;
     bool coreExitKnown_ = false;
     int coreExitCode_ = 0;
     QDateTime coreExitedAt_;

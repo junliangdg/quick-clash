@@ -49,11 +49,18 @@ QJsonObject command(infra::ServiceClient& client, const QString& action,
     client.command(action, payload, [&](domain::Result<QJsonObject> result) {
         if (const auto* object = std::get_if<QJsonObject>(&result))
             value = *object;
-        else
-            value = {{QStringLiteral("error"), std::get<domain::Error>(result).code}};
+        else {
+            const auto& error = std::get<domain::Error>(result);
+            value = {{QStringLiteral("error"), error.code}};
+            const auto detail = QJsonDocument::fromJson(error.redactedDetail.toUtf8()).object();
+            if (!detail.isEmpty())
+                value.insert(QStringLiteral("detail"), detail);
+        }
         done = true;
     });
-    if (!waitFor([&] { return done; })) {
+    if (!waitFor([&] { return done; }, action == QStringLiteral("start")
+                                           ? infra::kServiceStartTimeoutMs + 5000
+                                           : 16000)) {
         client.close();
         return {{QStringLiteral("error"), QStringLiteral("ProbeTimeout")}};
     }
@@ -92,9 +99,12 @@ bool saveEvidence(const QString& output, const QJsonObject& evidence) {
     const auto bytes = QJsonDocument(evidence).toJson();
     return file.open(QIODevice::WriteOnly) && file.write(bytes) == bytes.size() && file.commit();
 }
-bool tunIdentityProbe(infra::ServiceClient& client, QJsonObject& evidence) {
+bool tunIdentityProbe(infra::ServiceClient& client, QJsonObject& evidence,
+                      bool reloadConfig = false, const QString& source = {}) {
 #ifndef Q_OS_WIN
     Q_UNUSED(client)
+    Q_UNUSED(reloadConfig)
+    Q_UNUSED(source)
     evidence.insert(QStringLiteral("error"), QStringLiteral("WindowsOnly"));
     return false;
 #else
@@ -104,6 +114,12 @@ bool tunIdentityProbe(infra::ServiceClient& client, QJsonObject& evidence) {
         return false;
     auto payload = startPayload();
     payload.insert(QStringLiteral("tun"), true);
+    if (!source.isEmpty()) {
+        QFile input(source);
+        if (!input.open(QIODevice::ReadOnly) || input.size() > 16 * 1024 * 1024)
+            return false;
+        payload.insert(QStringLiteral("yaml"), QString::fromLatin1(input.readAll().toBase64()));
+    }
     const auto started = command(client, QStringLiteral("start"), payload);
     evidence.insert(QStringLiteral("started"), started);
     const auto status = command(client, QStringLiteral("status"));
@@ -124,6 +140,22 @@ bool tunIdentityProbe(infra::ServiceClient& client, QJsonObject& evidence) {
         !identity.value(QStringLiteral("luid")).toString().isEmpty();
     evidence.insert(QStringLiteral("clientImageMatches"), imageMatches);
     evidence.insert(QStringLiteral("identityMatches"), identityMatches);
+    bool reloaded = !reloadConfig;
+    if (reloadConfig && identityMatches) {
+        auto replacement = payload;
+        replacement.insert(QStringLiteral("mode"), QStringLiteral("direct"));
+        const auto result = command(client, QStringLiteral("reload"), replacement);
+        const auto after = command(client, QStringLiteral("status"));
+        const auto configs = command(client, QStringLiteral("configs"));
+        reloaded = result.value("pid") == started.value("pid") &&
+                   after.value("pid") == started.value("pid") &&
+                   after.value("epoch") == started.value("epoch") &&
+                   after.value("tunState") == QStringLiteral("On") &&
+                   configs.value("mode") == QStringLiteral("direct") &&
+                   configs.value("tun").toObject().value("stack").toString().toLower() == "gvisor";
+        evidence.insert(QStringLiteral("reload"), result);
+        evidence.insert(QStringLiteral("reloadSameIdentity"), reloaded);
+    }
     const auto stopped = command(client, QStringLiteral("stop"));
     const auto clean = command(client, QStringLiteral("status"));
     evidence.insert(QStringLiteral("stopped"), stopped);
@@ -131,7 +163,8 @@ bool tunIdentityProbe(infra::ServiceClient& client, QJsonObject& evidence) {
     const bool passed = started.value(QStringLiteral("pid")).toInt() > 0 &&
                         status.value(QStringLiteral("ready")).toBool() &&
                         status.value(QStringLiteral("tunState")) == QStringLiteral("On") &&
-                        identityMatches && stopped.value(QStringLiteral("stopped")).toBool() &&
+                        identityMatches && reloaded &&
+                        stopped.value(QStringLiteral("stopped")).toBool() &&
                         clean.value(QStringLiteral("clean")).toBool();
     evidence.insert(QStringLiteral("passed"), passed);
     return passed;
@@ -612,7 +645,8 @@ bool tunForwardProbe(infra::ServiceClient& client, QJsonObject& evidence, bool p
         QByteArray::number(proxy.serverPort()) +
         "}\nproxy-groups:\n  - {name: fixture, type: url-test, proxies: [local-success], "
         "url: 'http://fixture.invalid/health', interval: 86400, lazy: true}\n"
-        "rules: ['MATCH,fixture']\n";
+        "rules: ['IP-CIDR,203.0.113.7/32,fixture,no-resolve', 'DOMAIN,fixture.invalid,fixture', "
+        "'MATCH,DIRECT']\n";
     if (!std::holds_alternative<std::monostate>(
             store.writeBytes(QStringLiteral("data/tun_forward.yaml"), yaml)))
         return false;
@@ -1703,8 +1737,9 @@ int serviceProbe() {
         const bool passed = tunForwardProbe(client, evidence, true);
         return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
     }
-    if (mode == QStringLiteral("tun_identity")) {
-        const bool passed = tunIdentityProbe(client, evidence);
+    if (mode == QStringLiteral("tun_identity") || mode == QStringLiteral("tun_reload")) {
+        const bool passed =
+            tunIdentityProbe(client, evidence, mode == QStringLiteral("tun_reload"), source);
         return saveEvidence(output, evidence) ? (passed ? 0 : 3) : 2;
     }
     if (mode == QStringLiteral("tun_recovery")) {

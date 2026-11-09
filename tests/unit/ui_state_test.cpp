@@ -354,6 +354,8 @@ int main(int argc, char* argv[]) {
                                      "CoreListenerAddressInUse",
                                      "CoreListenerAccessDenied",
                                      "ServiceTunRouteConflict",
+                                     "ServiceTunReadbackFailed",
+                                     "ServiceStartTimeout",
                                      "ServiceTunNameExhausted",
                                      "ServiceNetworkInspectionFailed",
                                      "NoAvailableListenerPorts",
