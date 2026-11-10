@@ -1,5 +1,8 @@
 #include "language_ui_probe.h"
 #include "application_host.h"
+#include "quickclash_build_info.h"
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QQuickItem>
 #include <QTest>
 #include <cstdio>
@@ -69,13 +72,42 @@ int runLanguageUiProbe(ApplicationHost& host) {
             return fail("language selection updates labels and selected state");
         }
         ui.setSettingsCategory(4);
+        const auto sourceCommit = QStringLiteral(QUICKCLASH_GIT_COMMIT);
+        const auto sourceState = QStringLiteral(QUICKCLASH_SOURCE_STATE);
+        const auto unknown = chinese ? QStringLiteral("未知") : QStringLiteral("Unknown");
+        const auto stateText =
+            sourceState == "clean" ? (chinese ? QStringLiteral("无修改") : QStringLiteral("Clean"))
+            : sourceState == "dirty"
+                ? (chinese ? QStringLiteral("已修改") : QStringLiteral("Modified"))
+                : unknown;
+        const auto commitLabel =
+            chinese ? QStringLiteral("提交：%1") : QStringLiteral("Commit: %1");
+        const auto stateLabel =
+            chinese ? QStringLiteral("源码状态：%1") : QStringLiteral("Source state: %1");
         if (!waitFor([&] { return object("application_version"); }) ||
             text("application_about_heading") !=
                 (chinese ? QStringLiteral("关于") : QStringLiteral("About")) ||
+            QCoreApplication::applicationVersion() != QStringLiteral(QUICKCLASH_BASE_VERSION) ||
             text("application_version") !=
                 (chinese ? QStringLiteral("版本：%1") : QStringLiteral("Version: %1"))
-                    .arg(QCoreApplication::applicationVersion()))
-            return fail("lazy About category uses current language and full version");
+                    .arg(QCoreApplication::applicationVersion()) ||
+            ui.sourceCommit() != sourceCommit || ui.sourceState() != sourceState ||
+            text("application_commit") !=
+                commitLabel.arg(sourceCommit.isEmpty() ? unknown : sourceCommit.left(12)) ||
+            text("application_source_state") != stateLabel.arg(stateText))
+            return fail("About shows a plain version, short commit and localized source state");
+        auto* copy = object("application_copy_version");
+        const auto expectedCopy =
+            QStringLiteral("QuickClash %1\n%2\n%3")
+                .arg(QCoreApplication::applicationVersion(),
+                     commitLabel.arg(sourceCommit.isEmpty() ? unknown : sourceCommit),
+                     stateLabel.arg(stateText));
+        if (!copy ||
+            copy->property("text").toString() !=
+                (chinese ? QStringLiteral("复制版本信息") : QStringLiteral("Copy version info")) ||
+            !QMetaObject::invokeMethod(copy, "clicked") ||
+            !waitFor([&] { return QGuiApplication::clipboard()->text() == expectedCopy; }))
+            return fail("copy version info includes the full source commit and state");
         ui.setSettingsCategory(0);
         if (!waitFor([&] { return object("settings_language"); }))
             return fail("returning to General restores the language control");

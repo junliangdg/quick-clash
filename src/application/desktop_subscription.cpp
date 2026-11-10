@@ -2,6 +2,7 @@
 #include "domain/subscription_name.h"
 #include "domain/subscription_usage.h"
 #include "infra/io/bounded_read.h"
+#include "quickclash_build_info.h"
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QNetworkProxy>

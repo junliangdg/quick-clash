@@ -13,6 +13,7 @@
 #include "infra/config/config_preflight.h"
 #include "infra/config/geo_resources.h"
 #include "infra/core/provider_command.h"
+#include "quickclash_build_info.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -320,6 +321,12 @@ int main(int argc, char* argv[]) {
                                                                     {"dnsMode", secret},
                                                                     {"proxy", secret}}}}}};
             const auto report = supportReport(hostile);
+            check(QStringLiteral(QUICKCLASH_VERSION) == QStringLiteral(QUICKCLASH_BASE_VERSION) &&
+                      report.value("version") == QUICKCLASH_VERSION &&
+                      report.value("baseVersion") == QUICKCLASH_BASE_VERSION &&
+                      report.value("sourceCommit") == QUICKCLASH_GIT_COMMIT &&
+                      report.value("sourceState") == QUICKCLASH_SOURCE_STATE,
+                  "support report separates the product version from the compiled source identity");
             const auto encoded = QJsonDocument(report).toJson();
             for (const auto* forbidden :
                  {"private-marker", "internal.test", "password", "Authorization", "Bearer",

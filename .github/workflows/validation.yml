@@ -1,4 +1,4 @@
-name: windows_validation
+name: validation
 on:
   workflow_dispatch:
     inputs:
@@ -9,7 +9,7 @@ on:
 permissions:
   contents: read
 concurrency:
-  group: windows-validation-${{ inputs.source_ref || github.ref }}
+  group: validation-${{ inputs.source_ref || github.ref }}
   cancel-in-progress: true
 jobs:
   windows:
@@ -56,6 +56,9 @@ jobs:
       - name: Pinned build tools
         run: |
           python -m pip install --only-binary=:all: cmake==4.3.0 ninja==1.13.2
+      - name: Build identity regression
+        shell: pwsh
+        run: python ./tests/scripts/build_version_test.py
       - uses: jurplel/install-qt-action@v4
         with:
           version: '6.9.0'
@@ -97,10 +100,12 @@ jobs:
           path: |
             build/script_tests/
             build/dev/logs/
+            build/dev/quickclash_build_info.json
             build/dev/quickclash_tests.json
             build/dev/Testing/Temporary/
             build/dev/CMakeFiles/CMakeConfigureLog.yaml
             build/headless/logs/
+            build/headless/quickclash_build_info.json
             build/headless/quickclash_tests.json
             build/headless/Testing/Temporary/
             build/headless/CMakeFiles/CMakeConfigureLog.yaml

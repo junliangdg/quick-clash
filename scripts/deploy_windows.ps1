@@ -30,6 +30,13 @@ try {
     Invoke-NativeStep -Executable (Join-Path $taskDestination 'bin/quickclash.exe') -Arguments $taskSmokeArguments -WorkingDirectory $taskDestination -LogPath (Join-Path $taskLogs 'smoke.log') -TimeoutSeconds 15
     $taskSmoke = Get-Content -LiteralPath (Join-Path $taskLogs 'smoke.json') -Raw | ConvertFrom-Json
     if (-not $taskSmoke.page_ready -or $taskSmoke.qml_errors -ne 0) { throw 'Deployed application did not load its QML page cleanly.' }
+    $taskBuildInfo = & (Join-Path $PSScriptRoot 'read_build_info.ps1') -Path (Join-Path $taskDestination 'metadata/build_info.json')
+    if ($taskSmoke.application_version -cne $taskBuildInfo.application_version -or
+        $taskSmoke.base_version -cne $taskBuildInfo.base_version -or
+        $taskSmoke.source_commit -cne $taskBuildInfo.commit -or
+        $taskSmoke.source_state -cne $taskBuildInfo.source_state) {
+        throw 'Deployed application differs from the compiled build identity.'
+    }
 } finally {
     $env:Path = $taskOriginalPath
     $env:QT_QPA_PLATFORM = $taskOriginalPlatform

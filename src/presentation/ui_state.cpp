@@ -1,6 +1,7 @@
 #include "presentation/ui_state.h"
 #include "domain/json_lookup.h"
 #include "domain/proxy_latency.h"
+#include "quickclash_build_info.h"
 #include <QClipboard>
 #include <QDateTime>
 #include <QFileInfo>
@@ -72,6 +73,12 @@ UiState::UiState(QString settingsFile, QObject* parent, std::function<qint64()> 
         if (advanceTrafficHistory(trafficClock_()))
             emit sampleChanged();
     });
+}
+QString UiState::sourceCommit() const {
+    return QStringLiteral(QUICKCLASH_GIT_COMMIT);
+}
+QString UiState::sourceState() const {
+    return QStringLiteral(QUICKCLASH_SOURCE_STATE);
 }
 bool UiState::acceptGeneration(quint64 generation, const QString& epoch) {
     Q_ASSERT(QThread::currentThread() == thread());

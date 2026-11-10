@@ -1,4 +1,5 @@
 #include "domain/support_report.h"
+#include "quickclash_build_info.h"
 #include <QJsonArray>
 #include <QStringList>
 #include <QSysInfo>
@@ -48,6 +49,9 @@ QJsonObject supportReport(const QJsonObject& runtime) {
         {"schemaVersion", 1},
         {"application", "QuickClash"},
         {"version", QUICKCLASH_VERSION},
+        {"baseVersion", QUICKCLASH_BASE_VERSION},
+        {"sourceCommit", QUICKCLASH_GIT_COMMIT},
+        {"sourceState", QUICKCLASH_SOURCE_STATE},
         {"coreVersion", "v1.19.33"},
         {"platform", platform},
         {"architecture", choice(QSysInfo::currentCpuArchitecture(), {"x86_64", "arm64", "i386"})},

@@ -4,7 +4,9 @@
 
 ## 依赖与构建
 
-应用版本统一由根 `CMakeLists.txt` 的 `project(quickclash VERSION ...)` 定义，经 `quickclash_domain` 的公开编译定义 `QUICKCLASH_VERSION` 传递给应用和运行时；界面、支持报告、备份元数据及下载请求的 User-Agent 共用该值。升级应用版本只修改此处，不改写历史证据中的版本。
+应用版本统一由根 `CMakeLists.txt` 的 `project(quickclash VERSION ...)` 定义。每次构建前生成`quickclash_build_info.h`与`quickclash_build_info.json`：`QUICKCLASH_VERSION`和`QUICKCLASH_BASE_VERSION`均保留纯数字版本（如`0.1.1`），commit与源码状态独立保存，不拼入版本字符串。工作区存在已暂存、未暂存或未忽略的新文件时，`source_state`为`dirty`，否则为`clean`；忽略的build/缓存不计入。无Git信息的源码包或未安装Git时commit为空、状态为`unknown`，不借用父目录仓库；存在Git但读取失败则构建失败。关于页分别显示版本、12位commit和本地化的源码状态，“复制版本信息”包含版本、完整40位commit及源码状态，反馈问题时应一并提供。支持报告、备份元数据及订阅/provider请求的User-Agent使用纯版本号；支持报告另含基础版本、完整commit及源码状态。相同源码commit在continuous和tag中具有相同版本与源码身份；版本仍只修改上述project定义，不改写历史证据。
+
+版本信息在增量构建中也会重新核对，内容未变时不改写头文件，避免无意义的重编译。GitHub Actions的`run_id`和`run_attempt`写入构建JSON，用于区分相同commit的不同CI运行和重跑，不加入界面版本。安装包包含`metadata/build_info.json`，发行与本地验证包清单同步记录`application_version`、`base_version`、`commit`、`source_state`及CI运行字段；原`version`仍表示发行标签/continuous。打包启动冒烟核对已编译程序诊断与构建JSON一致，指定`-Commit`时还须匹配编译时的完整SHA，不能给旧程序贴上新commit。
 
 Windows UI链接后使用所选Qt套件的windeployqt扫描QML，将动态组件、插件及其依赖部署到构建输出目录；服务链接后也复制其运行DLL，使SCM的SYSTEM环境无需开发Qt PATH。CMake生成相对路径qt6.conf，优先于Qt自动生成的构建qt.conf，避免仅复制QtCore后丢失QML/TLS路径。修改Qt套件须使用新的构建目录；构建目录仍不是发行包，独立便携包须使用下述部署脚本，安装只生成匹配bin/qml/plugins布局的qt.conf，不携带开发qt6.conf。
 
@@ -46,23 +48,23 @@ Windows 配置校验直接调用已验证的受管 Mihomo 程序，以独立普�
 
 默认UI开发构建目录为`build/dev`，headless为`build/headless`，生产发行`-Release`为`build/release`；Windows自动CI直接使用release preset，不先生成或编译测试配置。进程执行器测试 `pwsh -NoProfile -File tests/scripts/native_process_test.ps1` 不编译客户端，默认在`build/script_tests/native_process/<UTC>_<ID>/`保留环境、参数/输出、退出与超时证据；可指定新的`-EvidenceDirectory`，已有目录拒绝覆盖。手动测试工作流即使失败也上传该目录。执行器按UTF-8读取stdout/stderr，子进程必须输出相同编码；测试PowerShell夹具显式设置UTF-8，不依赖Windows OEM代码页。调用其他编码工具可用`Invoke-NativeStep -TextEncoding`指定对应的.NET Encoding，日志元数据记录实际解码方式。
 
-快速迭代阶段，[自动构建与发布](../../.github/workflows/build.yml)仅覆盖Windows：main推送、PR和`v*`标签自动触发，其他分支也可手动运行。统一使用`BUILD_TESTING=OFF`生产配置，PR只构建；main和版本tag在构建、打包校验及随包启动冒烟通过后发布。纯文档提交仅判定范围后跳过产品与发布；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，tag和手动运行始终构建。范围由可独立回归的`select_ci_scope.ps1`统一输出product/publish；自动流程不运行仓库脚本回归、CTest、headless、QML lint或内核专项。同分支新提交取消旧构建，标签构建及发布任务不主动取消。
+快速迭代阶段，GitHub Actions仅保留`build`和`validation`两个工作流。[build](../../.github/workflows/build.yml)负责Windows自动构建与发布：main推送、PR和`v*`标签自动触发，其他分支也可手动运行。统一使用`BUILD_TESTING=OFF`生产配置，PR只构建；main和版本tag在构建、打包校验及随包启动冒烟通过后发布。纯文档提交仅判定范围后跳过产品与发布；`docs/baseline/config_policy.json`、`release_matrix.json`及随包`licenses.md`变化仍构建产品。未知变更按产品处理，tag和手动运行始终构建。范围由可独立回归的`select_ci_scope.ps1`统一输出product/publish；自动流程不运行仓库脚本回归、CTest、headless、QML lint或内核专项。同分支新提交取消旧构建，标签构建及发布任务不主动取消。
 
-Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[独立手动平台验证](../../.github/workflows/platform_validation.yml)使用ubuntu-24.04/`linux_gcc_64`及macos-15/`clang_64`，不阻塞当前Windows发布。这是流水线现状，不代表跨平台产品定位或各平台支持范围。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；官方checkout/setup-python/cache及制品Actions使用Node24版本。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
+Windows使用windows-2022/Qt6.9.0/`win64_msvc2022_64`；[validation](../../.github/workflows/validation.yml)当前仅运行Windows完整验证。Linux/macOS原生构建与测试待平台就绪后加入同一工作流，届时增加独立job及平台选择参数，可单独选择某个平台或全部，默认Windows；当前不提供未接入平台的选项。候选工具链为ubuntu-24.04/`linux_gcc_64`及macos-15/`clang_64`，接入时复核，不代表已支持。CI先设置Python3.14，再安装PyPI可用的CMake4.3.0、Ninja1.13.2二进制包；官方checkout/setup-python/cache及制品Actions使用Node24版本。Qt Action关闭内部Python设置，固定aqtinstall3.3.0/py7zr1.1.0并缓存Qt。固定YAML/Mihomo/Geo缓存键包含release_matrix摘要，缓存命中仍执行fetch_dependencies重新核验；不缓存跨机器构建目录。本机历史Ninja1.12.1记录不等于PyPI存在同名包版本。
 
-Linux/macOS先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核或具体适配；其余共享单元/UI及Unsupported契约测试继续执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
+Linux/macOS后续接入或本地原生验证时，先运行`fetch_dependencies.ps1 -YamlOnly`，再执行dev原生构建、QML lint及`ctest --preset dev`。CMake仅在Windows注册runtime及其专项、proxy_lease、recovery和runtime_publication，这些测试依赖Windows官方内核或具体适配；其余共享单元/UI及Unsupported契约测试按该平台注册情况执行。非Windows凭据/核心/系统代理/TUN/采样尚未实现，能力明确Unsupported，服务命令不打开IPC；静态核对或Windows上的替代实现测试不能当作原生支持。headless构建及其全部测试另行执行；preset要求Qt Core及Network（DNS地址规范化校验使用QHostAddress，不创建网络请求），不查找Quick/Qml/Gui/Widgets。Qt翻译资源通过`qmake -query QT_INSTALL_TRANSLATIONS`定位，兼容DLL、Linux库和macOS framework布局。
 
 仓库检查执行`pwsh -NoProfile -File scripts/check_platform_boundaries.ps1`，拦截共享层/infra公开头的Windows SDK及具体适配include、功能页面的导航壳依赖；CMake选源/系统库、路径和异步生命周期另行人工核对。Windows实现位于platform/windows，非Windows选择platform/unsupported，共享公开头只暴露Qt/职责契约；SDK库以PRIVATE链接。静态边界、原生构建和真实系统能力分层记录，验收范围见[Windows阶段摘要](../progress/reports/windows_validation.md#跨平台静态边界)。
 
-Windows自动发行和手动完整验证均在构建前准备摘要锁定的YAML、Mihomo和Geo。自动发行调用`build_windows.ps1 -Release`，构建客户端、权限服务及网络辅助程序，不生成测试程序或QtTest/测试探针依赖；回归测试只在[windows_validation](../../.github/workflows/windows_validation.yml)按需手动运行，不随push、PR或tag触发，也不作为发布依赖。
+Windows自动发行和手动完整验证均在构建前准备摘要锁定的YAML、Mihomo和Geo。自动发行调用`build_windows.ps1 -Release`，构建客户端、权限服务及网络辅助程序，不生成测试程序或QtTest/测试探针依赖；回归测试只在[validation](../../.github/workflows/validation.yml)按需手动运行，不随push、PR或tag触发，也不作为发布依赖。
 
 本地`-Fast`继续保留`quickclash_ci_fast`快速范围：构建产品及未标`ci_slow`的测试，QML lint后运行快速单元和代表性UI行为测试。保留中英文订阅导入、失败保留与隐私、双语可访问标签/键盘、设置草稿与恢复、运行列表、自建组、响应式及宿主生命周期；几何/视觉、合成触摸、100次窗口重建与部分重复语言行为归入完整或定向验证。`ci_slow`也覆盖所有启动`runtime_test`的集成用例以及runtime_publication、recovery、engine_startup。快速构建依赖由产品目标和测试标签自动汇总，手动工作流核对配置清单与CTest选择一致；这些标签不再决定自动发布门槛。
 
-手动Windows测试流程内，仓库检查逐项通过`Invoke-NativeStep`启动独立PowerShell，子进程显式使用UTF-8解码原生Git输出，每项限时120秒并保存stdout/stderr、退出码及耗时；显式`exit`与抛错均须使本次测试流程失败，不在步骤末尾重置失败码。除文档、布局、边界与既有脚本回归外，也运行隔离服务包锁定/摘要/路径拒绝和内存采样器自身计数/参数回归；后者仅采样本次测试进程约1秒，不是产品资源验收。日志及夹具统一进入`build/script_tests/`。需要真实测试包或应用程序的desktop/startup探针仍在对应产品或专项入口执行。
+手动Windows测试流程内，仓库检查逐项通过`Invoke-NativeStep`启动独立PowerShell，子进程显式使用UTF-8解码原生Git输出，每项限时120秒并保存stdout/stderr、退出码及耗时；显式`exit`与抛错均须使本次测试流程失败，不在步骤末尾重置失败码。除文档、布局、边界与既有脚本回归外，也运行隔离服务包锁定/摘要/路径拒绝和内存采样器自身计数/参数回归；后者仅采样本次测试进程约1秒，不是产品资源验收。固定CMake/Ninja安装后另运行`python tests/scripts/build_version_test.py`，检查干净/dirty/未知源码、增量刷新、同commit标签、worktree及CI身份和打包拒绝。日志及夹具统一进入`build/script_tests/`。需要真实测试包或应用程序的desktop/startup探针仍在对应产品或专项入口执行。
 
 订阅布局使用独立的`ui_subscription_layout` / `ui_subscription_layout_zh`，保留长名称、长URL/请求头、版本下拉、360宽/21px字号及各焦点框边界；不放宽严格几何容差。`ui_accessibility_layout` / `_zh`覆盖八页面、设置和导入弹框；`ui_settings_layout`、`ui_runtime_lists_layout`、`ui_custom_groups_layout`为英文布局检查，原有对应`_zh`用例同时执行中文行为和布局。运行列表专项包括自定义规则弹窗的宽窄窗、大字号及焦点边界，日常继续检查规则与列表交互。布局矩阵按桌面、断点、窄窗/大字号挑选代表组合，视觉滚动条检查用不同主题分别覆盖宽窄窗，避免无意义的全排列；带输出目录的原生截图入口仍保留原完整截图组合。`ui_visual`与`ui_prototype`在完整或定向运行。日常UI为隔离离屏检查，真实读屏、物理触摸、GPU与其他平台仍按风险另验。
 
-[windows_validation](../../.github/workflows/windows_validation.yml)仅提供`workflow_dispatch`：在Actions选择该工作流并执行Run workflow，`source_ref`可填写分支、tag或完整commit SHA，留空使用所选工作流ref对应的commit。工作流须先进入默认分支才会显示手动入口。也可执行`gh workflow run windows_validation.yml -f source_ref=v0.1.1`，命令只启动测试，不发布Release。流程运行仓库检查/脚本回归，再以`-Full`编译并执行去重后的完整CTest及QML lint、独立headless完整构建/测试和官方内核API/监听归属/Job探针，构建/lint及测试步骤预算各1200秒并置于60分钟Windows job内；不先重复运行快速测试。测试失败保留失败状态和日志，发布流程不依赖其结果；没有`continue-on-error`掩盖失败。`ui_state`包含`connection_rule`，布局版覆盖对应业务流程，因此完整套件排除这6个已被覆盖的短入口，短入口仍供本地定向运行。日志/JUnit及aqt安装日志保留14天。完整模式用于按需核对发布候选、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；自动发布成功仅说明构建及随包冒烟通过，不代表完整功能验收。
+[validation](../../.github/workflows/validation.yml)仅提供`workflow_dispatch`：在Actions选择该工作流并执行Run workflow，`source_ref`可填写分支、tag或完整commit SHA，留空使用所选工作流ref对应的commit。工作流须先进入默认分支才会显示手动入口。也可执行`gh workflow run validation.yml -f source_ref=v0.1.1`，命令只启动测试，不发布Release。当前唯一的Windows job运行仓库检查/脚本回归，再以`-Full`编译并执行去重后的完整CTest及QML lint、独立headless完整构建/测试和官方内核API/监听归属/Job探针，构建/lint及测试步骤预算各1200秒并置于60分钟job内；不先重复运行快速测试。测试失败保留失败状态和日志，发布流程不依赖其结果；没有`continue-on-error`掩盖失败。`ui_state`包含`connection_rule`，布局版覆盖对应业务流程，因此完整套件排除这6个已被覆盖的短入口，短入口仍供本地定向运行。日志/JUnit及aqt安装日志保留14天。完整模式用于按需核对发布候选、工具链/依赖升级、广泛公共机制变化或有证据的跨模块回归；自动发布成功仅说明构建及随包冒烟通过，不代表完整功能验收。
 
 ### 日常定向验证
 
@@ -94,11 +96,11 @@ Windows自动发行和手动完整验证均在构建前准备摘要锁定的YAML
 
 Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当前构建目录的服务正在运行并锁定 EXE，正常退出客户端，等待服务进程退出后重新构建；旧版服务仍驻留时手动停止已注册的 QuickClashService 并确认退出。无需先关闭 TUN 开关，退出保留偏好，下次启动按需恢复服务。不要忽略服务链接失败而交付单独重建的客户端，否则本地载荷仍缺少新协议能力，重启服务也无法修复。
 
-选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品；配置后可加`-ConfiguredManifest build/dev/quickclash_tests.json`核对实际CMake注册、构建依赖与CI分组，无UI配置则传`build/headless/quickclash_tests.json`。Windows完整工作流和Linux/macOS手动工作流均核对各自UI/headless清单；跨平台构建、QML lint与CTest输出保留到artifact，CTest使用`--no-tests=error`，构建日志的`tee`管道使用显式`bash`的失败传播。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
+选择器独立回归：`./tests/scripts/select_windows_tests_test.ps1`，仅验证范围选择、未知名称拒绝和共享测试程序映射，不构建产品；配置后可加`-ConfiguredManifest build/dev/quickclash_tests.json`核对实际CMake注册、构建依赖与CI分组，无UI配置则传`build/headless/quickclash_tests.json`。`validation`的Windows job核对UI/headless清单，构建、QML lint与CTest输出保留到artifact，CTest使用`--no-tests=error`。未来新增平台job时同样核对各自清单并保留原生输出，使用`tee`时须显式保留命令失败状态。日常范围与停止条件统一遵循[进度约定](../progress/README.md#日常范围与停止规则)；默认冒烟不替代受影响的数据保留、权限、清理和恢复验证。
 
 ### GitHub持续交付与干净发行包
 
-默认分支（当前main）的产品推送和`v*`标签统一使用`BUILD_TESTING=OFF`生产构建，构建、依赖摘要/打包完整性及随包启动冒烟通过后分别发布`continuous`预发行版或对应版本，标签含连字符时为预发行。PR只构建生产版本，不发布；手动运行自动构建工作流时，默认分支或版本标签遵循相同发布规则。测试流程仅按需手动运行，结果不阻断发布；Linux/macOS继续独立手动验证。范围判定和生产构建任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous和版本发布成功均不表示全量回归通过，版本发布仍须结合已声明支持范围的验收证据。
+默认分支（当前main）的产品推送和`v*`标签统一使用`BUILD_TESTING=OFF`生产构建，构建、依赖摘要/打包完整性及随包启动冒烟通过后分别发布`continuous`预发行版或对应版本，标签含连字符时为预发行。PR只构建生产版本，不发布；手动运行`build`时，默认分支或版本标签遵循相同发布规则。`validation`仅按需手动运行，结果不阻断发布；当前仅启用Windows，Linux/macOS就绪后加入其中。范围判定和生产构建任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous和版本发布成功均不表示全量回归通过，版本发布仍须结合已声明支持范围的验收证据。
 
 版本 Release 在下载、依赖和许可说明前自动加入软件变更，中文分类为不兼容变更、新增功能（`feat`）、问题修复（`fix`）、性能优化（`perf`）；涉及产品的无前缀和`refactor`等提交放入折叠的“其他改进”。条目保留提交说明原文及提交链接，不调用 AI 推断或翻译。`!`及正文`BREAKING CHANGE:`/`BREAKING-CHANGE:`置于不兼容变更；空栏目不显示，合并提交模板不重复列出，实际分支提交仍包含。`continuous`沿用固定描述。
 

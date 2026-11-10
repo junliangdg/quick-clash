@@ -8,6 +8,7 @@ option(QUICKCLASH_BUILD_UI "Build the desktop Quick shell" ON)
 option(QUICKCLASH_WARNINGS_AS_ERRORS "Treat project warnings as errors" OFF)
 include(CTest)
 include(cmake/project_warnings.cmake)
+include(cmake/build_version.cmake)
 set(QUICKCLASH_MINIMUM_QT_VERSION 6.9)
 find_package(Qt6 ${QUICKCLASH_MINIMUM_QT_VERSION} REQUIRED COMPONENTS Core Network)
 include(FetchContent)
@@ -32,8 +33,8 @@ add_library(quickclash_domain src/domain/contracts.h src/domain/json_lookup.h sr
     src/domain/subscription_usage.cpp src/domain/subscription_usage.h
     src/domain/subscription_name.cpp src/domain/subscription_name.h
     src/domain/connection_snapshot.cpp src/domain/connection_snapshot.h)
-target_include_directories(quickclash_domain PUBLIC src)
-target_compile_definitions(quickclash_domain PUBLIC QUICKCLASH_VERSION="${PROJECT_VERSION}")
+target_include_directories(quickclash_domain PUBLIC src "${CMAKE_CURRENT_BINARY_DIR}/generated")
+add_dependencies(quickclash_domain quickclash_build_info)
 target_sources(quickclash_domain PRIVATE src/domain/resource_snapshot.cpp src/domain/resource_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/rule_snapshot.cpp src/domain/rule_snapshot.h)
 target_sources(quickclash_domain PRIVATE src/domain/support_report.cpp src/domain/support_report.h)
@@ -377,6 +378,8 @@ QmlImports = qml, ., QuickClash/Ui
         endforeach()
     endif()
     install(TARGETS quickclash BUNDLE DESTINATION . RUNTIME DESTINATION bin)
+    install(FILES "${CMAKE_CURRENT_BINARY_DIR}/quickclash_build_info.json"
+        DESTINATION metadata RENAME build_info.json)
     if(WIN32 AND MSVC)
         # Portable packages carry the app-local CRT DLLs, not vc_redist.exe.
         set(CMAKE_INSTALL_SYSTEM_RUNTIME_DESTINATION bin)

@@ -3389,6 +3389,12 @@
   </context>
   <context>
     <name>settings_about</name>
+    <message><source>Commit: %1</source><translation>提交：%1</translation></message>
+    <message><source>Source state: %1</source><translation>源码状态：%1</translation></message>
+    <message><source>Clean</source><translation>无修改</translation></message>
+    <message><source>Modified</source><translation>已修改</translation></message>
+    <message><source>Unknown</source><translation>未知</translation></message>
+    <message><source>Copy version info</source><translation>复制版本信息</translation></message>
     <message><source>Usage notice</source><translation>使用须知</translation></message>
     <message><source>An independent graphical client based on the Mihomo (formerly Clash.Meta) core.</source><translation>基于 Mihomo（原 Clash.Meta）内核的独立图形客户端。</translation></message>
   </context>

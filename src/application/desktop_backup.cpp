@@ -2,6 +2,7 @@
 #include "infra/config/config_overlay.h"
 #include "infra/config/custom_groups.h"
 #include "infra/io/bounded_read.h"
+#include "quickclash_build_info.h"
 #include <QCryptographicHash>
 #include <QFile>
 #include <QJsonDocument>

@@ -4,7 +4,7 @@
 
 ## 交付行为
 
-[日常工作流](../../../.github/workflows/build.yml)以Windows为发布门，main推送/PR自动运行，其他分支经PR或手动验证。普通运行22项快速测试（含9项UI），v标签/手动full_validation运行完整25项、headless及官方内核探针；纯文档只做仓库检查，依赖/策略/随包许可变化例外。Linux/macOS移至[独立手动平台验证](../../../.github/workflows/platform_validation.yml)，不阻塞Windows发布、不分发其用户包。本机Qt6.8快速构建/22项测试、headless构建/5项测试及工作流/脚本检查通过，见[DEVLOG](../DEVLOG.md#2026-10-27--windows优先快速迭代ci)；远端执行NotRun。
+以下为2026-10-27的历史交付行为，当前工作流与使用方式以[构建说明](../../baseline/build_and_package.md#github持续交付与干净发行包)为准。Windows发布门当时使用main推送/PR自动验证，其他分支经PR或手动验证；普通运行22项快速测试（含9项UI），v标签/手动full_validation运行完整25项、headless及官方内核探针，纯文档只做仓库检查，依赖/策略/随包许可变化例外。Linux/macOS当时移至独立手动的`platform_validation.yml`，不阻塞Windows发布、不分发其用户包；该独立入口已在2026-11-10移除，后续平台就绪后接入统一`validation`。本机Qt6.8快速构建/22项测试、headless构建/5项测试及工作流/脚本检查通过，见[DEVLOG](../DEVLOG.md#2026-10-27--windows优先快速迭代ci)；远端执行NotRun。
 
 默认分支（含手动运行）更新continuous预发行，v标签生成对应版本，连字符版本为预发行。Windows验证runner复用工具/资产，测试完成后同目录切换无测试Release配置、增量构建及包启动检查并上传ZIP/摘要；本机Qt6.8快检22/22通过，配置切换仅重编3项、其余111项生产对象复用，无测试包/清PATH启动核对通过，见[DEVLOG](../DEVLOG.md#2026-10-27--main直接推送编译复用)。发布job只下载同次artifact并核验发布，仅它有contents写权限。continuous替换同名资产前核对分支HEAD；过期验证可取消，标签/发布不主动取消。资产缓存命中仍核验摘要；不使用跨机器CMake缓存。
 

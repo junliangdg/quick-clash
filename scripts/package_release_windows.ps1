@@ -55,6 +55,7 @@ foreach ($taskAsset in @($taskMatrix.geo.geoip, $taskMatrix.geo.geosite)) {
     if ((Get-Item -LiteralPath $taskAssetPath).Length -ne $taskAsset.bytes) { throw 'Geo size mismatch.' }
 }
 & (Join-Path $PSScriptRoot 'deploy_windows.ps1') -BuildDirectory $taskBuild -Destination $taskDestination -CMake $CMake
+$taskBuildInfo = & (Join-Path $PSScriptRoot 'read_build_info.ps1') -Path (Join-Path $taskDestination 'metadata/build_info.json') -ExpectedCommit $Commit
 foreach ($taskName in @('core', 'geo', 'licenses', 'metadata')) {
     $null = New-Item -ItemType Directory -Path (Join-Path $taskDestination $taskName) -Force
 }
@@ -105,7 +106,9 @@ $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | Sort
     [ordered]@{ path = [IO.Path]::GetRelativePath($taskDestination, $_.FullName).Replace('\', '/'); bytes = $_.Length; sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant() }
 })
 [ordered]@{
-    schema_version = 1; version = $Version; commit = $Commit; platform = 'windows'; arch = 'x64'
+    schema_version = 1; version = $Version; commit = $taskBuildInfo.commit; platform = 'windows'; arch = 'x64'
+    application_version = $taskBuildInfo.application_version; base_version = $taskBuildInfo.base_version
+    source_state = $taskBuildInfo.source_state; ci_run_id = $taskBuildInfo.ci_run_id; ci_run_attempt = $taskBuildInfo.ci_run_attempt
     created_at_utc = [DateTime]::UtcNow.ToString('o'); build_type = 'Release'; build_testing = $false
     signed = $false; official_core = $taskMatrix.mihomo.windows.url; files = $taskFiles
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $taskDestination 'metadata/package_manifest.json') -Encoding utf8NoBOM

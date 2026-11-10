@@ -8,6 +8,7 @@ ColumnLayout {
     id: root
     required property UiState ui
     required property ThemeTokens theme
+    readonly property string sourceStateText: ui.sourceState === "clean" ? qsTr("Clean") : ui.sourceState === "dirty" ? qsTr("Modified") : qsTr("Unknown")
     spacing: theme.gap
     objectName: "settings_about"
     FlatTile {
@@ -42,6 +43,28 @@ ColumnLayout {
                 font.family: root.theme.fontFamily
                 color: root.theme.muted
                 wrapMode: Text.WordWrap
+            }
+            Label {
+                objectName: "application_commit"
+                Layout.fillWidth: true
+                text: qsTr("Commit: %1").arg(root.ui.sourceCommit ? root.ui.sourceCommit.slice(0, 12) : qsTr("Unknown"))
+                font.family: root.theme.fontFamily
+                color: root.theme.muted
+                wrapMode: Text.WrapAnywhere
+            }
+            Label {
+                objectName: "application_source_state"
+                Layout.fillWidth: true
+                text: qsTr("Source state: %1").arg(root.sourceStateText)
+                font.family: root.theme.fontFamily
+                color: root.theme.muted
+                wrapMode: Text.WordWrap
+            }
+            ActionButton {
+                objectName: "application_copy_version"
+                theme: root.theme
+                text: qsTr("Copy version info")
+                onClicked: root.ui.copyText("QuickClash " + Qt.application.version + "\n" + qsTr("Commit: %1").arg(root.ui.sourceCommit || qsTr("Unknown")) + "\n" + qsTr("Source state: %1").arg(root.sourceStateText))
             }
             Label {
                 Layout.fillWidth: true

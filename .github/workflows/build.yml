@@ -1,4 +1,4 @@
-name: build_and_release
+name: build
 on:
   push:
     branches: [main]
@@ -100,6 +100,7 @@ jobs:
           retention-days: 14
           path: |
             build/release/logs/
+            build/release/quickclash_build_info.json
             build/release/CMakeFiles/CMakeConfigureLog.yaml
             aqtinstall.log
   release_windows:

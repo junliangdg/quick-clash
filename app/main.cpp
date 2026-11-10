@@ -1,5 +1,6 @@
 #include "application_host.h"
 #include "presentation/localization.h"
+#include "quickclash_build_info.h"
 #include "single_instance.h"
 #include "ui_font.h"
 #ifdef QUICKCLASH_TEST_PROBES
@@ -478,6 +479,10 @@ int main(int argc, char* argv[]) {
                 return;
             }
             const QJsonObject snapshot{
+                {QStringLiteral("application_version"), QCoreApplication::applicationVersion()},
+                {QStringLiteral("base_version"), QStringLiteral(QUICKCLASH_BASE_VERSION)},
+                {QStringLiteral("source_commit"), QStringLiteral(QUICKCLASH_GIT_COMMIT)},
+                {QStringLiteral("source_state"), QStringLiteral(QUICKCLASH_SOURCE_STATE)},
                 {QStringLiteral("host_state"), state.hostState()},
                 {QStringLiteral("engine_generation"), host.engineGeneration()},
                 {QStringLiteral("active_demands"), state.activeDemandCount()},

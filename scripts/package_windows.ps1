@@ -31,6 +31,7 @@ $taskCore = Join-Path $taskRepo '.cache/mihomo/mihomo.exe'
 if ((Get-FileHash -LiteralPath $taskCore -Algorithm SHA256).Hash.ToLowerInvariant() -ne $taskMatrix.mihomo.windows.executable_sha256) { throw 'Official Mihomo hash mismatch.' }
 if (-not (Test-Path -LiteralPath $MihomoLicense)) { throw 'Provide the frozen official Mihomo license text.' }
 & (Join-Path $PSScriptRoot 'deploy_windows.ps1') -BuildDirectory $BuildDirectory -Destination $taskDestination -CMake $CMake
+$taskBuildInfo = & (Join-Path $PSScriptRoot 'read_build_info.ps1') -Path (Join-Path $taskDestination 'metadata/build_info.json')
 $taskPackagedLicense = Join-Path $taskDestination 'licenses/quickclash_gpl_3.txt'
 if (-not (Test-Path -LiteralPath $taskPackagedLicense -PathType Leaf)) {
     throw 'Packaged project license is missing.'
@@ -67,6 +68,9 @@ $taskFiles = @(Get-ChildItem -LiteralPath $taskDestination -File -Recurse | ForE
 })
 [ordered]@{
     schema_version = 1; created_at_utc = [DateTime]::UtcNow.ToString('o')
+    application_version = $taskBuildInfo.application_version; base_version = $taskBuildInfo.base_version
+    commit = $taskBuildInfo.commit; source_state = $taskBuildInfo.source_state
+    ci_run_id = $taskBuildInfo.ci_run_id; ci_run_attempt = $taskBuildInfo.ci_run_attempt
     purpose = 'Private Windows local validation; not a signed public release or clean-machine acceptance'
     official_core = $taskMatrix.mihomo.windows.url; files = $taskFiles
 } | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $taskDestination 'metadata/package_manifest.json') -Encoding utf8NoBOM

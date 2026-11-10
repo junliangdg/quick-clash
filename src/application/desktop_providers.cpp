@@ -1,5 +1,6 @@
 #include "application/desktop_runtime.h"
 #include "infra/io/bounded_read.h"
+#include "quickclash_build_info.h"
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>

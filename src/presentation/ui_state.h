@@ -40,6 +40,8 @@ class UiState : public QObject {
     Q_PROPERTY(QString storageError READ storageError NOTIFY storageChanged)
     Q_PROPERTY(bool settingsReady READ settingsReady NOTIFY storageChanged)
     Q_PROPERTY(bool usageNoticePending READ usageNoticePending NOTIFY usageNoticeChanged)
+    Q_PROPERTY(QString sourceCommit READ sourceCommit CONSTANT)
+    Q_PROPERTY(QString sourceState READ sourceState CONSTANT)
     Q_PROPERTY(QVariantMap dashboard READ dashboard NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
     Q_PROPERTY(QVariantMap settingsSession READ settingsSession NOTIFY settingsSessionChanged)
@@ -84,6 +86,8 @@ class UiState : public QObject {
   public:
     explicit UiState(QString settingsFile = {}, QObject* parent = nullptr,
                      std::function<qint64()> trafficClock = {});
+    [[nodiscard]] QString sourceCommit() const;
+    [[nodiscard]] QString sourceState() const;
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
     }
