@@ -7,12 +7,10 @@ param(
     [string]$BeforeSha = '',
     [string]$BaseSha = '',
     [Parameter(Mandatory)][string]$HeadSha,
-    [switch]$FullValidation,
     [string]$OutputPath = ''
 )
 $ErrorActionPreference = 'Stop'
 $versionTag = $EventName -ne 'pull_request' -and $Ref.StartsWith('refs/tags/v', [StringComparison]::Ordinal)
-$full = $versionTag -or $FullValidation.IsPresent
 $product = $true
 $changed = $null
 
@@ -39,10 +37,8 @@ if ($null -ne $changed) {
         $_ -match '^docs/baseline/((config_policy|release_matrix)[.]json|licenses[.]md)$'
     }).Count -gt 0
 }
-if ($full) { $product = $true }
 $scope = [pscustomobject][ordered]@{
     product = $product
-    full = $full
     publish = $product -and $EventName -ne 'pull_request' -and
         ($versionTag -or $Ref -ceq "refs/heads/$DefaultBranch")
 }

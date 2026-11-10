@@ -32,41 +32,41 @@ function Test-Scope([string]$Name, [hashtable]$Options, [bool[]]$Expected) {
     }
     foreach ($key in $Options.Keys) { $arguments[$key] = $Options[$key] }
     $actual = & $taskSelector @arguments
-    Require ($actual.product -eq $Expected[0] -and $actual.full -eq $Expected[1] -and
-        $actual.publish -eq $Expected[2]) "Unexpected product/full/publish scope: $Name ($actual)"
+    Require ($actual.product -eq $Expected[0] -and $actual.publish -eq $Expected[1]) "Unexpected product/publish scope: $Name ($actual)"
+    Require (($actual.PSObject.Properties.Name -join ',') -ceq 'product,publish') "Build scope must not select tests: $Name"
     Require ($LASTEXITCODE -eq 0) "Stale native failure escaped: $Name"
     $script:taskPassed++
     Write-Output "PASS: $Name"
 }
-Test-Scope 'main product changes use fast validation and publish' @{} @($true, $false, $true)
+Test-Scope 'main product changes build production and publish' @{} @($true, $true)
 Require ($taskGitMock.Calls[1].Count -eq 5 -and $taskGitMock.Calls[1][2] -eq '--no-renames') 'Push comparison must use two commit arguments.'
-Test-Scope 'PR product changes validate without publishing' @{ EventName = 'pull_request'; Ref = 'refs/pull/7/merge' } @($true, $false, $false)
+Test-Scope 'PR product changes build without publishing' @{ EventName = 'pull_request'; Ref = 'refs/pull/7/merge' } @($true, $false)
 Require ($taskGitMock.Calls[0][3] -eq (('2' * 40) + '...' + ('3' * 40))) 'PR comparison must use the merge base.'
 $taskGitMock.Changed = @('docs/progress/TASKS.md', 'README.md')
-Test-Scope 'main documentation skips product and release' @{} @($false, $false, $false)
-Test-Scope 'PR documentation skips product' @{ EventName = 'pull_request'; Ref = 'refs/pull/7/merge' } @($false, $false, $false)
+Test-Scope 'main documentation skips product and release' @{} @($false, $false)
+Test-Scope 'PR documentation skips product' @{ EventName = 'pull_request'; Ref = 'refs/pull/7/merge' } @($false, $false)
 $taskGitMock.Changed = @()
-Test-Scope 'empty diff skips product' @{} @($false, $false, $false)
+Test-Scope 'empty diff skips product' @{} @($false, $false)
 foreach ($path in @('docs/baseline/config_policy.json', 'docs/baseline/release_matrix.json', 'docs/baseline/licenses.md',
         '.github/workflows/build.yml', 'LICENSE', 'unknown_file')) {
     $taskGitMock.Changed = @($path)
-    Test-Scope "product-affecting path: $path" @{} @($true, $false, $true)
+    Test-Scope "product-affecting path: $path" @{} @($true, $true)
 }
 $taskGitMock.Changed = @('src/old_name.cpp', 'docs/moved_source.md')
-Test-Scope 'product renamed under docs is not skipped' @{} @($true, $false, $true)
-Test-Scope 'non-default branch never publishes' @{ Ref = 'refs/heads/feature' } @($true, $false, $false)
-Test-Scope 'configured default branch is respected' @{ Ref = 'refs/heads/trunk'; DefaultBranch = 'trunk' } @($true, $false, $true)
+Test-Scope 'product renamed under docs is not skipped' @{} @($true, $true)
+Test-Scope 'non-default branch never publishes' @{ Ref = 'refs/heads/feature' } @($true, $false)
+Test-Scope 'configured default branch is respected' @{ Ref = 'refs/heads/trunk'; DefaultBranch = 'trunk' } @($true, $true)
 $taskGitMock.Changed = @('README.md')
-Test-Scope 'manual main run always builds and publishes' @{ EventName = 'workflow_dispatch' } @($true, $false, $true)
+Test-Scope 'manual main run always builds and publishes' @{ EventName = 'workflow_dispatch' } @($true, $true)
 Require ($taskGitMock.Calls.Count -eq 0) 'Manual run unexpectedly inspected a diff.'
-Test-Scope 'manual feature run only validates' @{ EventName = 'workflow_dispatch'; Ref = 'refs/heads/feature' } @($true, $false, $false)
-Test-Scope 'manual full validation includes documentation' @{ EventName = 'workflow_dispatch'; FullValidation = $true } @($true, $true, $true)
-Test-Scope 'version tag always validates fully and publishes' @{ Ref = 'refs/tags/v1.2.3' } @($true, $true, $true)
+Test-Scope 'manual feature run only builds' @{ EventName = 'workflow_dispatch'; Ref = 'refs/heads/feature' } @($true, $false)
+Test-Scope 'version tag always builds production and publishes' @{ Ref = 'refs/tags/v1.2.3' } @($true, $true)
 Require ($taskGitMock.Calls.Count -eq 0) 'Version tag unexpectedly inspected a push diff.'
-Test-Scope 'manual version tag also validates fully' @{ EventName = 'workflow_dispatch'; Ref = 'refs/tags/v1.2.3-rc.1' } @($true, $true, $true)
-Test-Scope 'new branch falls back to product build' @{ BeforeSha = '0' * 40 } @($true, $false, $true)
+Test-Scope 'manual version tag also builds production and publishes' @{ EventName = 'workflow_dispatch'; Ref = 'refs/tags/v1.2.3-rc.1' } @($true, $true)
+Test-Scope 'manual non-version tag only builds' @{ EventName = 'workflow_dispatch'; Ref = 'refs/tags/continuous' } @($true, $false)
+Test-Scope 'new branch falls back to product build' @{ BeforeSha = '0' * 40 } @($true, $true)
 $taskGitMock.MissingBase = $true
-Test-Scope 'unavailable push base falls back without failure' @{} @($true, $false, $true)
+Test-Scope 'unavailable push base falls back without failure' @{} @($true, $true)
 $taskGitMock.MissingBase = $false
 $taskGitMock.DiffFailure = $true
 $taskFailed = $false
@@ -83,7 +83,7 @@ try { & $taskSelector -EventName pull_request -Ref refs/pull/7/merge -DefaultBra
 Require $taskFailed 'Missing PR base SHA was accepted.'
 $taskPassed++
 $taskOutput = Join-Path $taskRoot 'github_output.txt'
-Test-Scope 'GitHub output contract' @{ EventName = 'workflow_dispatch'; OutputPath = $taskOutput } @($true, $false, $true)
-Require ((Get-Content -LiteralPath $taskOutput) -join ',' -ceq 'product=true,full=false,publish=true') 'GitHub outputs differ.'
+Test-Scope 'GitHub output contract' @{ EventName = 'workflow_dispatch'; OutputPath = $taskOutput } @($true, $true)
+Require ((Get-Content -LiteralPath $taskOutput) -join ',' -ceq 'product=true,publish=true') 'GitHub outputs differ.'
 Write-Output "PASS: $taskPassed CI scope cases; evidence: $taskRoot"
 $global:LASTEXITCODE = 0

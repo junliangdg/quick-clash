@@ -5,29 +5,23 @@ on:
     tags: ['v*']
   pull_request:
   workflow_dispatch:
-    inputs:
-      full_validation:
-        description: Run all Windows tests, headless boundary and official core probes
-        type: boolean
-        default: false
 permissions:
   contents: read
 jobs:
-  checks:
+  scope:
     runs-on: windows-2022
     timeout-minutes: 10
     concurrency:
-      group: windows-checks-${{ github.event.pull_request.number || github.ref }}
+      group: windows-scope-${{ github.event.pull_request.number || github.ref }}
       cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
     outputs:
       product: ${{ steps.scope.outputs.product }}
-      full: ${{ steps.scope.outputs.full }}
       publish: ${{ steps.scope.outputs.publish }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - name: Select validation scope
+      - name: Select build and publication scope
         id: scope
         shell: pwsh
         env:
@@ -35,50 +29,15 @@ jobs:
           BEFORE_SHA: ${{ github.event.before }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          FULL_VALIDATION: ${{ inputs.full_validation == true }}
         run: |
           ./scripts/select_ci_scope.ps1 `
             -EventName $env:GITHUB_EVENT_NAME -Ref $env:GITHUB_REF `
             -DefaultBranch $env:DEFAULT_BRANCH -BeforeSha $env:BEFORE_SHA `
             -BaseSha $env:BASE_SHA -HeadSha $env:HEAD_SHA `
-            -FullValidation:($env:FULL_VALIDATION -eq 'true') -OutputPath $env:GITHUB_OUTPUT
-      - name: Repository checks
-        shell: pwsh
-        run: |
-          . ./scripts/native_process.ps1
-          $shell = (Get-Process -Id $PID).Path
-          $checks = @(
-            @{ path = 'scripts/build_design_docs.ps1'; arguments = @('-Check') }
-            @{ path = 'scripts/check_source_layout.ps1' }
-            @{ path = 'scripts/check_ui_glyphs.ps1' }
-            @{ path = 'scripts/check_platform_boundaries.ps1' }
-            @{ path = 'scripts/check_progress.ps1' }
-            @{ path = 'tests/scripts/check_progress_test.ps1' }
-            @{ path = 'tests/scripts/select_ci_scope_test.ps1' }
-            @{ path = 'tests/scripts/select_windows_tests_test.ps1' }
-            @{ path = 'tests/scripts/native_process_test.ps1' }
-            @{ path = 'tests/scripts/fetch_dependencies_test.ps1' }
-            @{ path = 'tests/scripts/generate_release_notes_test.ps1' }
-            @{ path = 'tests/scripts/publish_release_test.ps1' }
-            @{ path = 'tests/scripts/package_readmes_test.ps1' }
-            @{ path = 'tests/scripts/service_package_test.ps1' }
-            @{ path = 'tests/scripts/attach_memory_test.ps1' }
-          )
-          foreach ($check in $checks) {
-            $name = [IO.Path]::GetFileNameWithoutExtension($check.path)
-            $arguments = @('-NoProfile', '-File', $check.path)
-            if ($check.arguments) { $arguments += $check.arguments }
-            Invoke-NativeStep -Executable $shell -Arguments $arguments -WorkingDirectory $PWD.Path -LogPath "build/script_tests/repository_logs/$name.log" -TimeoutSeconds 120
-          }
-      - uses: actions/upload-artifact@v6
-        if: always()
-        with:
-          name: repository_logs
-          retention-days: 14
-          path: build/script_tests/
+            -OutputPath $env:GITHUB_OUTPUT
   windows:
-    needs: checks
-    if: needs.checks.outputs.product == 'true'
+    needs: scope
+    if: needs.scope.outputs.product == 'true'
     runs-on: windows-2022
     timeout-minutes: 60
     concurrency:
@@ -112,32 +71,20 @@ jobs:
       - name: Acquire and reverify runtime dependencies
         shell: pwsh
         run: ./scripts/fetch_dependencies.ps1
-      - name: Validate and package Windows runtime
+      - name: Build production Release and package Windows runtime
         shell: pwsh
         env:
-          FULL_VALIDATION: ${{ needs.checks.outputs.full }}
-          PUBLISH_PACKAGE: ${{ needs.checks.outputs.publish }}
+          PUBLISH_PACKAGE: ${{ needs.scope.outputs.publish }}
           RELEASE_REF: ${{ github.ref_name }}
         run: |
-          # Clean hosted builds need the same budget in fast and full mode.
-          ./scripts/build_windows.ps1 -Fast:($env:FULL_VALIDATION -ne 'true') -Full:($env:FULL_VALIDATION -eq 'true') -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
-          ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/dev/quickclash_tests.json
-          if ($env:FULL_VALIDATION -eq 'true') {
-            ./scripts/build_windows.ps1 -Headless -Full -BuildTimeoutSeconds 1200 -TestTimeoutSeconds 1200
-            ./tests/scripts/select_windows_tests_test.ps1 -ConfiguredManifest build/headless/quickclash_tests.json
-            ./scripts/probe_mihomo.ps1
-          }
+          # Both continuous and version tags build with BUILD_TESTING=OFF.
+          ./scripts/build_windows.ps1 -Release -BuildTimeoutSeconds 1200
           if ($env:PUBLISH_PACKAGE -eq 'true') {
-            # Reuse the MSVC environment initialized by build_windows in this process.
-            . ./scripts/native_process.ps1
-            $logs = 'build/dev/logs/release_' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
-            Invoke-NativeStep -Executable (Get-Command cmake).Source -Arguments @('--preset', 'release', '-B', 'build/dev') -WorkingDirectory $PWD.Path -LogPath "$logs/configure.log" -TimeoutSeconds 120
-            Invoke-NativeStep -Executable (Get-Command cmake).Source -Arguments @('--build', 'build/dev', '--parallel', '4') -WorkingDirectory $PWD.Path -LogPath "$logs/build.log" -TimeoutSeconds 1200
             $version = if ($env:GITHUB_REF_TYPE -eq 'tag') { $env:RELEASE_REF } else { 'continuous' }
-            ./scripts/package_release_windows.ps1 -BuildDirectory build/dev -Version $version -Commit $env:GITHUB_SHA
+            ./scripts/package_release_windows.ps1 -BuildDirectory build/release -Version $version -Commit $env:GITHUB_SHA
           }
       - uses: actions/upload-artifact@v6
-        if: needs.checks.outputs.publish == 'true'
+        if: needs.scope.outputs.publish == 'true'
         with:
           name: windows_package
           retention-days: 14
@@ -152,21 +99,12 @@ jobs:
           name: windows_logs
           retention-days: 14
           path: |
-            build/dev/logs/
-            build/dev/quickclash_tests.json
-            build/dev/Testing/Temporary/
-            build/dev/CMakeFiles/CMakeConfigureLog.yaml
-            build/headless/logs/
-            build/headless/quickclash_tests.json
-            build/headless/Testing/Temporary/
-            build/headless/CMakeFiles/CMakeConfigureLog.yaml
             build/release/logs/
             build/release/CMakeFiles/CMakeConfigureLog.yaml
-            build/core_probe/
             aqtinstall.log
   release_windows:
-    needs: [checks, windows]
-    if: needs.checks.outputs.publish == 'true'
+    needs: [scope, windows]
+    if: needs.scope.outputs.publish == 'true'
     runs-on: windows-2022
     timeout-minutes: 10
     permissions:
