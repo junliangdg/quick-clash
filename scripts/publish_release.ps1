@@ -6,7 +6,9 @@ param(
     [Parameter(Mandatory)][string]$RefName,
     [Parameter(Mandatory)][ValidateSet('branch', 'tag')][string]$RefType,
     [string]$Archive = 'dist/quickclash_windows_x64.zip',
-    [string]$NotesDirectory = (Join-Path $PSScriptRoot '../build/release/logs')
+    [string]$NotesDirectory = (Join-Path $PSScriptRoot '../build/release/logs'),
+    [string]$SourceRoot = (Join-Path $PSScriptRoot '..'),
+    [AllowEmptyString()][string]$PreviousTag
 )
 $ErrorActionPreference = 'Stop'
 if ($Repository -cnotmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$' -or $Commit -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid release repository or commit.' }
@@ -22,7 +24,7 @@ $taskNotesDirectory = $NotesDirectory
 $null = New-Item -ItemType Directory -Path $taskNotesDirectory -Force
 $taskNotes = [IO.Path]::GetFullPath((Join-Path $taskNotesDirectory 'release_notes.md'))
 $taskTitle = if ($taskContinuous) { 'QuickClash continuous (Windows x64)' } else { "QuickClash $taskTag (Windows x64)" }
-@"
+$taskPackageNotes = @"
 $taskTitle
 
 Windows x64 portable Release build from commit $Commit. Download the ZIP, extract the complete directory, and run bin/quickclash.exe.
@@ -32,7 +34,7 @@ Includes the pinned official Mihomo core, Geo resources, Qt/MSVC runtime depende
 QuickClash is licensed under GPL-3.0-only. The corresponding source for this build is available at https://github.com/$Repository/tree/$Commit. Bundled Mihomo and Geo resources remain under GPL-3.0; see the licenses included in the package.
 
 Linux/macOS validation is available in a separate manual workflow. They are not included in this release.
-"@ | Set-Content -LiteralPath $taskNotes -Encoding utf8NoBOM
+"@
 if ($taskContinuous) {
     # Concurrency groups do not guarantee arrival order. An older run must not
     # move the continuous release backwards after a newer commit has arrived.
@@ -50,8 +52,22 @@ if ($taskContinuous) {
         if ($LASTEXITCODE -ne 0) { throw 'Could not create/update the continuous tag.' }
     }
 }
-& gh release view $taskTag --repo $Repository 1>$null 2>$null
-if ($LASTEXITCODE -eq 0) {
+if ($taskContinuous) {
+    $taskPackageNotes | Set-Content -LiteralPath $taskNotes -Encoding utf8NoBOM
+    & gh release view $taskTag --repo $Repository 1>$null 2>$null
+    $taskExisting = $LASTEXITCODE -eq 0
+} else {
+    $taskOptions = @{
+        Repository = $Repository; Commit = $Commit; Tag = $taskTag; SourceRoot = $SourceRoot
+        PackageNotes = $taskPackageNotes; OutputPath = $taskNotes
+    }
+    if ($PSBoundParameters.ContainsKey('PreviousTag')) { $taskOptions.PreviousTag = $PreviousTag }
+    # Read history/release bodies and finish the preview before any remote write.
+    $taskGenerated = & (Join-Path $PSScriptRoot 'generate_release_notes.ps1') @taskOptions
+    $taskExisting = $taskGenerated.ExistingRelease
+    Write-Output "Release notes: $($taskGenerated.PreviousTag) -> $taskTag; $($taskGenerated.IncludedCount)/$($taskGenerated.CommitCount) software commits."
+}
+if ($taskExisting) {
     $taskArguments = @('release', 'edit', $taskTag, '--repo', $Repository, '--title', $taskTitle, '--notes-file', $taskNotes)
     if ($taskPrerelease) { $taskArguments += @('--prerelease', '--latest=false') }
     & gh @taskArguments

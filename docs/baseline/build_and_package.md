@@ -95,6 +95,16 @@ Windows 的 `quickclash` 目标依赖 `quickclash_service` 成功构建。若当
 
 PR仅验证。默认分支（当前main）Windows快速验证通过后更新GitHub Releases的`continuous`预发行版；`v*`标签完整Windows验证成功后发布对应版本，标签含连字符时为预发行。手动运行默认分支或版本标签遵循同一规则，可用`full_validation`追加完整门槛。Linux/macOS独立手动验证，不是Windows发布依赖。验证任务只读，只有依赖其成功的发行任务获得写Release权限；没有自动提交源码的步骤。continuous仅代表快速验证的开发快照，版本发布还须结合已声明支持范围的验收证据。
 
+版本 Release 在下载、依赖和许可说明前自动加入软件变更，中文分类为不兼容变更、新增功能（`feat`）、问题修复（`fix`）、性能优化（`perf`）；涉及产品的无前缀和`refactor`等提交放入折叠的“其他改进”。条目保留提交说明原文及提交链接，不调用 AI 推断或翻译。`!`及正文`BREAKING CHANGE:`/`BREAKING-CHANGE:`置于不兼容变更；空栏目不显示，合并提交模板不重复列出，实际分支提交仍包含。`continuous`沿用固定描述。
+
+比较起点从 GitHub 已发布且属于当前提交历史的版本选择，而非简单取最近 tag：正式版选择版本号更小的最近正式 Release；预发行版优先同一主/次/补丁版本的较早预发行版（按语义版本比较，如`rc.10`晚于`rc.2`），没有时回退上一正式版。草稿、`continuous`、当前版本、其他分支及只有 tag 没有 Release 的版本均不作为起点。例如`v0.1.2`构建失败且未生成 Release，随后`v0.1.3`仍从上一个已发布的`v0.1.1`比较，失败版本期间的变更会包含。首次发布读取当前 tag 可达历史；后续提交和未提交改动不计入。自动选择使用`vMAJOR.MINOR.PATCH[-prerelease]`，非标准`v*`标签需在本地发布脚本显式传`-PreviousTag`；也可用该参数处理特殊补发，传空字符串表示首次发布。发行 job 获取完整历史及 tags，并核对当前 tag 与包 commit 一致。
+
+摘要只纳入实际修改`app/`、`src/`、`qml/`、`services/`、产品图标/翻译/元数据/Windows资源，或运行时`config_policy.json`、`release_matrix.json`的提交。纯文档、测试/探针、仓库配置、构建/CI/打包工具及许可文本不列入；`docs/test/tests/ci/build/chore/style`类型和`doc/docs/test/tests/ci/build/repo/workflow`作用域也不列入，即使写成`feat`的纯文档或测试提交仍被路径过滤。产品与文档混合提交按产品提交保留其原始标题，建议拆分提交并使用准确的`feat/fix/perf`说明；生成器不从笼统标题推断用户收益。完整提交对比链接仍可查看所有提交。
+
+自动正文使用`quickclash:release-notes:start/end` HTML注释界定，区块内元数据冻结首次选定的前版tag及commit；同一版本重跑只替换该区块，保留区块外人工说明。首次迁移旧 Release 时在原正文前加入自动区块。标记损坏、已存tag移动、历史不完整、GitHub读取或Git失败均在远端写入前拒绝，不把错误当成首次发布；生成的`release_notes.md`与比较/过滤诊断`release_notes.json`存于`build/release/logs/`并随发布日志artifact保留14天。基线以已发布Release为准，不额外查询历史Actions结论；若曾手工发布过失败构建对应的Release，应先核对该记录。
+
+本地只读预览（需要已获取完整tags，联网读取Release时需要`gh`可访问仓库）：`./scripts/generate_release_notes.ps1 -Repository owner/quick-clash -Tag v0.1.2 -Commit <tag指向的40位commit> -OutputPath build/release/logs/preview.md`。可用`-PreviousTag v0.1.1`覆盖比较起点；离线时另传`-PublishedReleasesFile build/release/releases.json`，文件为含`tag_name`、`draft`、`prerelease`、`body`的Release对象数组，首次发布可用`[]`。预览不会创建/编辑Release、推送tag或打包。定向回归入口为`tests/scripts/generate_release_notes_test.ps1`及`tests/scripts/publish_release_test.ps1`，临时Git仓库、预览和原始日志写入忽略的`build/script_tests/`。
+
 Windows验证runner复用已装工具/依赖；验证与打包在同一PowerShell步骤中顺序运行，直接沿用`build_windows.ps1`初始化的MSVC环境，不再依赖额外的MSVC Action。测试通过后执行`cmake --preset release -B build/dev`，在同一目录切换到`CMAKE_BUILD_TYPE=Release`、`BUILD_TESTING=OFF`再构建。UI测试探针为仅测试静态库，测试宏/开发资产路径宏只作用于使用它们的源文件；切换时复用未变的公共对象/QML缓存，只重新编译有差异的代码及重新链接，不再启动第二套独立全量构建。目录中残留的测试文件不安装；配置和当前目标图均关闭测试，生产程序不再链接探针/QtTest。本地`cmake --preset release`仍默认独立目录，只有同工具链/同Qt/同源码且已完成测试的CI顺序流程采用目录复用。再次验证须先运行dev配置，不能对发行配置直接执行旧CTest清单。
 
 `scripts/package_release_windows.ps1 -BuildDirectory build/dev`拒绝测试配置，执行安装与清开发Qt PATH启动检查，再加入已核验的官方内核/Geo/许可、元数据、简明随包说明和程序内置的固定动作服务安装入口（不附带 PowerShell 安装脚本）。ZIP与摘要作为同次运行的`windows_package` artifact交给仅发布job；该job不安装Qt、不重新构建，发布前再校验ZIP摘要。Qt部署负责收集Qt插件/QML运行资源，CMake收集可再分发CRT DLL，关闭vc_redist安装器部署；不复制整个build或.cache。包布局仍为`bin/`、`core/`、`geo/`、`licenses/`、`metadata/`。

@@ -58,6 +58,7 @@ jobs:
             @{ path = 'tests/scripts/select_windows_tests_test.ps1' }
             @{ path = 'tests/scripts/native_process_test.ps1' }
             @{ path = 'tests/scripts/fetch_dependencies_test.ps1' }
+            @{ path = 'tests/scripts/generate_release_notes_test.ps1' }
             @{ path = 'tests/scripts/publish_release_test.ps1' }
             @{ path = 'tests/scripts/package_readmes_test.ps1' }
             @{ path = 'tests/scripts/service_package_test.ps1' }
@@ -175,6 +176,8 @@ jobs:
       cancel-in-progress: false
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v7
         with:
           name: windows_package
