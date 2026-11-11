@@ -449,6 +449,13 @@ int runRuntimeListProbe(ApplicationHost& host) {
         !detailsText->property("text").toString().contains("fixture.example") ||
         !QMetaObject::invokeMethod(toggle, "click") || detailsText->isVisible())
         return 232;
+    auto initialTest = QJsonObject{{"publicationGeneration", "1"},
+                                   {"epoch", "fixture"},
+                                   {"ready", true},
+                                   {"testTarget", "https://saved.example"}};
+    ui.applyControl(initialTest);
+    if (targets->property("text").toString() != "https://saved.example")
+        return 312;
     const auto checkTargets = [&](const QString& text, int expectedCount, bool enabled) {
         return targets->setProperty("text", text) && run->isEnabled() == enabled &&
                count->property("text").toString().contains(QString::number(expectedCount));
@@ -462,6 +469,73 @@ int runRuntimeListProbe(ApplicationHost& host) {
         !checkTargets(eightTargets.join('\n'), 8, true) ||
         !checkTargets(eightTargets.join('\n') + "\nhttps://extra.example", 9, false))
         return 233;
+    auto* targetInput = qobject_cast<QQuickItem*>(targets);
+    if (!targetInput)
+        return 301;
+    const auto typeText = [&](const QByteArray& text) {
+        for (const char character : text)
+            QTest::keyClick(host.window(), character);
+    };
+    targetInput->forceActiveFocus();
+    QTest::keyClick(host.window(), Qt::Key_A, Qt::ControlModifier);
+    typeText("https://first.example");
+    QTest::keyClick(host.window(), Qt::Key_Return);
+    typeText("https://second.example");
+    const QString batchDraft = "https://first.example\nhttps://second.example";
+    if (targets->property("text").toString() != batchDraft || ui.websiteTestDraft() != batchDraft)
+        return 302;
+    QMetaObject::invokeMethod(run, "click");
+    auto publishedTest =
+        QJsonObject{{"publicationGeneration", "1"},
+                    {"epoch", "fixture"},
+                    {"ready", true},
+                    {"testTarget", "https://first.example"},
+                    {"features", QJsonObject{{"websiteTest", QJsonObject{{"state", "Running"}}}}}};
+    ui.applyControl(publishedTest);
+    QTest::qWait(30);
+    if (targets->property("text").toString() != batchDraft)
+        return 303;
+    targetInput->forceActiveFocus();
+    QTest::keyClick(host.window(), Qt::Key_End, Qt::ControlModifier);
+    typeText("/edited");
+    const QString editedDraft = batchDraft + "/edited";
+    publishedTest.insert("testTarget", "https://second.example");
+    publishedTest.insert("features",
+                         QJsonObject{{"websiteTest", QJsonObject{{"state", "Timeout"}}}});
+    ui.applyControl(publishedTest);
+    QTest::qWait(30);
+    if (targets->property("text").toString() != editedDraft ||
+        ui.websiteTestDraft() != editedDraft) {
+        qWarning() << "Website draft after edit and failed result:" << targets->property("text")
+                   << ui.websiteTestDraft() << "expected" << editedDraft << "focus"
+                   << host.window()->activeFocusItem();
+        return 304;
+    }
+    if (!ui.navigate("home") || !ui.navigate("tests"))
+        return 305;
+    QTest::qWait(60);
+    targets = host.window()->findChild<QObject*>("website_targets");
+    if (!targets || targets->property("text").toString() != editedDraft)
+        return 306;
+    const auto websiteGeneration = host.engineGeneration();
+    host.unloadWindow();
+    if (!host.showWindow() || host.engineGeneration() != websiteGeneration + 1)
+        return 307;
+    QTest::qWait(60);
+    targets = host.window()->findChild<QObject*>("website_targets");
+    if (!targets || targets->property("text").toString() != editedDraft)
+        return 308;
+    auto* restoredInput = qobject_cast<QQuickItem*>(targets);
+    if (!restoredInput)
+        return 313;
+    restoredInput->forceActiveFocus();
+    QTest::keyClick(host.window(), Qt::Key_A, Qt::ControlModifier);
+    QTest::keyClick(host.window(), Qt::Key_Backspace);
+    ui.applyControl(initialTest);
+    if (!ui.websiteTestDraftActive() || !ui.websiteTestDraft().isEmpty() ||
+        !targets->property("text").toString().isEmpty())
+        return 314;
+    ui.setWebsiteTestDraft(editedDraft);
     if (host.window()->findChild<QObject*>("user_rule_binding_dialog") ||
         host.window()->findChild<QObject*>("close_confirmation"))
         return 218;
@@ -1475,7 +1549,7 @@ int runRuntimeListProbe(ApplicationHost& host) {
                   {{"groups", QJsonArray{QJsonObject{{"name", "manual"},
                                                      {"type", "Selector"},
                                                      {"canSelect", true},
-                                                     {"current", "node_499"},
+                                                     {"current", "node_1"},
                                                      {"members", members}}}},
                    {"nodes", nodes},
                    {"delays", QJsonObject{{"node_0", "Timeout"}}}},
@@ -1511,6 +1585,48 @@ int runRuntimeListProbe(ApplicationHost& host) {
         return nullptr;
     };
     auto* grid = findGrid(findGrid, host.window()->contentItem());
+    auto* list = findVisualItem(host.window()->contentItem(), "proxy_group_list");
+    const auto checkFocusRecycling = [&](bool delay) {
+        if (!grid || !list || !QMetaObject::invokeMethod(grid, "focusMember", Q_ARG(QVariant, 0)))
+            return false;
+        QTest::qWait(40);
+        auto* card = findVisualItem(host.window()->contentItem(), "proxy_member_manual_node_0");
+        auto* focus = delay && card ? card->findChild<QQuickItem*>("test_node") : card;
+        if (!focus)
+            return false;
+        focus->forceActiveFocus();
+        if (!focus->hasActiveFocus())
+            return false;
+        QSignalSpy activated(focus, SIGNAL(clicked()));
+        if (!activated.isValid())
+            return false;
+        const auto scroll = std::min(list->property("contentHeight").toDouble() - list->height(),
+                                     grid->property("pageY").toDouble() +
+                                         20 * grid->property("rowHeight").toDouble());
+        list->setProperty("contentY", scroll);
+        QTest::qWait(50);
+        auto* current = host.window()->activeFocusItem();
+        if (!current || current->objectName() != "proxy_node_search")
+            return false;
+        QTest::keyClick(host.window(), Qt::Key_Space);
+        return activated.isEmpty() && current->property("text").toString() == " ";
+    };
+    if (!checkFocusRecycling(false))
+        return 309;
+    proxies->setProperty("searchText", "");
+    if (!checkFocusRecycling(true))
+        return 310;
+    proxies->setProperty("searchText", "");
+    ui.applyData({2,
+                  "next",
+                  {{"groups", QJsonArray{QJsonObject{{"name", "manual"},
+                                                     {"type", "Selector"},
+                                                     {"canSelect", true},
+                                                     {"current", "node_499"},
+                                                     {"members", members}}}}},
+                  ui.dataDemands().generations});
+    QTest::qWait(40);
+    grid = findGrid(findGrid, host.window()->contentItem());
     if (!grid || !QMetaObject::invokeMethod(grid, "focusMember", Q_ARG(QVariant, 499)))
         return 75;
     QTest::qWait(60);
@@ -1556,6 +1672,24 @@ int runRuntimeListProbe(ApplicationHost& host) {
     if (!capturePath.isEmpty() &&
         !host.window()->grabWindow().save(QDir(capturePath).filePath("node_located_500.png")))
         return 281;
+    ui.applyData({2,
+                  "next",
+                  {{"groups", QJsonArray{QJsonObject{{"name", "manual"},
+                                                     {"type", "Selector"},
+                                                     {"canSelect", true},
+                                                     {"current", "node_499"},
+                                                     {"members", members}},
+                                         QJsonObject{{"name", "empty-group"},
+                                                     {"type", "Selector"},
+                                                     {"canSelect", true},
+                                                     {"members", QJsonArray{}}}}}},
+                  ui.dataDemands().generations});
+    proxies->setProperty("searchText", "empty-group");
+    QTest::qWait(50);
+    auto* emptyGroup = findVisualItem(host.window()->contentItem(), "proxy_group_empty-group");
+    emptySearch = host.window()->findChild<QQuickItem*>("proxy_search_empty");
+    if (!emptyGroup || !emptyGroup->isVisible() || !emptySearch || emptySearch->isVisible())
+        return 311;
     proxies->setProperty("searchText", "NODE_49");
     if (!ui.navigate("home") || !ui.navigate("proxies"))
         return 228;

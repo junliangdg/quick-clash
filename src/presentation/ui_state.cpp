@@ -1278,6 +1278,13 @@ void UiState::runtimeCommand(const QString& command, const QStringList& argument
         settings_->command(command, arguments);
     }
 }
+void UiState::setWebsiteTestDraft(const QString& draft) {
+    if (websiteTestDraftActive_ && websiteTestDraft_ == draft)
+        return;
+    websiteTestDraft_ = draft;
+    websiteTestDraftActive_ = true;
+    emit websiteTestDraftChanged();
+}
 void UiState::copyText(const QString& text) {
     if (qobject_cast<QGuiApplication*>(QCoreApplication::instance()) && text.size() <= 8192 &&
         QGuiApplication::clipboard())

@@ -511,23 +511,82 @@ ApplicationWindow {
             modal: true
             closePolicy: Popup.CloseOnEscape
             initialFocusItem: closeCancel
-            contentItem: ColumnLayout {
-                spacing: tokens.gap
-                Label {
-                    text: window.ui.trayAvailable ? qsTr("QuickClash will keep running. Open it again from the tray. This choice will be remembered.") : qsTr("The window will remain visible. You can minimize it or quit QuickClash.")
-                    color: tokens.text
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
-                RowLayout {
-                    ActionButton { id: closeCancel; objectName: "close_cancel"; theme: tokens; text: qsTr("Cancel"); onClicked: closeDialog.close() }
-                    Item { Layout.fillWidth: true }
-                    ActionButton { theme: tokens; text: qsTr("Quit"); destructive: true; onClicked: { closeDialog.close(); window.ui.requestQuit(); } }
-                    ActionButton {
-                        theme: tokens
-                        prominent: true
-                        text: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Minimize")
-                        onClicked: { closeDialog.close(); if (window.ui.trayAvailable) window.ui.requestClose(true); else window.ui.requestMinimize(); }
+            height: Math.min(implicitHeight, Math.max(0, window.height - 40))
+            function revealAction(action: Item): void {
+                if (!action.activeFocus)
+                    return;
+                Qt.callLater(() => {
+                    if (!action.activeFocus)
+                        return;
+                    const bounds = action.mapToItem(closeViewport.contentItem, 0, 0, action.width, action.height);
+                    const maximum = Math.max(0, closeViewport.contentHeight - closeViewport.height);
+                    if (bounds.y < closeViewport.contentY)
+                        closeViewport.contentY = Math.max(0, bounds.y);
+                    else if (bounds.y + bounds.height > closeViewport.contentY + closeViewport.height)
+                        closeViewport.contentY = Math.min(maximum, bounds.y + bounds.height - closeViewport.height);
+                });
+            }
+            function revealFocusedAction(): void {
+                if (closeCancel.activeFocus)
+                    revealAction(closeCancel);
+                else if (closeQuit.activeFocus)
+                    revealAction(closeQuit);
+                else if (closeAction.activeFocus)
+                    revealAction(closeAction);
+            }
+            contentItem: Flickable {
+                id: closeViewport
+                objectName: "close_confirmation_viewport"
+                implicitHeight: closeContent.implicitHeight
+                contentWidth: width
+                contentHeight: closeContent.implicitHeight
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                onHeightChanged: closeDialog.revealFocusedAction()
+                onContentHeightChanged: closeDialog.revealFocusedAction()
+                ScrollBar.vertical: ScrollBar { width: tokens.scrollBarWidth }
+                ColumnLayout {
+                    id: closeContent
+                    width: closeViewport.width
+                    spacing: tokens.gap
+                    Label {
+                        text: window.ui.trayAvailable ? qsTr("QuickClash will keep running. Open it again from the tray. This choice will be remembered.") : qsTr("The window will remain visible. You can minimize it or quit QuickClash.")
+                        color: tokens.text
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 8
+                        ActionButton {
+                            id: closeCancel
+                            objectName: "close_cancel"
+                            theme: tokens
+                            width: Math.min(implicitWidth, parent.width)
+                            text: qsTr("Cancel")
+                            onActiveFocusChanged: closeDialog.revealAction(closeCancel)
+                            onClicked: closeDialog.close()
+                        }
+                        ActionButton {
+                            id: closeQuit
+                            objectName: "close_quit"
+                            theme: tokens
+                            width: Math.min(implicitWidth, parent.width)
+                            text: qsTr("Quit")
+                            destructive: true
+                            onActiveFocusChanged: closeDialog.revealAction(closeQuit)
+                            onClicked: { closeDialog.close(); window.ui.requestQuit(); }
+                        }
+                        ActionButton {
+                            id: closeAction
+                            objectName: "close_action"
+                            theme: tokens
+                            width: Math.min(implicitWidth, parent.width)
+                            prominent: true
+                            text: window.ui.trayAvailable ? qsTr("Close to tray") : qsTr("Minimize")
+                            onActiveFocusChanged: closeDialog.revealAction(closeAction)
+                            onClicked: { closeDialog.close(); if (window.ui.trayAvailable) window.ui.requestClose(true); else window.ui.requestMinimize(); }
+                        }
                     }
                 }
             }

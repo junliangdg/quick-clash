@@ -32,6 +32,7 @@ Item {
         return result;
     }
     readonly property int matchingCount: groups.reduce((count, group) => count + (matchingMembers[group.name] || []).length, 0)
+    readonly property bool hasMatchingGroup: groups.some(group => group.name.toLocaleLowerCase().includes(query))
     readonly property string currentGroup: {
         if (!runtime.ready || (runtime.outbound || {}).balanced || (runtime.preferences || {}).mode === "direct")
             return "";
@@ -60,7 +61,7 @@ Item {
         return names;
     }
     readonly property bool progressOwnerVisible: groups.some(group => group.name === progress.group &&
-        (query.length === 0 || (matchingMembers[group.name] || []).length > 0) &&
+        (query.length === 0 || group.name.toLocaleLowerCase().includes(query) || (matchingMembers[group.name] || []).length > 0) &&
         (query.length > 0 || expandedGroups.includes(group.name)))
     Component.onCompleted: {
         restoreExpandedGroups();
@@ -254,7 +255,7 @@ Item {
             spacing: 12
             Label {
                 objectName: "proxy_search_empty"
-                visible: root.groups.length > 0 && root.query.length > 0 && root.matchingCount === 0
+                visible: root.groups.length > 0 && root.query.length > 0 && root.matchingCount === 0 && !root.hasMatchingGroup
                 text: qsTr("No matching nodes or groups")
                 color: root.theme.muted
                 Layout.fillWidth: true
@@ -398,7 +399,7 @@ Item {
                     readonly property int nodeColumns: Math.max(1, Math.floor((width - 36) / 232))
                     readonly property real nodeCardWidth: (width - 28 - 8 * (nodeColumns - 1)) / nodeColumns
                     theme: root.theme
-                    visible: root.query.length === 0 || viewMembers.length > 0
+                    visible: root.query.length === 0 || modelData.name.toLocaleLowerCase().includes(root.query) || viewMembers.length > 0
                     Layout.fillWidth: true
                     implicitHeight: groupContent.implicitHeight + 28
                     border.color: root.theme.border
@@ -608,6 +609,9 @@ Item {
                                     readonly property int slotRow: Math.floor(index / groupTile.nodeColumns)
                                     readonly property int memberIndex: (nodeGrid.firstRow + (slotRow + nodeGrid.rowShift) % nodeGrid.poolRows) * groupTile.nodeColumns + index % groupTile.nodeColumns
                                     readonly property string modelData: nodeGrid.members[memberIndex] || ""
+                                    // A recycled control must never retain focus for another member.
+                                    onModelDataChanged: if (activeFocus || (testNode && testNode.activeFocus))
+                                        searchField.forceActiveFocus(Qt.OtherFocusReason)
                                     readonly property var proxyState: {
                                         const revision = root.stateRevision;
                                         // The outer delegate may already be gone during pool teardown.

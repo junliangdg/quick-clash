@@ -44,6 +44,10 @@ class UiState : public QObject {
     Q_PROPERTY(QString sourceState READ sourceState CONSTANT)
     Q_PROPERTY(QVariantMap dashboard READ dashboard NOTIFY storageChanged)
     Q_PROPERTY(QVariantMap runtime READ runtime NOTIFY runtimeChanged)
+    Q_PROPERTY(QString websiteTestDraft READ websiteTestDraft WRITE setWebsiteTestDraft NOTIFY
+                   websiteTestDraftChanged)
+    Q_PROPERTY(
+        bool websiteTestDraftActive READ websiteTestDraftActive NOTIFY websiteTestDraftChanged)
     Q_PROPERTY(QVariantMap settingsSession READ settingsSession NOTIFY settingsSessionChanged)
     Q_PROPERTY(QVariantMap telemetry READ telemetry NOTIFY telemetryChanged)
     Q_PROPERTY(QVariantMap editor READ editor NOTIFY editorChanged)
@@ -91,6 +95,13 @@ class UiState : public QObject {
     [[nodiscard]] QVariantMap runtime() const {
         return runtime_;
     }
+    [[nodiscard]] QString websiteTestDraft() const {
+        return websiteTestDraft_;
+    }
+    [[nodiscard]] bool websiteTestDraftActive() const {
+        return websiteTestDraftActive_;
+    }
+    void setWebsiteTestDraft(const QString& draft);
     [[nodiscard]] bool runtimeBusy() const {
         return subscriptionImportPending_ || runtime_.value(QStringLiteral("busy")).toBool();
     }
@@ -349,6 +360,7 @@ class UiState : public QObject {
     void usageNoticeChanged();
     void usageNoticeRequested();
     void runtimeChanged();
+    void websiteTestDraftChanged();
     void settingsSessionChanged();
     void settingsQuitConfirmationRequired();
     void profilesChanged();
@@ -434,6 +446,8 @@ class UiState : public QObject {
     bool settingsReady_ = false;
     QString storageError_;
     QVariantMap runtime_;
+    QString websiteTestDraft_;
+    bool websiteTestDraftActive_ = false;
     SettingsSession settingsSession_;
     bool settingsQuitApproved_ = false;
     QVariantMap userRulesDraft_;

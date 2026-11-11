@@ -92,7 +92,8 @@ ThemedScrollView {
                 placeholderText: qsTr("https://your-website.example")
                 wrapMode: TextEdit.Wrap
                 Layout.preferredHeight: 110
-                text: root.ui.runtime.testTarget || ""
+                text: root.ui.websiteTestDraftActive ? root.ui.websiteTestDraft : root.ui.runtime.testTarget || ""
+                onTextEdited: root.ui.websiteTestDraft = text
             }
             Label {
                 objectName: "website_target_count"

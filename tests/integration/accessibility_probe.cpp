@@ -347,6 +347,40 @@ int runAccessibilityProbe(ApplicationHost& host) {
                      window->activeFocusItem()->objectName() == "close_cancel",
                  "confirmation defaults to cancel"))
         return 165;
+    auto* closeViewport = findItem(window, "close_confirmation_viewport");
+    auto* closeCancel = findItem(window, "close_cancel");
+    auto* closeQuit = findItem(window, "close_quit");
+    auto* closeAction = findItem(window, "close_action");
+    if (!closeViewport || !closeCancel || !closeQuit || !closeAction)
+        return 190;
+    for (const bool trayAvailable : {false, true}) {
+        ui.setTrayAvailable(trayAvailable);
+        for (const int pixels : {14, 21, 32}) {
+            auto closeFont = baselineFont;
+            closeFont.setPixelSize(pixels);
+            QApplication::setFont(closeFont);
+            for (const auto size : {QSize{1000, 800}, QSize{360, 480}}) {
+                host.resizeWindow(size);
+                QTest::qWait(40);
+                for (auto* action : {closeCancel, closeQuit, closeAction}) {
+                    action->forceActiveFocus();
+                    QTest::qWait(20);
+                    const auto topLeft = action->mapToItem(closeViewport, QPointF());
+                    if (!require(
+                            action->hasActiveFocus() && topLeft.x() >= -0.5 &&
+                                topLeft.y() >= -0.5 &&
+                                topLeft.x() + action->width() <= closeViewport->width() + 0.5 &&
+                                topLeft.y() + action->height() <= closeViewport->height() + 0.5,
+                            "close actions remain visible across width and font changes"))
+                        return 191;
+                }
+            }
+        }
+    }
+    ui.setTrayAvailable(false);
+    QApplication::setFont(baselineFont);
+    host.resizeWindow({1000, 800});
+    QTest::qWait(50);
     for (int index = 0; index < 8; ++index) {
         QTest::keyClick(window, Qt::Key_Tab);
         if (!require(window->activeFocusItem() && window->activeFocusItem() != route &&
